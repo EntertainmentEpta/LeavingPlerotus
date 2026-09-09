@@ -288,6 +288,7 @@ MonoBehaviour:
   - {fileID: 8036747435783641409, guid: 3a63c06855d564f41b482bd284f9f3e3, type: 3}
   - {fileID: 7448369051805098021, guid: 46c61c64b1c7b584a98a21c8b33f08be, type: 3}
   - {fileID: 4560169563027851190, guid: afb62f7e72aafd7488de8123fd536ad9, type: 3}
+  - {fileID: 9192292880141030860, guid: 65bac7cb0f41ead4a943cba5dab0e681, type: 3}
   merchantRoomPrefab: {fileID: 4772105080490564613, guid: c6d1cffb5a3f2d34c8293a6ecfb1753a, type: 3}
   merchantPrefab: {fileID: 3761318572803560436, guid: 439bea62bc2f06f4e87293ba77d6853a, type: 3}
   exitRoomPrefab: {fileID: 9111555122348223166, guid: ff1acf62bd7027d4981f6509e9052a16, type: 3}

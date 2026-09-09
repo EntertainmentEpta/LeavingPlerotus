@@ -123,6 +123,16 @@ public class RoomController : MonoBehaviour
     [Tooltip("Altura acima do CHÃO da SpawnArea onde inimigos aparecem. 0.1 = rente ao chão.")]
     public float spawnHeightOffset = 0.1f;
 
+    [Header("Bolsa Sintética - Probabilidades Ponderadas no Inspector")]
+    [Tooltip("Lista de opções de Fauna terrestre/aérea com seus pesos de probabilidade no Inspector")]
+    public List<CollectibleSpawnEntry> faunaSpawnEntries = new List<CollectibleSpawnEntry>();
+    [Tooltip("Lista de opções de Flora com seus pesos de probabilidade no Inspector")]
+    public List<CollectibleSpawnEntry> floraSpawnEntries = new List<CollectibleSpawnEntry>();
+    [Tooltip("Lista de opções de Minérios com seus pesos de probabilidade no Inspector")]
+    public List<CollectibleSpawnEntry> mineralSpawnEntries = new List<CollectibleSpawnEntry>();
+    [Tooltip("Fauna aquática exclusiva para salas de lagoa (Peixe Lampião)")]
+    public CollectibleSpawnEntry waterFaunaEntry;
+
     // =====================================================
     // PORTAS E REFERÊNCIAS
     // =====================================================
@@ -175,6 +185,8 @@ public class RoomController : MonoBehaviour
 
     void Awake()
     {
+        EnsureDefaultCollectibleEntries();
+
         if (enemyPoolConfig == null)
         {
             enemyPoolConfig = Resources.Load<EnemyPoolConfig>("DefaultEnemyPool");
@@ -772,31 +784,115 @@ public class RoomController : MonoBehaviour
         return new Vector3(x, y, z);
     }
 
+    private void EnsureDefaultCollectibleEntries()
+    {
+        // 1. FAUNA
+        if (faunaSpawnEntries == null || faunaSpawnEntries.Count == 0)
+        {
+            faunaSpawnEntries = new List<CollectibleSpawnEntry>()
+            {
+                new CollectibleSpawnEntry() { itemName = "Vagalume Cristalizado", prefab = Resources.Load<GameObject>("SpawnItems/Fly") ?? Resources.Load<GameObject>("Fly"), itemData = Resources.Load<ItemData>("ItemData/vagalume_cristalizado"), weight = 1.0f },
+                new CollectibleSpawnEntry() { itemName = "Caracol Geodo (Quebradiço)", prefab = Resources.Load<GameObject>("SpawnItems/Quebradiço") ?? Resources.Load<GameObject>("SpawnItems/CarangueijoQuebradisso"), itemData = Resources.Load<ItemData>("ItemData/caracol_geodo"), weight = 1.0f },
+                new CollectibleSpawnEntry() { itemName = "Ovos de Cristal Crawler", prefab = Resources.Load<GameObject>("SpawnItems/Ovocristal") ?? Resources.Load<GameObject>("SpawnItems/Ovocristal.prefab"), itemData = Resources.Load<ItemData>("ItemData/ovo_cristal_crawler"), weight = 1.0f }
+            };
+        }
+
+        // 2. FLORA
+        if (floraSpawnEntries == null || floraSpawnEntries.Count == 0)
+        {
+            floraSpawnEntries = new List<CollectibleSpawnEntry>()
+            {
+                new CollectibleSpawnEntry() { itemName = "Melocactus", prefab = Resources.Load<GameObject>("SpawnItems/Melacotus"), itemData = Resources.Load<ItemData>("ItemData/melocactus"), weight = 1.0f },
+                new CollectibleSpawnEntry() { itemName = "Lithos (Lotus)", prefab = Resources.Load<GameObject>("SpawnItems/Lotus"), itemData = Resources.Load<ItemData>("ItemData/lithos"), weight = 1.0f },
+                new CollectibleSpawnEntry() { itemName = "Árvore de Vagens (Lanternas)", prefab = Resources.Load<GameObject>("SpawnItems/Lanternas"), itemData = Resources.Load<ItemData>("ItemData/arvore_vagens"), weight = 1.0f }
+            };
+        }
+
+        // 3. MINÉRIOS
+        if (mineralSpawnEntries == null || mineralSpawnEntries.Count == 0)
+        {
+            mineralSpawnEntries = new List<CollectibleSpawnEntry>()
+            {
+                new CollectibleSpawnEntry() { itemName = "Cristal (Pó de Cristal)", prefab = Resources.Load<GameObject>("SpawnItems/Cristal"), itemData = Resources.Load<ItemData>("ItemData/po_de_cristal"), weight = 1.0f }
+            };
+        }
+
+        // 4. FAUNA AQUÁTICA EXCLUSIVA (PEIXE LAMPIÃO / LAKE ROOM)
+        if (waterFaunaEntry == null || waterFaunaEntry.itemData == null)
+        {
+            waterFaunaEntry = new CollectibleSpawnEntry()
+            {
+                itemName = "Peixe Lampião",
+                prefab = Resources.Load<GameObject>("SpawnItems/Fly") ?? Resources.Load<GameObject>("Fly"),
+                itemData = Resources.Load<ItemData>("ItemData/peixe_lagoa"),
+                weight = 1.0f
+            };
+        }
+    }
+
+    private CollectibleSpawnEntry GetWeightedRandomEntry(List<CollectibleSpawnEntry> entries)
+    {
+        if (entries == null || entries.Count == 0) return null;
+
+        float totalWeight = 0f;
+        foreach (var entry in entries)
+        {
+            if (entry != null && entry.weight > 0f)
+                totalWeight += entry.weight;
+        }
+
+        if (totalWeight <= 0f) return entries[0];
+
+        float randValue = Random.Range(0f, totalWeight);
+        float currentSum = 0f;
+
+        foreach (var entry in entries)
+        {
+            if (entry == null || entry.weight <= 0f) continue;
+            currentSum += entry.weight;
+            if (randValue <= currentSum)
+            {
+                return entry;
+            }
+        }
+
+        return entries[0];
+    }
+
     private void SpawnRoomCollectibles()
     {
         if (spawnAreas == null || spawnAreas.Count == 0) return;
 
-        // Choose a random spawn area BoxCollider
         BoxCollider area = spawnAreas[Random.Range(0, spawnAreas.Count)];
         if (area == null) return;
 
-        // Load the base prefabs from Resources/SpawnItems folder
-        GameObject crystalPrefab = Resources.Load<GameObject>("SpawnItems/Crystal");
-        GameObject plantPrefab = Resources.Load<GameObject>("SpawnItems/Planta");
-        GameObject faunaPrefab = Resources.Load<GameObject>("SpawnItems/little_frog");
+        EnsureDefaultCollectibleEntries();
 
-        // Fallbacks if not found
-        if (crystalPrefab == null) crystalPrefab = Resources.Load<GameObject>("SpawnItems/stone_low+");
-        if (faunaPrefab == null) faunaPrefab = Resources.Load<GameObject>("SpawnItems/tinker");
+        // Detecta se a sala é uma LakeRoom (ou contém corpo d'água)
+        bool isLakeRoom = gameObject.name.ToLower().Contains("lake") || 
+                          transform.Find("Water") != null || 
+                          GetComponentInChildren<Collider>()?.gameObject.name.ToLower().Contains("water") == true;
 
-        // 1. Spawn Minerals (Cube, on ground - targets for Geobionte fusion)
-        if (crystalPrefab != null)
+        // 1. Spawn Minerals (No chão)
+        CollectibleSpawnEntry mineralEntry = GetWeightedRandomEntry(mineralSpawnEntries);
+        if (mineralEntry != null && mineralEntry.prefab != null)
         {
             Vector3 pos = GetRandomPositionForCollectible(area, false, false);
-            GameObject obj = Instantiate(crystalPrefab, pos, Quaternion.identity);
+            GameObject obj = Instantiate(mineralEntry.prefab, pos, Quaternion.identity);
             
             ItemPickup pickup = obj.GetComponent<ItemPickup>();
-            if (pickup != null) pickup.InitializeItem("Minerals");
+            if (pickup == null) pickup = obj.AddComponent<ItemPickup>();
+
+            Interactable interactable = obj.GetComponent<Interactable>();
+            if (interactable == null) interactable = obj.AddComponent<Interactable>();
+
+            if (mineralEntry.itemData != null)
+            {
+                interactable.itemData = mineralEntry.itemData;
+                interactable.objetoNome = mineralEntry.itemData.itemName;
+            }
+            
+            pickup.InitializeItem("Minerals");
 
             if (obj.GetComponent<OreNode>() == null)
             {
@@ -804,24 +900,59 @@ public class RoomController : MonoBehaviour
             }
         }
 
-        // 2. Spawn Fauna (High/floating, glowing)
-        if (faunaPrefab != null)
+        // 2. Spawn Fauna (Peixe Lampião na água se LakeRoom; Fauna terrestre/aérea sorteada se sala comum)
+        CollectibleSpawnEntry faunaEntry = isLakeRoom && waterFaunaEntry != null && waterFaunaEntry.itemData != null ? 
+                                             waterFaunaEntry : GetWeightedRandomEntry(faunaSpawnEntries);
+
+        if (faunaEntry != null)
         {
-            Vector3 pos = GetRandomPositionForCollectible(area, true, false);
-            GameObject obj = Instantiate(faunaPrefab, pos, Quaternion.identity);
-            
-            ItemPickup pickup = obj.GetComponent<ItemPickup>();
-            if (pickup != null) pickup.InitializeItem("Fauna");
+            GameObject faunaPrefabToInstantiate = faunaEntry.prefab;
+            if (faunaPrefabToInstantiate == null)
+            {
+                faunaPrefabToInstantiate = Resources.Load<GameObject>("SpawnItems/Fly") ?? Resources.Load<GameObject>("Fly");
+            }
+
+            if (faunaPrefabToInstantiate != null)
+            {
+                Vector3 pos = GetRandomPositionForCollectible(area, false, false);
+                GameObject obj = Instantiate(faunaPrefabToInstantiate, pos, Quaternion.identity);
+                
+                ItemPickup pickup = obj.GetComponent<ItemPickup>();
+                if (pickup == null) pickup = obj.AddComponent<ItemPickup>();
+
+                Interactable interactable = obj.GetComponent<Interactable>();
+                if (interactable == null) interactable = obj.AddComponent<Interactable>();
+
+                if (faunaEntry.itemData != null)
+                {
+                    interactable.itemData = faunaEntry.itemData;
+                    interactable.objetoNome = faunaEntry.itemData.itemName;
+                }
+
+                pickup.InitializeItem("Fauna");
+            }
         }
 
-        // 3. Spawn Flora (Flat on ground, near walls, glowing)
-        if (plantPrefab != null)
+        // 3. Spawn Flora (No chão)
+        CollectibleSpawnEntry floraEntry = GetWeightedRandomEntry(floraSpawnEntries);
+        if (floraEntry != null && floraEntry.prefab != null)
         {
             Vector3 pos = GetRandomPositionForCollectible(area, false, true);
-            GameObject obj = Instantiate(plantPrefab, pos, Quaternion.identity);
+            GameObject obj = Instantiate(floraEntry.prefab, pos, Quaternion.identity);
             
             ItemPickup pickup = obj.GetComponent<ItemPickup>();
-            if (pickup != null) pickup.InitializeItem("Flora");
+            if (pickup == null) pickup = obj.AddComponent<ItemPickup>();
+
+            Interactable interactable = obj.GetComponent<Interactable>();
+            if (interactable == null) interactable = obj.AddComponent<Interactable>();
+
+            if (floraEntry.itemData != null)
+            {
+                interactable.itemData = floraEntry.itemData;
+                interactable.objetoNome = floraEntry.itemData.itemName;
+            }
+
+            pickup.InitializeItem("Flora");
         }
     }
 
@@ -830,4 +961,16 @@ public class RoomController : MonoBehaviour
         if (list == null || list.Count == 0) return null;
         return list[Random.Range(0, list.Count)];
     }
+}
+
+/// <summary>
+/// Estrutura para configurar probabilidades ponderadas de spawn de coletáveis da Bolsa Sintética.
+/// </summary>
+[System.Serializable]
+public class CollectibleSpawnEntry
+{
+    public string itemName;
+    public GameObject prefab;
+    public ItemData itemData;
+    [Range(0.1f, 100f)] public float weight = 1.0f;
 }

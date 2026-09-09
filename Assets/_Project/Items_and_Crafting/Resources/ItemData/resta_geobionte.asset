@@ -17,8 +17,8 @@ MonoBehaviour:
   description: "Matéria orgânica fóssil encontrada nas profundezas."
   icon: {fileID: 0}
   tier: 1
-  enemySource: "Fauna"
-  returnsToBase: 1
+  enemySource: ""
+  returnsToBase: 0
   recycleEssenceValue: 15
   infusionEssenceCost: 60
   itemAttributes: []
