@@ -208,61 +208,63 @@ public class PlayerPreviewManager : MonoBehaviour
 
         if (enableSpringArm && playerT != null)
         {
-            // Direção mundial do braço da câmera (de onde o player "lança" a câmera).
-            // A câmera está deslocada em localPosition = previewCamOffset e rotacionada 180°
-            // no Y para olhar de volta ao player, então o braço aponta na direção -forward do player
-            // mais o offset lateral/vertical.
+            // ── Posição IDEAL da câmera em espaço mundial ─────────────────────
+            // TransformPoint converte o offset local para coordenadas mundiais,
+            // levando em conta posição, rotação e escala do player — sem suposições.
+            Vector3 idealCamWorldPos = playerT.TransformPoint(previewCamOffset);
 
-            // Distância ideal (comprimento total do braço sem obstáculos)
-            float idealDist = previewCamOffset.z; // componente Z do offset = distância do player
+            // ── Pivot = ponto de onde o braço parte (altura dos olhos do personagem) ─
+            // Usamos apenas o offset de altura (Y) para o pivot — o raio é disparado
+            // da linha de visão do personagem, não dos seus pés.
+            Vector3 pivotWorldPos = playerT.position + playerT.up * previewCamOffset.y;
 
-            // Pivot = posição do player + offset XY em espaço mundial
-            // (centro de onde o raio começa — altura dos olhos do personagem)
-            Vector3 pivotWorldPos = playerT.position
-                + playerT.right   * previewCamOffset.x
-                + playerT.up      * previewCamOffset.y;
+            // ── Direção e comprimento do braço ────────────────────────────────
+            // Calculados a partir das posições reais — funciona para qualquer valor de offset.
+            Vector3 toCamera   = idealCamWorldPos - pivotWorldPos;
+            float   idealDist  = toCamera.magnitude;
+            Vector3 armDirection = idealDist > 0.001f ? toCamera / idealDist : playerT.forward;
 
-            // Direção do braço: da câmera em direção ao player (a câmera está "atrás" do player).
-            // Como a câmera tem rotação 180° no Y, ela olha para -forward do player.
-            // O braço vai de pivotWorldPos até pivotWorldPos + (-playerForward * idealDist).
-            Vector3 armDirection = -playerT.forward; // câmera fica atrás do player
-
-            // Inicializa a distância atual na primeira vez (sem snap)
+            // Inicializa a distância atual na primeira vez para evitar snap brusco
             if (!_springArmInitialized)
             {
                 _springArmCurrentDist = idealDist;
                 _springArmInitialized = true;
             }
 
-            // SphereCast do pivot na direção do braço até a distância ideal.
-            // SphereCast é melhor que Raycast pois detecta paredes que o ray fino passaria.
+            // ── SphereCast do pivot até a posição ideal da câmera ────────────
+            // SphereCast detecta paredes grossas que um Raycast fino passaria.
             float targetDist = idealDist;
 
-            // Exclui o próprio layer do Player e outros objetos irrelevantes da detecção
+            // Remove layers de objetos que não devem bloquear a câmera
             int mask = springArmCollisionMask;
-            // Remove layers de Player, Enemy, Item, Weapon, DeadBody da máscara
             mask &= ~LayerMask.GetMask("Player", "Enemy", "Item", "Weapon", "DeadBody", "Ignore Raycast");
 
-            if (Physics.SphereCast(pivotWorldPos, springArmProbeRadius, armDirection,
-                out RaycastHit hit, idealDist, mask, QueryTriggerInteraction.Ignore))
+            if (idealDist > 0.01f && Physics.SphereCast(
+                    pivotWorldPos, springArmProbeRadius, armDirection,
+                    out RaycastHit hit, idealDist, mask, QueryTriggerInteraction.Ignore))
             {
-                // Parede detectada: posiciona a câmera antes do ponto de impacto
+                // Parede detectada: recua a câmera para antes do ponto de colisão
                 targetDist = Mathf.Max(0.05f, hit.distance - springArmWallOffset);
             }
 
-            // Interpolação suave:
-            // - Aproxima rápido (parede surgiu de repente)
-            // - Recua devagar (parede sumiu, câmera volta ao lugar)
+            // ── Lerp assimétrico: aproxima rápido, recua devagar ──────────────
             float lerpSpeed = targetDist < _springArmCurrentDist
-                ? springArmZoomSpeed       // aproxima rápido
-                : springArmReturnSpeed;    // recua devagar
+                ? springArmZoomSpeed    // parede apareceu — aproxima rápido
+                : springArmReturnSpeed; // parede sumiu  — recua devagar
 
             _springArmCurrentDist = Mathf.Lerp(_springArmCurrentDist, targetDist, lerpSpeed * Time.deltaTime);
 
-            // Aplica a posição calculada em espaço local do player
-            Vector3 clampedOffset = new Vector3(previewCamOffset.x, previewCamOffset.y, _springArmCurrentDist);
+            // ── Aplica a posição em espaço local do player ────────────────────
+            // Escala o offset na direção do braço (não apenas no Z) para funcionar
+            // mesmo que o offset tenha componentes X ou Y não nulos.
+            float scale = idealDist > 0.001f ? _springArmCurrentDist / idealDist : 1f;
+            Vector3 clampedOffset = new Vector3(
+                previewCamOffset.x * scale,
+                previewCamOffset.y,                 // Y fixo (altura não muda)
+                previewCamOffset.z * scale);
             previewCamera.transform.localPosition = clampedOffset;
         }
+
         else
         {
             // Spring Arm desativado: comportamento original
