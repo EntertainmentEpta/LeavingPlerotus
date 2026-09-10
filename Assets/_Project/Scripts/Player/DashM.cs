@@ -74,6 +74,10 @@ public class DashM : MonoBehaviour
     {
         if (CheatConsole.IsOpen) return;
 
+        // Trava de segurança: Proíbe Dash durante o Ultimate para evitar exploits de voo/cancelamento indevido
+        PlayerUltimate playerUlt = GetComponent<PlayerUltimate>() ?? GetComponentInParent<PlayerUltimate>() ?? GetComponentInChildren<PlayerUltimate>();
+        if (playerUlt != null && playerUlt.IsUltimateActive()) return;
+
         if (Input.GetKeyDown(dashKey))
         {
             lastDashInputTime = Time.time;

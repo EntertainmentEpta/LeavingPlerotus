@@ -15,11 +15,24 @@ public class PlayerAnimationEvents : MonoBehaviour
 
     private void OnAnimatorMove()
     {
+        // Durante a Ultimate, não interfere com o salto da habilidade
+        PlayerUltimate ult = GetComponentInParent<PlayerUltimate>() ?? GetComponent<PlayerUltimate>();
+        if (ult != null && ult.IsUltimateActive()) return;
+
+        if (anim == null) anim = GetComponent<Animator>();
+        if (playerRb == null) playerRb = GetComponentInParent<Rigidbody>() ?? GetComponent<Rigidbody>();
+
         if (anim != null && anim.applyRootMotion && playerRb != null)
         {
             // Repassa o deslocamento do Root Motion da animação para a física do Rigidbody pai
-            playerRb.MovePosition(playerRb.position + anim.deltaPosition);
-            playerRb.MoveRotation(playerRb.rotation * anim.deltaRotation);
+            if (anim.deltaPosition.sqrMagnitude > 0.000001f)
+            {
+                playerRb.MovePosition(playerRb.position + anim.deltaPosition);
+            }
+            if (anim.deltaRotation != Quaternion.identity)
+            {
+                playerRb.MoveRotation(playerRb.rotation * anim.deltaRotation);
+            }
         }
     }
 
@@ -125,6 +138,11 @@ public class PlayerAnimationEvents : MonoBehaviour
     /// </summary>
     public void EndUltimateSequence()
     {
+        if (anim != null)
+        {
+            anim.applyRootMotion = false;
+        }
+
         PlayerUltimate ultManager = GetComponentInParent<PlayerUltimate>() ?? GetComponent<PlayerUltimate>();
         if (ultManager == null)
         {
