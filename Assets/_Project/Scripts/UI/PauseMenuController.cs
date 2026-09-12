@@ -1,6 +1,6 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.UI; // <-- Adicionamos isso para ler os Sliders!
+using UnityEngine.UI;
 
 public class PauseMenuController : MonoBehaviour
 {
@@ -25,7 +25,6 @@ public class PauseMenuController : MonoBehaviour
         Time.timeScale = 1f; 
 
         // === CORREÇÃO VISUAL DOS SLIDERS ===
-        // Quando a cena carregar, empurra as barrinhas para a posição correta
         if (sliderBGM != null) sliderBGM.value = PlayerPrefs.GetFloat("SavedBGM", 0.75f);
         if (sliderSFX != null) sliderSFX.value = PlayerPrefs.GetFloat("SavedSFX", 0.75f);
         if (sliderMaster != null) sliderMaster.value = PlayerPrefs.GetFloat("SavedMaster", 1f);
@@ -33,6 +32,10 @@ public class PauseMenuController : MonoBehaviour
 
     void Update()
     {
+        // === TRAVA DO ESC ===
+        // Se a tela de Morte ou Vitória estiver ativa, aborta o Update e ignora o ESC
+        if (IsGameOverScreenActive()) return;
+
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             if (optionsPanel != null && optionsPanel.activeSelf)
@@ -45,6 +48,28 @@ public class PauseMenuController : MonoBehaviour
                 else PauseGame();
             }
         }
+    }
+
+    // Função que verifica se o jogo já acabou (Morte ou Vitória)
+    private bool IsGameOverScreenActive()
+    {
+        // Checa a tela de morte
+        if (DeathScreenUI.Instance != null && 
+            DeathScreenUI.Instance.deathPanel != null && 
+            DeathScreenUI.Instance.deathPanel.activeSelf)
+        {
+            return true;
+        }
+
+        // Checa a tela de vitória
+        if (VictoryScreenUI.Instance != null && 
+            VictoryScreenUI.Instance.victoryPanel != null && 
+            VictoryScreenUI.Instance.victoryPanel.activeSelf)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     public void PauseGame()
@@ -91,7 +116,6 @@ public class PauseMenuController : MonoBehaviour
     {
         if (GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.mainMixer != null)
         {
-            // Se a barrinha zerar, muta completamente (-80f). Se não, usa a fórmula suave.
             float volume = (value <= 0.001f) ? -80f : Mathf.Log10(value) * 20f;
             GlobalAudioManager.Instance.mainMixer.SetFloat("BGMVolume", volume);
             PlayerPrefs.SetFloat("SavedBGM", value);
