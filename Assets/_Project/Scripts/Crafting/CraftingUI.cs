@@ -64,6 +64,7 @@ public class CraftingUI : MonoBehaviour
     private bool isOpen = false;
     private bool uiBuilt = false;
     private CraftingRecipe selectedRecipe;
+    private int currentTab = 0;
 
     public TMP_FontAsset customFont;
 
@@ -239,7 +240,15 @@ public class CraftingUI : MonoBehaviour
 
     private void RefreshRecipeList()
     {
-        List<CraftingRecipe> recipes = CraftingManager.Instance.GetAllRecipes();
+        List<CraftingRecipe> allRecipes = CraftingManager.Instance.GetAllRecipes();
+        List<CraftingRecipe> recipes = new List<CraftingRecipe>();
+        
+        foreach (var r in allRecipes)
+        {
+            bool isBase = r.resultEquipment != null && r.resultEquipment.isBaseUpgrade;
+            if (currentTab == 0 && !isBase) recipes.Add(r);
+            else if (currentTab == 1 && isBase) recipes.Add(r);
+        }
 
         // Limpa slots antigos
         foreach (var slot in recipeSlots)
@@ -346,6 +355,7 @@ public class CraftingUI : MonoBehaviour
 
         // Cria slots para cada equipamento craftado
         List<EquipmentData> owned = EquipmentManager.Instance.GetOwnedEquipment();
+        owned.RemoveAll(e => e.isBaseUpgrade);
 
         foreach (var equip in owned)
         {
@@ -1218,3 +1228,4 @@ public class UpgradeHoverHandler : MonoBehaviour, IPointerEnterHandler, IPointer
         onHover?.Invoke(equipment, false);
     }
 }
+

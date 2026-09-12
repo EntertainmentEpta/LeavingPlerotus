@@ -60,11 +60,15 @@ public class EquipmentData : ScriptableObject
     public Sprite icon;
 
     [Header("Efeito")]
-    [Tooltip("Tipo de efeito aplicado ao equipar")]
+    [Tooltip("Tipo de efeito aplicado ao equipar (ou imediatamente se for de base)")]
     public EquipmentEffectType effectType = EquipmentEffectType.InventorySlotExpansion;
 
     [Tooltip("Valor do efeito (ex: 5 para +5 slots, 20 para +20 HP)")]
     public float effectValue = 5f;
+
+    [Header("Tipo de Melhoria")]
+    [Tooltip("Se verdadeiro, esta melhoria pertence à Base (não precisa ser equipada/desequipada e tem aba própria no Crafting).")]
+    public bool isBaseUpgrade = false;
 
     [Header("Limites")]
     [Tooltip("Quantas cópias desta melhoria o jogador pode possuir (0 = ilimitado)")]
