@@ -23,7 +23,10 @@ public enum EquipmentEffectType
     DashCountsBoost,         // Aumenta a quantidade de cargas de dash
     DashInvulnerabilityBoost, // Aumenta o tempo de invulnerabilidade do dash
     MagnetRangeBoost,        // Aumenta o raio de atração de essências
-    BarrierCounterDisplay    // Exibe o contador de salas/barreiras na UI (Detector de Barreiras)
+    BarrierCounterDisplay,   // Exibe o contador de salas/barreiras na UI (Detector de Barreiras)
+    UnlockSynergyMap,        // Desbloqueia o Mapa de Sinergias no Oráculo Eptinho
+    UnlockProjectileWeapon,  // Desbloqueia a Arma de Projétil para a run
+    RepairLabDoor            // Conserta a porta do Laboratório na Base
 }
 
 /// <summary>
