@@ -135,6 +135,18 @@ public class AcidPuddleSpawner : MonoBehaviour
         }
     }
 
+    // Spawn-on-demand para o projétil ácido do boss — ignora o loop temporizado.
+    public void SpawnAtPosition(Vector3 worldPos)
+    {
+        if (acidPuddlePrefab == null) return;
+        if (AcidPuddle.ActiveCount >= maxSimultaneousPuddles) return;
+
+        Instantiate(acidPuddlePrefab, worldPos, Quaternion.identity);
+
+        if (showDebugLog)
+            Debug.Log($"[AcidPuddleSpawner] SpawnAtPosition em {worldPos} | Ativas: {AcidPuddle.ActiveCount + 1}/{maxSimultaneousPuddles}");
+    }
+
     // ── Coroutine ─────────────────────────────────────────────────────────────
     private IEnumerator SpawnRoutine()
     {

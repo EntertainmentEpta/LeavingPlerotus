@@ -48,6 +48,10 @@ public class AcidPuddle : MonoBehaviour
     [Tooltip("Tempo em segundos até a poça desaparecer automaticamente.")]
     public float lifetime = 8f;
 
+    [Header("Spawn Animation")]
+    [Tooltip("Segundos para a poça crescer do zero até o tamanho final.")]
+    public float spawnDuration = 0.6f;
+
     [Header("Debug")]
     public bool showDebugLog = false;
 
@@ -92,6 +96,7 @@ public class AcidPuddle : MonoBehaviour
 
         // Auto-destruição pelo tempo de vida
         Destroy(gameObject, lifetime);
+        StartCoroutine(SpawnAnimation());
     }
 
     void OnDestroy()
@@ -111,6 +116,34 @@ public class AcidPuddle : MonoBehaviour
                     Debug.Log("[AcidPuddle] Poça expirou com player dentro → slow removido.");
             }
         }
+    }
+
+    // =====================================================
+    // SPAWN ANIMATION
+    // =====================================================
+
+    private IEnumerator SpawnAnimation()
+    {
+        Vector3 finalScale = transform.localScale;
+        transform.localScale = Vector3.zero;
+
+        // Collider inativo durante o crescimento para não dar dano antes de aparecer
+        Collider col = GetComponent<Collider>();
+        if (col != null) col.enabled = false;
+
+        float elapsed = 0f;
+        while (elapsed < spawnDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / spawnDuration;
+            // EaseOutBack: cresce além do tamanho e recua levemente no fim
+            float s = 1f + 2.70158f * Mathf.Pow(t - 1f, 3f) + 1.70158f * Mathf.Pow(t - 1f, 2f);
+            transform.localScale = finalScale * Mathf.Clamp01(s);
+            yield return null;
+        }
+
+        transform.localScale = finalScale;
+        if (col != null) col.enabled = true;
     }
 
     // =====================================================

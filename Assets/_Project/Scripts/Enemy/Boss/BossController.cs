@@ -161,6 +161,31 @@ public class BossController : MonoBehaviour
     [Tooltip("Prefab de VFX de estilhaço de cristal opcional ao quebrar os espinhos (se nulo, gerado proceduralmente com alta performance).")]
     public GameObject spikeShatterVFXPrefab;
 
+    [Header("🧪 Cuspida Ácida (Fase 3)")]
+    [Tooltip("Prefab do projétil com AcidSpitProjectile + Rigidbody + Collider (non-trigger).")]
+    public GameObject acidSpitProjectilePrefab;
+
+    [Tooltip("Prefab da AcidPuddle – fallback se não houver AcidPuddleSpawner na cena.")]
+    public GameObject acidPuddlePrefabForSpit;
+
+    [Tooltip("Trigger do Animator no telegraph (cabeça recua). Troque pelo clip de spit quando disponível.")]
+    public string acidSpitAnimTrigger = "SimpleCast";
+
+    [Tooltip("Duração do telegraph visual antes de cuspir (segundos).")]
+    public float acidSpitTelegraphDuration = 0.8f;
+
+    [Tooltip("Força do lançamento (parábola calculada internamente no projétil).")]
+    public float acidSpitForce = 15f;
+
+    [Tooltip("Distância mínima para cuspir.")]
+    public float acidSpitMinRange = 4.5f;
+
+    [Tooltip("Distância máxima para cuspir.")]
+    public float acidSpitMaxRange = 12f;
+
+    [Tooltip("Transform do osso/mão de onde o projétil sai. Se nulo usa chest + forward offset.")]
+    public Transform acidSpitLaunchPoint;
+
 
     [Header("Sangue Ácido (Invisibilidade)")]
     [Tooltip("Prefab do sangue ácido que pinga no chão durante a invisibilidade.")]
@@ -252,6 +277,7 @@ public class BossController : MonoBehaviour
 
     // Ataque melee e Locomoção
     private float meleeTimer = 0f;
+    private float acidSpitTimer = 0f;
     private bool isAttacking = false;
     private bool isSprinting = false;
     private string lastMeleeAttack = "";
@@ -993,6 +1019,7 @@ public class BossController : MonoBehaviour
 
         // Timers
         if (meleeTimer > 0) meleeTimer -= Time.deltaTime;
+        if (acidSpitTimer > 0) acidSpitTimer -= Time.deltaTime;
 
         // Lógica por estado
         switch (CurrentState)
@@ -1686,6 +1713,131 @@ public class BossController : MonoBehaviour
     }
 
     // =====================================================
+    // 💧 CUSPIDA ÁCIDA (FASE 3)
+    // =====================================================
+
+    public void PerformAcidSpit()
+    {
+        if (!CanInitiateAction) return;
+        StartCoroutine(AcidSpitRoutine());
+    }
+
+    private IEnumerator AcidSpitRoutine()
+    {
+        isCastingSpell = true;
+        acidSpitTimer = acidSpitCooldown;
+
+        if (agent != null && agent.enabled && agent.isOnNavMesh)
+        {
+            agent.isStopped = true;
+            agent.velocity = Vector3.zero;
+        }
+
+        FreezeMovementForSpell(acidSpitTelegraphDuration + 0.8f);
+
+        if (playerTransform != null)
+        {
+            Vector3 lookDir = (playerTransform.position - transform.position).normalized;
+            lookDir.y = 0f;
+            if (lookDir != Vector3.zero) transform.rotation = Quaternion.LookRotation(lookDir);
+        }
+
+        if (animator != null && !string.IsNullOrEmpty(acidSpitAnimTrigger))
+            animator.SetTrigger(acidSpitAnimTrigger);
+
+        Vector3 targetPos = playerTransform != null
+            ? playerTransform.position
+            : transform.position + transform.forward * 6f;
+
+        GameObject indicator = SpawnAcidIndicator(targetPos);
+
+        try
+        {
+            yield return new WaitForSeconds(acidSpitTelegraphDuration);
+
+            if (indicator != null) { Destroy(indicator); indicator = null; }
+
+            Vector3 spawnPos = acidSpitLaunchPoint != null
+                ? acidSpitLaunchPoint.position
+                : transform.position + Vector3.up * 1.5f + transform.forward * 0.8f;
+            GameObject spitObj = null;
+
+            if (acidSpitProjectilePrefab != null)
+            {
+                spitObj = Instantiate(acidSpitProjectilePrefab, spawnPos, Quaternion.identity);
+            }
+            else
+            {
+                // Fallback: esfera verde para testar sem prefab
+                spitObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                spitObj.transform.position = spawnPos;
+                spitObj.transform.localScale = Vector3.one * 0.3f;
+                if (spitObj.GetComponent<Rigidbody>() == null) spitObj.AddComponent<Rigidbody>();
+                Renderer rend = spitObj.GetComponent<Renderer>();
+                if (rend != null)
+                {
+                    Material mat = new Material(Shader.Find("Standard"));
+                    mat.color = new Color(0.1f, 0.9f, 0.1f);
+                    mat.EnableKeyword("_EMISSION");
+                    mat.SetColor("_EmissionColor", new Color(0f, 0.6f, 0f));
+                    rend.material = mat;
+                }
+            }
+
+            if (spitObj != null)
+            {
+                AcidSpitProjectile proj = spitObj.GetComponent<AcidSpitProjectile>()
+                                       ?? spitObj.AddComponent<AcidSpitProjectile>();
+                proj.acidPuddlePrefab = acidPuddlePrefabForSpit;
+                proj.Launch(targetPos);
+
+                // Impede que o projétil colida com o próprio boss no frame de spawn
+                Collider spitCol = spitObj.GetComponent<Collider>() ?? spitObj.GetComponentInChildren<Collider>();
+                Collider bossRoot = GetComponent<Collider>();
+                if (spitCol != null && bossRoot != null)
+                    Physics.IgnoreCollision(spitCol, bossRoot, true);
+            }
+
+            TriggerCameraShake(0.18f, 0.10f);
+            if (showDebugLog) Debug.Log($"[BossController] 💧 AcidSpit lançado para {targetPos}!");
+
+            yield return new WaitForSeconds(0.6f);
+        }
+        finally
+        {
+            if (indicator != null) Destroy(indicator);
+            isCastingSpell = false;
+            if (agent != null && agent.enabled && agent.isOnNavMesh && !IsStunned && !IsDead)
+                agent.isStopped = false;
+        }
+    }
+
+    // Anel verde-ácido no chão que marca onde o projétil vai aterrissar.
+    private GameObject SpawnAcidIndicator(Vector3 worldPos)
+    {
+        GameObject ind = new GameObject("AcidSpitLandingIndicator");
+        ind.transform.position = worldPos + Vector3.up * 0.04f;
+
+        LineRenderer lr = ind.AddComponent<LineRenderer>();
+        lr.positionCount = 25;
+        lr.useWorldSpace = false;
+        lr.startWidth = 0.22f;
+        lr.endWidth = 0.22f;
+        lr.loop = true;
+        lr.material = new Material(Shader.Find("Sprites/Default"));
+        lr.startColor = new Color(0.2f, 1f, 0.1f, 0.9f);
+        lr.endColor   = new Color(0.6f, 1f, 0.1f, 0.5f);
+
+        float radius = 1.4f;
+        for (int i = 0; i < 25; i++)
+        {
+            float a = (i / 24f) * Mathf.PI * 2f;
+            lr.SetPosition(i, new Vector3(Mathf.Cos(a) * radius, 0f, Mathf.Sin(a) * radius));
+        }
+        return ind;
+    }
+
+    // =====================================================
     // ⚔️ SISTEMA DE COMBOS INTELIGENTES DA IA
     // =====================================================
 
@@ -2301,6 +2453,15 @@ public class BossController : MonoBehaviour
                 StartCoroutine(PerformMeleeAttack());
                 return;
             }
+        }
+
+        // Cuspida ácida — Phase 3 only, mid-range window
+        if (CurrentPhase == 3 && acidSpitTimer <= 0f
+            && distToPlayer >= acidSpitMinRange && distToPlayer <= acidSpitMaxRange
+            && CanInitiateAction)
+        {
+            PerformAcidSpit();
+            return;
         }
 
         // Decisão de Aproximação: Teleporte estilo SharpBlur (EXCLUSIVO DA FASE 2) OU Sprint tradicional

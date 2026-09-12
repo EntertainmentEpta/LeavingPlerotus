@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: d224e3641aec5164eb918fd700e3306f
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 390566
+  packageName: "Stylized Water Shader Pack \u2013 URP & Built-In"
+  packageVersion: 1.0.0
+  assetPath: Assets/HaniJahanDesign/Shaders/StylizedWater/Materials/BuiltIn/BuiltIn_Color_Unlit_Sky.mat
+  uploadId: 964854

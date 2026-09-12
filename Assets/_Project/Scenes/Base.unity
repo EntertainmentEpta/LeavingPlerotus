@@ -16124,6 +16124,54 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 267874179964192622, guid: 9e5721d39f16106429f8a8c3ac74fab0, type: 3}
   m_PrefabInstance: {fileID: 1461961181571249074}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1113802304
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1113802303}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a239f733a54312c44b241f5571c54a21, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AcidPuddleSpawner
+  acidPuddlePrefab: {fileID: 7445730668720387329, guid: ae0c23bf7354a5f45b55b132be0db1ac, type: 3}
+  spawnIntervalMin: 3
+  spawnIntervalMax: 6
+  maxSimultaneousPuddles: 6
+  spawnMode: 2
+  arenaCenter: {fileID: 1113802305}
+  arenaRadius: 20
+  minDistanceBetween: 3
+  activationMode: 1
+  activateOnPhase: 3
+  showDebugLog: 1
+--- !u!4 &1113802305 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 7367479189144117087, guid: 9e5721d39f16106429f8a8c3ac74fab0, type: 3}
+  m_PrefabInstance: {fileID: 1461961181571249074}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1113802306
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1113802303}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 85523e88f5df47e4d80e1ef65418e350, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FogZoneSpawner
+  fogZonePrefab: {fileID: 1990121923201277064, guid: 44474e94c76a7664bba91b6bce58b9ed, type: 3}
+  spawnCount: 3
+  arenaCenter: {fileID: 1113802305}
+  arenaRadius: 20
+  minDistanceBetween: 3
+  activationMode: 1
+  activateOnPhase: 3
+  showDebugLog: 1
 --- !u!1001 &1119530604
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -17363,7 +17411,13 @@ PrefabInstance:
     - {fileID: 8811694879509119449, guid: 9e5721d39f16106429f8a8c3ac74fab0, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 267874179964192622, guid: 9e5721d39f16106429f8a8c3ac74fab0, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1113802304}
+    - targetCorrespondingSourceObject: {fileID: 267874179964192622, guid: 9e5721d39f16106429f8a8c3ac74fab0, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1113802306}
   m_SourcePrefab: {fileID: 100100000, guid: 9e5721d39f16106429f8a8c3ac74fab0, type: 3}
 --- !u!1001 &2670315658592751807
 PrefabInstance:
