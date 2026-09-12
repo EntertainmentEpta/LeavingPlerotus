@@ -39,6 +39,12 @@ public class DashM : MonoBehaviour
     private float lastDashInputTime = -999f;
     private PrimaryAttackKnife attackScript;
 
+    [Header("T4 Effect Override")]
+    [Tooltip("Multiplicador de duração do dash. Modificado pelo ExplosiveDashEffect (T4).\n" +
+             "1.0 = normal, valores maiores = dash mais longo.")]
+    [HideInInspector]
+    public float dashDurationMultiplier = 1.0f;
+
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
@@ -155,7 +161,7 @@ public class DashM : MonoBehaviour
             Debug.Log($"🛡️ Dash Invulnerability ativada por {playerAttributes.dashInvulnerability}s");
         }
 
-        yield return new WaitForSeconds(dashDuration);
+        yield return new WaitForSeconds(dashDuration * dashDurationMultiplier);
 
         rb.linearVelocity = Vector3.zero; // Para o movimento bruscamente no final do dash
         

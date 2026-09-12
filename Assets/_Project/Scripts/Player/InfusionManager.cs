@@ -152,6 +152,20 @@ public class InfusionManager : MonoBehaviour
             // Registra a infusão para possível cirurgia de remoção
             infusedItems.Add(data);
 
+            // Ativa efeito especial T4 (se houver)
+            if (data.tier4Effect != Tier4EffectType.None)
+            {
+                Tier4EffectManager t4Manager = GetComponent<Tier4EffectManager>();
+                if (t4Manager != null)
+                {
+                    t4Manager.ActivateEffect(data.tier4Effect);
+                }
+                else
+                {
+                    Debug.LogWarning("[INFUSÃO] Item T4 com efeito especial, mas Tier4EffectManager não encontrado no Player!");
+                }
+            }
+
             // Consome 1 item do inventário
             inventory.RemoveItem(itemId, 1);
 
@@ -174,6 +188,16 @@ public class InfusionManager : MonoBehaviour
         foreach (var buff in data.itemAttributes)
         {
             RemoveAttribute(buff);
+        }
+
+        // Desativa efeito especial T4 (se houver)
+        if (data.tier4Effect != Tier4EffectType.None)
+        {
+            Tier4EffectManager t4Manager = GetComponent<Tier4EffectManager>();
+            if (t4Manager != null)
+            {
+                t4Manager.DeactivateEffect(data.tier4Effect);
+            }
         }
 
         // Subtrai o peso de inflação

@@ -1746,6 +1746,8 @@ GameObject:
   - component: {fileID: 1286581841674779122}
   - component: {fileID: 8291047582019485712}
   - component: {fileID: 8291047582019485713}
+  - component: {fileID: 8147240710932523325}
+  - component: {fileID: 7903399675111266686}
   m_Layer: 8
   m_Name: Player
   m_TagString: Player
@@ -1853,6 +1855,7 @@ MonoBehaviour:
   dashCountText: {fileID: 0}
   dashKey: 101
   inputBufferWindow: 0.2
+  dashDurationMultiplier: 1
 --- !u!114 &5799582598024903971
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2410,6 +2413,42 @@ MonoBehaviour:
   readyColor: {r: 0.2, g: 1, b: 0.4, a: 1}
   cooldownColor: {r: 1, g: 0.3, b: 0.2, a: 1}
   activeColor: {r: 1, g: 0.85, b: 0.2, a: 1}
+--- !u!114 &8147240710932523325
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3017463410146802124}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e96bcef8f745bbe4f9194b14ae4b554b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Tier4EffectManager
+  explosiveDashEffect: {fileID: 0}
+--- !u!114 &7903399675111266686
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3017463410146802124}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dc1972bcf90ef7d4fbba95fc060c7cba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ExplosiveDashEffect
+  isActive: 0
+  dashDurationMultiplier: 1.5
+  explosionRadius: 4
+  explosionDamage: 50
+  explosionKnockback: 12
+  upwardKnockback: 0.3
+  explosionVFXType: 11
+  explosionVFXScale: 1.5
+  enhancedDashVFXType: 10
+  showExplosionGizmo: 1
+  gizmoColor: {r: 1, g: 0.3, b: 0, a: 0.3}
 --- !u!1 &3037435734811326214
 GameObject:
   m_ObjectHideFlags: 0

@@ -22,6 +22,8 @@ public enum VFXType
     ImpactEyeCandy,         // Eye Candy / Faíscas estilizadas da Vefects (VFX_Extra_Eye_Candy_01)
     WWExplosionVariant1,    // CFXR2 WW Explosion 1 (Variação Semi-Estilizada)
     PlayerDash,             // VFX de partículas do Dash do Player (speedlines/burst)
+    PlayerDashEnhanced,     // VFX de dash melhorado (efeito T4 SharpItem4 — trail enhanced)
+    DashExplosion,          // Explosão AoE no final do dash (efeito T4 SharpItem4)
     Custom                  // VFX avulso/customizado
 }
 

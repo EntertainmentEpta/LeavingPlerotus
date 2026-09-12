@@ -86,6 +86,29 @@ public class PlayerDashVFX : MonoBehaviour
     private bool wasDashing = false;
     private Rigidbody playerRb;
 
+    // VFX Type Override (usado pelo ExplosiveDashEffect para trocar o VFX do dash dinamicamente)
+    private VFXType? overrideVFXType = null;
+
+    /// <summary>
+    /// Define um override para o tipo de VFX do dash. Enquanto ativo, o dash usará este VFX em vez do padrão.
+    /// Chamado pelo ExplosiveDashEffect quando o efeito T4 é ativado.
+    /// </summary>
+    public void SetVFXOverride(VFXType newType)
+    {
+        overrideVFXType = newType;
+        Debug.Log($"[PlayerDashVFX] VFX Override ativado: {newType}");
+    }
+
+    /// <summary>
+    /// Remove o override de VFX, voltando ao tipo padrão configurado no Inspector.
+    /// Chamado pelo ExplosiveDashEffect quando o efeito T4 é desativado.
+    /// </summary>
+    public void ClearVFXOverride()
+    {
+        Debug.Log($"[PlayerDashVFX] VFX Override removido. Voltando ao padrão: {dashVFXType}");
+        overrideVFXType = null;
+    }
+
     // VFX ativo que está acompanhando o player (tracking manual, SEM parenting)
     private GameObject activeFollowVFX;
     // Flag para saber se ainda devemos atualizar a posição do VFX
@@ -247,7 +270,9 @@ public class PlayerDashVFX : MonoBehaviour
         Vector3 spawnPos = transform.position + Vector3.up * verticalOffset;
         Quaternion spawnRot = GetVFXRotation();
 
-        GameObject vfxObj = VFXManager.Play(dashVFXType, spawnPos, spawnRot, vfxScale, customSimulationSpeed);
+        // Usa o VFX override (T4 effect) se disponível, senão usa o padrão
+        VFXType activeVFXType = overrideVFXType ?? dashVFXType;
+        GameObject vfxObj = VFXManager.Play(activeVFXType, spawnPos, spawnRot, vfxScale, customSimulationSpeed);
 
         // Se follow mode está ativo, inicia o tracking manual de posição (SEM parenting)
         if (followPlayer && vfxObj != null)
