@@ -141,16 +141,14 @@ public class TotemSpawner : MonoBehaviour
         activeSkulls.Add(newSkull);
     }
 
-    // --- MUDANÇA 3: Função chamada automaticamente quando o Totem é destruído ---
+    // --- Função chamada automaticamente quando o Totem é destruído ---
     private void OnDestroy()
     {
         // Percorre a lista de caveiras criadas
         foreach (GameObject skull in activeSkulls)
         {
-            // Se a caveira ainda existe (não foi destruída pelo jogador), nós a destruímos
             if (skull != null)
             {
-                Instantiate(skull.GetComponent<DamageZone>().pulseVisualizer.gameObject, skull.transform.position, Quaternion.identity); // Opcional: Efeito visual ao sumir
                 Destroy(skull);
             }
         }

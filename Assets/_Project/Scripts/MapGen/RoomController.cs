@@ -458,12 +458,19 @@ public class RoomController : MonoBehaviour
             addedSomething = false;
             List<EnemyClass> validOptions = new List<EnemyClass>();
 
-            // Elite: máx. 1 POR SALA, apenas da Sala 5 em diante
-            if (roomIndex >= 5 && curElite.Count > 0 && remainingPts >= 10 && eliteSpawnedTotal < 1)
+            PlayerHealth player = Object.FindFirstObjectByType<PlayerHealth>();
+            bool chaosMode = player != null && player.hasChaosSymphony;
+            int eliteMax = chaosMode ? 3 : 1;
+            int tanqueMax = chaosMode ? 8 : 4;
+            int minRoomElite = chaosMode ? 2 : 5;
+            int minRoomTanque = chaosMode ? 1 : 3;
+
+            // Elite: máx. 1 POR SALA, apenas da Sala 5 em diante (No chaos mode, mais elites)
+            if (roomIndex >= minRoomElite && curElite.Count > 0 && remainingPts >= 10 && eliteSpawnedTotal < eliteMax)
                 validOptions.Add(EnemyClass.Elite);
 
-            // Tanque: máx. 4 POR SALA, apenas da Sala 3 em diante
-            if (roomIndex >= 3 && curTanque.Count > 0 && remainingPts >= 4 && tanqueSpawnedTotal < 4)
+            // Tanque: máx. 4 POR SALA, apenas da Sala 3 em diante (No chaos mode, mais tanques)
+            if (roomIndex >= minRoomTanque && curTanque.Count > 0 && remainingPts >= 4 && tanqueSpawnedTotal < tanqueMax)
                 validOptions.Add(EnemyClass.Tanque);
 
             // Atirador: par (4 pts), apenas da Sala 2 em diante

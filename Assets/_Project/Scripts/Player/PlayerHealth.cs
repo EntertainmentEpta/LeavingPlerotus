@@ -52,6 +52,7 @@ public class PlayerHealth : MonoBehaviour
     [Header("Efeitos dos Pactos do Mercador")]
     [HideInInspector] public bool canHeal = true;
     [HideInInspector] public bool hasDoubleLoot = false;
+    [HideInInspector] public bool hasChaosSymphony = false;
     [HideInInspector] public bool hasVampirism = false;
     [HideInInspector] public bool hasNecrosis = false;
     [HideInInspector] public float lastKillTime = 0f;

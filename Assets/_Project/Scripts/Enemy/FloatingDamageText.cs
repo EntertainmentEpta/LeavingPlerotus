@@ -50,14 +50,47 @@ public class FloatingDamageText : MonoBehaviour
     [Tooltip("Cor 2 (inferior) para dano crítico - Vinho profundo")]
     public Color particleColorCrit2 = new Color(0.42f, 0.02f, 0.08f, 1f);
 
+    [Header("Endless & Strength Scaling")]
+    [Tooltip("Permite que o tamanho da fonte e do número de dano escale com a força base do jogador e com o dano causado.")]
+    public bool enableInfiniteStrengthScaling = true;
+
+    [Tooltip("Sensibilidade do crescimento da fonte com o atributo de força base (1.0 = base). Ex: 0.5 significa que a cada +1x de força, o texto ganha +50% de tamanho.")]
+    public float strengthScaleSensitivity = 0.5f;
+
+    [Tooltip("Sensibilidade adicional de crescimento com base no valor numérico de dano.")]
+    public float damageScaleSensitivity = 0.01f;
+
+    [Tooltip("Dano base de referência para início do crescimento por dano numérico.")]
+    public float baseDamageReference = 35f;
+
+    [Tooltip("Escala mínima para evitar números invisíveis ou zerados.")]
+    public float minScaleMultiplier = 0.6f;
+
     private float timer;
     private Color startColor;
     private float baseFontSize;
     private bool isCriticalHit = false;
     private string pendingText = null;
 
+    private Vector3 initialLocalScale = Vector3.one;
+    private float baseFloatSpeed = 1.1f;
+    private float baseLifetime = 1.35f;
+    private int currentDamageValue = -1;
+    private float customStrengthMultiplier = -1f;
+    private bool hasAppliedHeightLift = false;
+    private Vector3 floatDirection = Vector3.up;
+
     void Awake()
     {
+        initialLocalScale = transform.localScale;
+        baseFloatSpeed = floatSpeed;
+        baseLifetime = lifetime;
+
+        // Leve dispersão horizontal para evitar que números consecutivos fiquem sobrepostos
+        float randomX = Random.Range(-0.15f, 0.15f);
+        float randomZ = Random.Range(-0.15f, 0.15f);
+        floatDirection = (Vector3.up + new Vector3(randomX, 0f, randomZ)).normalized;
+
         // Auto-detecta os componentes se não foram atribuídos no Inspector
         if (textMesh == null)
         {
@@ -89,7 +122,7 @@ public class FloatingDamageText : MonoBehaviour
 
     void Update()
     {
-        transform.position += Vector3.up * floatSpeed * Time.deltaTime;
+        transform.position += floatDirection * floatSpeed * Time.deltaTime;
 
         if (Camera.main != null)
         {
@@ -110,6 +143,38 @@ public class FloatingDamageText : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Define o dano numérico e calcula o escalonamento infinito da fonte/escala com base no dano e na força do jogador.
+    /// </summary>
+    public void SetDamage(int damage, bool isCritical = false, float strengthMult = -1f)
+    {
+        currentDamageValue = damage;
+        isCriticalHit = isCritical;
+        if (strengthMult > 0f)
+        {
+            customStrengthMultiplier = strengthMult;
+        }
+
+        pendingText = damage.ToString();
+
+        if (textMesh != null)
+        {
+            textMesh.text = pendingText;
+            if (isCritical)
+            {
+                textMesh.color = criticalColor;
+                startColor = criticalColor;
+            }
+        }
+
+        UpdateScaleAndVisuals();
+
+        if (particleText != null)
+        {
+            ApplyParticleText();
+        }
+    }
+
     public void SetText(string text)
     {
         pendingText = text;
@@ -118,6 +183,13 @@ public class FloatingDamageText : MonoBehaviour
         {
             textMesh.text = text;
         }
+
+        if (int.TryParse(text, out int parsedDamage))
+        {
+            currentDamageValue = parsedDamage;
+        }
+
+        UpdateScaleAndVisuals();
 
         if (particleText != null)
         {
@@ -132,23 +204,84 @@ public class FloatingDamageText : MonoBehaviour
     {
         isCriticalHit = isCritical;
 
-        if (isCritical)
+        if (isCritical && textMesh != null)
         {
-            lifetime *= criticalLifetimeMultiplier;
-            timer = lifetime;
-
-            if (textMesh != null)
-            {
-                textMesh.color = criticalColor;
-                startColor = criticalColor;
-                textMesh.fontSize = baseFontSize * criticalSizeMultiplier;
-            }
-
-            if (particleText != null)
-            {
-                ApplyParticleText();
-            }
+            textMesh.color = criticalColor;
+            startColor = criticalColor;
         }
+
+        UpdateScaleAndVisuals();
+
+        if (particleText != null)
+        {
+            ApplyParticleText();
+        }
+    }
+
+    private void UpdateScaleAndVisuals()
+    {
+        float strength = customStrengthMultiplier > 0f ? customStrengthMultiplier : GetPlayerStrength();
+
+        float scaleMultiplier = 1.0f;
+
+        if (enableInfiniteStrengthScaling)
+        {
+            // Bônus pela Força Base do jogador (SEM TETO MÁXIMO / INFINITO)
+            float strengthBonus = Mathf.Max(0f, strength - 1.0f) * strengthScaleSensitivity;
+
+            // Bônus adicional pelo valor numérico do dano causado (SEM TETO MÁXIMO / INFINITO)
+            float damageBonus = 0f;
+            if (currentDamageValue > 0)
+            {
+                damageBonus = Mathf.Max(0f, currentDamageValue - baseDamageReference) * damageScaleSensitivity;
+            }
+
+            scaleMultiplier = 1.0f + strengthBonus + damageBonus;
+        }
+
+        // Multiplicador se for acerto crítico
+        if (isCriticalHit)
+        {
+            scaleMultiplier *= criticalSizeMultiplier;
+        }
+
+        // Evita escala nula ou invisível caso haja debuffs extremos
+        scaleMultiplier = Mathf.Max(minScaleMultiplier, scaleMultiplier);
+
+        // Aplica no transform.localScale de forma infinita (escala todo o canvas e texto em 3D)
+        transform.localScale = initialLocalScale * scaleMultiplier;
+
+        // Se o número for muito grande, ergue ligeiramente o ponto de origem para não cortar no chão ou no mob
+        if (!hasAppliedHeightLift && scaleMultiplier > 1.25f)
+        {
+            float lift = Mathf.Min((scaleMultiplier - 1.0f) * 0.12f, 8f);
+            transform.position += Vector3.up * lift;
+            hasAppliedHeightLift = true;
+        }
+
+        // Velocidade com que o número flutua para cima cresce suavemente para acompanhar a imponência
+        floatSpeed = baseFloatSpeed * Mathf.Pow(scaleMultiplier, 0.35f);
+
+        // Ajusta duração proporcionalmente (com limite suave para não poluir o cenário indefinidamente)
+        float critLtMult = isCriticalHit ? criticalLifetimeMultiplier : 1.0f;
+        lifetime = baseLifetime * critLtMult * Mathf.Clamp(Mathf.Pow(scaleMultiplier, 0.15f), 1.0f, 2.5f);
+        timer = lifetime;
+    }
+
+    private float GetPlayerStrength()
+    {
+        if (PlayerAttributesOffensive.Instance != null)
+        {
+            return PlayerAttributesOffensive.Instance.baseDamageMultiplier;
+        }
+
+        PlayerAttributesOffensive found = FindFirstObjectByType<PlayerAttributesOffensive>();
+        if (found != null)
+        {
+            return found.baseDamageMultiplier;
+        }
+
+        return 1.0f;
     }
 
     private void ApplyParticleText()

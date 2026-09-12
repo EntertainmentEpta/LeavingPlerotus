@@ -175,6 +175,11 @@ public class MerchantUIController : MonoBehaviour
             name = "O COLAPSO TEMPORAL",
             description = "<color=#00ff99>✦ Recarga de Habilidades reduzida em 60%.</color>\n<color=#ff4455>✖ Inimigos causam +25% de dano e correm +20%.</color>",
             healthCostPercent = 0.20f
+        },
+        new PactData {
+            name = "A SINFONIA DO CAOS",
+            description = "<color=#00ff99>✦ Dobro de loot, o dobro de essência e maior sorte.</color>\n<color=#ff4455>✖ Inimigos de elite mais fortes e em maior quantidade.</color>",
+            healthCostPercent = 0.35f
         }
     };
 
@@ -894,6 +899,11 @@ public class MerchantUIController : MonoBehaviour
             case 7: // O COLAPSO TEMPORAL
                 playerHealth.abilityCooldownMultiplier *= 0.40f; // -60% Cooldown
                 playerHealth.enemiesBuffed = true;
+                break;
+
+            case 8: // A SINFONIA DO CAOS
+                playerHealth.hasDoubleLoot = true;
+                playerHealth.hasChaosSymphony = true;
                 break;
         }
     }

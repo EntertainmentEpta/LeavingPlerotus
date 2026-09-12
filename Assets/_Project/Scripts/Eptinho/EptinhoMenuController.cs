@@ -33,9 +33,11 @@ public class EptinhoMenuController : MonoBehaviour
     private GameObject  panelObj;
     private GameObject  tabBestiary;
     private GameObject  tabCatalogo;
+    private GameObject  tabSinergia;
     private GameObject  contentBestiary;
     private GameObject  contentCatalogo;
-    private bool        showingBestiary = true;
+    private GameObject  contentSinergia;
+    private int         currentTab = 0; // 0 = Bestiary, 1 = Catalogo, 2 = Sinergia
     private bool        isOpen = false;
     private bool        uiBuilt = false;
     private TMP_FontAsset customFont;
@@ -175,11 +177,14 @@ public class EptinhoMenuController : MonoBehaviour
 
         // ── Abas ──
         float tabY = 215f;
-        tabBestiary = CreateButton(panelObj.transform, "TabBestiary", "BESTARIO",
-            new Vector2(-180f, tabY), new Vector2(220f, 40f), TAB_ACTIVE, () => MostrarAba(true));
+        tabBestiary = CreateButton(panelObj.transform, "TabBestiary", "BESTIÁRIO",
+            new Vector2(-220f, tabY), new Vector2(200f, 40f), TAB_ACTIVE, () => MostrarAba(0));
 
-        tabCatalogo = CreateButton(panelObj.transform, "TabCatalogo", "CATALOGO DE ITENS",
-            new Vector2(100f, tabY), new Vector2(220f, 40f), TAB_INACTIVE, () => MostrarAba(false));
+        tabCatalogo = CreateButton(panelObj.transform, "TabCatalogo", "CATÁLOGO DE ITENS",
+            new Vector2(0f, tabY), new Vector2(200f, 40f), TAB_INACTIVE, () => MostrarAba(1));
+
+        tabSinergia = CreateButton(panelObj.transform, "TabSinergia", "MAPA DE SINERGIAS",
+            new Vector2(220f, tabY), new Vector2(200f, 40f), TAB_INACTIVE, () => MostrarAba(2));
 
         // ── Área de conteúdo ──
         contentBestiary = CreateScrollArea(panelObj.transform, "ContentBestiary",
@@ -189,27 +194,53 @@ public class EptinhoMenuController : MonoBehaviour
             new Vector2(0f, -30f), new Vector2(720f, 430f));
         contentCatalogo.SetActive(false);
 
+        // Painel do Mapa de Sinergias
+        contentSinergia = CreatePanel(panelObj.transform, "ContentSinergia", new Vector2(720f, 430f), new Color(0,0,0,0));
+        RectTransform sinRect = contentSinergia.GetComponent<RectTransform>();
+        sinRect.anchoredPosition = new Vector2(0f, -30f);
+        CreateLabel(contentSinergia.transform, "Msg", "Teia Alquímica de Sinergias\n\n(Integração com Web/UI em desenvolvimento)", Vector2.zero, 20, Color.cyan, true);
+        contentSinergia.SetActive(false);
+
         menuUI = panelObj;
         panelObj.SetActive(false);
         uiBuilt = true;
     }
 
-    private void MostrarAba(bool bestiary)
+    private void MostrarAba(int abaIndex)
     {
-        showingBestiary = bestiary;
-        contentBestiary.SetActive(bestiary);
-        contentCatalogo.SetActive(!bestiary);
+        currentTab = abaIndex;
+        contentBestiary.SetActive(abaIndex == 0);
+        contentCatalogo.SetActive(abaIndex == 1);
+        contentSinergia.SetActive(abaIndex == 2);
 
-        SetButtonColor(tabBestiary, bestiary ? TAB_ACTIVE : TAB_INACTIVE);
-        SetButtonColor(tabCatalogo, !bestiary ? TAB_ACTIVE : TAB_INACTIVE);
+        SetButtonColor(tabBestiary, abaIndex == 0 ? TAB_ACTIVE : TAB_INACTIVE);
+        SetButtonColor(tabCatalogo, abaIndex == 1 ? TAB_ACTIVE : TAB_INACTIVE);
+        SetButtonColor(tabSinergia, abaIndex == 2 ? TAB_ACTIVE : TAB_INACTIVE);
 
         RefreshCurrentTab();
     }
 
     private void RefreshCurrentTab()
     {
-        if (showingBestiary) RefreshBestiary();
-        else RefreshCatalogo();
+        // Verifica se a tab de Sinergia está desbloqueada
+        bool hasSynergyMap = false;
+        if (SaveManager.instance != null && SaveManager.instance.GetAllCraftedEquipmentIds().Contains("eq_mapa_sinergias"))
+        {
+            hasSynergyMap = true;
+        }
+
+        if (hasSynergyMap)
+        {
+            tabSinergia.SetActive(true);
+        }
+        else
+        {
+            tabSinergia.SetActive(false);
+            if (currentTab == 2) MostrarAba(0);
+        }
+
+        if (currentTab == 0) RefreshBestiary();
+        else if (currentTab == 1) RefreshCatalogo();
     }
 
     private void RefreshBestiary()

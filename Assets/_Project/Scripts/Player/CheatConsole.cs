@@ -230,6 +230,35 @@ public class CheatConsole : MonoBehaviour
                 }
             }
         }
+        else if (command.StartsWith("forca", System.StringComparison.OrdinalIgnoreCase) ||
+                 command.StartsWith("str", System.StringComparison.OrdinalIgnoreCase) ||
+                 command.StartsWith("strength", System.StringComparison.OrdinalIgnoreCase) ||
+                 command.StartsWith("dano", System.StringComparison.OrdinalIgnoreCase) ||
+                 command.StartsWith("damage", System.StringComparison.OrdinalIgnoreCase))
+        {
+            string[] parts = command.Split(' ');
+            float val = 10f;
+            if (parts.Length > 1 && float.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float parsedVal))
+            {
+                val = parsedVal;
+            }
+
+            PlayerAttributesOffensive offStats = PlayerAttributesOffensive.Instance ?? Object.FindFirstObjectByType<PlayerAttributesOffensive>();
+            if (offStats != null)
+            {
+                offStats.baseDamageMultiplier = val;
+                string statusText = $"FORÇA BASE ALTERADA!\nbaseDamageMultiplier = {val}x";
+                Debug.Log($"💻 CHEAT: {statusText}");
+                if (EptinhoPopupController.instancia != null)
+                {
+                    EptinhoPopupController.instancia.MostrarPopupAviso(statusText);
+                }
+            }
+            else
+            {
+                Debug.LogWarning("💻 CHEAT: PlayerAttributesOffensive não encontrado na cena!");
+            }
+        }
         else if (string.Equals(command, "allmobs", System.StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(command, "spawnall", System.StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(command, "mobs", System.StringComparison.OrdinalIgnoreCase) ||
