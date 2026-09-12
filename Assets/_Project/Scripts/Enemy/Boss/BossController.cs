@@ -162,8 +162,6 @@ public class BossController : MonoBehaviour
     public GameObject spikeShatterVFXPrefab;
 
     [Header("🧪 Cuspida Ácida (Fase 3)")]
-    [Tooltip("Prefab do projétil com AcidSpitProjectile + Rigidbody + Collider (non-trigger).")]
-    public GameObject acidSpitProjectilePrefab;
 
     [Tooltip("Prefab da AcidPuddle – fallback se não houver AcidPuddleSpawner na cena.")]
     public GameObject acidPuddlePrefabForSpit;
