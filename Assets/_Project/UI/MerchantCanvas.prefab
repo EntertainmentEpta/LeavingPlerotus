@@ -1384,6 +1384,10 @@ MonoBehaviour:
   removalListContent: {fileID: 8250698980822677874}
   removalItemButtonPrefab: {fileID: 8564441076550600206, guid: 7b58e5d6c15f86b4b9d5375d2f857b85, type: 3}
   closeButton: {fileID: 4075098395762742185}
+  cardHoverClip: {fileID: 8300000, guid: 5d27c638a1f5f8a4cbbb38a7b1c28e60, type: 3}
+  cardHoverVolume: 1
+  pactAcceptClip: {fileID: 8300000, guid: 090a3dbe7b9d7cf4a9c429f5ff091bfb, type: 3}
+  pactAcceptVolume: 1
   enablePactCamera: 1
   cameraOffset: {x: 0, y: 0.35, z: 2.2}
   cameraLookAtHeight: 2

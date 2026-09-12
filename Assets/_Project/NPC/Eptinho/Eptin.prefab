@@ -24502,6 +24502,8 @@ GameObject:
   - component: {fileID: 5630812863558511503}
   - component: {fileID: 6444291236720003741}
   - component: {fileID: 2237620300542411599}
+  - component: {fileID: 4929762188268486125}
+  - component: {fileID: 2377884174543236644}
   m_Layer: 0
   m_Name: Trigger Menu
   m_TagString: Untagged
@@ -24546,6 +24548,34 @@ BoxCollider:
   m_Size: {x: 2, y: 2, z: 2}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &2237620300542411599
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2747163365990125770}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6f499d6eac0a6344384fec7a3717cde0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EptinhoOracleInteract
+  barkClip: {fileID: 8300000, guid: b932642491cd8e24a81db832f77793dd, type: 3}
+  barkVolume: 0.5
+--- !u!114 &4929762188268486125
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2747163365990125770}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6f499d6eac0a6344384fec7a3717cde0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EptinhoOracleInteract
+  barkClip: {fileID: 8300000, guid: b932642491cd8e24a81db832f77793dd, type: 3}
+  barkVolume: 0.5
+--- !u!114 &2377884174543236644
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -29616,8 +29646,8 @@ MonoBehaviour:
   cameraShakeIntensity: 0.35
   audioSource: {fileID: 0}
   deflectSounds:
-  - {fileID: 8300000, guid: a71a46d138802444c915884fed9ffabd, type: 3}
-  - {fileID: 8300000, guid: b0936c9915d2bdb489d03a083dc3c0ef, type: 3}
+  - {fileID: 8300000, guid: 52ae00b4841ea6b49be53f891335f335, type: 3}
+  - {fileID: 8300000, guid: 5e03e44a30567254397ff8886f1ad2b5, type: 3}
   - {fileID: 8300000, guid: 86b405745421bae46a24cfe82462dd7d, type: 3}
   deflectVolume: 0.4
   randomizePitch: 1

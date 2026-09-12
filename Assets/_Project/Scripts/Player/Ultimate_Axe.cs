@@ -135,7 +135,24 @@ public class Ultimate_Axe : MonoBehaviour
     [Tooltip("Marque esta caixinha no Inspector no Play Mode para disparar o VFX e Dano instantaneamente!")]
     public bool triggerVFXTestNow = false;
 
+    [Header("🔊 Sons da Ultimate (Animation Events)")]
+    [Tooltip("Som de carregamento / wind-up da Ultimate.")]
+    [SerializeField] private AudioClip chargeClip;
+    [Range(0.0f, 1.0f)]
+    [SerializeField] private float chargeVolume = 1.0f;
+
+    [Tooltip("Som do impacto do machado no chão.")]
+    [SerializeField] private AudioClip groundImpactClip;
+    [Range(0.0f, 1.0f)]
+    [SerializeField] private float groundImpactVolume = 1.0f;
+
+    [Tooltip("Som de estilhaçamento / cristais quebrando.")]
+    [SerializeField] private AudioClip crystalShatterClip;
+    [Range(0.0f, 1.0f)]
+    [SerializeField] private float crystalShatterVolume = 1.0f;
+
     // Componentes e Estado Interno
+    private AudioSource audioSource;
     private Rigidbody playerRb;
     private Animator playerAnimator;
     private bool slamImpactExecuted = false;
@@ -144,6 +161,7 @@ public class Ultimate_Axe : MonoBehaviour
     void Awake()
     {
         playerRb = GetComponentInParent<Rigidbody>() ?? GetComponent<Rigidbody>();
+        audioSource = GetComponentInParent<AudioSource>() ?? GetComponent<AudioSource>();
         FindAnimator();
     }
 
@@ -834,5 +852,34 @@ public class Ultimate_Axe : MonoBehaviour
             Gizmos.DrawLine(prevPoint, point);
             prevPoint = point;
         }
+    }
+
+    // ── Métodos de SFX para Animation Events ──────────────────────────
+
+    /// <summary>
+    /// Toca o som de carregamento da Ultimate. Chamado via Animation Event.
+    /// </summary>
+    public void PlayChargeSFX()
+    {
+        if (audioSource != null && chargeClip != null)
+            audioSource.PlayOneShot(chargeClip, chargeVolume);
+    }
+
+    /// <summary>
+    /// Toca o som de impacto no chão. Chamado via Animation Event.
+    /// </summary>
+    public void PlayGroundImpactSFX()
+    {
+        if (audioSource != null && groundImpactClip != null)
+            audioSource.PlayOneShot(groundImpactClip, groundImpactVolume);
+    }
+
+    /// <summary>
+    /// Toca o som de estilhaçamento de cristais. Chamado via Animation Event.
+    /// </summary>
+    public void PlayCrystalShatterSFX()
+    {
+        if (audioSource != null && crystalShatterClip != null)
+            audioSource.PlayOneShot(crystalShatterClip, crystalShatterVolume);
     }
 }

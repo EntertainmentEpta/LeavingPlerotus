@@ -61,12 +61,15 @@ public class PrimaryAttackKnife : MonoBehaviour
     [Range(0f, 1f)]
     public float axeHitVolume = 0.8f;
 
-    [Tooltip("Sons de swing do machado no ar (um por golpe do combo). Índice 0 = Swing 1, 1 = Swing 2, etc.")]
-    public AudioClip[] axeSwingAirSounds = new AudioClip[4];
-
-    [Tooltip("Volume dos sons de swing no ar (0.0 a 1.0)")]
-    [Range(0f, 1f)]
-    public float axeSwingAirVolume = 0.6f;
+    [Header("Axe Swing SFX (Animation Events)")]
+    public AudioClip axeSwing1;
+    [Range(0f, 1f)] public float swing1Volume = 0.6f;
+    public AudioClip axeSwing2;
+    [Range(0f, 1f)] public float swing2Volume = 0.6f;
+    public AudioClip axeSwing3;
+    [Range(0f, 1f)] public float swing3Volume = 0.6f;
+    public AudioClip axeSwing4;
+    [Range(0f, 1f)] public float swing4Volume = 0.6f;
 
     [Header("Trail Settings")]
     [Tooltip("Arraste aqui o TrailRenderer da arma (ou do objeto filho) para ativar automaticamente no momento do ataque.")]
@@ -673,33 +676,6 @@ public class PrimaryAttackKnife : MonoBehaviour
         isHitboxActive = true;
         enemiesHitInThisAttack.Clear();
 
-        // --- SFX de swing do Machado no ar (sincronizado com a animação, não com o clique) ---
-        if (axeSwingAirSounds != null && comboStep > 0 && comboStep <= axeSwingAirSounds.Length)
-        {
-            AudioClip swingClip = axeSwingAirSounds[comboStep - 1];
-            if (swingClip != null)
-            {
-                // Cria o AudioSource persistente na primeira vez (reutilizado para interromper o swing anterior)
-                if (axeSwingAudioSource == null)
-                {
-                    GameObject audioObj = new GameObject("AxeSwingAudioSource");
-                    audioObj.transform.SetParent(transform);
-                    audioObj.transform.localPosition = Vector3.up;
-                    axeSwingAudioSource = audioObj.AddComponent<AudioSource>();
-                    axeSwingAudioSource.spatialBlend = 1f;
-                    axeSwingAudioSource.minDistance = 3f;
-                    axeSwingAudioSource.maxDistance = 30f;
-                    axeSwingAudioSource.rolloffMode = AudioRolloffMode.Linear;
-                }
-
-                axeSwingAudioSource.Stop();
-                axeSwingAudioSource.clip = swingClip;
-                axeSwingAudioSource.pitch = Random.Range(0.93f, 1.07f);
-                axeSwingAudioSource.volume = axeSwingAirVolume;
-                axeSwingAudioSource.Play();
-            }
-        }
-
         SetTrailsEmitting(true);
 
         if (currentHitbox != null)
@@ -926,6 +902,45 @@ public class PrimaryAttackKnife : MonoBehaviour
 
         ApplyWeaponRangeScale();
     }
+
+    // --- Métodos de SFX para Swing do Machado (Animation Events) ---
+    private bool IsAxeEquipped()
+    {
+        Player_WeaponManager wm = GetComponent<Player_WeaponManager>() ?? GetComponentInParent<Player_WeaponManager>();
+        if (wm != null && wm.currentWeapon != null && wm.isWeaponDrawn)
+        {
+            WeaponOffset offset = wm.currentWeapon.GetComponent<WeaponOffset>();
+            return (offset != null && offset.weaponType == WeaponType.Axe);
+        }
+        return false;
+    }
+
+    private void EnsureAxeSwingAudioSource()
+    {
+        if (axeSwingAudioSource == null)
+        {
+            GameObject audioObj = new GameObject("AxeSwingAudioSource");
+            audioObj.transform.SetParent(transform);
+            audioObj.transform.localPosition = Vector3.up;
+            axeSwingAudioSource = audioObj.AddComponent<AudioSource>();
+            axeSwingAudioSource.spatialBlend = 1f;
+            axeSwingAudioSource.minDistance = 3f;
+            axeSwingAudioSource.maxDistance = 30f;
+            axeSwingAudioSource.rolloffMode = AudioRolloffMode.Linear;
+        }
+    }
+
+    private void PlayAxeSwingClip(AudioClip clip, float volume)
+    {
+        EnsureAxeSwingAudioSource();
+        axeSwingAudioSource.pitch = Random.Range(0.93f, 1.07f);
+        axeSwingAudioSource.PlayOneShot(clip, volume);
+    }
+
+    public void PlaySwing1() { if (IsAxeEquipped() && axeSwing1 != null) PlayAxeSwingClip(axeSwing1, swing1Volume); }
+    public void PlaySwing2() { if (IsAxeEquipped() && axeSwing2 != null) PlayAxeSwingClip(axeSwing2, swing2Volume); }
+    public void PlaySwing3() { if (IsAxeEquipped() && axeSwing3 != null) PlayAxeSwingClip(axeSwing3, swing3Volume); }
+    public void PlaySwing4() { if (IsAxeEquipped() && axeSwing4 != null) PlayAxeSwingClip(axeSwing4, swing4Volume); }
 
     // --- Método utilitário de áudio (mesmo padrão do projeto: GoblinMove, Golem_AI, Spider_AI, etc.) ---
     private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
