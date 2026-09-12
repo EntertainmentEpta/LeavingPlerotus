@@ -2222,6 +2222,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6a6e23913e76ab549b2631e77ace4e66, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Ultimate_Axe
+  chargeClip: {fileID: 8300000, guid: 6d95ef5c5d0eb7f48805c265089b2e7c, type: 3}
+  groundImpactClip: {fileID: 8300000, guid: 8abf098f5c9ec6342b7e3a8e50c72154, type: 3}
+  crystalShatterClip: {fileID: 8300000, guid: b1d87d3a154af9b42935bf058ccd1eac, type: 3}
+  chargeVolume: 1
+  groundImpactVolume: 1
+  crystalShatterVolume: 1
   axeBladeTip: {fileID: 0}
   groundYOffset: -0.225
   useRootMotion: 0
@@ -4330,6 +4336,14 @@ MonoBehaviour:
   - {fileID: 8300000, guid: 67b65d083273b3f4b82610e974ae5991, type: 3}
   - {fileID: 8300000, guid: 77ceb9485bcbcda448fec49de86efc6a, type: 3}
   axeHitVolume: 0.4
+  axeSwing1: {fileID: 8300000, guid: 4d70cdf98ef5b304580e7856d09ab8e0, type: 3}
+  swing1Volume: 0.6
+  axeSwing2: {fileID: 8300000, guid: 008d307cce6a60c48b6572f43c943c44, type: 3}
+  swing2Volume: 0.6
+  axeSwing3: {fileID: 8300000, guid: f6204551c453c7846ae123c53685bc9c, type: 3}
+  swing3Volume: 0.6
+  axeSwing4: {fileID: 8300000, guid: 6c33346e9ccc302439eceb869f582175, type: 3}
+  swing4Volume: 0.6
   axeSwingAirSounds:
   - {fileID: 8300000, guid: a3feedcdd886b144ab4a79e6b1462d4c, type: 3}
   - {fileID: 8300000, guid: 008d307cce6a60c48b6572f43c943c44, type: 3}
@@ -5649,3 +5663,5 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1830613685876521810}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+
+
