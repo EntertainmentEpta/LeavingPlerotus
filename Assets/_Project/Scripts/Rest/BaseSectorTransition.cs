@@ -115,7 +115,7 @@ public class BaseSectorTransition : MonoBehaviour
         // 7. Fade In (screen becomes visible)
         if (fader != null)
         {
-            yield return player.StartCoroutine(fader.FadeIn());
+            player.StartCoroutine(fader.FadeIn());
         }
 
         // 8. Re-enable player movement
@@ -132,11 +132,12 @@ public class BaseSectorTransition : MonoBehaviour
         }
 
         // Set cooldown (1.5 seconds) to prevent instant back-and-forth triggering
-        nextAllowedTransitionTime = Time.time + 0.2f;
+        nextAllowedTransitionTime = Time.time + 3.0f;
 
         isTransitioning = false;
     }
 }
+
 
 
 
