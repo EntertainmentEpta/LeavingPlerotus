@@ -172,6 +172,9 @@ public class BossController : MonoBehaviour
     [Tooltip("Duração do telegraph visual antes de cuspir (segundos).")]
     public float acidSpitTelegraphDuration = 0.8f;
 
+    [Tooltip("Cooldown entre cuspidas ácidas (segundos).")]
+    public float acidSpitCooldown = 9f;
+
     [Tooltip("Força do lançamento (parábola calculada internamente no projétil).")]
     public float acidSpitForce = 15f;
 
