@@ -14,15 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CraftingRecipe
   recipeId: recipe_consertar_porta
   recipeName: Consertar a Porta do Lab
-  description: Libera o acesso a ala do Laboratorio da Nave.
+  description: Libera o acesso a ala do Laboratorio da Nave. (Gratuito para testes)
   icon: {fileID: 0}
-  ingredients:
-  - itemId: fibra
-    quantity: 10
-  - itemId: lithos
-    quantity: 5
-  - itemId: quartzo_basico
-    quantity: 3
+  ingredients: []
   resultType: 1
   resultItemId: ''
   resultEquipment: {fileID: 11400000, guid: 4a0e5251c9e24d7d879b440b493e0654, type: 2}
