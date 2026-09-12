@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e31866c5ea326c74fbe71613556564ac, type: 3}
-  m_Name: eq_consertar_porta
+  m_Name: eq_mapa_sinergias
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentData
-  equipmentId: eq_consertar_porta
-  equipmentName: Reparo da Porta do Lab
-  description: Substitui os conduites de energia queimados, abrindo acesso ao Laboratorio.
+  equipmentId: eq_mapa_sinergias
+  equipmentName: Mapa de Sinergias
+  description: Permite acessar o Mapa de Sinergias no Eptinho Oraculo.
   icon: {fileID: 0}
-  effectType: 20
+  effectType: 18
   effectValue: 1
   isBaseUpgrade: 1
   maxStack: 1

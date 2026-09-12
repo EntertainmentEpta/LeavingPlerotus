@@ -10,13 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e31866c5ea326c74fbe71613556564ac, type: 3}
-  m_Name: eq_consertar_porta
+  m_Name: eq_arma_projetil
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentData
-  equipmentId: eq_consertar_porta
-  equipmentName: Reparo da Porta do Lab
-  description: Substitui os conduites de energia queimados, abrindo acesso ao Laboratorio.
+  equipmentId: eq_arma_projetil
+  equipmentName: Arquetipo Arma de Projetil
+  description: Desbloqueia a Arma de Projetil para a run.
   icon: {fileID: 0}
-  effectType: 20
+  effectType: 19
   effectValue: 1
-  isBaseUpgrade: 1
   maxStack: 1
