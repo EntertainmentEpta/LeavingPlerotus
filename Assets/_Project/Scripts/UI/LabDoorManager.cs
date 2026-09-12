@@ -1,8 +1,8 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 /// <summary>
 /// Gerencia a porta do laboratorio na Base.
-/// Bloqueia/desbloqueia o trigger e troca a cor da luz caso o jogador tenha craftado o reparo.
 /// </summary>
 public class LabDoorManager : MonoBehaviour
 {
@@ -10,10 +10,13 @@ public class LabDoorManager : MonoBehaviour
     [Tooltip("A luz que fica em cima/dentro da porta.")]
     public Light doorLight;
     
-    [Tooltip("O GameObject que contem o trigger de transicao pro lab.")]
-    public GameObject labTriggerObject;
+    [Tooltip("Objetos para ATIVAR quando a porta for consertada (Ex: Trigger do Lab, Luz verde, etc).")]
+    public List<GameObject> objectsToEnable = new List<GameObject>();
 
-    [Header("Cores")]
+    [Tooltip("Objetos para DESATIVAR quando a porta for consertada (Ex: Faiscas, fogo, luz vermelha, etc).")]
+    public List<GameObject> objectsToDisable = new List<GameObject>();
+
+    [Header("Cores da Luz Principal")]
     public Color brokenColor = new Color(0.886f, 0.486f, 0.388f); // #E27C63
     public Color fixedColor = new Color(0.388f, 0.556f, 0.886f);  // #638EE2
 
@@ -21,13 +24,19 @@ public class LabDoorManager : MonoBehaviour
 
     void Start()
     {
-        // Forca o estado inicial baseando-se no SaveManager
+        // Se a luz nao foi assinalada, tenta buscar nos filhos
+        if (doorLight == null) doorLight = GetComponentInChildren<Light>();
+
         UpdateDoorState();
 
-        // Se inscreve para atualizar quando houver novo craft
         if (CraftingManager.Instance != null)
         {
             CraftingManager.OnCraftCompleted += CheckCraft;
+            Debug.Log("[LabDoor] Inscrito no evento OnCraftCompleted.");
+        }
+        else
+        {
+            Debug.LogWarning("[LabDoor] CraftingManager.Instance ta nulo no Start!");
         }
     }
 
@@ -41,12 +50,14 @@ public class LabDoorManager : MonoBehaviour
 
     private void CheckCraft(CraftingRecipe recipe)
     {
-        if (recipe != null && recipe.resultEquipment != null && recipe.resultEquipment.equipmentId == "eq_consertar_porta")
+        if (recipe != null && recipe.resultEquipment != null)
         {
-            UpdateDoorState();
-            
-            // Efeito sonoro / Particula de conserto poderia ir aqui!
-            Debug.Log("[LabDoor] Porta consertada com sucesso!");
+            Debug.Log("[LabDoor] Craft detectado: " + recipe.resultEquipment.equipmentId);
+            if (recipe.resultEquipment.equipmentId == "eq_consertar_porta")
+            {
+                UpdateDoorState();
+                Debug.Log("[LabDoor] A Porta foi consertada COM SUCESSO via Evento de Craft!");
+            }
         }
     }
 
@@ -55,16 +66,25 @@ public class LabDoorManager : MonoBehaviour
         if (SaveManager.instance != null)
         {
             isRepaired = SaveManager.instance.GetAllCraftedEquipmentIds().Contains("eq_consertar_porta");
+            Debug.Log("[LabDoor] Verificando SaveManager. isRepaired = " + isRepaired);
         }
 
+        // Atualiza a Luz
         if (doorLight != null)
         {
             doorLight.color = isRepaired ? fixedColor : brokenColor;
         }
 
-        if (labTriggerObject != null)
+        // Ativa os Triggers
+        foreach (var obj in objectsToEnable)
         {
-            labTriggerObject.SetActive(isRepaired);
+            if (obj != null) obj.SetActive(isRepaired);
+        }
+
+        // Desativa as Faiscas/Fogo
+        foreach (var obj in objectsToDisable)
+        {
+            if (obj != null) obj.SetActive(!isRepaired);
         }
     }
 }
