@@ -22,9 +22,11 @@ public class BaseSectorTransition : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         // Check if transition is already running or if we are in transition cooldown
-        if (isTransitioning || Time.time < nextAllowedTransitionTime) return;
+        if (isTransitioning && Time.time > nextAllowedTransitionTime + 3f) { isTransitioning = false; Debug.Log("Reset stuck transition"); }
+        if (isTransitioning || Time.time < nextAllowedTransitionTime) { Debug.Log("Transition blocked. isTransitioning:" + isTransitioning); return; }
 
         // Check if it is the Player
+        Debug.Log("[BaseSectorTransition] OnTriggerEnter by: " + other.name);
         PlayerM playerMovement = other.GetComponent<PlayerM>();
         if (playerMovement != null)
         {
@@ -135,3 +137,5 @@ public class BaseSectorTransition : MonoBehaviour
         isTransitioning = false;
     }
 }
+
+
