@@ -132,11 +132,12 @@ public class BaseSectorTransition : MonoBehaviour
         }
 
         // Set cooldown (1.5 seconds) to prevent instant back-and-forth triggering
-        nextAllowedTransitionTime = Time.time + 1.5f;
+        nextAllowedTransitionTime = Time.time + 0.2f;
 
         isTransitioning = false;
     }
 }
+
 
 
 
