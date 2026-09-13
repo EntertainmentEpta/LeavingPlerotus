@@ -201,7 +201,11 @@ public class EptinhoMenuController : MonoBehaviour
         sinRect.sizeDelta = Vector2.zero; // Stretch for Full Screen
         
         // Close Button (X) for Synergy Map
-        CreateButton(contentSinergia.transform, "BtnCloseSinergia", "X FECHAR", new Vector2(850f, 450f), new Vector2(150f, 50f), new Color(0.8f, 0.2f, 0.2f), () => MostrarAba(0));
+        GameObject btnCloseSin = CreateButton(contentSinergia.transform, "BtnCloseSinergia", "X FECHAR", Vector2.zero, new Vector2(150f, 50f), new Color(0.8f, 0.2f, 0.2f), () => MostrarAba(0));
+        RectTransform btnRect = btnCloseSin.GetComponent<RectTransform>();
+        btnRect.anchorMin = new Vector2(1, 1);
+        btnRect.anchorMax = new Vector2(1, 1);
+        btnRect.anchoredPosition = new Vector2(-100f, -50f); // Top-Right offset
 
         contentSinergia.AddComponent<SynergyMapBuilder>();
         contentSinergia.SetActive(false);

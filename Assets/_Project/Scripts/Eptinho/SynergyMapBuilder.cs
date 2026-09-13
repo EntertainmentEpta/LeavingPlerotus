@@ -54,11 +54,23 @@ public class SynergyMapBuilder : MonoBehaviour
         nodes.Add(new SynergyNode { id = "sharpblur_4", name = "SharpBlur T4\n(Explosive Dash)", tier = 4, position = new Vector2(400, 0), parents = new List<string> { "tank_3", "agil_3" } });
     }
 
+    private bool IsNodeUnlocked(SynergyNode node, bool hasUnlockAll)
+    {
+        if (hasUnlockAll) return true;
+        
+        // Verifica bestiario
+        if (node.id.Contains("golem") && SaveManager.instance.CachedData.inimigosDescobertos.Contains("Golem")) return true;
+        if (node.id.Contains("aranha") && SaveManager.instance.CachedData.inimigosDescobertos.Contains("Aranha")) return true;
+        if (node.id.Contains("goblin") && SaveManager.instance.CachedData.inimigosDescobertos.Contains("Goblin")) return true;
+        if (node.id.Contains("tank_3") || node.id.Contains("agil_3") || node.id.Contains("sharpblur_4")) return false; // Hide T3/T4 until implemented
+        
+        return false;
+    }
+
     private void BuildVisualMap()
     {
         foreach (Transform child in transform) { Destroy(child.gameObject); }
 
-        // Mscara e ScrollRect para poder arrastar o mapa grande
         GameObject viewport = new GameObject("Viewport");
         viewport.transform.SetParent(transform, false);
         RectTransform vpRect = viewport.AddComponent<RectTransform>();
@@ -66,7 +78,7 @@ public class SynergyMapBuilder : MonoBehaviour
         vpRect.sizeDelta = Vector2.zero;
         
         Image vpBg = viewport.AddComponent<Image>();
-        vpBg.color = new Color(0.08f, 0.08f, 0.12f, 1f); // Fundo escuro azulado
+        vpBg.color = new Color(0.08f, 0.08f, 0.12f, 1f);
         viewport.AddComponent<Mask>().showMaskGraphic = true;
 
         GameObject mapContainer = new GameObject("MapContent");
@@ -74,7 +86,7 @@ public class SynergyMapBuilder : MonoBehaviour
         RectTransform mapRect = mapContainer.AddComponent<RectTransform>();
         mapRect.anchorMin = new Vector2(0.5f, 0.5f);
         mapRect.anchorMax = new Vector2(0.5f, 0.5f);
-        mapRect.sizeDelta = new Vector2(1500f, 1000f); // Tamanho gigante pra arrastar
+        mapRect.sizeDelta = new Vector2(1500f, 1000f);
         mapRect.anchoredPosition = Vector2.zero;
 
         ScrollRect scroll = gameObject.GetComponent<ScrollRect>();
@@ -87,42 +99,34 @@ public class SynergyMapBuilder : MonoBehaviour
         scroll.movementType = ScrollRect.MovementType.Elastic;
         scroll.inertia = true;
 
-        // Pega sprites default da Unity pra fazer o crculo
         Sprite circleSprite = null;
 #if UNITY_EDITOR
         circleSprite = UnityEditor.AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
 #endif
 
-        // Verifica o progresso
         bool hasUnlockAll = (SaveManager.instance != null && SaveManager.instance.CachedData != null && SaveManager.instance.CachedData.inimigosDescobertos.Count > 3);
 
-        // 1. Linhas
+        // 1. Linhas (somente entre ns desbloqueados)
         foreach (var node in nodes)
         {
+            if (!IsNodeUnlocked(node, hasUnlockAll)) continue;
+
             foreach (var parentId in node.parents)
             {
                 SynergyNode parentNode = nodes.Find(n => n.id == parentId);
-                if (parentNode != null)
+                if (parentNode != null && IsNodeUnlocked(parentNode, hasUnlockAll))
                 {
                     DrawLine(mapContainer.transform, parentNode.position, node.position);
                 }
             }
         }
 
-        // 2. Ns
+        // 2. Ns (somente os desbloqueados)
         foreach (var node in nodes)
         {
-            bool isUnlocked = false;
-            if (hasUnlockAll) isUnlocked = true;
-            else
-            {
-                // Verifica bestirio bsico
-                if (node.id.Contains("golem") && SaveManager.instance.CachedData.inimigosDescobertos.Contains("Golem")) isUnlocked = true;
-                if (node.id.Contains("aranha") && SaveManager.instance.CachedData.inimigosDescobertos.Contains("Aranha")) isUnlocked = true;
-                if (node.id.Contains("goblin") && SaveManager.instance.CachedData.inimigosDescobertos.Contains("Goblin")) isUnlocked = true;
-            }
-
-            DrawNode(mapContainer.transform, node, circleSprite, isUnlocked);
+            if (!IsNodeUnlocked(node, hasUnlockAll)) continue;
+            
+            DrawNode(mapContainer.transform, node, circleSprite);
         }
     }
 
@@ -144,7 +148,7 @@ public class SynergyMapBuilder : MonoBehaviour
         rect.localRotation = Quaternion.Euler(0, 0, angle);
     }
 
-    private void DrawNode(Transform parent, SynergyNode node, Sprite circleSprite, bool isUnlocked)
+    private void DrawNode(Transform parent, SynergyNode node, Sprite circleSprite)
     {
         GameObject nodeObj = new GameObject("Node_" + node.name);
         nodeObj.transform.SetParent(parent, false);
@@ -153,8 +157,7 @@ public class SynergyMapBuilder : MonoBehaviour
         if (circleSprite != null) img.sprite = circleSprite;
         
         // Cores Bonitas
-        if (!isUnlocked) img.color = new Color(0.2f, 0.2f, 0.2f, 0.8f);
-        else if (node.tier == 1) img.color = new Color(0.7f, 0.7f, 0.7f); // Prata
+        if (node.tier == 1) img.color = new Color(0.7f, 0.7f, 0.7f); // Prata
         else if (node.tier == 2) img.color = new Color(0.2f, 0.8f, 0.3f); // Verde
         else if (node.tier == 3) img.color = new Color(0.2f, 0.5f, 1.0f); // Azul
         else img.color = new Color(1f, 0.84f, 0f); // Dourado T4
@@ -173,10 +176,10 @@ public class SynergyMapBuilder : MonoBehaviour
         txtObj.transform.SetParent(nodeObj.transform, false);
         TextMeshProUGUI txt = txtObj.AddComponent<TextMeshProUGUI>();
         
-        txt.text = isUnlocked ? node.name : "???";
+        txt.text = node.name;
         txt.fontSize = 18f;
         txt.alignment = TextAlignmentOptions.Center;
-        txt.color = isUnlocked ? Color.white : Color.gray;
+        txt.color = Color.white;
         txt.fontStyle = FontStyles.Bold;
         
         // Sombra no texto
