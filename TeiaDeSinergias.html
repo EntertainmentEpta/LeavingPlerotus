@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang='pt-BR'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Teia Alqumica de Sinergias - Living Plerotus</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0d0f16; color: #fff; text-align: center; margin: 0; padding: 20px; }
+        h1 { color: #8a2be2; margin-bottom: 5px; }
+        p { color: #aaa; margin-bottom: 30px; }
+        .node-container { display: flex; flex-direction: column; align-items: center; gap: 40px; margin-top: 20px; }
+        .tier-row { display: flex; justify-content: center; gap: 60px; position: relative; }
+        .node { background-color: #1a1e2d; border: 2px solid #3a3f58; border-radius: 10px; padding: 15px 25px; width: 160px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); position: relative; z-index: 2; transition: transform 0.2s; }
+        .node:hover { transform: scale(1.05); border-color: #8a2be2; }
+        .node h3 { margin: 0 0 10px 0; font-size: 18px; }
+        .tier-1 { border-color: #777; } .tier-1 h3 { color: #ccc; }
+        .tier-2 { border-color: #2e8b57; } .tier-2 h3 { color: #4ade80; }
+        .tier-3 { border-color: #4169e1; } .tier-3 h3 { color: #60a5fa; }
+        .tier-4 { border-color: #daa520; box-shadow: 0 0 15px rgba(218,165,32,0.6); } .tier-4 h3 { color: #facc15; }
+        .ingredients { font-size: 12px; color: #888; background: #000; padding: 5px; border-radius: 5px; margin-top: 10px; }
+        .instructions { max-width: 600px; margin: 0 auto 40px auto; background: #1a1e2d; padding: 15px; border-radius: 8px; border-left: 4px solid #8a2be2; text-align: left; }
+    </style>
+</head>
+<body>
+
+    <h1>Teia Alqumica de Sinergias</h1>
+    <p>Living Plerotus - Documento Interativo da Equipe</p>
+
+    <div class='instructions'>
+        <strong>Equipe de Game Design:</strong> Este é o mapa de alquimia. Para adicionar novas sinergias, basta abrir o código deste arquivo HTML no Bloco de Notas ou VSCode, e copiar e colar os blocos <code>&lt;div class='node'&gt;</code>. Em seguida, avisar a programao para replicar na Unity!
+    </div>
+
+    <div class='node-container'>
+        <!-- TIER 4 -->
+        <div class='tier-row'>
+            <div class='node tier-4'>
+                <h3>SharpBlur T4</h3>
+                <div>(Explosive Dash)</div>
+                <div class='ingredients'>Fundido de: Tank T3 + Agil T3</div>
+            </div>
+        </div>
+
+        <!-- TIER 3 -->
+        <div class='tier-row'>
+            <div class='node tier-3'>
+                <h3>Tank T3</h3>
+                <div class='ingredients'>Fundido de: Golem T2 + Aranha T2</div>
+            </div>
+            <div class='node tier-3'>
+                <h3>Agil T3</h3>
+                <div class='ingredients'>Fundido de: Aranha T2 + Goblin T2</div>
+            </div>
+        </div>
+
+        <!-- TIER 2 -->
+        <div class='tier-row'>
+            <div class='node tier-2'>
+                <h3>Golem T2</h3>
+                <div class='ingredients'>Fundido de: Golem T1 (x2)</div>
+            </div>
+            <div class='node tier-2'>
+                <h3>Aranha T2</h3>
+                <div class='ingredients'>Fundido de: Aranha T1 (x2)</div>
+            </div>
+            <div class='node tier-2'>
+                <h3>Goblin T2</h3>
+                <div class='ingredients'>Fundido de: Goblin T1 (x2)</div>
+            </div>
+        </div>
+
+        <!-- TIER 1 -->
+        <div class='tier-row'>
+            <div class='node tier-1'>
+                <h3>Golem T1</h3>
+                <div class='ingredients'>Drop Base</div>
+            </div>
+            <div class='node tier-1'>
+                <h3>Aranha T1</h3>
+                <div class='ingredients'>Drop Base</div>
+            </div>
+            <div class='node tier-1'>
+                <h3>Goblin T1</h3>
+                <div class='ingredients'>Drop Base</div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
