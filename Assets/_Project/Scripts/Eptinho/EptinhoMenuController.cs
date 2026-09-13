@@ -4,20 +4,20 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 
 /// <summary>
-/// Controla o menu do Orรกculo Eptinho.
-/// Interface completamente gerada por cรณdigo, estilo dark-glass (mesma paleta que SyntheticBagUI).
+/// Controla o menu do Or+ํculo Eptinho.
+/// Interface completamente gerada por c+ฆdigo, estilo dark-glass (mesma paleta que SyntheticBagUI).
 /// Abre via EptinhoOracleInteract (trigger F perto do Eptin) ou via tecla I.
 /// </summary>
 public class EptinhoMenuController : MonoBehaviour
 {
     public static EptinhoMenuController instancia;
 
-    // โ”€โ”€โ”€ Configuraรงรฃo do Inspector (todos opcionais) โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
-    [Header("UI Gerada por Cรณdigo (auto-configurado)")]
-    public GameObject menuUI; // Serรก criado automaticamente se nulo
-    public GameObject HUDCanvas; // Referรชncia ao HUD para esconder ao abrir o menu
+    // ิ๖วิ๖วิ๖ว Configura+บ+๚o do Inspector (todos opcionais) ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
+    [Header("UI Gerada por C+ฆdigo (auto-configurado)")]
+    public GameObject menuUI; // Ser+ํ criado automaticamente se nulo
+    public GameObject HUDCanvas; // Refer+ฌncia ao HUD para esconder ao abrir o menu
 
-    // โ”€โ”€โ”€ Constantes Visuais โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+    // ิ๖วิ๖วิ๖ว Constantes Visuais ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
     private static readonly Color PANEL_BG     = new Color(0.04f, 0.04f, 0.07f, 0.92f);
     private static readonly Color PANEL_BORDER = new Color(1f, 1f, 1f, 0.12f);
     private static readonly Color HEADER_COLOR = new Color(0.85f, 0.80f, 0.95f, 1.00f);
@@ -27,7 +27,7 @@ public class EptinhoMenuController : MonoBehaviour
     private static readonly Color CARD_BORDER  = new Color(0.55f, 0.35f, 0.90f, 0.40f);
     private static readonly Color TEXT_DIM     = new Color(0.65f, 0.60f, 0.80f, 1.00f);
 
-    // โ”€โ”€โ”€ Referรชncias Internas โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+    // ิ๖วิ๖วิ๖ว Refer+ฌncias Internas ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
     private Canvas      menuCanvas;
     private GameObject  canvasObj;
     private GameObject  panelObj;
@@ -42,7 +42,7 @@ public class EptinhoMenuController : MonoBehaviour
     private bool        uiBuilt = false;
     private TMP_FontAsset customFont;
 
-    // โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+    // ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
     void Awake()
     {
         if (instancia == null)
@@ -56,7 +56,7 @@ public class EptinhoMenuController : MonoBehaviour
             return;
         }
 
-        // Garante que o EptinhoController exista neste GameObject para spawnar o Eptinho fรญsico
+        // Garante que o EptinhoController exista neste GameObject para spawnar o Eptinho f+กsico
         if (GetComponent<EptinhoController>() == null)
         {
             gameObject.AddComponent<EptinhoController>();
@@ -75,14 +75,14 @@ public class EptinhoMenuController : MonoBehaviour
 
     void Update()
     {
-        // O menu do Eptinho agora abre apenas ao interagir diretamente com ele no mundo (Interaรงรฃo F).
+        // O menu do Eptinho agora abre apenas ao interagir diretamente com ele no mundo (Intera+บ+๚o F).
         if (isOpen && Input.GetKeyDown(KeyCode.Escape))
             FecharMenu();
     }
 
-    // โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
-    // API Pรบblica
-    // โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+    // ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
+    // API P+ฆblica
+    // ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
 
     public bool IsOpen() => gameObject.activeInHierarchy && isOpen;
 
@@ -114,9 +114,9 @@ public class EptinhoMenuController : MonoBehaviour
         Debug.Log("[EPTINHO MENU] Fechado.");
     }
 
-    // โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
-    // Construรงรฃo da UI
-    // โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+    // ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
+    // Constru+บ+๚o da UI
+    // ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
 
     private void BuildUI()
     {
@@ -144,11 +144,11 @@ public class EptinhoMenuController : MonoBehaviour
         panelRect.pivot = new Vector2(0.5f, 0.5f);
         panelRect.anchoredPosition = Vector2.zero;
 
-        // โ”€โ”€ Header โ”€โ”€
-        CreateLabel(panelObj.transform, "Header", "EPTINHO  ยท  ORรCULO",
+        // ิ๖วิ๖ว Header ิ๖วิ๖ว
+        CreateLabel(panelObj.transform, "Header", "EPTINHO  -ภ  OR+üCULO",
             new Vector2(0f, 270f), 26, HEADER_COLOR, true);
 
-        // รcone do Eptinho no header
+        // +์cone do Eptinho no header
         Sprite eptonhoSprite = Resources.Load<Sprite>("EPTONHO");
         if (eptonhoSprite != null)
         {
@@ -162,7 +162,7 @@ public class EptinhoMenuController : MonoBehaviour
             iconRect.anchoredPosition = new Vector2(-280f, 270f);
         }
 
-        // Linha divisรณria
+        // Linha divis+ฆria
         GameObject line = new GameObject("Line");
         line.transform.SetParent(panelObj.transform, false);
         Image lineImg = line.AddComponent<Image>();
@@ -171,22 +171,22 @@ public class EptinhoMenuController : MonoBehaviour
         lineRect.sizeDelta = new Vector2(700f, 1f);
         lineRect.anchoredPosition = new Vector2(0f, 245f);
 
-        // โ”€โ”€ Botรฃo Fechar โ”€โ”€
+        // ิ๖วิ๖ว Bot+๚o Fechar ิ๖วิ๖ว
         CreateButton(panelObj.transform, "BtnClose", "X", new Vector2(355f, 270f),
             new Vector2(40f, 40f), new Color(0.8f, 0.3f, 0.3f, 0.8f), () => FecharMenu());
 
-        // โ”€โ”€ Abas โ”€โ”€
+        // ิ๖วิ๖ว Abas ิ๖วิ๖ว
         float tabY = 215f;
-        tabBestiary = CreateButton(panelObj.transform, "TabBestiary", "BESTIรRIO",
+        tabBestiary = CreateButton(panelObj.transform, "TabBestiary", "BESTI+üRIO",
             new Vector2(-220f, tabY), new Vector2(200f, 40f), TAB_ACTIVE, () => MostrarAba(0));
 
-        tabCatalogo = CreateButton(panelObj.transform, "TabCatalogo", "CATรLOGO DE ITENS",
+        tabCatalogo = CreateButton(panelObj.transform, "TabCatalogo", "CAT+üLOGO DE ITENS",
             new Vector2(0f, tabY), new Vector2(200f, 40f), TAB_INACTIVE, () => MostrarAba(1));
 
         tabSinergia = CreateButton(panelObj.transform, "TabSinergia", "MAPA DE SINERGIAS",
             new Vector2(220f, tabY), new Vector2(200f, 40f), TAB_INACTIVE, () => MostrarAba(2));
 
-        // โ”€โ”€ รrea de conteรบdo โ”€โ”€
+        // ิ๖วิ๖ว +ürea de conte+ฆdo ิ๖วิ๖ว
         contentBestiary = CreateScrollArea(panelObj.transform, "ContentBestiary",
             new Vector2(0f, -30f), new Vector2(720f, 430f));
 
@@ -222,7 +222,7 @@ public class EptinhoMenuController : MonoBehaviour
 
     private void RefreshCurrentTab()
     {
-        // Verifica se a tab de Sinergia estรก desbloqueada
+        // Verifica se a tab de Sinergia est+ํ desbloqueada
         bool hasSynergyMap = false;
         if (SaveManager.instance != null && SaveManager.instance.GetAllCraftedEquipmentIds().Contains("eq_mapa_sinergias"))
         {
@@ -303,9 +303,9 @@ public class EptinhoMenuController : MonoBehaviour
         }
     }
 
-    // โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
-    // Criaรงรฃo de Cards
-    // โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+    // ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
+    // Cria+บ+๚o de Cards
+    // ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
 
     private void CreateEnemyCard(Transform parent, EnemyData data)
     {
@@ -333,7 +333,7 @@ public class EptinhoMenuController : MonoBehaviour
         borderRect.pivot = new Vector2(0f, 0.5f);
         borderRect.anchoredPosition = Vector2.zero;
 
-        // รcone do inimigo
+        // +์cone do inimigo
         if (data.icon != null)
         {
             GameObject iconGO = new GameObject("Icon");
@@ -384,7 +384,7 @@ public class EptinhoMenuController : MonoBehaviour
             classRect.sizeDelta = new Vector2(-130f, 20f);
         }
 
-        // Texto - Descriรงรฃo/Lore
+        // Texto - Descri+บ+๚o/Lore
         if (!string.IsNullOrEmpty(data.descricao))
         {
             GameObject descGO = new GameObject("Desc");
@@ -416,7 +416,7 @@ public class EptinhoMenuController : MonoBehaviour
         le.minHeight = 80f;
         le.preferredHeight = 80f;
 
-        // รcone
+        // +์cone
         if (data.icon != null)
         {
             GameObject iconGO = new GameObject("Icon");
@@ -447,7 +447,7 @@ public class EptinhoMenuController : MonoBehaviour
         nameRect.anchoredPosition = new Vector2(80f, 10f);
         nameRect.sizeDelta = new Vector2(-90f, 24f);
 
-        // Descriรงรฃo
+        // Descri+บ+๚o
         if (!string.IsNullOrEmpty(data.description))
         {
             GameObject descGO = new GameObject("Desc");
@@ -464,9 +464,9 @@ public class EptinhoMenuController : MonoBehaviour
         }
     }
 
-    // โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+    // ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
     // Helpers UI
-    // โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+    // ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
 
     private GameObject CreatePanel(Transform parent, string name, Vector2 size, Color color)
     {
@@ -588,6 +588,7 @@ public class EptinhoMenuController : MonoBehaviour
         if (img != null) img.color = color;
     }
 }
+
 
 
 
