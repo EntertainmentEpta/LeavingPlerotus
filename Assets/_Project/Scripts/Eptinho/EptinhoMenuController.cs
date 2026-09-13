@@ -201,7 +201,7 @@ public class EptinhoMenuController : MonoBehaviour
         sinRect.sizeDelta = Vector2.zero; // Stretch for Full Screen
         
         // Close Button (X) for Synergy Map
-        CreateButton(contentSinergia.transform, "X FECHAR", new Vector2(0.85f, 0.9f), new Vector2(0.98f, 0.98f), () => MostrarAba(0), new Color(0.8f, 0.2f, 0.2f));
+        CreateButton(contentSinergia.transform, "BtnCloseSinergia", "X FECHAR", new Vector2(850f, 450f), new Vector2(150f, 50f), new Color(0.8f, 0.2f, 0.2f), () => MostrarAba(0));
 
         contentSinergia.AddComponent<SynergyMapBuilder>();
         contentSinergia.SetActive(false);
