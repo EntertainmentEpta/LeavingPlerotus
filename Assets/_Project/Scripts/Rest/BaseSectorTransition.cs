@@ -100,19 +100,6 @@ public class BaseSectorTransition : MonoBehaviour
             player.transform.position = spawnPoint.position;
             player.transform.rotation = spawnPoint.rotation;
 
-            // NOVO: Imunidade de Portal
-            // Ao teleportar, vamos checar quais Portas (BaseSectorTransition) o player est tocando agora.
-            // Avisamos a essas portas para IGNORAREM o player at que ele d um passo para fora!
-            Collider[] hitColliders = Physics.OverlapSphere(spawnPoint.position, 1.5f);
-            foreach (var hit in hitColliders)
-            {
-                BaseSectorTransition destTransition = hit.GetComponent<BaseSectorTransition>();
-                if (destTransition != null)
-                {
-                    destTransition.immunePlayers.Add(playerCollider);
-                    Debug.Log("[BaseSectorTransition] Dando imunidade ao player no portal de destino: " + destTransition.gameObject.name);
-                }
-            }
         }
         else
         {
@@ -128,6 +115,24 @@ public class BaseSectorTransition : MonoBehaviour
 
         if (sectorToActivate != null) sectorToActivate.SetActive(true);
         if (sectorToDeactivate != null) sectorToDeactivate.SetActive(false);
+
+        // Forca atualizacao da fisica para que as portas recem ativadas sejam detectadas!
+        Physics.SyncTransforms();
+
+        if (spawnPoint != null)
+        {
+            // NOVO: Imunidade de Portal DEPOIS de ativar o setor
+            Collider[] hitColliders = Physics.OverlapSphere(spawnPoint.position, 1.5f);
+            foreach (var hit in hitColliders)
+            {
+                BaseSectorTransition destTransition = hit.GetComponent<BaseSectorTransition>();
+                if (destTransition != null && destTransition != this)
+                {
+                    destTransition.immunePlayers.Add(playerCollider);
+                    Debug.Log("[BaseSectorTransition] Dando imunidade ao player no portal de destino: " + destTransition.gameObject.name);
+                }
+            }
+        }
 
         yield return new WaitForSeconds(blackScreenDuration);
 
@@ -150,3 +155,4 @@ public class BaseSectorTransition : MonoBehaviour
         isTransitioning = false;
     }
 }
+
