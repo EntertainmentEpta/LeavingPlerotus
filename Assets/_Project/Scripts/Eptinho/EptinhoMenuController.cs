@@ -194,10 +194,15 @@ public class EptinhoMenuController : MonoBehaviour
             new Vector2(0f, -30f), new Vector2(720f, 430f));
         contentCatalogo.SetActive(false);
 
-        // Painel do Mapa de Sinergias
-        contentSinergia = CreatePanel(panelObj.transform, "ContentSinergia", new Vector2(720f, 430f), new Color(0,0,0,0));
+        // Painel do Mapa de Sinergias (FULL SCREEN)
+        contentSinergia = CreatePanel(canvasObj.transform, "ContentSinergia", Vector2.zero, new Color(0.05f, 0.05f, 0.08f, 1f));
         RectTransform sinRect = contentSinergia.GetComponent<RectTransform>();
-        sinRect.anchoredPosition = new Vector2(0f, -30f);
+        sinRect.anchorMin = Vector2.zero; sinRect.anchorMax = Vector2.one;
+        sinRect.sizeDelta = Vector2.zero; // Stretch for Full Screen
+        
+        // Close Button (X) for Synergy Map
+        CreateButton(contentSinergia.transform, "X FECHAR", new Vector2(0.85f, 0.9f), new Vector2(0.98f, 0.98f), () => MostrarAba(0), new Color(0.8f, 0.2f, 0.2f));
+
         contentSinergia.AddComponent<SynergyMapBuilder>();
         contentSinergia.SetActive(false);
 

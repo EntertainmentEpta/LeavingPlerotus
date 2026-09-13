@@ -77,7 +77,9 @@ public class SynergyMapBuilder : MonoBehaviour
         mapRect.sizeDelta = new Vector2(1500f, 1000f); // Tamanho gigante pra arrastar
         mapRect.anchoredPosition = Vector2.zero;
 
-        ScrollRect scroll = gameObject.AddComponent<ScrollRect>();
+        ScrollRect scroll = gameObject.GetComponent<ScrollRect>();
+        if (scroll == null) scroll = gameObject.AddComponent<ScrollRect>();
+        
         scroll.content = mapRect;
         scroll.viewport = vpRect;
         scroll.horizontal = true;
