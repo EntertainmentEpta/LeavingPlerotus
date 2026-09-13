@@ -299,19 +299,51 @@
         physics: {
             barnesHut: { gravitationalConstant: -10000, centralGravity: 0.1, springLength: 150, springConstant: 0.02 } // ForÃ§a a repulsÃ£o para as linhas ficarem mais espalhadas e visÃ­veis
         },
-        manipulation: {
+                manipulation: {
             enabled: true,
-            addNode: false,
-            addEdge: function (edgeData, callback) {
-                if (edgeData.from === edgeData.to) { alert("NÃ£o pode conectar no mesmo item!"); callback(null); return; }
-                let synName = prompt("Qual o nome dessa nova Sinergia?");
-                if (synName && synName.trim() !== "") {
-                    let newSyn = { id: `SYN_${synCounter++}`, name: synName, nodes: [edgeData.from, edgeData.to] };
-                    synergiesData.push(newSyn);
-                    renderSynergyToMap(newSyn);
-                    updateUI(); 
+            addNode: function(data, callback) {
+                document.getElementById('node-operation').innerText = "Nova Sinergia/Nó";
+                document.getElementById('node-label').value = "Nova Ideia";
+                document.getElementById('node-desc').value = "Escreva o efeito aqui...";
+                document.getElementById('node-tier').value = "synergy";
+                document.getElementById('node-saveButton').onclick = function() { saveData(data, callback); };
+                document.getElementById('node-cancelButton').onclick = function() { cancelEdit(callback); };
+                document.getElementById('node-popUp').style.display = 'block';
+            },
+            editNode: function(data, callback) {
+                document.getElementById('node-operation').innerText = "Editar " + (data.label || "");
+                document.getElementById('node-label').value = data.label || "";
+                
+                let existingItem = itemsMap[data.id];
+                document.getElementById('node-desc').value = (existingItem && existingItem.data && existingItem.data.desc) ? existingItem.data.desc : "";
+                
+                let currentTier = "synergy";
+                if (existingItem) {
+                    if (existingItem.type === 'enemy') currentTier = "enemy";
+                    else if (existingItem.type === 'item') currentTier = existingItem.data.tier;
+                    else if (existingItem.type === 'synergy' && existingItem.data.isSpecial) currentTier = "special";
                 }
-                callback(null);
+                document.getElementById('node-tier').value = currentTier;
+                
+                document.getElementById('node-saveButton').onclick = function() { saveData(data, callback); };
+                document.getElementById('node-cancelButton').onclick = function() { cancelEdit(callback); };
+                document.getElementById('node-popUp').style.display = 'block';
+            },
+            addEdge: function (edgeData, callback) {
+                if (edgeData.from !== edgeData.to) {
+                    edgeData.dashes = true;
+                    edgeData.color = {color: "#93b070", width: 2};
+                    callback(edgeData);
+                    setTimeout(updateStats, 100);
+                }
+            },
+            deleteNode: function(data, callback) {
+                callback(data);
+                setTimeout(updateStats, 100);
+            },
+            deleteEdge: function(data, callback) {
+                callback(data);
+                setTimeout(updateStats, 100);
             }
         }
     };
