@@ -372,3 +372,4 @@ public class DevCheatConsole : MonoBehaviour
         txt.color = Color.white; txt.alignment = TextAlignmentOptions.Center;
     }
 }
+
