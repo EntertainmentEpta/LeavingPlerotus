@@ -75,9 +75,13 @@ public class EptinhoMenuController : MonoBehaviour
 
     void Update()
     {
-        // O menu do Eptinho agora abre apenas ao interagir diretamente com ele no mundo (Interação F).
         if (isOpen && Input.GetKeyDown(KeyCode.Escape))
-            FecharMenu();
+        {
+            if (currentTab == 2)
+                MostrarAba(0); // Se estiver no Mapa em tela cheia, o ESC apenas volta para o menu
+            else
+                FecharMenu();  // Senão, fecha tudo
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -106,7 +110,10 @@ public class EptinhoMenuController : MonoBehaviour
     {
         if (!isOpen) return;
         isOpen = false;
-        panelObj.SetActive(false);
+        
+        if (panelObj != null) panelObj.SetActive(false);
+        if (contentSinergia != null) contentSinergia.SetActive(false); // Garante que a tela cheia fecha também
+        
         if (HUDCanvas != null) HUDCanvas.SetActive(true);
 
         Cursor.lockState = CursorLockMode.Locked;
