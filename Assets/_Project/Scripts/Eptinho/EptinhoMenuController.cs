@@ -198,7 +198,7 @@ public class EptinhoMenuController : MonoBehaviour
         contentSinergia = CreatePanel(panelObj.transform, "ContentSinergia", new Vector2(720f, 430f), new Color(0,0,0,0));
         RectTransform sinRect = contentSinergia.GetComponent<RectTransform>();
         sinRect.anchoredPosition = new Vector2(0f, -30f);
-        CreateLabel(contentSinergia.transform, "Msg", "Teia Alquímica de Sinergias\n\n(Integração com Web/UI em desenvolvimento)", Vector2.zero, 20, Color.cyan, true);
+        contentSinergia.AddComponent<SynergyMapBuilder>();
         contentSinergia.SetActive(false);
 
         menuUI = panelObj;
@@ -588,4 +588,5 @@ public class EptinhoMenuController : MonoBehaviour
         if (img != null) img.color = color;
     }
 }
+
 
