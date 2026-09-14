@@ -36,6 +36,12 @@ public class PauseMenuController : MonoBehaviour
         // Se a tela de Morte ou Vitória estiver ativa, aborta o Update e ignora o ESC
         if (IsGameOverScreenActive()) return;
 
+        // === TESTE RÁPIDO DE CÂMERA (F4) ===
+        if (Input.GetKeyDown(KeyCode.F4))
+        {
+            ToggleIsometricMode(!isIsometricActive);
+        }
+
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             if (optionsPanel != null && optionsPanel.activeSelf)
@@ -47,6 +53,55 @@ public class PauseMenuController : MonoBehaviour
                 if (isPaused) ResumeGame();
                 else PauseGame();
             }
+        }
+    }
+
+    // ==========================================
+    // SISTEMA DE CÂMERA ISOMÉTRICA (ESTILO HADES)
+    // ==========================================
+    private Camera mainCam;
+    private Vector3 originalCamPos;
+    private Quaternion originalCamRot;
+    private bool originalOrthographic;
+    private float originalOrthoSize;
+    private bool isIsometricActive = false;
+
+    public void ToggleIsometricMode(bool isIsometric)
+    {
+        if (mainCam == null) mainCam = Camera.main;
+        if (mainCam == null) return;
+
+        if (isIsometric && !isIsometricActive)
+        {
+            // Salvar estado atual da cmera do jogo
+            originalCamPos = mainCam.transform.position;
+            originalCamRot = mainCam.transform.rotation;
+            originalOrthographic = mainCam.orthographic;
+            originalOrthoSize = mainCam.orthographicSize;
+
+            // Forar o modo Isomtrico
+            mainCam.orthographic = true;
+            mainCam.orthographicSize = 8f;
+            mainCam.transform.rotation = Quaternion.Euler(30f, 45f, 0f);
+            
+            // Tentar focar no jogador
+            GameObject player = GameObject.FindGameObjectWithTag("Player");
+            Vector3 targetPos = player != null ? player.transform.position : Vector3.zero;
+            mainCam.transform.position = targetPos + new Vector3(-15f, 15f, -15f);
+
+            isIsometricActive = true;
+            Debug.Log("[Câmera] Modo Isométrico 2.5D ATIVADO!");
+        }
+        else if (!isIsometric && isIsometricActive)
+        {
+            // Restaurar cmera original (3a pessoa, etc)
+            mainCam.orthographic = originalOrthographic;
+            mainCam.orthographicSize = originalOrthoSize;
+            mainCam.transform.position = originalCamPos;
+            mainCam.transform.rotation = originalCamRot;
+
+            isIsometricActive = false;
+            Debug.Log("[Câmera] Câmera Normal RESTAURADA!");
         }
     }
 
