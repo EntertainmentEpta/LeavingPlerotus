@@ -3,64 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>LaboratÃ³rio de Sinergias Completas - RogueLikeProject</title>
-    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js">
-    function cancelEdit(callback) {
-        document.getElementById('node-popUp').style.display = 'none';
-        callback(null);
-    }
-    
-    function saveData(data, callback) {
-        data.label = document.getElementById('node-label').value;
-        let desc = document.getElementById('node-desc').value;
-        let tier = document.getElementById('node-tier').value;
-        
-        let col = colors[tier];
-        if (!col && tier === 'enemy') col = colors.enemy;
-        if (!col) col = colors.synergy;
-        
-        data.color = col;
-        data.font = { color: col.font, size: (tier === 'enemy' || tier === 'special') ? 20 : 14, bold: true };
-        data.shape = (tier === 'enemy') ? "circle" : (tier === 'synergy' || tier === 'special') ? "box" : "ellipse";
-        
-        itemsMap[data.id] = {
-            type: tier === 'enemy' ? 'enemy' : tier.startsWith('T') ? 'item' : 'synergy',
-            data: { id: data.id, name: data.label, desc: desc, tier: tier, isSpecial: tier === 'special' }
-        };
-        
-        document.getElementById('node-popUp').style.display = 'none';
-        callback(data);
-        setTimeout(updateStats, 100);
-    }
-</script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js">
-    function cancelEdit(callback) {
-        document.getElementById('node-popUp').style.display = 'none';
-        callback(null);
-    }
-    
-    function saveData(data, callback) {
-        data.label = document.getElementById('node-label').value;
-        let desc = document.getElementById('node-desc').value;
-        let tier = document.getElementById('node-tier').value;
-        
-        let col = colors[tier];
-        if (!col && tier === 'enemy') col = colors.enemy;
-        if (!col) col = colors.synergy;
-        
-        data.color = col;
-        data.font = { color: col.font, size: (tier === 'enemy' || tier === 'special') ? 20 : 14, bold: true };
-        data.shape = (tier === 'enemy') ? "circle" : (tier === 'synergy' || tier === 'special') ? "box" : "ellipse";
-        
-        itemsMap[data.id] = {
-            type: tier === 'enemy' ? 'enemy' : tier.startsWith('T') ? 'item' : 'synergy',
-            data: { id: data.id, name: data.label, desc: desc, tier: tier, isSpecial: tier === 'special' }
-        };
-        
-        document.getElementById('node-popUp').style.display = 'none';
-        callback(data);
-        setTimeout(updateStats, 100);
-    }
-</script>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; background-color: #f4f5f7; overflow: hidden; }
         
@@ -103,11 +47,9 @@
         <h3 id="node-operation" style="margin-top:0; color:#5a7ade;">Editar Sinergia</h3>
         <label><b>Nome na Tela:</b></label><br>
         <input id="node-label" style="width:100%; padding:8px; margin:5px 0 15px 0; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;"/><br>
-        
-        <label><b>Descrio (Painel Lateral):</b></label><br>
+        <label><b>Descrição:</b></label><br>
         <textarea id="node-desc" rows="3" style="width:100%; padding:8px; margin:5px 0 15px 0; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;"></textarea><br>
-        
-        <label><b>Tier (Aparncia):</b></label><br>
+        <label><b>Tier (Aparência):</b></label><br>
         <select id="node-tier" style="width:100%; padding:8px; margin:5px 0 20px 0; border:1px solid #ccc; border-radius:4px;">
             <option value="synergy">Sinergia Comum (Verde)</option>
             <option value="special">Sinergia Boss/Especial (Dourada)</option>
@@ -117,7 +59,6 @@
             <option value="T4">Item T4 (Ouro Escuro)</option>
             <option value="enemy">Inimigo Raiz (Preto)</option>
         </select><br>
-        
         <div style="display:flex; justify-content:space-between;">
             <button id="node-saveButton" style="background:#5a7ade; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; width:48%; font-weight:bold;">Salvar</button>
             <button id="node-cancelButton" style="background:#eee; color:#333; padding:10px; border:none; border-radius:5px; cursor:pointer; width:48%;">Cancelar</button>
@@ -430,7 +371,7 @@
     }
     updateUI();
 
-
+</script>
     function cancelEdit(callback) {
         document.getElementById('node-popUp').style.display = 'none';
         callback(null);
@@ -458,6 +399,35 @@
         callback(data);
         setTimeout(updateStats, 100);
     }
+    // LAST SCRIPT TAG MARKER
+    function cancelEdit(callback) {
+        document.getElementById('node-popUp').style.display = 'none';
+        callback(null);
+    }
+    
+    function saveData(data, callback) {
+        data.label = document.getElementById('node-label').value;
+        let desc = document.getElementById('node-desc').value;
+        let tier = document.getElementById('node-tier').value;
+        
+        let col = colors[tier];
+        if (!col && tier === 'enemy') col = colors.enemy;
+        if (!col) col = colors.synergy;
+        
+        data.color = col;
+        data.font = { color: col.font, size: (tier === 'enemy' || tier === 'special') ? 20 : 14, bold: true };
+        data.shape = (tier === 'enemy') ? "circle" : (tier === 'synergy' || tier === 'special') ? "box" : "ellipse";
+        
+        itemsMap[data.id] = {
+            type: tier === 'enemy' ? 'enemy' : tier.startsWith('T') ? 'item' : 'synergy',
+            data: { id: data.id, name: data.label, desc: desc, tier: tier, isSpecial: tier === 'special' }
+        };
+        
+        document.getElementById('node-popUp').style.display = 'none';
+        callback(data);
+        setTimeout(updateStats, 100);
+    }
+    // LAST SCRIPT TAG MARKER
 </script>
 </body>
 </html>
