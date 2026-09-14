@@ -138,4 +138,26 @@ public class OptionsMenuManager : MonoBehaviour
         QualitySettings.vSyncCount = 0; 
         Debug.Log("Comando enviado: VSYNC DESLIGADO"); 
     }
+
+    // ==========================================
+    // FUNÇÕES PARA A CÂMERA ISOMÉTRICA (VIA TOGGLE SWITCH)
+    // ==========================================
+    [Header("Sistema de Câmeras (Toggle)")]
+    [Tooltip("Arraste as câmeras aqui para o toggle poder ligar/desligar elas")]
+    public GameObject mainCameraObj;
+    public GameObject isometricCameraObj;
+
+    public void AtivarCameraIsometrica()
+    {
+        if (mainCameraObj != null) mainCameraObj.SetActive(false);
+        if (isometricCameraObj != null) isometricCameraObj.SetActive(true);
+        Debug.Log("Comando enviado: CÂMERA ISOMÉTRICA LIGADA");
+    }
+
+    public void DesativarCameraIsometrica()
+    {
+        if (isometricCameraObj != null) isometricCameraObj.SetActive(false);
+        if (mainCameraObj != null) mainCameraObj.SetActive(true);
+        Debug.Log("Comando enviado: CÂMERA NORMAL LIGADA");
+    }
 }
