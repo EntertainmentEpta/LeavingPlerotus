@@ -57,51 +57,51 @@ public class PauseMenuController : MonoBehaviour
     }
 
     // ==========================================
-    // SISTEMA DE CÂMERA ISOMÉTRICA (ESTILO HADES)
+    // SISTEMA DE CÂMERA ISOMÉTRICA (DUAS CÂMERAS) E SLIDER
     // ==========================================
-    private Camera mainCam;
-    private Vector3 originalCamPos;
-    private Quaternion originalCamRot;
-    private bool originalOrthographic;
-    private float originalOrthoSize;
+    [Header("Configuração de Câmeras")]
+    public GameObject mainCameraObj;
+    public GameObject isometricCameraObj;
+    
+    [Header("UI do Slider de Câmera")]
+    public Slider cameraSlider;
+
     private bool isIsometricActive = false;
+
+    // Nova funo para o Slider
+    public void OnCameraSliderChanged(float value)
+    {
+        bool wantIsometric = (value > 0.5f);
+        ToggleIsometricMode(wantIsometric);
+
+        // Opcional: Travar o slider no 0 ou 1 para ele agir como um interruptor (On/Off)
+        if (cameraSlider != null)
+        {
+            cameraSlider.value = wantIsometric ? 1f : 0f;
+        }
+    }
 
     public void ToggleIsometricMode(bool isIsometric)
     {
-        if (mainCam == null) mainCam = Camera.main;
-        if (mainCam == null) return;
+        if (mainCameraObj == null || isometricCameraObj == null)
+        {
+            Debug.LogWarning("[Câmera] Você esqueceu de arrastar as câmeras para o PauseMenuController no Inspector!");
+            return;
+        }
 
         if (isIsometric && !isIsometricActive)
         {
-            // Salvar estado atual da cmera do jogo
-            originalCamPos = mainCam.transform.position;
-            originalCamRot = mainCam.transform.rotation;
-            originalOrthographic = mainCam.orthographic;
-            originalOrthoSize = mainCam.orthographicSize;
-
-            // Forar o modo Isomtrico
-            mainCam.orthographic = true;
-            mainCam.orthographicSize = 8f;
-            mainCam.transform.rotation = Quaternion.Euler(30f, 45f, 0f);
-            
-            // Tentar focar no jogador
-            GameObject player = GameObject.FindGameObjectWithTag("Player");
-            Vector3 targetPos = player != null ? player.transform.position : Vector3.zero;
-            mainCam.transform.position = targetPos + new Vector3(-15f, 15f, -15f);
-
+            mainCameraObj.SetActive(false);
+            isometricCameraObj.SetActive(true);
             isIsometricActive = true;
-            Debug.Log("[Câmera] Modo Isométrico 2.5D ATIVADO!");
+            Debug.Log("[Câmera] Ligou a Câmera Isométrica!");
         }
         else if (!isIsometric && isIsometricActive)
         {
-            // Restaurar cmera original (3a pessoa, etc)
-            mainCam.orthographic = originalOrthographic;
-            mainCam.orthographicSize = originalOrthoSize;
-            mainCam.transform.position = originalCamPos;
-            mainCam.transform.rotation = originalCamRot;
-
+            isometricCameraObj.SetActive(false);
+            mainCameraObj.SetActive(true);
             isIsometricActive = false;
-            Debug.Log("[Câmera] Câmera Normal RESTAURADA!");
+            Debug.Log("[Câmera] Ligou a Câmera Normal!");
         }
     }
 
