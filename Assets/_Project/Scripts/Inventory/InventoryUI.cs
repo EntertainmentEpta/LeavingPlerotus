@@ -17,6 +17,12 @@ using System.Collections.Generic;
 /// </summary>
 public class InventoryUI : MonoBehaviour
 {
+    // === Seleção Múltipla para Infusão ===
+    public System.Collections.Generic.List<InventorySlotUI> selectedSlots = new System.Collections.Generic.List<InventorySlotUI>();
+    private GameObject mergeButtonObj;
+    private UnityEngine.UI.Button mergeButton;
+    private TextMeshProUGUI mergeButtonText;
+
     // Singleton
     public static InventoryUI Instance { get; private set; }
     [Header("Input")]
@@ -433,6 +439,7 @@ public class InventoryUI : MonoBehaviour
     /// </summary>
     public void CloseInventory()
     {
+        ClearSelection();
         isOpen = false;
         if (panelObject != null) panelObject.SetActive(false);
         if (customPanel != null) customPanel.SetActive(false);
@@ -492,6 +499,7 @@ public class InventoryUI : MonoBehaviour
     /// </summary>
     public void RefreshUI()
     {
+        ClearSelection();
         if (playerInventory == null)
         {
             ConnectToPlayerInventory();
@@ -1062,6 +1070,9 @@ public class InventoryUI : MonoBehaviour
         // === Botão de Fechar (X) ===
         CreateCloseButton(panelObject.transform, uiLayer);
 
+        // === Botão de Fusão (Oculto inicialmente) ===
+        CreateMergeButton(panelObject.transform, uiLayer);
+
         lastInventoryPanelPosition = inventoryPanelPosition;
         lastPreviewPanelPosition = previewPanelPosition;
         lastPreviewPanelSize = previewPanelSize;
@@ -1310,6 +1321,127 @@ public class InventoryUI : MonoBehaviour
         {
             string val = essence != null ? $"{essence.currentEssence}" : "0";
             statsOrbsText.text = $"<size=10><color={dimWhite}>ORBS</color></size>\n<color={goldHex}>{val}</color>";
+        }
+    }
+
+    // ==========================================
+    // SISTEMA DE SELEÇÃO E FUSÃO (SINERGIA)
+    // ==========================================
+
+    public void ToggleItemSelection(InventorySlotUI slot, string itemId)
+    {
+        if (selectedSlots.Contains(slot))
+        {
+            // Deseleciona
+            slot.SetSelected(false);
+            selectedSlots.Remove(slot);
+        }
+        else
+        {
+            // Seleciona (Limita a 2 itens)
+            if (selectedSlots.Count >= 4)
+            {
+                // Remove o primeiro para dar espaço ao novo
+                InventorySlotUI oldest = selectedSlots[0];
+                oldest.SetSelected(false);
+                selectedSlots.RemoveAt(0);
+            }
+            slot.SetSelected(true);
+            selectedSlots.Add(slot);
+        }
+
+        UpdateMergeButtonState();
+    }
+
+    public void ClearSelection()
+    {
+        foreach (var slot in selectedSlots)
+        {
+            if (slot != null) slot.SetSelected(false);
+        }
+        selectedSlots.Clear();
+        UpdateMergeButtonState();
+    }
+
+    private void UpdateMergeButtonState()
+    {
+        if (mergeButtonObj == null) return;
+
+        if (selectedSlots.Count > 0 && selectedSlots.Count <= 4)
+        {
+            mergeButtonObj.SetActive(true);
+        }
+        else
+        {
+            mergeButtonObj.SetActive(false);
+        }
+    }
+
+    private void CreateMergeButton(Transform parent, int layer)
+    {
+        mergeButtonObj = new GameObject("MergeButton");
+        mergeButtonObj.transform.SetParent(parent, false);
+        mergeButtonObj.layer = layer;
+
+        RectTransform btnRect = mergeButtonObj.AddComponent<RectTransform>();
+        btnRect.anchorMin = new Vector2(0.5f, -0.05f); 
+        btnRect.anchorMax = new Vector2(0.5f, -0.05f);
+        btnRect.pivot = new Vector2(0.5f, 1f);
+        btnRect.anchoredPosition = new Vector2(-150f, 5f);
+        btnRect.sizeDelta = new Vector2(120f, 30f); 
+
+        mergeButtonObj.AddComponent<CanvasRenderer>();
+        UnityEngine.UI.Image btnBg = mergeButtonObj.AddComponent<UnityEngine.UI.Image>();
+        btnBg.color = Color.white;
+        btnBg.raycastTarget = true;
+
+        mergeButton = mergeButtonObj.AddComponent<UnityEngine.UI.Button>();
+        mergeButton.onClick.AddListener(OnMergeButtonClicked);
+        
+        UnityEngine.UI.ColorBlock cb = mergeButton.colors;
+        cb.normalColor = new Color32(87, 72, 142, 255);
+        cb.highlightedColor = new Color32(139, 168, 222, 255);
+        cb.pressedColor = new Color32(31, 115, 233, 255);
+        cb.selectedColor = Color.white;
+        cb.disabledColor = new Color32(200, 200, 200, 128);
+        cb.colorMultiplier = 1.5f;
+        cb.fadeDuration = 0.1f;
+        mergeButton.colors = cb;
+
+        GameObject textObj = new GameObject("Text");
+        textObj.transform.SetParent(mergeButtonObj.transform, false);
+        textObj.layer = layer;
+
+        RectTransform textRect = textObj.AddComponent<RectTransform>();
+        textRect.anchorMin = Vector2.zero;
+        textRect.anchorMax = Vector2.one;
+        textRect.sizeDelta = Vector2.zero;
+        textRect.anchoredPosition = Vector2.zero;
+
+        TMPro.TextMeshProUGUI tmpText = textObj.AddComponent<TMPro.TextMeshProUGUI>();
+        tmpText.text = "INFUSÃO";
+        tmpText.fontSize = 12;
+        tmpText.color = Color.white;
+        tmpText.alignment = TMPro.TextAlignmentOptions.Center;
+        // if (titleFont != null) tmpText.font = titleFont; // I'll leave the font logic since they might have Oswald Bold globally assigned.
+
+        mergeButtonObj.SetActive(false);
+    }
+    private void OnMergeButtonClicked()
+    {
+        if (selectedSlots.Count == 0 || selectedSlots.Count > 4) return;
+
+        System.Collections.Generic.List<string> ids = new System.Collections.Generic.List<string>();
+        foreach(var s in selectedSlots) ids.Add(s.currentItemId);
+
+        InfusionUI telaDeUpgrades = Object.FindFirstObjectByType<InfusionUI>(FindObjectsInactive.Include);
+        if (telaDeUpgrades != null)
+        {
+            bool abriu = telaDeUpgrades.OpenPanel();
+            if (abriu)
+            {
+                telaDeUpgrades.SelectMultipleItems(ids);
+            }
         }
     }
 }

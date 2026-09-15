@@ -1,17 +1,17 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections;
 using UnityEngine.EventSystems;
 
 /// <summary>
-/// Controlador Visual da Interface de Upgrades (Infusão/Fusão e Reciclagem).
-/// Estilização visual Premium Sci-Fi / Tech com ordenação correta de camadas,
-/// botões auto-ajustáveis sem vazamento de texto e animações dinâmicas de pulso.
+/// Controlador Visual da Interface de Upgrades (InfusÃƒÂ£o/FusÃƒÂ£o e Reciclagem).
+/// EstilizaÃƒÂ§ÃƒÂ£o visual Premium Sci-Fi / Tech com ordenaÃƒÂ§ÃƒÂ£o correta de camadas,
+/// botÃƒÂµes auto-ajustÃƒÂ¡veis sem vazamento de texto e animaÃƒÂ§ÃƒÂµes dinÃƒÂ¢micas de pulso.
 /// </summary>
 public class InfusionUI : MonoBehaviour
 {
-    [Header("Conexão com o Motor")]
+    [Header("ConexÃƒÂ£o com o Motor")]
     [Tooltip("Arraste o Player (que tem o script InfusionManager) aqui!")]
     public InfusionManager infusionManager;
     
@@ -19,19 +19,19 @@ public class InfusionUI : MonoBehaviour
     [Tooltip("O GameObject inteiro da janela de Upgrades")]
     public GameObject painelUpgrades; 
     
-    [Header("Área de Informação do Item Selecionado")]
+    [Header("ÃƒÂrea de InformaÃƒÂ§ÃƒÂ£o do Item Selecionado")]
     public Image itemIcon;
     public TextMeshProUGUI itemTitle;
     public TextMeshProUGUI itemRarity;
     public TextMeshProUGUI itemStatsDescription;
     public TextMeshProUGUI recycleValueText;
     
-    [Header("Botões Interativos")]
+    [Header("BotÃƒÂµes Interativos")]
     public Button btnInfundir;
     public Button btnReciclar;
     public Button btnFechar;
 
-    [Header("Estilização & Tipografia (Opcional)")]
+    [Header("EstilizaÃƒÂ§ÃƒÂ£o & Tipografia (Opcional)")]
     public TMP_FontAsset customFont;
 
     // Componentes Internos de Estilo
@@ -41,6 +41,8 @@ public class InfusionUI : MonoBehaviour
     private Image panelBgImage;
     private static Sprite radialGlowSprite;
     private string selectedItemId = "";
+    private System.Collections.Generic.List<string> selectedItemIds = new System.Collections.Generic.List<string>();
+    private System.Collections.Generic.List<UnityEngine.GameObject> spawnedIcons = new System.Collections.Generic.List<UnityEngine.GameObject>();
     private Color currentTierColor = Color.white;
     private Coroutine openAnimCoroutine;
     private Coroutine floatAnimCoroutine;
@@ -54,13 +56,13 @@ public class InfusionUI : MonoBehaviour
 
     void Awake()
     {
-        // Tenta carregar Oswald Bold SDF do Resources se não estiver atribuída
+        // Tenta carregar Oswald Bold SDF do Resources se nÃƒÂ£o estiver atribuÃƒÂ­da
         if (customFont == null)
         {
             customFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/Oswald Bold SDF");
         }
 
-        // Auto-estilização e reforço da UI
+        // Auto-estilizaÃƒÂ§ÃƒÂ£o e reforÃƒÂ§o da UI
         ApplyThemeAndEnhancements();
     }
 
@@ -70,7 +72,7 @@ public class InfusionUI : MonoBehaviour
         if (btnInfundir != null) btnInfundir.onClick.AddListener(OnBtnInfundirClicked);
         if (btnReciclar != null) btnReciclar.onClick.AddListener(OnBtnReciclarClicked);
 
-        // Prepara botões com animação de hover e presença visual
+        // Prepara botÃƒÂµes com animaÃƒÂ§ÃƒÂ£o de hover e presenÃƒÂ§a visual
         SetupPremiumButton(btnInfundir, 1.04f);
         SetupPremiumButton(btnReciclar, 1.04f);
         SetupPremiumButton(btnFechar, 1.12f);
@@ -80,7 +82,7 @@ public class InfusionUI : MonoBehaviour
 
     void Update()
     {
-        // Animação de respiração contínua e forte para o glow por trás do item
+        // AnimaÃƒÂ§ÃƒÂ£o de respiraÃƒÂ§ÃƒÂ£o contÃƒÂ­nua e forte para o glow por trÃƒÂ¡s do item
         if (tierGlowImage != null && tierGlowImage.enabled && gameObject.activeInHierarchy)
         {
             float pulse = 0.55f + Mathf.PingPong(Time.unscaledTime * 2.2f, 0.35f);
@@ -89,7 +91,7 @@ public class InfusionUI : MonoBehaviour
     }
 
     /// <summary>
-    /// Separa levemente os botões INFUNDIR e RECICLAR para dar espaço à animação de escala de hover sem colisão.
+    /// Separa levemente os botÃƒÂµes INFUNDIR e RECICLAR para dar espaÃƒÂ§o ÃƒÂ  animaÃƒÂ§ÃƒÂ£o de escala de hover sem colisÃƒÂ£o.
     /// </summary>
     private void SeperateButtonsSpacing()
     {
@@ -99,7 +101,7 @@ public class InfusionUI : MonoBehaviour
             RectTransform recRt = btnReciclar.GetComponent<RectTransform>();
             if (infRt != null && recRt != null)
             {
-                // Garante que haja um espaço de respiro confortável entre os dois botões
+                // Garante que haja um espaÃƒÂ§o de respiro confortÃƒÂ¡vel entre os dois botÃƒÂµes
                 if (Mathf.Abs(infRt.anchoredPosition.x - recRt.anchoredPosition.x) < 180f)
                 {
                     if (infRt.anchoredPosition.x < recRt.anchoredPosition.x)
@@ -206,10 +208,10 @@ public class InfusionUI : MonoBehaviour
         AddTechCorner(painelUpgrades.transform, "Corner_BL", new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(16f, 16f));
         AddTechCorner(painelUpgrades.transform, "Corner_BR", new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(16f, 16f));
 
-        // === ESPAÇAMENTO ENTRE OS BOTÕES INFUNDIR E RECICLAR ===
+        // === ESPAÃƒâ€¡AMENTO ENTRE OS BOTÃƒâ€¢ES INFUNDIR E RECICLAR ===
         SeperateButtonsSpacing();
 
-        // === GARANTIA ABSOLUTA DE CAMADAS Z DO ITEM (ÍCONE TOTALMENTE NA FRENTE, SEM NADA POR CIMA) ===
+        // === GARANTIA ABSOLUTA DE CAMADAS Z DO ITEM (ÃƒÂCONE TOTALMENTE NA FRENTE, SEM NADA POR CIMA) ===
         if (itemIcon != null)
         {
             itemIcon.color = Color.white; // Imagem 100% limpa com cores originais e vibrantes
@@ -218,7 +220,7 @@ public class InfusionUI : MonoBehaviour
             Transform parentT = itemIcon.transform.parent;
             if (parentT != null)
             {
-                // Destrói qualquer overlay antigo que estivesse cobrindo a imagem
+                // DestrÃƒÂ³i qualquer overlay antigo que estivesse cobrindo a imagem
                 Transform oldBorderT = parentT.Find("CardBorder_Infusion");
                 if (oldBorderT != null)
                 {
@@ -244,7 +246,7 @@ public class InfusionUI : MonoBehaviour
                     cardBgImage.color = CARD_SLOT_BG;
                     cardBgImage.raycastTarget = false;
 
-                    // Adiciona Outline no próprio fundo para criar a borda nitidamente colorida por tier
+                    // Adiciona Outline no prÃƒÂ³prio fundo para criar a borda nitidamente colorida por tier
                     Outline cardOutline = cBgObj.AddComponent<Outline>();
                     cardOutline.effectColor = new Color(0.4f, 0.6f, 1f, 0.6f);
                     cardOutline.effectDistance = new Vector2(3f, -3f);
@@ -255,7 +257,7 @@ public class InfusionUI : MonoBehaviour
                 }
                 if (cardBgT != null) cardBgT.SetSiblingIndex(0);
 
-                // Brilho Radial Amplo e Ultra-Radiante do Tier (Camada 1 - Atrás do Ícone)
+                // Brilho Radial Amplo e Ultra-Radiante do Tier (Camada 1 - AtrÃƒÂ¡s do ÃƒÂcone)
                 Transform glowT = parentT.Find("TierGlow_Infusion");
                 if (glowT == null)
                 {
@@ -288,12 +290,12 @@ public class InfusionUI : MonoBehaviour
                 AddTechCorner(parentT, "CardCorner_BL", new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(12f, 12f));
                 AddTechCorner(parentT, "CardCorner_BR", new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(12f, 12f));
 
-                // O ÍCONE DO ITEM É MOVIDO PARA O TOPO ABSOLUTO (NADA FICA NA FRENTE DELE)
+                // O ÃƒÂCONE DO ITEM Ãƒâ€° MOVIDO PARA O TOPO ABSOLUTO (NADA FICA NA FRENTE DELE)
                 itemIcon.transform.SetAsLastSibling();
             }
         }
 
-        // === Aplicação da Fonte Customizada & Auto-Sizing (Sem vazamento de texto) ===
+        // === AplicaÃƒÂ§ÃƒÂ£o da Fonte Customizada & Auto-Sizing (Sem vazamento de texto) ===
         ApplyAutoSizingText(itemTitle);
         ApplyAutoSizingText(itemRarity);
         ApplyAutoSizingText(itemStatsDescription);
@@ -303,7 +305,7 @@ public class InfusionUI : MonoBehaviour
         SetupButtonTextFormatting(btnReciclar);
         SetupButtonTextFormatting(btnFechar);
 
-        // Estilização visual Tech dos botões
+        // EstilizaÃƒÂ§ÃƒÂ£o visual Tech dos botÃƒÂµes
         StyleActionButton(btnInfundir, new Color(0.07f, 0.12f, 0.22f, 0.95f), new Color(0.00f, 0.85f, 1.00f, 0.90f));
         StyleActionButton(btnReciclar, new Color(0.18f, 0.11f, 0.05f, 0.95f), new Color(1.00f, 0.65f, 0.00f, 0.90f));
     }
@@ -387,7 +389,7 @@ public class InfusionUI : MonoBehaviour
             {
                 float dist = Vector2.Distance(new Vector2(x, y), new Vector2(15.5f, 15.5f)) / 15.5f;
                 float alpha = Mathf.Clamp01(1f - dist);
-                alpha = alpha * alpha; // Quadratic falloff para iluminação suave
+                alpha = alpha * alpha; // Quadratic falloff para iluminaÃƒÂ§ÃƒÂ£o suave
                 tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
             }
         }
@@ -418,21 +420,21 @@ public class InfusionUI : MonoBehaviour
 
     public bool OpenPanel()
     {
-        // Impede a infusão caso haja inimigos ativos na cena
+        // Impede a infusÃƒÂ£o caso haja inimigos ativos na cena
         if (HasActiveEnemies())
         {
             if (EptinhoPopupController.instancia != null)
             {
-                EptinhoPopupController.instancia.MostrarPopupAviso("Aqui é perigoso!");
+                EptinhoPopupController.instancia.MostrarPopupAviso("Aqui ÃƒÂ© perigoso!");
             }
             else
             {
-                Debug.LogWarning("[INFUSION] Não foi possível abrir o painel: Inimigos por perto!");
+                Debug.LogWarning("[INFUSION] NÃƒÂ£o foi possÃƒÂ­vel abrir o painel: Inimigos por perto!");
             }
             return false;
         }
 
-        // Reconexão de Segurança
+        // ReconexÃƒÂ£o de SeguranÃƒÂ§a
         if (infusionManager == null)
         {
             infusionManager = FindFirstObjectByType<InfusionManager>();
@@ -451,7 +453,7 @@ public class InfusionUI : MonoBehaviour
             c.overrideSorting = true;
             c.sortingOrder = 999; 
 
-            // Animação de Abertura
+            // AnimaÃƒÂ§ÃƒÂ£o de Abertura
             if(openAnimCoroutine != null) StopCoroutine(openAnimCoroutine);
             openAnimCoroutine = StartCoroutine(AnimatePanelOpen());
         }
@@ -491,13 +493,128 @@ public class InfusionUI : MonoBehaviour
         if (painelUpgrades != null) painelUpgrades.SetActive(false);
     }
 
+        public void SelectMultipleItems(System.Collections.Generic.List<string> itemIds)
+    {
+        selectedItemIds = itemIds;
+        
+        if (ItemDatabase.Instance == null) return;
+        
+        // Limpar icones antigos
+        foreach (var obj in spawnedIcons)
+        {
+            if (obj != null) Destroy(obj);
+        }
+        spawnedIcons.Clear();
+
+        if (itemIcon != null) itemIcon.enabled = false;
+
+        if (itemIds.Count == 0) return;
+
+        ItemData firstData = ItemDatabase.Instance.GetItemData(itemIds[0]);
+        if (firstData != null) currentTierColor = firstData.GetTierColor();
+
+        float spacing = 120f;
+        int count = itemIds.Count;
+        float startX = - (count - 1) * spacing / 2f;
+
+        for (int i = 0; i < count; i++)
+        {
+            ItemData data = ItemDatabase.Instance.GetItemData(itemIds[i]);
+            if (data == null) continue;
+
+            if (itemIcon != null)
+            {
+                UnityEngine.UI.Image newIcon = Instantiate(itemIcon, itemIcon.transform.parent);
+                newIcon.name = "DynamicIcon_" + i;
+                newIcon.sprite = data.icon;
+                newIcon.color = UnityEngine.Color.white;
+                newIcon.enabled = true;
+                
+                RectTransform rt = newIcon.GetComponent<RectTransform>();
+                rt.anchoredPosition = new UnityEngine.Vector2(startX + i * spacing, rt.anchoredPosition.y);
+                
+                spawnedIcons.Add(newIcon.gameObject);
+                
+                // Add "+" sign between icons
+                if (i < count - 1)
+                {
+                    UnityEngine.GameObject plusObj = new UnityEngine.GameObject("PlusSign");
+                    plusObj.transform.SetParent(itemIcon.transform.parent, false);
+                    RectTransform plusRt = plusObj.AddComponent<RectTransform>();
+                    plusRt.anchoredPosition = new UnityEngine.Vector2(startX + i * spacing + (spacing / 2f), rt.anchoredPosition.y);
+                    
+                    plusObj.AddComponent<UnityEngine.CanvasRenderer>();
+                    TMPro.TextMeshProUGUI plusText = plusObj.AddComponent<TMPro.TextMeshProUGUI>();
+                    plusText.text = "+";
+                    plusText.fontSize = 60f;
+                    plusText.color = UnityEngine.Color.white;
+                    plusText.alignment = TMPro.TextAlignmentOptions.Center;
+                    if (customFont != null) plusText.font = customFont;
+                    
+                    spawnedIcons.Add(plusObj);
+                }
+            }
+        }
+
+        if (itemTitle != null)
+        {
+            if (count == 1) itemTitle.text = "INFUSÃO: " + firstData.itemName.ToUpper();
+            else itemTitle.text = "FUSÃO MÚLTIPLA (" + count + " ITENS)";
+            
+            itemTitle.color = HEADER_ACCENT;
+        }
+
+        UpdateDynamicTexts(itemIds);
+    }
+
+    private void UpdateDynamicTexts(System.Collections.Generic.List<string> ids)
+    {
+        if (ItemDatabase.Instance == null) return;
+        
+        int totalCost = 0;
+        int totalRecycle = 0;
+        string rarityString = "";
+        string descString = "";
+
+        if (infusionManager == null) infusionManager = Object.FindFirstObjectByType<InfusionManager>();
+        
+        float currentWeight = (infusionManager != null) ? infusionManager.GetTotalWeight() : 0f;
+        
+        foreach (var id in ids)
+        {
+            ItemData data = ItemDatabase.Instance.GetItemData(id);
+            if (data != null)
+            {
+                float costF = data.infusionEssenceCost * (1f + 0.15f * currentWeight); // Assuming inflationAlpha is 0.15f
+                if (infusionManager != null) costF = data.infusionEssenceCost * (1f + infusionManager.inflationAlpha * currentWeight);
+                
+                int cost = UnityEngine.Mathf.RoundToInt(costF);
+                
+                totalCost += cost;
+                totalRecycle += data.recycleEssenceValue;
+                
+                rarityString += data.GetTierName() + " ";
+                descString += "- " + data.description + "\n";
+                currentWeight += data.GetTierWeight();
+            }
+        }
+
+        if (itemRarity != null) itemRarity.text = rarityString;
+        if (itemStatsDescription != null) itemStatsDescription.text = descString;
+        if (btnInfundir != null)
+        {
+            TMPro.TextMeshProUGUI txt = btnInfundir.GetComponentInChildren<TMPro.TextMeshProUGUI>();
+            if (txt != null) txt.text = "INFUNDIR\n(" + totalCost + " Essence)";
+        }
+        if (recycleValueText != null) recycleValueText.text = "+" + totalRecycle;
+    }
     public void SelectItem(string itemId)
     {
         selectedItemId = itemId;
         
         if (ItemDatabase.Instance == null)
         {
-            Debug.LogWarning("[INFUSION UI] ItemDatabase.Instance é null! Não é possível mostrar dados do item.");
+            Debug.LogWarning("[INFUSION UI] ItemDatabase.Instance ÃƒÂ© null! NÃƒÂ£o ÃƒÂ© possÃƒÂ­vel mostrar dados do item.");
             return;
         }
 
@@ -506,13 +623,13 @@ public class InfusionUI : MonoBehaviour
 
         currentTierColor = data.GetTierColor();
 
-        // Configuração do Ícone (Sem alterar a cor da imagem) e Glow por Tier
+        // ConfiguraÃƒÂ§ÃƒÂ£o do ÃƒÂcone (Sem alterar a cor da imagem) e Glow por Tier
         if (itemIcon != null) 
         {
             itemIcon.sprite = data.icon;
             itemIcon.color = Color.white; // Imagem limpa sem filtro
             itemIcon.enabled = (data.icon != null);
-            itemIcon.transform.SetAsLastSibling(); // Garante 100% que o ícone fica no topo das camadas
+            itemIcon.transform.SetAsLastSibling(); // Garante 100% que o ÃƒÂ­cone fica no topo das camadas
 
             // Efeito visual ao selecionar
             if (gameObject.activeInHierarchy)
@@ -551,7 +668,7 @@ public class InfusionUI : MonoBehaviour
             itemBorderImage.color = new Color(currentTierColor.r, currentTierColor.g, currentTierColor.b, 0.95f);
         }
 
-        // Título e Rarity
+        // TÃƒÂ­tulo e Rarity
         if (itemTitle != null)
         {
             itemTitle.text = data.itemName.ToUpper();
@@ -560,36 +677,36 @@ public class InfusionUI : MonoBehaviour
         
         if (itemRarity != null)
         {
-            itemRarity.text = $"<mark=#" + ColorUtility.ToHtmlStringRGBA(new Color(currentTierColor.r * 0.5f, currentTierColor.g * 0.5f, currentTierColor.b * 0.5f, 0.45f)) + ">  — " + data.GetTierName().ToUpper() + " —  </mark>";
+            itemRarity.text = $"<mark=#" + ColorUtility.ToHtmlStringRGBA(new Color(currentTierColor.r * 0.5f, currentTierColor.g * 0.5f, currentTierColor.b * 0.5f, 0.45f)) + ">  Ã¢â‚¬â€ " + data.GetTierName().ToUpper() + " Ã¢â‚¬â€  </mark>";
             itemRarity.color = currentTierColor;
         }
 
         if (recycleValueText != null)
-            recycleValueText.text = $"<color=#FFD700>+{data.recycleEssenceValue}</color> <size=65%>ESSÊNCIAS</size>";
+            recycleValueText.text = $"<color=#FFD700>+{data.recycleEssenceValue}</color> <size=65%>ESSÃƒÅ NCIAS</size>";
 
-        // Descrição e Atributos Formatados com Estilo Sci-Fi Astronauta
+        // DescriÃƒÂ§ÃƒÂ£o e Atributos Formatados com Estilo Sci-Fi Astronauta
         if (itemStatsDescription != null)
         {
             if (data.itemAttributes != null && data.itemAttributes.Count > 0)
             {
-                string desc = "<color=#80C0FF><b>PROPRIEDADES EXTRAÍVEIS</b></color>\n\n";
+                string desc = "<color=#80C0FF><b>PROPRIEDADES EXTRAÃƒÂVEIS</b></color>\n\n";
                 foreach(var buff in data.itemAttributes)
                 {
                     string signal = buff.value > 0 ? "+" : "";
                     string tipoMultiplier = buff.isMultiplier ? "%" : "";
                     float displayVal = buff.isMultiplier ? (buff.value * 100f) : buff.value;
                     
-                    desc += $"<color=#00FFAA><b>• {signal}{displayVal}{tipoMultiplier}</b></color>  <color=#EEEEEE>{FormatterName(buff.attributeType.ToString())}</color>\n";
+                    desc += $"<color=#00FFAA><b>Ã¢â‚¬Â¢ {signal}{displayVal}{tipoMultiplier}</b></color>  <color=#EEEEEE>{FormatterName(buff.attributeType.ToString())}</color>\n";
                 }
                 itemStatsDescription.text = desc;
             }
             else
             {
-                itemStatsDescription.text = "\n<color=#8888AA><i>Este item é um recurso de síntese.\nNão possui propriedades extraíveis para o traje.</i></color>";
+                itemStatsDescription.text = "\n<color=#8888AA><i>Este item ÃƒÂ© um recurso de sÃƒÂ­ntese.\nNÃƒÂ£o possui propriedades extraÃƒÂ­veis para o traje.</i></color>";
             }
         }
         
-        // Botão Infundir
+        // BotÃƒÂ£o Infundir
         if (btnInfundir != null) 
         {
             btnInfundir.interactable = true;
@@ -602,19 +719,19 @@ public class InfusionUI : MonoBehaviour
                 string inflaTag = isInflated 
                     ? $" <size=60%><color=#FF6666>({data.infusionEssenceCost} base)</color></size>" 
                     : "";
-                btnTxt.text = $"<b>INFUNDIR</b>\n<color=#FFD700><size=88%>-{realCost} ESSÊNCIAS</size></color>{inflaTag}";
+                btnTxt.text = $"<b>INFUNDIR</b>\n<color=#FFD700><size=88%>-{realCost} ESSÃƒÅ NCIAS</size></color>{inflaTag}";
             }
 
             UpdateButtonVisuals(btnInfundir);
         }
             
-        // Botão Reciclar
+        // BotÃƒÂ£o Reciclar
         if (btnReciclar != null) 
         {
             btnReciclar.interactable = true;
             TextMeshProUGUI recTxt = btnReciclar.GetComponentInChildren<TextMeshProUGUI>();
             if (recTxt != null) 
-                recTxt.text = $"<b>RECICLAR</b>\n<color=#FFD700><size=88%>+{data.recycleEssenceValue} ESSÊNCIAS</size></color>";
+                recTxt.text = $"<b>RECICLAR</b>\n<color=#FFD700><size=88%>+{data.recycleEssenceValue} ESSÃƒÅ NCIAS</size></color>";
             
             UpdateButtonVisuals(btnReciclar);
         }
@@ -622,12 +739,12 @@ public class InfusionUI : MonoBehaviour
 
     private string FormatterName(string attribute)
     {
-         if (attribute.ToLower().Contains("health")) return "Vida Máxima";
+         if (attribute.ToLower().Contains("health")) return "Vida MÃƒÂ¡xima";
          if (attribute.ToLower().Contains("damage")) return "Poder de Dano";
          if (attribute.ToLower().Contains("speed")) return "Velocidade de Movimento";
          if (attribute.ToLower().Contains("armor")) return "Armadura";
-         if (attribute.ToLower().Contains("critchance")) return "Chance de Crítico";
-         if (attribute.ToLower().Contains("critmultiplier")) return "Dano Crítico";
+         if (attribute.ToLower().Contains("critchance")) return "Chance de CrÃƒÂ­tico";
+         if (attribute.ToLower().Contains("critmultiplier")) return "Dano CrÃƒÂ­tico";
          return attribute;
     }
 
@@ -658,13 +775,13 @@ public class InfusionUI : MonoBehaviour
         
         if (itemTitle != null)
         {
-            itemTitle.text = "ANALISADOR DE RELÍQUIAS";
+            itemTitle.text = "ANALISADOR DE RELÃƒÂQUIAS";
             itemTitle.color = HEADER_ACCENT;
         }
         if (itemRarity != null) itemRarity.text = "";
         
         if (itemStatsDescription != null) 
-            itemStatsDescription.text = "\n<color=#8888AA>CLIQUE EM UM ITEM DO SEU INVENTÁRIO PARA ANALISAR SEUS PODERES OU RECICLÁ-LO.</color>";
+            itemStatsDescription.text = "\n<color=#8888AA>CLIQUE EM UM ITEM DO SEU INVENTÃƒ RIO PARA ANALISAR SEUS PODERES OU RECICLÃƒ -LO.</color>";
         
         if (recycleValueText != null) recycleValueText.text = "";
 
@@ -674,26 +791,36 @@ public class InfusionUI : MonoBehaviour
 
     private void OnBtnInfundirClicked()
     {
-        if (string.IsNullOrEmpty(selectedItemId)) return;
-
-        if (infusionManager == null)
-            infusionManager = FindFirstObjectByType<InfusionManager>();
-
-        if (infusionManager == null)
+        if (selectedItemIds != null && selectedItemIds.Count > 0)
         {
-            Debug.LogWarning("[INFUSION UI] InfusionManager não encontrado! Botão Infundir ignorado.");
+            if (infusionManager == null) infusionManager = Object.FindFirstObjectByType<InfusionManager>();
+            if (infusionManager == null) return;
+            
+            bool suc = infusionManager.InfuseMultipleItems(selectedItemIds);
+            if (suc)
+            {
+                StartCoroutine(ScreenFlash(new UnityEngine.Color(1.0f, 0.85f, 0f, 0.45f))); 
+                StartCoroutine(ShockwaveRingFX(new UnityEngine.Color(1f, 0.85f, 0f, 0.8f)));
+                ClearSelection(); 
+            }
             return;
         }
 
-        bool sucesso = infusionManager.InfuseItem(selectedItemId);
-        if (sucesso)
+        if (string.IsNullOrEmpty(selectedItemId)) return;
+
+        if (infusionManager == null)
+            infusionManager = Object.FindFirstObjectByType<InfusionManager>();
+
+        if (infusionManager == null) return;
+
+        bool success = infusionManager.InfuseItem(selectedItemId);
+        if (success)
         {
-            StartCoroutine(ScreenFlash(new Color(0.0f, 0.85f, 1f, 0.45f))); // Flash Cyan/Tech Energético
-            StartCoroutine(ShockwaveRingFX(new Color(0f, 0.85f, 1f, 0.8f)));
+            StartCoroutine(ScreenFlash(new UnityEngine.Color(1.0f, 0.85f, 0f, 0.45f))); 
+            StartCoroutine(ShockwaveRingFX(new UnityEngine.Color(1f, 0.85f, 0f, 0.8f)));
             ClearSelection(); 
         }
     }
-
     private void OnBtnReciclarClicked()
     {
         if (string.IsNullOrEmpty(selectedItemId)) return;
@@ -703,21 +830,21 @@ public class InfusionUI : MonoBehaviour
 
         if (infusionManager == null)
         {
-            Debug.LogWarning("[INFUSION UI] InfusionManager não encontrado! Botão Reciclar ignorado.");
+            Debug.LogWarning("[INFUSION UI] InfusionManager nÃƒÂ£o encontrado! BotÃƒÂ£o Reciclar ignorado.");
             return;
         }
 
         bool sucesso = infusionManager.RecycleItem(selectedItemId);
         if (sucesso)
         {
-            StartCoroutine(ScreenFlash(new Color(1f, 0.7f, 0.0f, 0.45f))); // Flash Dourado Energético
+            StartCoroutine(ScreenFlash(new Color(1f, 0.7f, 0.0f, 0.45f))); // Flash Dourado EnergÃƒÂ©tico
             StartCoroutine(ShockwaveRingFX(new Color(1f, 0.7f, 0f, 0.8f)));
             ClearSelection(); 
         }
     }
 
     // ==========================================
-    // ANIMAÇÕES E INTERAÇÕES VISUAIS
+    // ANIMAÃƒâ€¡Ãƒâ€¢ES E INTERAÃƒâ€¡Ãƒâ€¢ES VISUAIS
     // ==========================================
 
     private void SetupPremiumButton(Button btn, float hoverScale = 1.08f)
@@ -843,5 +970,8 @@ public class InfusionUI : MonoBehaviour
         Destroy(flashObj);
     }
 }
+
+
+
 
 

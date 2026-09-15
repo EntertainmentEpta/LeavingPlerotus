@@ -19,7 +19,7 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     public TextMeshProUGUI lockText;
 
     // Dados do slot
-    private string currentItemId;
+    public string currentItemId;
     private int currentQuantity;
     private ItemData currentItemData;
     private bool isOccupied = false;
@@ -168,7 +168,7 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
             lockText.alignment = TextAlignmentOptions.Center;
             lockText.fontStyle = FontStyles.Bold;
             lockText.raycastTarget = false;
-            lockText.text = "ðŸ”’";
+            lockText.text = "🔒";
         }
         lockText.enabled = false;
 
@@ -335,9 +335,13 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     {
         if (isLocked) return;
         isHovered = false;
-        targetScale = Vector3.one;
+        
+        targetScale = isSelected ? new Vector3(1.04f, 1.04f, 1.04f) : Vector3.one;
 
-        backgroundImage.color = isOccupied ? SLOT_OCCUPIED_BG : SLOT_EMPTY_BG;
+        if (!isSelected)
+        {
+            backgroundImage.color = isOccupied ? SLOT_OCCUPIED_BG : SLOT_EMPTY_BG;
+        }
 
         if (tooltip != null)
         {
@@ -345,32 +349,61 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         }
     }
 
-    // === Click Event para enviar o item para o Upgrade (InfusÃ£o) ===
+    public bool isSelected = false;
+
+    public void SetSelected(bool selected)
+    {
+        if (isLocked || !isOccupied) return;
+        isSelected = selected;
+
+        if (isSelected)
+        {
+            backgroundImage.color = new UnityEngine.Color(0.2f, 0.4f, 0.8f, 0.8f);
+            borderImage.color = new UnityEngine.Color(0.3f, 0.7f, 1f, 1f); // Glow border color
+            
+            if (glowImage != null)
+            {
+                glowImage.color = new UnityEngine.Color(0.2f, 0.6f, 1f, 0.8f);
+                glowImage.enabled = true;
+            }
+            targetScale = new UnityEngine.Vector3(1.06f, 1.06f, 1.06f);
+        }
+        else
+        {
+            backgroundImage.color = SLOT_OCCUPIED_BG;
+            if (currentItemData != null)
+            {
+                UnityEngine.Color tierColor = currentItemData.GetTierColor();
+                borderImage.color = new UnityEngine.Color(tierColor.r, tierColor.g, tierColor.b, 0.8f);
+                
+                if (glowImage != null)
+                {
+                    glowImage.color = new UnityEngine.Color(tierColor.r, tierColor.g, tierColor.b, 0.35f);
+                    glowImage.enabled = true;
+                }
+            }
+            else
+            {
+                if (glowImage != null) glowImage.enabled = false;
+            }
+            targetScale = UnityEngine.Vector3.one;
+        }
+    }
 
     public void OnPointerClick(PointerEventData eventData)
     {
         if (isLocked) return;
 
-        // SÃ³ faz algo se fomos clicados e se tem um item aqui dentro
         if (isOccupied && !string.IsNullOrEmpty(currentItemId))
         {
-            InfusionUI telaDeUpgrades = Object.FindFirstObjectByType<InfusionUI>(FindObjectsInactive.Include);
-
-            if (telaDeUpgrades != null)
+            if (InventoryUI.Instance != null)
             {
-                // SÃ³ seleciona o item se o painel conseguiu abrir (sem inimigos por perto)
-                bool abriu = telaDeUpgrades.OpenPanel();
-                if (abriu)
-                {
-                    telaDeUpgrades.SelectItem(currentItemId);
-                    Debug.Log($"[SLOT] Item '{currentItemId}' enviado para InfusÃ£o.");
-                }
+                InventoryUI.Instance.ToggleItemSelection(this, currentItemId);
             }
             else
             {
-                Debug.LogWarning($"[SLOT] InfusionUI nÃ£o encontrada na cena!");
+                Debug.LogWarning("[SLOT] Não encontrou InventoryUI.Instance ativo na cena!");
             }
         }
     }
 }
-
