@@ -345,30 +345,53 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         }
     }
 
-    // === Click Event para enviar o item para o Upgrade (Infusão) ===
+    // === Click Event para o Sistema de Sinergias (Seleção Múltipla) ===
 
     public void OnPointerClick(PointerEventData eventData)
     {
         if (isLocked) return;
 
         // Só faz algo se fomos clicados e se tem um item aqui dentro
-        if (isOccupied && !string.IsNullOrEmpty(currentItemId))
+        if (isOccupied && !string.IsNullOrEmpty(currentItemId) && currentItemData != null)
         {
-            InfusionUI telaDeUpgrades = Object.FindFirstObjectByType<InfusionUI>(FindObjectsInactive.Include);
-
-            if (telaDeUpgrades != null)
+            if (SynergyCraftingManager.Instance != null)
             {
-                // Só seleciona o item se o painel conseguiu abrir (sem inimigos por perto)
-                bool abriu = telaDeUpgrades.OpenPanel();
-                if (abriu)
-                {
-                    telaDeUpgrades.SelectItem(currentItemId);
-                    Debug.Log($"[SLOT] Item '{currentItemId}' enviado para Infusão.");
-                }
+                // Alterna a seleção desse item (coloca ou tira da bancada)
+                SynergyCraftingManager.Instance.ToggleItemSelection(currentItemData);
+                
+                // Toca som de UI (Opcional)
+                // GlobalAudioManager.Instance?.PlaySFX(clickSound);
             }
             else
             {
-                Debug.LogWarning($"[SLOT] InfusionUI não encontrada na cena!");
+                Debug.LogWarning("[SLOT] SynergyCraftingManager não encontrado na cena! Usando o painel antigo...");
+                // Fallback para o antigo
+                InfusionUI telaDeUpgrades = Object.FindFirstObjectByType<InfusionUI>(FindObjectsInactive.Include);
+                if (telaDeUpgrades != null)
+                {
+                    bool abriu = telaDeUpgrades.OpenPanel();
+                    if (abriu) telaDeUpgrades.SelectItem(currentItemId);
+                }
+            }
+        }
+    }
+    
+    // Atualiza o visual do Slot no Update para brilhar se estiver selecionado
+    // Como Unity Update() roda todo frame, vamos atualizar a borda baseada na seleção
+    private void LateUpdate()
+    {
+        if (isOccupied && currentItemData != null && SynergyCraftingManager.Instance != null)
+        {
+            if (SynergyCraftingManager.Instance.selectedItems.Contains(currentItemData))
+            {
+                // Deixa a borda do slot Amarela/Brilhante quando selecionado!
+                borderImage.color = Color.yellow;
+            }
+            else
+            {
+                // Restaura a cor original baseada no Tier
+                Color tierColor = currentItemData.GetTierColor();
+                borderImage.color = new Color(tierColor.r, tierColor.g, tierColor.b, 0.8f);
             }
         }
     }
