@@ -6,7 +6,7 @@ public class FixEnemyAudioSources
     [MenuItem("Tools/Fix Enemy AudioSources")]
     public static void FixAllEnemies()
     {
-        string[] guids = AssetDatabase.FindAssets(""t:Prefab"", new[] { ""Assets/_Project/Enemies"" });
+        string[] guids = AssetDatabase.FindAssets("t:Prefab", new[] { "Assets/_Project/Enemies" });
         int fixedCount = 0;
         foreach (string guid in guids)
         {
@@ -27,12 +27,12 @@ public class FixEnemyAudioSources
                         audio.maxDistance = 20f;
                         EditorUtility.SetDirty(prefab);
                         fixedCount++;
-                        Debug.Log(""Added AudioSource to "" + prefab.name);
+                        Debug.Log("Added AudioSource to " + prefab.name);
                     }
                 }
             }
         }
         AssetDatabase.SaveAssets();
-        Debug.Log(""Finished fixing "" + fixedCount + "" enemy prefabs."");
+        Debug.Log("Finished fixing " + fixedCount + " enemy prefabs.");
     }
 }
