@@ -1,11 +1,11 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
 
 /// <summary>
-/// Componente visual de um slot individual do inventário.
-/// Exibe ícone do item, quantidade e borda colorida por tier.
+/// Componente visual de um slot individual do inventÃ¡rio.
+/// Exibe Ã­cone do item, quantidade e borda colorida por tier.
 /// Detecta hover do mouse para exibir tooltip.
 /// </summary>
 public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
@@ -25,7 +25,7 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     private bool isOccupied = false;
     private bool isLocked = false;
 
-    // Referência ao tooltip
+    // ReferÃªncia ao tooltip
     private InventoryTooltip tooltip;
 
     // Cores
@@ -36,23 +36,23 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
 
     private bool isHovered = false;
 
-    // Micro-animação de hover
+    // Micro-animaÃ§Ã£o de hover
     private Vector3 targetScale = Vector3.one;
     private float scaleSpeed = 15f;
 
-    // Sprite estático para glow radial de tier
+    // Sprite estÃ¡tico para glow radial de tier
     private static Sprite radialGlowSprite;
 
     /// <summary>
-    /// Inicializa o slot criando todos os elementos visuais ou usando referências existentes do Prefab
+    /// Inicializa o slot criando todos os elementos visuais ou usando referÃªncias existentes do Prefab
     /// <summary>
-    /// Inicializa o slot criando todos os elementos visuais ou usando referências existentes do Prefab
+    /// Inicializa o slot criando todos os elementos visuais ou usando referÃªncias existentes do Prefab
     /// </summary>
     public void Initialize(InventoryTooltip tooltipRef, float slotSize)
     {
         tooltip = tooltipRef;
 
-        // Se já tiver as referências do Prefab atribuídas, não cria nada por código!
+        // Se jÃ¡ tiver as referÃªncias do Prefab atribuÃ­das, nÃ£o cria nada por cÃ³digo!
         if (backgroundImage != null && borderImage != null && iconImage != null && quantityText != null)
         {
             if (lockText != null) lockText.enabled = false;
@@ -110,7 +110,7 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         borderImage.fillCenter = false;
         borderImage.pixelsPerUnitMultiplier = 1f;
 
-        // === Ícone do Item ===
+        // === Ãcone do Item ===
         GameObject iconObj = new GameObject("ItemIcon");
         iconObj.transform.SetParent(transform, false);
         iconObj.layer = uiLayer;
@@ -125,7 +125,7 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         iconImage = iconObj.AddComponent<Image>();
         iconImage.preserveAspect = true;
         iconImage.raycastTarget = false;
-        iconImage.enabled = false; // Escondido até ter item
+        iconImage.enabled = false; // Escondido atÃ© ter item
 
         // === Texto de Quantidade ===
         GameObject textObj = new GameObject("Quantity");
@@ -168,7 +168,7 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
             lockText.alignment = TextAlignmentOptions.Center;
             lockText.fontStyle = FontStyles.Bold;
             lockText.raycastTarget = false;
-            lockText.text = "🔒";
+            lockText.text = "ðŸ”’";
         }
         lockText.enabled = false;
 
@@ -221,7 +221,7 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         if (!isHovered)
             backgroundImage.color = SLOT_OCCUPIED_BG;
 
-        // Ícone
+        // Ãcone
         if (itemData != null && itemData.icon != null)
         {
             iconImage.sprite = itemData.icon;
@@ -229,7 +229,7 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         }
         else
         {
-            // Fallback: mostra slot ocupado sem ícone (item sem sprite configurado)
+            // Fallback: mostra slot ocupado sem Ã­cone (item sem sprite configurado)
             iconImage.enabled = false;
         }
 
@@ -345,54 +345,32 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         }
     }
 
-    // === Click Event para o Sistema de Sinergias (Seleção Múltipla) ===
+    // === Click Event para enviar o item para o Upgrade (InfusÃ£o) ===
 
     public void OnPointerClick(PointerEventData eventData)
     {
         if (isLocked) return;
 
-        // Só faz algo se fomos clicados e se tem um item aqui dentro
-        if (isOccupied && !string.IsNullOrEmpty(currentItemId) && currentItemData != null)
+        // SÃ³ faz algo se fomos clicados e se tem um item aqui dentro
+        if (isOccupied && !string.IsNullOrEmpty(currentItemId))
         {
-            if (SynergyCraftingManager.Instance != null)
+            InfusionUI telaDeUpgrades = Object.FindFirstObjectByType<InfusionUI>(FindObjectsInactive.Include);
+
+            if (telaDeUpgrades != null)
             {
-                // Alterna a seleção desse item (coloca ou tira da bancada)
-                SynergyCraftingManager.Instance.ToggleItemSelection(currentItemData);
-                
-                // Toca som de UI (Opcional)
-                // GlobalAudioManager.Instance?.PlaySFX(clickSound);
-            }
-            else
-            {
-                Debug.LogWarning("[SLOT] SynergyCraftingManager não encontrado na cena! Usando o painel antigo...");
-                // Fallback para o antigo
-                InfusionUI telaDeUpgrades = Object.FindFirstObjectByType<InfusionUI>(FindObjectsInactive.Include);
-                if (telaDeUpgrades != null)
+                // SÃ³ seleciona o item se o painel conseguiu abrir (sem inimigos por perto)
+                bool abriu = telaDeUpgrades.OpenPanel();
+                if (abriu)
                 {
-                    bool abriu = telaDeUpgrades.OpenPanel();
-                    if (abriu) telaDeUpgrades.SelectItem(currentItemId);
+                    telaDeUpgrades.SelectItem(currentItemId);
+                    Debug.Log($"[SLOT] Item '{currentItemId}' enviado para InfusÃ£o.");
                 }
             }
-        }
-    }
-    
-    // Atualiza o visual do Slot no Update para brilhar se estiver selecionado
-    // Como Unity Update() roda todo frame, vamos atualizar a borda baseada na seleção
-    private void LateUpdate()
-    {
-        if (isOccupied && currentItemData != null && SynergyCraftingManager.Instance != null)
-        {
-            if (SynergyCraftingManager.Instance.selectedItems.Contains(currentItemData))
-            {
-                // Deixa a borda do slot Amarela/Brilhante quando selecionado!
-                borderImage.color = Color.yellow;
-            }
             else
             {
-                // Restaura a cor original baseada no Tier
-                Color tierColor = currentItemData.GetTierColor();
-                borderImage.color = new Color(tierColor.r, tierColor.g, tierColor.b, 0.8f);
+                Debug.LogWarning($"[SLOT] InfusionUI nÃ£o encontrada na cena!");
             }
         }
     }
 }
+
