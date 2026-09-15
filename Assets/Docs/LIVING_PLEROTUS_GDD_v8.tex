@@ -1,0 +1,1095 @@
+\documentclass[a4paper,12pt]{report}
+
+% Pacotes essenciais
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+
+% Configuração de Margens e Layout
+\geometry{
+ a4paper,
+ total={170mm,257mm},
+ left=25mm,
+ top=25mm,
+}
+
+% Cores e Estilo
+\definecolor{primaryColor}{RGB}{50, 0, 90}
+\definecolor{secondaryColor}{RGB}{100, 100, 100}
+
+\titleformat{\chapter}{\normalfont\huge\bfseries\color{primaryColor}}{\thechapter}{1em}{}
+\titleformat{\section}{\normalfont\Large\bfseries\color{primaryColor}}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries\color{secondaryColor}}{\thesubsection}{1em}{}
+
+% Cabeçalho e Rodapé
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\textbf{LIVING PLEROTUS} - Game Design Document}
+\lhead{v8.1 --- Complete Restoration Update}
+\cfoot{\thepage}
+
+\title{\textbf{LIVING PLEROTUS}\\ \large Game Design Document (GDD)}
+\author{Equipe de Desenvolvimento}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+% =========================================================================
+% CAPÍTULO 1: VISÃO GERAL
+% =========================================================================
+\chapter{Visão Geral}
+
+\section{High Concept}
+Um \textit{Roguelite} de Ação e Sobrevivência focado na improvisação. O jogador controla um engenheiro civil comum, preso em um planeta vivo que tenta digeri-lo. Sem treinamento militar, ele deve adaptar suas ferramentas de trabalho em armas letais, utilizando a própria biologia do planeta para modificá-las, enquanto busca peças para reparar sua nave e escapar de um ciclo eterno de morte e reconstrução.
+
+\section{A Atmosfera}
+O jogo deve transmitir a sensação de \textbf{isolamento claustrofóbico} em um ambiente vasto. Não somos heróis; somos intrusos. O planeta é belo, mas hostil de uma forma biológica: o chão pulsa, as plantas observam e a morte é apenas um processo digestivo interrompido.
+
+% =========================================================================
+% CAPÍTULO 2: NARRATIVA E UNIVERSO
+% =========================================================================
+\chapter{Narrativa e Universo}
+
+\section{O Protagonista: O Engenheiro Catalogador}
+O jogador assume o papel de um funcionário de baixo escalão de uma corporação intergaláctica de logística e mapeamento. Seu trabalho não possui caráter militar ou de combate; ele é um engenheiro e pesquisador de campo encarregado de viagens de rotina entre colônias já catalogadas e seguras, prestando manutenção em maquinários de exploração e coletando amostras científicas.
+
+\begin{figure}[hbt!]
+    \centering
+    \begin{minipage}[c]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{AstronautaP.png}
+        \caption{Concept Art: Visual Final.}
+    \end{minipage}
+    \hfill
+    \begin{minipage}[c]{0.48\textwidth}
+        \centering
+        \includegraphics[width=0.65\linewidth]{AstronautaTB.png}
+        \caption{Vista Técnica: Frente.}
+        \vspace{0.5cm}
+        \includegraphics[width=0.65\linewidth]{AstronautaTf.png}
+        \caption{Vista Técnica: Costas.}
+    \end{minipage}
+    \label{fig:protagonista_completo}
+\end{figure}
+
+\subsection{Identidade Visual}
+\begin{itemize}
+    \item \textbf{O Traje (EPI Espacial):} Um macacão pressurizado de cor \textbf{branco gelo} com reforços em \textbf{cinza escuro} nas articulações, luvas e botas. O design prioriza a função sobre a estética, repleto de bolsos pequenos para ferramentas e conectores universais.
+    \item \textbf{O Capacete:} O visor possui uma película preta totalmente opaca. Isso serve a dois propósitos: proteger contra a radiação de solda e, narrativamente, permitir que qualquer jogador se projete no personagem (ele não tem rosto definido).
+    \item \textbf{Iluminação Diegética:} O traje possui luzes de serviço integradas (ombros e peito) que iluminam os ambientes escuros do jogo naturalmente, dispensando interfaces artificiais de visão noturna.
+    \item \textbf{Sem Treinamento de Combate:} Ele nunca segurou uma arma de fogo militar. Todo o seu arsenal é composto por ferramentas de coleta e uma adaga simples de corte.
+    \item \textbf{Personalidade:} Prático, curioso e focado em resolver problemas.
+\end{itemize}
+
+\section{O Incidente: A Rota Desviada}
+A nave de transporte seguia uma rota hiperespacial segura e tediosa. O único companheiro do engenheiro é \textbf{Eptinho}, um Corgi hiperativo que atua como copiloto e analista de dados.
+\begin{itemize}
+    \item \textbf{O Erro:} Durante um momento de distração mútua no cockpit, Eptinho perseguiu um reflexo nas telas do painel de controle, desengatando o piloto automático e alterando as coordenadas de salto hiperespacial para um setor proibido dos mapas estelares.
+    \item \textbf{O Cinturão de Asteroides:} A nave emergiu do hiperespaço diretamente dentro do campo gravitacional de um planeta hostil não catalogado, cercado por um cinturão de detritos caótico. Nenhuma nave jamais atravessou esse cinturão intacta. A colisão destruiu completamente a nave, espalhando seus destroços pela superfície.
+\end{itemize}
+
+\section{O Planeta Consciente: Parasitismo e Rejeição}
+Este mundo não é apenas um lugar; é um ecossistema inteligente, governado por uma força consciente que age como um parasita biológico. Utilizando a energia cristalina de seu núcleo, o planeta consegue submeter, mutar e controlar toda a matéria orgânica e mineral na sua superfície.
+\begin{itemize}
+    \item \textbf{A Lei da Assimilação:} Tudo o que cai no planeta é digerido e reintegrado à consciência planetária. É um ciclo perfeito de simbiose e reciclagem.
+    \item \textbf{O Ciclo de Rejeição (Indigestão):} Quando o Engenheiro morre, o solo o absorve. Porém, devido ao seu sangue e à sua biologia humana totalmente estranha àquele ecossistema, o planeta falha em digeri-lo. Incapaz de assimilá-lo, o sistema imunológico do planeta o reconstrói e o expele de volta no ponto de queda. O jogador renasce porque é \textbf{indigesto} para o planeta.
+    \item \textbf{A Zona Esterilizada (Base):} O local da queda da nave serve como base segura porque o combustível e os reatores vazados esterilizaram quimicamente o solo ao redor, criando um casulo neutro onde a biologia consciente do planeta não consegue se aproximar ou digerir os destroços.
+    \item \textbf{O Roubo de Peças (Objetivo da Run):} Criaturas nativas sob o controle do planeta invadiram os destroços da nave e roubaram peças vitais (como baterias térmicas, placas de reator e núcleos de energia), espalhando-as pelos biomas. O Engenheiro deve adentrar os setores perigosos para derrotar essas criaturas, recuperar as peças e consertar a nave para escapar.
+    \item \textbf{O Sequestro do Poder Planetário (Infusões e Alquimia):} Para aprimorar suas ferramentas comuns em armas letais, o Engenheiro **se apossa da própria característica de mutação do planeta**. Canalizando a energia de transmutação natural das pedras e cristais alienígenas colhidos do solo, ele força seu traje a fundir múltiplos fragmentos biológicos simultaneamente às suas ferramentas humanas, criando sinergias e infusões poderosas (as ``Partes do Corpo'').
+\end{itemize}
+
+\section{Os Chefes de Bioma: Guardiões da Estabilidade}
+Ao final de cada setor/bioma, o jogador deve enfrentar um Chefe. Narrativamente, estes chefes são **Avatares de Transição** criados pelo próprio planeta.
+\begin{itemize}
+    \item \textbf{Guardiões da Fronteira:} Eles concentram uma quantidade massiva da energia de infusão e transmutação do núcleo, atuando como verdadeiras barreiras físicas entre as diferentes regiões do planeta.
+    \item \textbf{Prevenção de Caos:} Sua função ecológica essencial é impedir o trânsito livre de fauna e flora entre biomas distintos. Sem estes guardiões guardando as fronteiras, os biomas se misturariam livremente, fundindo ecossistemas incompatíveis e gerando aberrações biológicas abissais e instáveis que ameaçariam a integridade da consciência do próprio planeta.
+\end{itemize}
+
+\section{A Mecânica do Inventário e o Fim da Reciclagem}\label{sec:inventario_sinergia}
+Como o planeta absorve tudo o que toca, qualquer equipamento deixado no chão é consumido em segundos.
+\begin{itemize}
+    \item \textbf{Por que perdemos o Loot:} Ao morrer (ser dissolvido), as armas e modificações externas são comidas pelo planeta.
+    \item \textbf{Inventário Não-Acumulativo (Run):} O inventário ativo durante a rodada possui exatos 10 slots. \textbf{As Partes do Corpo (itens) não estacam mais}. Cada item coletado ocupa um slot inteiro. O objetivo desta restrição é forçar o jogador a tomar decisões pesadas sobre gerenciamento de espaço: infundir agora ou guardar a peça para tentar uma \textbf{Sinergia Alquímica} mais tarde.
+    \item \textbf{O Fim da Reciclagem:} \textbf{A mecânica de reciclar itens por essência foi completamente removida.} O jogador não pode mais descartar peças que não quer em troca de dinheiro. Isso dá muito mais peso à escolha de pegar um item do chão.
+    \item \textbf{Bolsa Sintética (Recursos Base):} Os minérios e recursos puros (\textit{Base Resources}) continuam utilizando uma bolsa sintética separada, onde estacam normalmente e sobrevivem à morte para serem levados à Base.
+\end{itemize}
+
+\section{Eptinho: O Copiloto e Analista de Dados}
+Apesar de sua aparência canina, Eptinho é um ser de inteligência aguçada, atuando como o verdadeiro cérebro por trás dos sistemas de navegação e logística da nave. Ele permanece em segurança na base, mas acompanha o protagonista virtualmente a cada passo.
+
+% ATENÇÃO: coloque o arquivo Eptinho.png na mesma pasta que este .tex
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.60\textwidth]{EPTINHO.png}
+    \caption{Eptinho: O Copiloto Corgi em seu traje espacial.}
+    \label{fig:eptinho}
+\end{figure}
+
+\begin{itemize}
+    \item \textbf{O Guia da Interface (UI):} Eptinho funciona como o "Oráculo" e sistema operacional da jornada. Ele aparece visualmente como um \textit{pop-up} na lateral da tela (HUD) para notificar o jogador sempre que um novo recurso é catalogado ou quando há itens de coleta pendentes na fase. É ele quem detalha as propriedades dos poderes infundidos e explica os Tiers de raridade dos itens encontrados.
+    \item \textbf{Tradutor Universal:} Ele é o responsável por compilar a \textit{Lore} do jogo no banco de dados. Além disso, é o único capaz de compreender a linguagem enigmática do Mercador, servindo como intérprete durante as trocas comerciais — uma habilidade que se aprimora a cada encontro (ver Capítulo~\ref{cap:mercador}, Seção~\ref{sec:traducao}).
+    \item \textbf{Comunicação:} Possui um link de áudio direto com o capacete do Engenheiro. Embora se expresse através de latidos, o sistema de tradução do traje converte instantaneamente o áudio em texto no visor do jogador, permitindo que Eptinho explique a história do planeta e forneça suporte tático em tempo real.
+\end{itemize}
+
+% =========================================================================
+% CAPÍTULO 3: SISTEMA DE ATRIBUTOS E ESTATÍSTICAS
+% =========================================================================
+\chapter{Sistema de Atributos e Estatísticas}
+
+Para permitir uma profundidade estratégica nas \textit{builds}, o jogo utiliza um conjunto extenso de variáveis que podem ser modificadas por Infusões (Partes do Corpo), Sinergias, Itens do Mercador e Upgrades da Base.
+
+\section{Atributos Base do Jogador (Balanceamento Oficial)}
+\begin{center}
+\begin{tabular}{|l|c|l|}
+    \hline
+    \textbf{Atributo} & \textbf{Valor Base} & \textbf{Descrição / Mecânica} \\
+    \hline
+    HP Máximo (Health) & \textbf{100 HP} & Barra de vida física do personagem. \\
+    Armadura Máxima (Armor) & \textbf{300 AP} & \textbf{Escudo regenerável.} Total de \textbf{400 EHP}. \\
+    Regeneração de Armadura & \textbf{5 AP / s} & Inicia após 4,0s sem receber dano. \\
+    Multiplicador de Dano Base & \textbf{1,0x} & Multiplicador inicial limpo. \\
+    Chance de Acerto Crítico & \textbf{5,0\%} & Chance padrão de dano crítico (1,5x). \\
+    Mitigação / Esquiva Base & \textbf{0,0\%} & Sem mitigação passiva inicial. \\
+    Velocidade de Movimento & \textbf{Padrão (Fixa)} & \textbf{Não modificável via Infusão} (apenas via ULT). \\
+    \hline
+\end{tabular}
+\end{center}
+
+\textit{Nota de Design: \textbf{Velocidade de Movimento (Movement Speed)} foi estritamente removida da pool de melhorias dropáveis. Ela não deve ser um atributo melhorável de forma passiva, pois um acúmulo excessivo quebra completamente a esquiva e o balanceamento do combate. A velocidade base do jogador é fixa.}
+
+\section{Atributos Ofensivos}
+\begin{description}
+    \item[Attack Speed (Melee):] Reduz o intervalo entre os golpes de armas de curto alcance.
+    \item[Crit Chance:] A probabilidade percentual de um ataque causar dano amplificado.
+    \item[Crit Multiplier:] O fator de multiplicação do dano quando um acerto crítico ocorre (Ex: 0.15X, 0.25X).
+    \item[Weapon Range (Melee):] Aumenta o tamanho da \textit{Hitbox} ou a extensão física do golpe para armas de corpo-a-corpo.
+    \item[Weapon Range (Projectiles):] Aumenta a distância máxima que um projétil viaja antes de desaparecer ou perder eficácia.
+    \item[Knockback:] A força física aplicada ao inimigo ao ser atingido, empurrando-o para trás. Essencial para controle de multidão.
+    \item[Piercing:] O número de inimigos que um projétil ou golpe pode atravessar antes de ser destruído.
+    \item[Bounce (Chance/Qtd):] Para armas de longo alcance, define a chance ou quantidade de vezes que o projétil ricocheteia para um inimigo próximo após o impacto.
+    \item[MultiShot (Chance):] A probabilidade de disparar projéteis adicionais simultaneamente sem consumir recursos extras.
+    \item[Spread:] Define o ângulo de dispersão dos disparos. Valores menores indicam maior precisão; valores maiores indicam uma área de cobertura mais ampla (estilo escopeta).
+\end{description}
+
+\section{Atributos Defensivos}
+\begin{description}
+    \item[Armor Regen:] A velocidade com que a barra de Armadura (Escudo) se regenera após o tempo de recarga.
+    \item[Dodge:] A chance percentual de anular completamente o dano de um ataque recebido.
+    \item[Damage Negation:] Uma redução fixa ou percentual em todo dano recebido (Mitigação direta).
+    \item[Thorns:] Dano devolvido automaticamente ao atacante quando o jogador é atingido por contato físico.
+\end{description}
+
+\section{Atributos de Mobilidade}
+\begin{description}
+    \item[Dash Cooldown:] Reduz o tempo de espera necessário para utilizar a esquiva novamente.
+    \item[Dash Counts:] Aumenta o número máximo de cargas de Dash que o jogador pode armazenar.
+    \item[Dash Invulnerability:] Aumenta a duração da janela de invencibilidade (\textit{i-frames}) durante a animação da esquiva.
+\end{description}
+
+\section{Status e Economia (Mercador/Coleta)}
+\begin{description}
+    \item[Luck (Essence):] Aumenta a quantidade de \textit{Essência da Vida} obtida por orbe coletado.
+    \item[Luck (Drops):] Aumenta a probabilidade global de inimigos soltarem itens (\textit{Partes do Corpo}) e a chance de virem com Tiers superiores.
+    \item[Magnet:] Aumenta o raio de coleta automática para atrair Essência e itens distantes.
+\end{description}
+
+\section{Atributos da Habilidade Suprema (ULT)}
+\begin{description}
+    \item[Cooldown Reduction (ULT):] Reduz o tempo de recarga da Habilidade Suprema.
+    \item[Ult Charge with Kills:] Permite que a eliminação de inimigos reduza o cooldown ativo da ULT (Recarga por abate).
+    \item[Ult Radius:] Aumenta a área de efeito (AoE) de explosões ou buffs da Suprema.
+    \item[Ult Damage:] Um multiplicador de dano exclusivo para a habilidade especial.
+    \item[Ult Effect Duration:] Aumenta o tempo de permanência de efeitos criados pela ULT (ex: duração de uma poça de ácido ou de uma tempestade elétrica).
+    \item[Ult Buff Potency:] Para Supremas que concedem \textit{buffs} (ex: Sobrecarga do Rifle), aumenta os status concedidos durante a ativação.
+\end{description}
+
+\section{Core Loop: O Ciclo de Infusão e Alquimia}
+O núcleo da jogabilidade abandona o sistema tradicional de níveis (XP) por um sistema de \textbf{Economia e Crafting em Tempo Real}. O ciclo se define por quatro etapas constantes:
+
+\begin{enumerate}
+    \item \textbf{Combate:} O jogador enfrenta inimigos usando um dos \textbf{6 Arquétipos de Armas} (ver Capítulo~\ref{cap:arsenal}), que definem seu estilo de jogo.
+    \item \textbf{Coleta (Loot \& Currency):} Inimigos derrotados sempre soltam \textit{Essência da Vida} (moeda) e têm uma chance probabilística de soltar \textit{Partes do Corpo} (matéria-prima).
+    \item \textbf{Decisão Estratégica (A Alquimia):} Ao pegar uma Parte do Corpo, o jogador decide:
+    \begin{itemize}
+        \item \textbf{Infundir Sozinho:} Aplica o item instantaneamente na arma. Concede os status básicos, mas gera uma \textbf{alta inflação} no custo das próximas infusões.
+        \item \textbf{Guardar para Sinergia:} Armazena o item em um dos 10 preciosos slots da mochila. O objetivo é tentar encontrar peças complementares de outros inimigos e realizar uma \textbf{Infusão Combinada (Sinergia)}, que concede bônus multiplicativos e reduz drasticamente a inflação gerada.
+    \end{itemize}
+    \item \textbf{Adaptação:} A arma do jogador evolui organicamente durante a run, tornando-se uma quimera de tecnologias humanas e biologia alienígena.
+\end{enumerate}
+
+\section{Ecossistema de Recursos}
+
+\subsection{1. Essência da Vida (A Moeda Universal)}
+\begin{itemize}
+    \item \textbf{Origem:} Drop garantido de 100\% dos inimigos. A quantidade escala conforme a força do inimigo.
+    \item \textbf{Função:} Usada para realizar infusões na arma durante a run e comprar itens no Mercador.
+    \item \textbf{Lore:} A energia vital pura do planeta, capaz de moldar a matéria e reescrever o código genético dos materiais.
+\end{itemize}
+
+\subsection{2. Partes do Corpo (O Loot)}
+\begin{itemize}
+    \item \textbf{Origem:} Drop probabilístico (RNG) dos inimigos.
+    \item \textbf{Natureza ``Não Identificada'':} No chão e no inventário, a parte exibe apenas seu \textbf{Nome} (ex: "Mandíbula de Inseto") e seu \textbf{Tier} (1 a 4). O jogador \textit{não sabe} o efeito exato até gastar essência para infundi-la.
+\end{itemize}
+
+\section{Sistema de Sinergias Cruzadas (Alquimia)}\label{sec:sinergias}
+Ao invés de infundir itens um a um, o jogador pode selecionar múltiplos itens não-acumulados no inventário e infundi-los simultaneamente.
+
+\begin{itemize}
+    \item \textbf{Sinergias de 2 Itens:} Combinar itens específicos de inimigos diferentes (Ex: T1 do Goblin + T1 do SharpBlur gera a sinergia "Chuva de Lâminas"). Além de conceder os status base dos dois itens, a sinergia concede um bônus especial massivo e aplica um \textbf{desconto na inflação} gerada por aquela infusão.
+    \item \textbf{Sinergias de 4 Itens (Douradas):} Combos extremamente raros que exigem 4 itens específicos juntos no inventário, resultando em poderes lendários (Ex: "Berserker Imortal").
+    \item \textbf{A Ascensão (O Modo Deus):} Se o jogador conseguir o feito quase impossível de coletar e juntar os 13 itens de Tier 4 (Lendários) de todos os 13 inimigos do jogo no inventário ao mesmo tempo, ele destrava a Sinergia Divina, ganhando invencibilidade absoluta.
+    \item \textbf{Falha Alquímica:} Tentar infundir dois ou mais itens simultaneamente que \textbf{não} possuem sinergia resultará na concessão dos atributos básicos, mas o jogador sofrerá uma \textbf{penalidade severa de inflação (Inflation Penalty)}, encarecendo drasticamente as próximas compras da run.
+\end{itemize}
+
+\subsection{Tiers de Raridade}
+\begin{description}
+    \item[Tier 1, 2 e 3 (Construção Estatística):] \hfill \\
+    Peças numéricas que servem primordialmente como ingredientes para a Alquimia de Sinergias. T1 (Comum, Branco), T2 (Incomum, Verde), T3 (Raro, Roxo).
+    \item[Tier 4 --- Lendário (Modificador de Gameplay):] \hfill \\
+    Itens Amarelos/Dourados. Alterações drásticas de gameplay (ex: ``Sua arma não usa mais munição, mas consome vida para atirar''). \textit{Garantido por Guardiões.} São raros de aparecer e muito caros para infundir sozinhos.
+\end{description}
+
+\subsection{Amplificação (Overcharge)}
+Ao realizar uma infusão e revelar o atributo, o jogador tem uma breve janela para ``Sobrecarregar'' a infusão, gastando uma quantia extra e massiva de Essência para aprimorar o atributo recém-adquirido.
+
+% =========================================================================
+% CAPÍTULO 4: O MERCADOR
+% =========================================================================
+\chapter{O Mercador: A Válvula de Escape}\label{cap:mercador}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.5\textwidth]{Mercador (1).png}
+    \caption{O Mercador: A figura misteriosa que negocia com sangue.}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \begin{minipage}{0.4\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{Mercador (2).png}
+        \caption{Detalhe Lateral: Frascos de Essência.}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.4\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{Mercador (3).png}
+        \caption{Vista Traseira: Talismãs e manto.}
+    \end{minipage}
+\end{figure}
+
+Ocasionalmente, escondido em becos sem saída entre os biomas, o jogador \textbf{poderá} encontrar uma figura misteriosa conhecida apenas como ``O Mercador''. O encontro \textbf{não é garantido}: existe uma chance probabilística de sua presença a cada \textit{run}, e algumas jornadas podem transcorrer inteiramente sem que ele apareça (ver Seção~\ref{sec:regras_geracao}).
+
+\section{Lore e Aparência}
+\begin{itemize}
+    \item \textbf{Visual:} Ele veste um manto roxo desgastado com detalhes em couro e um chapéu de aba larga e pontudo que oculta completamente seu rosto, deixando visíveis apenas olhos que brilham na escuridão.
+    \item \textbf{Comunicação:} Ele fala uma língua antiga e incompreensível para humanos. Toda a negociação é intermediada por \textbf{Eptinho}, que traduz os sussurros do Mercador através do HUD do jogador — mas essa tradução não é perfeita desde o início.
+    \item \textbf{Função no Mundo:} Ele atua como a ``válvula de escape'' do sistema econômico do jogo, permitindo que o jogador corrija erros de \textit{build} ou assuma riscos mortais em troca de poder absoluto.
+\end{itemize}
+
+\section{A Tradução Progressiva}\label{sec:traducao}
+A língua do Mercador é incompreensível para humanos, mas não para Eptinho — desde que ele tenha tempo suficiente para analisá-la. A cada encontro durante uma mesma \textit{run}, Eptinho acumula mais dados linguísticos e consegue traduzir uma porção maior do discurso.
+
+\begin{description}
+    \item[1º Encontro:] Eptinho capta apenas fragmentos e intenções básicas. A maior parte do diálogo aparece como texto corrompido ou símbolos indecifrávels no HUD. O jogador entende o suficiente para identificar os quatro serviços, mas o tom e o contexto do Mercador ficam ocultos.
+
+    \item[2º Encontro:] Com mais dados compilados, Eptinho consegue traduzir aproximadamente metade do discurso. Nuances começam a emergir: o Mercador pode revelar detalhes sobre os pactos ou tecer comentários sobre o estado atual do jogador.
+
+    \item[3º Encontro em diante:] A tradução está quase completa. O Mercador começa a se revelar, compartilhando fragmentos de sua própria perspectiva sobre o planeta, o ciclo de renascimento e a natureza do Engenheiro. Esta é a camada de \textit{Lore} mais profunda do jogo, acessível somente a \textit{runs} que encontram o Mercador múltiplas vezes.
+\end{description}
+
+\textit{Nota de Design:} Este sistema incentiva o jogador a buscar o Mercador ativamente em cada run. Encontrá-lo uma única vez é vantajoso economicamente; encontrá-lo várias vezes desbloqueia a narrativa oculta.
+
+\section{Regra de Encontro: Um Serviço por Visita}
+\begin{quote}
+    \textbf{Regra Fundamental:} Em cada encontro com o Mercador, o jogador pode utilizar \textbf{apenas um} dos quatro serviços disponíveis. Após a transação, o Mercador encerra a negociação e desaparece até o próximo encontro.
+\end{quote}
+
+Esta restrição impõe uma decisão estratégica de alto custo de oportunidade: escolher o \textit{Câmbio de Sangue} significa abrir mão da \textit{Cirurgia de Remoção} naquele momento, e vice-versa.
+
+\section{Os Quatro Pilares de Troca}
+
+\subsection{1. Câmbio de Sangue (Recurso de Desespero)}
+\begin{description}
+    \item[A Troca:] O jogador sacrifica permanentemente uma porcentagem de sua \textbf{Vida Máxima} (irreparável durante a run).
+    \item[O Ganho:] Recebe uma injeção massiva e imediata de \textbf{Essência da Vida}.
+    \item[Função Estratégica:] Permite comprar um item Lendário ou realizar uma infusão crítica de última hora, salvando uma run mal gerenciada economicamente.
+\end{description}
+
+\subsection{2. Cirurgia de Remoção (Otimização)}
+\begin{description}
+    \item[A Troca:] Um custo moderado de Essência.
+    \item[O Ganho:] O Mercador extrai cirurgicamente uma ``Parte do Corpo'' já acoplada à arma, removendo permanentemente seu efeito.
+    \item[Recálculo de Inflação:] Ao remover uma parte, o \textbf{peso de inflação} ($P$) daquele item é imediatamente \textbf{subtraído} do $P_{total}$ acumulado. Isso reduz o custo das próximas infusões proporcionalmente ao Tier do item removido. O Mercador efetivamente ``volta o relógio'' da economia. Ver Seção~\ref{sec:inflacao} (Capítulo~\ref{cap:economia}) para os valores de $P$ por Tier.
+    \item[Nota:] O item extraído é destruído — ele não retorna ao inventário do jogador.
+\end{description}
+
+\subsection{3. Artefatos Refinados \& Únicos}
+\begin{description}
+    \item[A Troca:] Um custo altíssimo de Essência (muito superior a uma infusão comum).
+    \item[O Ganho:] \textbf{Partes Identificadas} — itens de Tier alto onde o jogador \textit{vê} exatamente o atributo antes de comprar.
+    \item[Regra de Inflação:] Itens comprados aqui vão para o inventário do jogador. O $P_{total}$ \textbf{não é afetado no momento da compra}, apenas no momento em que o jogador optar por infundir o item normalmente. Isso significa que a compra em si não encarece as próximas infusões.
+\end{description}
+
+\subsection{4. As Maldições (O Tarô Proibido)}
+\begin{description}
+    \item[A Troca:] Custa sempre \textbf{Vida Máxima}.
+    \item[O Ganho:] Um poder passivo avassalador que dura até o fim da run, sempre atrelado a uma penalidade severa. Transforma o estilo de jogo imediatamente.
+\end{description}
+
+\subsubsection{Exemplos de Cartas de Maldição}
+\begin{itemize}
+    \item \textbf{A Ganância:} Inimigos têm chance dobrada de dropar loot e Essência. \textit{Maldição:} Inimigos causam 50\% mais dano.
+    \item \textbf{O Frenesi:} Velocidade de Ataque e Movimento aumentam em 40\%. \textit{Maldição:} Armadura reduzida a 0 permanentemente.
+    \item \textbf{O Parasita:} Vampirismo (regenera vida ao matar). \textit{Maldição:} Necrose acelerada — a vida decai se o jogador ficar mais de 5 segundos sem matar. Força estilo agressivo e sem pausas.
+    \item \textbf{A Sinfonia do Caos (Blood Pact 9):} Multiplica por 2x a Essência e o Loot recebido em toda a run. \textit{Maldição:} Triplica o Budget de Spawn e o limite máximo de Elites e Tanques por sala, transformando o jogo em um \textit{bullet hell} absoluto de altíssima dificuldade.
+\end{itemize}
+
+% =========================================================================
+% CAPÍTULO 5: ARSENAL (FERRAMENTAS ADAPTADAS)
+% =========================================================================
+\chapter{Arsenal (Ferramentas Adaptadas)}\label{cap:arsenal}
+
+O jogador não possui armas militares. Ele luta com o que tem na maleta de ferramentas. A \textbf{``Classe''} do jogador é definida pela \textbf{arma escolhida no início da run}. Existem 6 arquétipos organizados por Alcance e Cadência. Cada um possui uma \textbf{ULT} (Ataque Especial com Cooldown) que define o momento de pico do estilo de combate.
+
+\section{Curto Alcance / Alta Cadência}
+\begin{description}
+    \item[Cortador de Plasma Portátil (Adaga):] Originalmente usado para cortar chapas de metal. Alta cadência, baixo alcance.
+    \begin{itemize}
+        \item \textit{Estilo:} \textit{Hit \& Run}. Agressividade e alto DPS por aproximação.
+        \item \textit{ULT:} (?).
+    \end{itemize}
+\end{description}
+
+\section{Sistema de Combate e Cadência de Combos (Janelas de Ataque)}
+Para dar maior peso tático e recompensar o ritmo do jogador, o combate com armas de curto alcance (como o Machado de Bismuto e a Adaga) utiliza um sistema de \textbf{Input Buffering} e \textbf{Janelas de Ataque} precisas:
+
+\begin{itemize}
+    \item \textbf{Input Buffering (Fila de Cliques):} Ao apertar o botão de ataque durante o meio de um movimento de swing, o clique é armazenado temporariamente (\texttt{hasBufferedAttack = true}) no script \texttt{PrimaryAttackKnife.cs} em vez de ser ignorado.
+    \item \textbf{Janela de Abertura (Recovery Frame):} O buffer de input só é consumido e o próximo hit do combo disparado quando a animação atual atinge o evento de animação \texttt{OpenAttackWindow}. Se o jogador não realizar cliques extras durante a janela de recuperação, o combo expira e o jogador retorna ao estado de repouso (Idle).
+    \item \textbf{Proteção contra Spam (Combo Finisher Lock):} No último golpe de cada combo (ex: Hit 3 da Adaga ou Hit 4 do Machado), o sistema de buffering é desativado (\texttt{comboStep == maxComboSteps}). Isso impede que o jogador spammeie o botão no finalizador e acabe disparando o Hit 1 do combo seguinte automaticamente por resquício de cliques, exigindo uma intenção de clique fresca para recomeçar.
+    \item \textbf{Isolamento de Estado (Prevenção de Corrida / Lunge):} O avanço frontal físico (Lunge) dado pelo jogador aumenta a velocidade de seu Rigidbody. Para evitar que o script de movimento (\texttt{PlayerM.cs}) detecte essa velocidade de avanço e force uma animação de corrida (\textit{Running}) cortando o combo, o script de animação da movimentação é desativado durante todo o processo ativo do ataque (\texttt{isAttacking == true}).
+    \item \textbf{Evitando Conflito de Blends:} O evento \texttt{ResetCombo} no final do clipe é protegido por uma validação que impede o reset do combo caso a janela de ataque do próximo hit já tenha sido acionada (\texttt{if (!canAttack) return;}), contornando falhas causadas pela transição cruzada (\textit{crossfade}) das animações.
+\end{itemize}
+
+% =========================================================================
+% CAPÍTULO 6: BESTIÁRIO DE INIMIGOS
+% =========================================================================
+\chapter{Bestiário de Inimigos}\label{cap:bestiario}
+
+As criaturas do bioma cristalino são manifestações físicas do sistema imunológico do planeta. Cada classe define o custo de spawn e as restrições táticas dentro das ondas de combate. Os inimigos concretos listados neste capítulo estão implementados e ativos no projeto.
+
+% =========================================================================
+\section{Tabela de Classes de Spawn (Sistema de Budget)}
+
+\begin{center}
+\begin{tabular}{|l|c|l|}
+    \hline
+    \textbf{Classe} & \textbf{Custo} & \textbf{Restrições} \\
+    \hline
+    Mob Menor            & 1 ponto   & Máx. 50--70\% dos pontos da onda \\
+    Atirador             & 4 pontos  & Sempre em par (2 por 4 pts) \\
+    Tanque               & 4 pontos  & Máx. 4 por sala (limite global) \\
+    Suporte (Sintonizador) & 5 pontos  & Máx. 2 por sala \\
+    Estrutura (Totem)    & 6 pontos  & Máx. 1 por sala; crânios não consomem budget \\
+    Elite                & 10 pontos & Máx. 1 por sala (limite global) \\
+    \hline
+\end{tabular}
+\end{center}
+
+% =========================================================================
+\section{Inimigos Implementados --- Bioma 1 (Cristalizado)}
+
+% -------------------------------------------------------------------------
+\subsection{Aranha (\textit{Spider\_AI}) --- Mob Menor}
+% ATENÇÃO: adicione o arquivo de imagem na pasta do .tex
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.45\textwidth]{Inimigo_Aranha.png}
+    \caption{Aranha: Mob Menor ágil com leap attack e recuo tático.}
+\end{figure}
+
+\begin{description}
+    \item[Lore:] Fragmento vivo do tecido do planeta. Ágil e predatória, é o primeiro organismo a responder quando a anomalia humana invade o território.
+    \item[Comportamento:]
+    \begin{itemize}
+        \item Aproxima-se do jogador até o range de salto (\texttt{leapRange = 5m}).
+        \item \textbf{Passo Procedural:} Movimenta-se usando um ciclo de pernas procedural 100\% dinâmico, suportando padrões de caminhada alternados (\textit{Tripod Gait} de 6 pernas ou \textit{Wave Gait} sequencial).
+        \item \textbf{Leap Attack:} Salta em trajetória livre com força de impulso (\texttt{leapForce = 12}); causa dano por \textit{OverlapSphere} ao aterrissar (\texttt{leapDamage = 10}). Durante o salto, suas garras/mandíbulas se abrem e fecham proceduralmente.
+        \item \textbf{Recuo Tático:} 30\% de chance de saltar para trás após um hit bem-sucedido, dificultando a punição do jogador.
+        \item \textbf{VFX:} Rastro de fantasmas visual (\textit{after-images}) via \texttt{SpiderDashVFX} durante o pulo de ataque.
+    \end{itemize}
+    \item[Stats:] Velocidade \texttt{6} --- Dano \texttt{10} --- Cooldown do salto \texttt{2s} --- Cooldown de recuo \texttt{5s}
+\end{description}
+
+% -------------------------------------------------------------------------
+\subsection{Goblin (\textit{GoblinAI\_Transform}) --- Atirador / Melee Situacional}\label{sec:goblin}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.35\textwidth]{Inimigo_Goblin.png}
+    \caption{Goblin: Mineiro subterrâneo que arremessa bombas à distância e ataca com picareta quando encurralado.}
+\end{figure}
+
+\begin{description}
+    \item[Lore:] Os Goblins são uma raça de seres subterrâneos que habitam as profundezas do planeta, minerando cristais com propriedades explosivas. Por passarem toda a vida nas cavernas sem exposição à claridade, seus olhos atrofiaram --- são essencialmente cegos ou hipersensíveis à luz, cobrindo sempre o rosto com um pano grosseiro. Fisicamente são atarracados e esguios: a combinação de baixa gordura e musculatura densa de anos de mineração os torna visualmente frágeis, mas surpreendentemente fortes. Primitivos em cultura, carregam apenas uma bolsa de couro com cristais e a picareta que os define.
+    \item[Comportamento:]
+    \begin{itemize}
+        \item Mantém distância ideal de \texttt{12m} realizando strafe lateral contínuo.
+        \item \textbf{Bomba Parabólica (Ranged):} Arremessa \texttt{BombaExplosiva} a cada \texttt{2.8s}. Pisca em vermelho e detona em \texttt{3s} (\texttt{dano = 40}, \texttt{raio = 2m}, knockback).
+        \item \textbf{Fuga:} Se o jogador entra em \texttt{6m}, tenta fugir a \texttt{velocidade = 11}.
+        \item \textbf{Ataque de Picareta (Melee):} Se o jogador entra em \texttt{2.5m} --- distância menor que a de fuga --- o Goblin \textbf{interrompe a fuga} e desfere um golpe de picareta. Para completamente, levanta a ferramenta (wind-up \texttt{0.35s}) e causa \texttt{20} de dano em raio de \texttt{1.8m} à sua frente. Cooldown de \texttt{1.5s} entre golpes.
+        \item Aparece em par no sistema de spawn (2 unidades por 4 pontos).
+    \end{itemize}
+    \item[Prioridade de estados:] \texttt{MeleePickaxe} ($\leq$2.5m) $>$ \texttt{Fugir} ($<$6m) $>$ \texttt{Atacar Ranged} ($\leq$12m) $>$ \texttt{Perseguir}
+    \item[Stats:] Bomba: Dano \texttt{40} --- Raio \texttt{2m} (buffado \texttt{4m}) --- Picareta: Dano \texttt{20} --- Cooldown \texttt{1.5s}
+    \item[Buff do Sintonizador:] Velocidade +15\%, intervalo de bomba $\div$2, raio da bomba dobra.
+\end{description}
+
+% -------------------------------------------------------------------------
+\subsection{Golem (\textit{Golem\_AI}) --- Tanque}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.45\textwidth]{Inimigo_Golem.png}
+    \caption{Golem: Tanque com melee pesado e stun em área após combo.}
+\end{figure}
+
+\begin{description}
+    \item[Lore:] A consolidação máxima da estrutura mineral do bioma. Lento demais para ser ignorado, poderoso o suficiente para terminar qualquer descuido.
+    \item[Comportamento:]
+    \begin{itemize}
+        \item \textbf{Animação Procedural:} Move-se lentamente em direção ao jogador (\texttt{moveSpeed = 2}), com oscilações pesadas, inércia de corpo, spine corcunda e inclinações de quadril simuladas proceduralmente.
+        \item \textbf{Melee (Ataque Rotatório):} A \texttt{3m} de distância, golpeia com wind-up telegrafado. Os braços inclinam-se para dentro e giram em rotações simétricas opostas.
+        \begin{itemize}
+            \item \textbf{Convergência das Mãos:} Os braços convergem inclinando-se para baixo ($30^\circ$) e para dentro ($20^\circ$) nas extremidades das mãos, garantindo que o golem atinja o jogador (que é mais baixo e menor).
+            \item \textbf{Limite de Rotação:} Sem buff, o ataque melee realiza apenas meio giro ($180^\circ$ de varredura). Sob o efeito do buff do Sintonizador, os braços executam 2 giros completos ($720^\circ$ de rotação contínua).
+        \end{itemize}
+        \item \textbf{Combo Stun:} Após \textbf{2 acertos de melee}, ativa um stun em área (\texttt{raio = 4m}) na posição do jogador.
+        \item \textbf{Stun Proativo:} Se o cooldown do melee estiver ativo e o jogador estiver em \texttt{10m}, usa o stun como ataque primário.
+        \item \textbf{VFX do Stun:} Efeito URP-emissivo moderno que projeta anéis de impacto expansivos e translúcidos, 4 rachaduras angulares no terreno que crescem para fora, um pilar de energia central com contração de largura, e partículas em três camadas (faíscas velozes, pedregulhos de cristal com gravidade, e poeira expansiva rente ao chão).
+    \end{itemize}
+    \item[Stats:] Dano melee \texttt{35} --- Cooldown melee \texttt{3s} --- Stun \texttt{1.5s} --- Cooldown stun \texttt{12s}
+    \item[Buff do Sintonizador:] Velocidade +30\%, cooldown do stun $\times$0.7, e ataque giratório com 2 voltas completas ($720^\circ$). \textit{Nota: Ao destruir o Sintonizador que o acompanha, o Golem é instantaneamente desbuffado, revertendo imediatamente sua velocidade, cooldowns, cor da barra de vida (de ciano para vermelho) e limitando seu ataque giratório de volta para os $180^\circ$ padrão.}
+\end{description}
+
+% -------------------------------------------------------------------------
+\subsection{Pedra Mágica (\textit{MagicStone\_AI}) --- Elite Ranged}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.45\textwidth]{Inimigo_MagicStone.png}
+    \caption{Pedra Mágica: Elite flutuante com raio vertical telegrafado e teleporte de emergência.}
+\end{figure}
+
+\begin{description}
+    \item[Lore:] Fragmento de consciência planetária condensado. Flutua sobre o campo de batalha e golpeia o intruso com energia pura do núcleo.
+    \item[Comportamento:]
+    \begin{itemize}
+        \item Mantém órbita entre \texttt{12--15m} do jogador, circulando continuamente com flutuação sinusoidal vertical.
+        \item \textbf{Skybeam Attack:} A cada \texttt{5s}, telegrafeia com \texttt{AttackMarkerEffect} por \texttt{2.5s} na posição atual do jogador, depois dispara um raio vertical (\texttt{AttackBeam}).
+        \item \textbf{Teleporte de Emergência:} Se o jogador se aproximar a menos de \texttt{4m}, teleporta para \texttt{15--20m}, respeitando os limites da sala (\texttt{roomBounds}).
+    \end{itemize}
+    \item[Stats:] Intervalo de ataque \texttt{5s} --- Telegrafagem \texttt{2.5s} --- Cooldown teleporte \texttt{30s}
+    \item[Buff do Sintonizador:] Intervalo de ataque $\div$2, velocidade de órbita +50\%.
+\end{description}
+
+% -------------------------------------------------------------------------
+\subsection{Enxame de Cristais (\textit{ShardSwarm\_AI / STAR}) --- Elite}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.45\textwidth]{Inimigo_ShardSwarm.png}
+    \caption{Enxame de Cristais: Quatro fragmentos fundidos em forma de carambola que se separam como projéteis e só podem ser destruídos na forma unida.}
+\end{figure}
+
+\begin{description}
+    \item[Lore:] Consciência coletiva fraturada do planeta. Quatro vontades iguais que só existem em plenitude quando unidas — ao se separarem, perdem a consciência e se tornam pura força cinética.
+    \item[Forma Unida (Núcleo --- Estado Vulnerável):]
+    O Enxame flutua lentamente em direção ao jogador com os quatro fragmentos fundidos em uma única estrutura com formato de \textbf{carambola/estrela de quatro pontas}. Neste estado, apresenta um \textbf{Holograma de Escudo} rotacional defensivo e utiliza uma \textbf{Inteligência Artificial Orgânica} que navega pela arena evitando obstáculos de forma inteligente.
+    \begin{itemize}
+        \item O Enxame é a única fase em que pode receber e acumular dano.
+        \item Serve como janela de ataque para o jogador --- atacar os fragmentos individuais não causa nenhum dano.
+    \end{itemize}
+    \item[Separação (Disparo --- Estado Invulnerável):]
+    Ao detectar o jogador dentro do raio de ataque, o Enxame \textbf{separa os quatro fragmentos} simultaneamente. Cada fragmento:
+    \begin{itemize}
+        \item Dispara-se em \textbf{linha reta} na direção atual do jogador a alta velocidade.
+        \item O trajeto é \textbf{fixo no momento do disparo} --- os projéteis não rastreiam, não curvam e não reagem ao movimento do jogador após serem lançados.
+        \item Se bater no jogador, causa dano e continua sua trajetória (não é destruído pelo impacto).
+        \item Se errar ou atingir uma parede, os fragmentos param e iniciam a \textbf{reagrupamento}.
+    \end{itemize}
+    \item[Reagrupamento --- Rastro Eletrificado:]
+    Após o disparo, todos os fragmentos navegam de volta ao ponto central e se fundem novamente na forma de carambola, retornando ao Estado Vulnerável. O Enxame \textbf{não pode disparar enquanto estiver reagrupando}.
+    Durante o trajeto de retorno, cada fragmento \textbf{deixa uma trilha elétrica no piso} pelo caminho que percorreu. As trilhas formam um padrão de estrela convergindo ao centro:
+    \begin{itemize}
+        \item Trilhas permanecem ativas por \texttt{\~{}2--3s} antes de dissipar.
+        \item Pisar em uma trilha causa \textbf{dano por tick} leve (\texttt{\~{}5/s}) e aplica uma \textbf{leve redução de velocidade} enquanto em contato.
+        \item Cria pressão de posicionamento: o jogador quer se aproximar do núcleo para atacar, mas o caminho até ele está temporariamente bloqueado pelas trilhas irradiadas pelos fragmentos.
+        \item A arena fica visualmente eletrificada após cada disparo, transformando o piso em campo minado temporário.
+    \end{itemize}
+    \item[Carga Progressiva (Núcleo Ativo):]
+    Enquanto na forma unida (Estado Vulnerável), o Enxame \textbf{acumula carga elétrica de forma passiva e visível} --- pequenas faíscas surgem inicialmente e a intensidade visual e sonora cresce com o tempo. Se o jogador \textbf{não destruir o núcleo dentro da janela de tempo}, o Enxame descarrega:
+    \begin{itemize}
+        \item \textbf{Pulso Elétrico em Área (Nova):} Emite uma descarga circular de energia elétrica ao redor do núcleo (\texttt{raio \~{}5m}), causando dano moderado (\texttt{\~{}25}) e aplicando \textbf{stun breve} (\texttt{\~{}0.8s}) no jogador se ele estiver dentro do raio.
+        \item Após a descarga, o Enxame \textbf{retorna à fase de Separação} (disparo) imediatamente --- a carga acumulada foi usada como ataque e reinicia o ciclo.
+        \item O tempo até a descarga é \textbf{lido visualmente}: poucas faíscas = seguro; corpo inteiro brilhando = descarga iminente. Sem HUD ou barra --- comunicação puramente visual.
+        \item \textbf{Pressão de tempo}: o jogador não pode atacar o núcleo devagar e com segurança. Precisa ser eficiente dentro da janela antes da descarga.
+    \end{itemize}
+    \item[Status de Impacto Múltiplo:]
+    Se o jogador for atingido por \textbf{3 ou mais} dos 4 fragmentos em um mesmo disparo, recebe um dos seguintes efeitos (a definir pelo time de balanceamento):
+    \begin{itemize}
+        \item \textbf{Opção A --- Stun:} Paralisado brevemente por \texttt{\~{}1.5s}.
+        \item \textbf{Opção B --- Lentidão Severa:} Velocidade de movimento drasticamente reduzida por \texttt{\~{}3s}.
+    \end{itemize}
+    \item[Resumo do Loop de Combate:]
+    \textit{Flutua unido e carrega (vulnerável + pressão de tempo) $\rightarrow$ Detecta jogador $\rightarrow$ Disparo em onda: 2 fragmentos $+$ 0.4s delay $+$ 2 fragmentos (invulnerável) $\rightarrow$ Reagrupa com Rastro Elétrico no piso (invulnerável) $\rightarrow$ Repete.}\\
+    O jogador precisa equilibrar três pressões simultâneas: \textbf{(1)} atacar o núcleo antes da descarga, \textbf{(2)} desviar dos disparos em onda e \textbf{(3)} não pisar nas trilhas durante o reagrupamento.
+    \item[Stats (referência):] Velocidade de flutuação \texttt{\~{}3} --- Velocidade dos fragmentos lançados \texttt{\~{}20--25} --- Dano por fragmento \texttt{\~{}15} --- Dano do Rastro \texttt{\~{}5/s} --- Dano do Pulso Elétrico \texttt{\~{}25} --- Tempo até descarga \texttt{\~{}4--5s} acumulando.
+    \item[Buff do Sintonizador:] Velocidade dos fragmentos +30\%, tempo de acumulação da carga reduzido (descarga mais rápida), duração do Rastro +1s.
+\end{description}
+
+% -------------------------------------------------------------------------
+\subsection{Vigia de Cristal (\textit{CrystalWatcher\_AI}) --- Elite Estático}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.45\textwidth]{Inimigo_CrystalWatcher.png}
+    \caption{Vigia de Cristal: Imóvel. Laser giratório que inverte conforme o jogador dasha.}
+\end{figure}
+
+\begin{description}
+    \item[Lore:] Sentinela do território. Não persegue — não precisa. O laser emitido transforma qualquer rota de fuga em cálculo de risco.
+    \item[Comportamento:]
+    \begin{itemize}
+        \item Estático. Ativa quando o jogador entra em \texttt{20m}.
+        \item \textbf{Ciclo:} Carregamento (\texttt{0.5s}) $\rightarrow$ Laser ativo (\texttt{4s}) $\rightarrow$ Cooldown (\texttt{2s}).
+        \item \textbf{Laser Giratório:} Gira pelo caminho mais curto até o jogador (\texttt{30°/s}). Se o jogador dasha para o lado oposto, o laser \textbf{inverte a rotação automaticamente}.
+        \item \textbf{Dano por Tick:} \texttt{15} de dano a cada \texttt{0.3s} de contato (\textit{SphereCastAll}, \texttt{laserWidth = 0.5m}).
+        \item \textbf{Visual:} Dois \texttt{LineRenderers} — núcleo fino branco-roxo + glow externo roxo pulsante.
+    \end{itemize}
+    \item[Stats:] Dano/tick \texttt{15} --- Intervalo \texttt{0.3s} --- Rotação \texttt{30°/s} --- Alcance \texttt{20m}
+    \item[Buff do Sintonizador:] Carregamento $\div$2, rotação do laser +50\% (\texttt{45°/s}).
+\end{description}
+
+% -------------------------------------------------------------------------
+\subsection{Geobionte / Bismutado (\textit{Geobionte\_AI}) --- Elite de Fusão}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.45\textwidth]{Inimigo_Geobionte.png}
+    \caption{Geobionte: Criatura simbiótica que se funde a minérios de Bismuto para se transformar. Também referenciado internamente como ``Bismutado'' nos sistemas de spawn.}
+\end{figure}
+
+\begin{description}
+    \item[Lore:] Uma forma larval mineral do planeta. Passivo e vulnerável por si só, busca ativamente se fundir aos depósitos de Bismuto e Cristal do cenário para erguer uma couraça impenetrável de combate.
+    \item[Comportamento:]
+    \begin{itemize}
+        \item \textbf{Estado Idle:} Vaga passivamente pelo cenário de forma inofensiva e é imune a ataques diretos nesse estado.
+        \item \textbf{Seeking Ore (Gargalo de Combate):} Ao avistar o jogador, corre em direção ao minério mais próximo (\texttt{oreSearchRadius = 500m}). Durante essa travessia, o jogador tem uma janela estratégica de oportunidade: se atingir o Geobionte 7 vezes (\texttt{preventionMaxHP}), interrompe sua fusão, forçando-o a fugir para um canto e despawnar.
+        \item \textbf{Fusão (Transformed):} Se atingir o minério com sucesso, funde-se em uma animação de \texttt{1.5s}, crescendo de escala e assumindo a forma de um Cubo de Bismuto gigante sobre pernas procedurais.
+        \item \textbf{Combate Bismutado:} Persegue o jogador a velocidade \texttt{4} e executa um golpe horizontal giratório (varredura AoE com indicador visual vermelho de perigo, \texttt{sweepDamage = 8}) a cada \texttt{6s}.
+        \item \textbf{Sentinela (Mini-boss):} Caso realize fusões sucessivas ou seja derrotado múltiplas vezes, o Geobionte evolui para a forma Sentinela, ganhando pernas alongadas e um campo gerador de debuff que reduz os atributos do jogador.
+    \end{itemize}
+    \item[Stats:] Fuga: Velocidade \texttt{8} --- Cubo: Velocidade \texttt{4} --- Dano do Sweep \texttt{8} --- Cooldown \texttt{6s}
+    \item[Nota de implementação:] O prefab deste inimigo está nomeado como \texttt{bismutado.prefab} no repositório. Ambos os termos (``Geobionte'' e ``Bismutado'') se referem ao mesmo inimigo --- ``Geobionte'' é o nome narrativo/GDD, ``Bismutado'' descreve sua forma transformada pós-fusão.
+\end{description}
+
+% -------------------------------------------------------------------------
+\subsection{Dragão de Cristal (\textit{CrystalDragon\_AI}) --- Elite Flutuante}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.45\textwidth]{cristal_dragon.png}
+    \caption{Dragão de Cristal: Elite flutuante com espinhos rotacionais e mecanismo de insuflamento defensivo estilo peixe-leão/baiacu.}
+\end{figure}
+
+\begin{description}
+    \item[Lore:] Uma forma de vida mineral que imita a biologia do baiacu como mecanismo de defesa evolutivo. Seus espinhos de cristal estão permanentemente carregados com a energia do núcleo do planeta — ao girar, dispara-os como projéteis de defesa perimetral.
+    \item[Design de Referência:] Visualmente inspirado em um \textbf{peixe-leão/baiacu}: corpo esférico com espinhos cristalinos ao redor, flutuando lentamente pelo espaço. Quando insuflado, incha visivelmente, dobrando de tamanho, com os espinhos se eriçando para fora de forma ameaçadora.
+    \item[Estado Normal --- Flutuante e Ranged:]
+    \begin{itemize}
+        \item Flutua lentamente em direção ao jogador, mantendo distância de combate segura (\texttt{\~{}8--12m}).
+        \item \textbf{Disparo Rotacional:} Gira o próprio corpo e lança os espinhos em arco/rotação, disparando projéteis em múltiplas direções radiais ao redor de si. O ataque funciona como uma salva giratória, obrigando o jogador a se reposicionar.
+    \end{itemize}
+    \item[Trigger de Insuflamento:]
+    Quando o jogador entra dentro do raio de proximidade crítica (\texttt{\~{}3--4m}), o Dragão de Cristal ativa seu mecanismo de defesa:
+    \begin{itemize}
+        \item \textbf{Insuflamento (Puffer State):} O corpo incha visivelmente, dobrando de volume. Os espinhos se eriçam para fora, cobrindo toda a superfície.
+        \item \textbf{Imune a Melee:} Enquanto insuflado, o Dragão é \textbf{imune a ataques corpo a corpo} --- os espinhos eriçados deflectem qualquer golpe físico direto. Contudo, \textbf{ataques à distância (ranged) e a Habilidade Suprema (ULT) do jogador atravessam a defesa} e causam dano normalmente, recompensando jogadores com builds de longo alcance e incentivando troca de estilo de combate situacional.
+        \item \textbf{Dano de Contato:} Se o jogador tocar o corpo insuflado (com espinhos), recebe dano passivo por proximidade.
+        \item \textbf{Sem Locomoção:} O Dragão \textbf{para completamente} enquanto insuflado --- não persegue o jogador neste estado.
+    \end{itemize}
+    \item[Janela de Ataque --- O Desinsuflamento:]
+    O Dragão possui um \textbf{cooldown} no estado insuflado. Quando o jogador se afasta além do raio crítico, o insuflamento começa a dissipar-se \textbf{gradualmente} (desinsuflamento lento e visível). Durante essa transição de volta ao estado normal:
+    \begin{itemize}
+        \item O Dragão fica \textbf{vulnerável} a dano --- esta é a única janela de ataque do jogador.
+        \item O loop de combate exige que o jogador \textbf{isque} (\textit{bait}) o insuflamento, afaste-se rapidamente e ataque durante o desinsuflamento.
+    \end{itemize}
+    \item[Loop de Combate:]
+    \textit{Dragão flutua e gira (ranged) $\rightarrow$ Jogador se aproxima $\rightarrow$ Insuflamento (imune + dano de contato) $\rightarrow$ Jogador se afasta $\rightarrow$ Desinsuflamento gradual (\textbf{janela de ataque}) $\rightarrow$ Repete.}
+    \item[Drop Principal:] \textbf{Thorn (Espinhos)} --- principal matéria-prima dropada pelo Dragão de Cristal, usada em infusões ofensivas.
+    \item[Stats (referência):] Velocidade de flutuação \texttt{\~{}2--3} --- Raio de disparo rotacional \texttt{\~{}10m} --- Raio de trigger do insuflamento \texttt{\~{}3--4m} --- Dano de contato/s \texttt{\~{}10} --- Duração máx. do insuflamento \texttt{\~{}4--5s} --- Tempo de desinsuflamento \texttt{\~{}2--3s}.
+    \item[Buff do Sintonizador:] Cadência de disparo rotacional +50\%, raio de trigger do insuflamento aumentado.
+\end{description}
+
+% -------------------------------------------------------------------------
+\subsection{SharpBlur (\textit{SharpBlur\_AI}) --- Elite Ágil}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.45\textwidth]{Inimigo_SharpBlur.png}
+    \caption{SharpBlur: Caçador ágil que utiliza zigue-zagues de alta velocidade com hologramas e golpes rápidos.}
+\end{figure}
+
+\begin{description}
+    \item[Lore:] Uma anomalia física condensada em Érebo. Suas células cristalinas vibram em altíssima frequência, permitindo-lhe realizar impulsos espaciais que deixam rastros visuais de si mesmo no trajeto.
+    \item[Comportamento:]
+    \begin{itemize}
+        \item Detecta o jogador a \texttt{25m} e persegue a velocidade \texttt{6} sem gravidade ativa.
+        \item \textbf{Zigue-Zague Holográfico (Dash):} A \texttt{8m} de distância, projeta-se em zigue-zague ultra veloz a velocidade \texttt{30} em direção ao jogador, deixando para trás clones transparentes emissores (\texttt{hologramMaterial} e \texttt{hologramAlpha = 0.6f}) que causam \texttt{15} de dano por contato físico.
+        \item \textbf{Soco Rápido (Melee):} Ao se aproximar a menos de \texttt{2.5m}, desfere um soco físico concentrado (\texttt{dano = 10}, wind-up rápido de \texttt{0.2s}).
+        \item \textbf{Predição de Movimento:} O script de IA calcula a trajetória do jogador (\texttt{leadPrediction = 0.5f}) para arremessar seu soco e dashes no local para onde o jogador está se movendo, dificultando esquivas simples.
+    \end{itemize}
+    \item[Stats:] Velocidade de Busca \texttt{6} --- Velocidade de Dash \texttt{30} --- Dano Melee \texttt{10} --- Dano Dash \texttt{15}
+\end{description}
+
+% =========================================================================
+\section{Inimigos de Suporte e Controle}
+
+% -------------------------------------------------------------------------
+\subsection{Sintonizador de Cristal (\textit{CrystalTuner})}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.45\textwidth]{Inimigo_CrystalTuner.png}
+    \caption{Sintonizador: Voa e amplifica aliados via feixes de energia. Eliminá-lo é prioridade.}
+\end{figure}
+
+\begin{description}
+    \item[Lore:] O sistema nervoso do planeta em forma ambulante. Liga-se a outros organismos via feixes de energia pura, elevando sua capacidade combativa.
+    \item[Comportamento:]
+    \begin{itemize}
+        \item Voa a \texttt{1.5m} de altura e posiciona-se próximo aos aliados.
+        \item Foge do jogador se ele entrar em \texttt{8m}.
+        \item Conecta-se a até \textbf{3 inimigos simultâneos} dentro de \texttt{20m} com feixes visuais ondulados (Perlin noise), concedendo buffs individualizados por tipo.
+        \item \textbf{Roaming Orgânico (Sem Alvos):} Quando todos os aliados no raio morrem, o Sintonizador entra em modo de \textbf{Roaming Orgânico}. Ele orbita o jogador a uma distância de segurança variável (4m a 10m) com velocidade angular flutuante via ruído de Perlin, eliminando a sensação de ``bicho travado''. Esse comportamento persiste até que um novo aliado entre em seu raio de alcance.
+        \item \textbf{Feedback de Conexão:}
+        \begin{itemize}
+            \item \textbf{Point Light:} Possui uma luz que se ativa apenas quando conectado a aliados, variando e pulsando sua intensidade continuamente. Desativa-se quando não há alvos conectados.
+            \item \textbf{Rotação do Modelo:} O corpo de cristal gira continuamente. Em estado ocioso (\textit{idle} ou roaming), rotaciona lentamente a $30^\circ/\text{s}$. Quando ativado e transmitindo buffs, acelera a rotação para $180^\circ/\text{s}$.
+        \end{itemize}
+        \item \textbf{Morte/Desativação Limpa:} Ao morrer ou ser desativado, o Sintonizador remove imediatamente os buffs de todos os seus alvos, destrói os feixes de conexão, desativa sua Point Light e interrompe a aceleração de rotação.
+    \end{itemize}
+    \item[Stats:] Máx. alvos \texttt{3} --- Range \texttt{20m} --- Velocidade \texttt{4.5} --- Fuga abaixo de \texttt{8m}
+\end{description}
+
+% -------------------------------------------------------------------------
+\subsection{Totem (\textit{TotemSpawner}) --- Estrutura}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.45\textwidth]{Inimigo_Totem.jpg}
+    \caption{Totem: Estrutura fixa que reanima crânios de Goblins mortos. Destruí-lo mata todos os crânios vinculados.}
+\end{figure}
+
+\begin{description}
+    \item[Lore:] Âncora do sistema imunológico de Érebo. O Totem absorve a matéria orgânica dos Goblins mortos nas minas subterrâneas e reanima seus crânios como projéteis rastreadores. Os Goblins não sabem — ou fingem não saber — que seus mortos servem ao planeta desta forma.
+    \item[Comportamento:]
+    \begin{itemize}
+        \item Estático. Ativa quando o jogador entra em \texttt{20m}.
+        \item Spawna até \textbf{3 HomingHazards} (crânios de Goblin reanimados) a cada \texttt{5s} em posições aleatórias dentro de \texttt{10m}.
+        \item Os crânios spawnaados \textbf{não consomem budget} — são gerados pela habilidade do Totem, não pelo sistema de ondas.
+        \item \textbf{Morte em Cadeia:} Ao ser destruído, todos os crânios vinculados são destruídos instantaneamente.
+    \end{itemize}
+    \item[Stats:] Crânios por ciclo \texttt{3} --- Intervalo \texttt{5s} (buffado \texttt{2.5s}) --- Raio \texttt{10m}
+    \item[Buff do Sintonizador:] Intervalo de spawn $\div$2.
+\end{description}
+
+% =========================================================================
+\section{Tabela Resumo --- Bioma 1 (Cristalizado)}
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+    \hline
+    \textbf{Inimigo} & \textbf{Classe de Spawn} & \textbf{Script} \\
+    \hline
+    Aranha               & Mob Menor (1 pt)          & \texttt{Spider\_AI} \\
+    Cristalus            & Mob Menor (1 pt)          & \texttt{Cristalus\_AI} \\
+    Goblin               & Atirador (4 pts)          & \texttt{GoblinAI\_Transform} \\
+    Golem                & Tanque (4 pts)            & \texttt{Golem\_AI} \\
+    Dragão de Cristal    & Elite Flutuante (10 pts)  & \texttt{CrystalDragon\_AI} \\
+    Sintonizador         & Suporte (5 pts)           & \texttt{CrystalTuner} \\
+    Totem                & Estrutura (6 pts)         & \texttt{TotemSpawner} \\
+    Pedra Mágica         & Elite (10 pts)            & \texttt{MagicStone\_AI} \\
+    Enxame de Cristais   & Elite (10 pts)            & \texttt{ShardSwarm\_AI} \\
+    Vigia de Cristal     & Elite (10 pts)            & \texttt{CrystalWatcher\_AI} \\
+    Geobionte (Bismutado) & Elite de Fusão (10 pts)  & \texttt{Geobionte\_AI} \\
+    SharpBlur            & Elite Ágil (10 pts)       & \texttt{SharpBlur\_AI} \\
+    Sentinela            & Elite Juggernaut (10 pts) & \texttt{Sentinela\_AI} \\
+    \hline
+\end{tabular}
+\end{center}
+
+\section{Chefe do Bioma 1 --- Boss Cromático}\label{sec:boss_bioma1}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.5\textwidth]{Chefe_Bioma1.png}
+    \caption{Boss Cromático: Guardião de fronteira cristalina e refrativa, com 3 fases progressivas de batalha.}
+\end{figure}
+
+\begin{description}
+    \item[Lore e Aparência:]
+    Um colossal avatar humanóide composto por uma estrutura de silício e minérios cristalinos. Visualmente, possui uma estética que assemelha-se ao alienígena \textit{Cromático} (da franquia \textit{Ben 10}), com um corpo de rocha roxa/escura intercalado com pontas de cristais emissores e translúcidos. Por ser o Guardião de Fronteira do primeiro setor, sua fisionomia atua como o meio-termo estético e biológico perfeito entre o Bioma Cristalizado (atual) e o Bioma Adjacente de Transição (próximo), mesclando elementos minerais e geológicos de ambos em sua anatomia.
+
+    \item[Sistema de Vida por Fase:]
+    O Boss Cromático possui \textbf{três barras de vida independentes}, cada uma representando uma fase da batalha. A barra exibida no HUD exibe \textbf{100\% de preenchimento no início de cada fase} e muda de cor conforme a fase:
+    \begin{itemize}
+        \item \textbf{Fase 1 (Casulo):} Barra Azul (\texttt{\#338CFF}) --- Moldura da Fase 1.
+        \item \textbf{Fase 2 (Cristal/Refração):} Barra Vermelha (\texttt{\#F22626}) --- Moldura da Fase 2.
+        \item \textbf{Fase 3 (Raízes):} Barra Verde (\texttt{\#33E659}) --- Moldura da Fase 3.
+    \end{itemize}
+    A transição entre fases é acompanhada de invulnerabilidade temporária e a animação \textbf{PowerUp}.
+
+    \item[Fase 1 --- Mestre do Solo (Casulo de Cristal):]
+    \begin{itemize}
+        \item O Boss está envolto em um casulo de cristal que atua como armadura passiva.
+        \item \textbf{Prisão de Pilares:} Ergue um círculo de pilares de cristal ao redor do jogador, criando uma barreira temporária.
+        \item \textbf{Prisão de Espinhos:} Invoca uma formação quadrada de espinhos que emerge do chão ao redor do alvo.
+        \item \textbf{Recuo Tático (\textit{kiting}):} Mantém distância do jogador durante os ataques de invocação.
+        \item \textbf{Invocação de Servos:} Spawna ondas de mobs variados da pool completa do bioma (Goblin, Spider, SharpBlur, Golem, Cristalus, Totem, MagicStone, CrystalWatcher, ShardSwarm, Geobionte). O spawn é acelerado conforme o HP da Fase 1 diminui.
+        \item \textbf{Transição:} Ao esgotar o HP da Fase 1, o casulo se rompe, o Boss surge no centro da arena e executa a animação \textbf{PowerUp}. Durante esses \textbf{2.5 segundos}, ele é \textbf{completamente invulnerável} e os mobs remanescentes morrem com suas essências voando para o Boss.
+    \end{itemize}
+
+    \item[Fase 2 --- Cristal / Refração de Luz:]
+    \begin{itemize}
+        \item O Boss revela sua forma de cristal translúcido e alterna entre ataques diretos e períodos de invisibilidade.
+        \item \textbf{Invisibilidade por Refração (Permanente até Hit):} Usando suas propriedades de cristal translúcido, o Boss refrata completamente a luz ao redor de si, ficando \textbf{invisível até receber um golpe do jogador}. Não há limite de tempo --- a invisibilidade persiste até ser interrompida por dano. O jogador deve se guiar pelo som dos passos e por pequenas distorções visuais de refração de luz.
+        \item \textbf{Comportamento durante Invisibilidade:} Enquanto invisível, o Boss foge do jogador, invoca mobs em ondas aceleradas a cada \textbf{2.5 segundos} e dispara pilares de cristal à distância.
+        \item \textbf{Stun Mímico do Golem (\textit{SimpleCast}):} Vira instantaneamente para encarar o jogador e conjura um raio místico. Telegrafado por \textbf{0.45s} antes do impacto. VFX exclusivo de \textbf{Roxo Místico Imperial} (\texttt{\#A626F2}) com \textbf{Flash Dourado} (\texttt{\#FFD94D}). Aplica \textbf{2.5s de Stun} ao jogador.
+        \item \textbf{Super Ataque --- Erupção 360° (\textit{BossSpellWide}):} Feitiço raro (20\% de chance). Spawna \textbf{28 espinhos de cristal em formação orgânica e desorganizada} ao redor de toda a arena. Os locais são telegrafados por \textbf{anéis místico-cristalinos} (vermelho/magenta, \texttt{LineRenderer}) por \textbf{1.2s}. Em seguida, os espinhos erguem-se rapidamente (0.25s), espetam brevemente (0.40s) causando 45 de dano com knockback, e retraem de volta ao subsolo (0.30s).
+        \item \textbf{Congelamento em Spells:} Durante a conjuração de qualquer magia, o Boss para completamente (\texttt{agent.speed = 0}), retomando o movimento ao encerrar.
+    \end{itemize}
+
+    \item[Fase 3 --- Raízes (Final):]
+    \begin{itemize}
+        \item A batalha final com padrões de ataque intensificados e maior agressividade.
+        \item \textbf{Braços Extensíveis (Arm Stretch):} O Boss utiliza o ambiente a seu favor, esticando fisicamente seus braços cristalinos em longas distâncias para golpear e alcançar o jogador em áreas de fuga.
+        \item \textbf{Morte Cinemática (Absorção pela Terra):} Ao ter a terceira barra de vida zerada, o Boss não morre da forma convencional ragdoll. Uma cinemática de morte é disparada onde a entidade é literalmente sugada e absorvida de volta para dentro do solo, devolvendo sua energia ao planeta que a construiu.
+    \end{itemize}
+
+    \item[Mecânicas Físicas de Combate:]
+    \begin{itemize}
+        \item \textbf{Massa de Parede Sólida (5000kg):} O Boss é imune a qualquer empurrão físico do jogador.
+        \item \textbf{Hitbox Física da Mão:} Durante socos e varreduras físicas, a hitbox do objeto \texttt{HITBOX HAND} é ativada por 0.5s, aplicando 35 de dano e knockback ao jogador.
+    \end{itemize}
+\end{description}
+
+% =========================================================================
+% CAPÍTULO 7: BIOMAS E EXPLORAÇÃO
+% =========================================================================
+\chapter{Biomas e Exploração}
+
+O planeta é dividido em zonas distintas, mas o jogador só conhece a área da queda inicial. As outras áreas são desconhecidas e hostis.
+
+\section{1. Bioma Cristalizado (Zona da Queda)}
+\begin{itemize}
+    \item \textbf{Visual:} Vastos campos abertos, cores frias (ciano, roxo), formações geológicas afiadas.
+    \item \textbf{Inimigos:} Formas de vida baseadas em silício e cristal. Rápidos e cortantes. (Ver Capítulo~\ref{cap:bestiario} para detalhes de cada classe.)
+    \item \textbf{Chefe:} Boss Cromático --- 3 fases progressivas (Ver Seção~\ref{sec:boss_bioma1} no Capítulo~\ref{cap:bestiario}).
+\end{itemize}
+
+\section{2. [DADOS CORROMPIDOS]}
+\textit{Setor inexplorado. Análises preliminares indicam alta toxicidade atmosférica. A ser trabalhado futuramente.}
+
+\section{3. [DADOS CORROMPIDOS]}
+\textit{Setor inexplorado. Assinaturas energéticas de metal e carne detectadas. A ser trabalhado futuramente.}
+
+\section{4. [ACESSO NEGADO PELA ENTIDADE]}
+\textit{O Núcleo do Planeta. Leitura impossível.}
+
+% =========================================================================
+% CAPÍTULO 8: A NAVE DESTRUÍDA (BASE)
+% =========================================================================
+\chapter{A Nave Destruída (Base)}
+
+Entre as runs, o jogador retorna aos destroços da \textit{Nave}. É o único local onde o solo foi ``esterilizado'' pelo combustível da nave, impedindo que o planeta a consuma.
+
+\begin{itemize}
+    \item \textbf{Bancada de Reparos:} Onde o jogador gasta os minerais que trouxe na bolsa para melhorar seu traje (Vida/Armadura) e a eficiência de suas ferramentas.
+    \item \textbf{O Canil:} Onde Eptinho vive. Interagir com ele pode dar dicas sobre o próximo bioma ou ``Buffs de Moral'' (Sorte).
+    \item \textbf{Objetivo Final:} Consertar os propulsores principais para escapar da gravidade do planeta.
+\end{itemize}
+
+\section{O Pod de Customização e Sistema de Skins}
+Localizado nos alojamentos da Base (Nave Destruída), há uma cabine cilíndrica de customização (o Pod). Ao entrar na zona de detecção e pressionar a tecla \texttt{T}, abre-se um painel de seleção de skins de alta tecnologia.
+
+Para que as skins (Goku, Astronauta Padrão, Astro Novo, etc.) possam ser trocadas dinamicamente sem quebrar as referências dos scripts do Player (como movimentação, vida e combate), o projeto separa a lógica comportamental da representação gráfica:
+
+\begin{itemize}
+    \item \textbf{Player Objeto Pai:} Mantém todos os componentes de lógica e estado do jogo (como \texttt{PlayerM}, \texttt{PlayerHealth}, \texttt{PrimaryAttackKnife}, \texttt{Player\_WeaponManager}).
+    \item \textbf{Modelo Visual Filho:} Cada skin possui um prefab próprio com o componente \texttt{PlayerSkinReferences.cs} acoplado à sua raiz, que aponta de forma explícita para o \texttt{Animator} da skin, o osso da mão direita (\texttt{Right Hand}) e a hitbox de ataque corporal (\texttt{Hand Hitbox}).
+    \item \textbf{Injeção em Tempo de Execução:} O gerenciador de skins (\texttt{PlayerSkinManager.cs}) ativa a skin selecionada, oculta o visual da skin anterior (ocultando os renderizadores em vez de desativar os scripts), injeta dinamicamente o \texttt{RuntimeAnimatorController} ativo e o script de roteamento de eventos de animação (\texttt{PlayerAnimationEvents.cs}) no novo modelo, reestabelecendo todas as conexões necessárias.
+    \item \textbf{Persistência:} A escolha da skin é salva permanentemente via o sistema de salvamento do jogo, garantindo que o Engenheiro inicie a próxima run ou sessão utilizando o visual selecionado.
+\end{itemize}
+
+% =========================================================================
+% CAPÍTULO 9: GERAÇÃO PROCEDURAL DE MAPAS
+% =========================================================================
+\chapter{Geração Procedural de Mapas}\label{cap:geracao}
+
+O mapa de cada \textit{run} é gerado dinamicamente no início da partida. O sistema é baseado em encaixe de \textbf{Prefabs de Salas} via um algoritmo de \textbf{Sockets Direcionais}.
+
+\section{Visão Geral da Arquitetura}
+\begin{description}
+    \item[\texttt{GameManager}:] Gerencia o ciclo de vida das cenas. Ao chamar \texttt{LoadGameLevel()}, dispara o carregamento assíncrono e aciona o \texttt{LevelGenerator}.
+    \item[\texttt{LevelGenerator}:] Responsável pela montagem procedural do mapa via sockets. Notifica o \texttt{GameManager} quando o nível está pronto.
+    \item[\texttt{RoomController}:] Presente em cada sala de combate. Gerencia ondas de inimigos e trava/destrava portas.
+    \item[\texttt{RunManager}:] Persistente entre cenas (\textit{DontDestroyOnLoad}). Rastreia o índice de sala e fornece parâmetros econômicos de dificuldade.
+\end{description}
+
+\section{O Sistema de Sockets}
+\begin{center}
+\begin{tabular}{|c|c|c|}
+    \hline
+    \textbf{Nome do Socket} & \textbf{Direção} & \textbf{Uso} \\
+    \hline
+    \texttt{North} & \texttt{Vector3.forward} & Saída para o Norte \\
+    \texttt{South} & \texttt{Vector3.back}    & Saída para o Sul  \\
+    \texttt{East}  & \texttt{Vector3.right}   & Saída para o Leste \\
+    \texttt{West}  & \texttt{Vector3.left}    & Saída para o Oeste \\
+    \texttt{Entrance} & Variável & Entrada de corredores e salas especiais \\
+    \hline
+\end{tabular}
+\end{center}
+
+\section{Tipos de Sala e Prefabs}
+\begin{center}
+\begin{tabular}{|l|c|l|}
+    \hline
+    \textbf{Prefab} & \textbf{Dimensões} & \textbf{Função} \\
+    \hline
+    \texttt{Room\_20x20\_Safe}       & 20×20 & Sala de início (segura, sem inimigos) \\
+    \texttt{Room\_20x40}             & 20×40 & Sala principal de combate (média) \\
+    \texttt{Room\_20x60}             & 20×60 & Sala principal de combate (grande) \\
+    \texttt{Room\_10x20\_Transition} & 10×20 & Corredor de transição entre salas \\
+    \texttt{Room\_Merchant}          & —     & Beco sem saída — possível presença do Mercador \\
+    \texttt{ExitRoom\_Prefab}        & —     & Sala com portão para o próximo nível \\
+    \texttt{Room\_DeadEnd\_Variants} & —     & Múltiplos prefabs (ex: C.Beco2) sorteados dinamicamente \\
+    \hline
+\end{tabular}
+\end{center}
+
+\section{Regras de Geração}\label{sec:regras_geracao}
+\begin{description}
+    \item[Quantidade máxima de salas (\texttt{maxMainRooms}):] O gerador tenta construir até \textbf{10 salas de combate} por \textit{run}.
+    \item[Limite por tipo (\texttt{roomLimitPerType}):] Cada prefab pode aparecer no máximo \textbf{5 vezes} por \textit{run}.
+    \item[Sala Inicial:] A \texttt{Room\_20x20\_Safe} é sempre a primeira. O algoritmo só abre sockets que não sejam \texttt{West} a partir dela.
+    \item[Sala de Saída:] Após o loop principal, \textbf{um} dos becos sem saída é aleatoriamente escolhido para receber a \texttt{ExitRoom}.
+    \item[Sala do Mercador:] Cada beco sem saída restante tem \textbf{25\% de chance} de receber o Mercador. \textbf{Não há garantia de fallback}: se nenhum beco sortear sucesso, o Mercador simplesmente não aparece nessa \textit{run}. Encontrá-lo é um evento genuinamente probabilístico.
+    \item[Becos Restantes:] Todos os demais becos são selados com uma das variantes de \texttt{Room\_DeadEnd}.
+\end{description}
+
+\section{Fluxo de Geração (Resumo)}
+\begin{enumerate}
+    \item \textbf{Sala Inicial} é instanciada em \texttt{(0,0,0)}. Sockets abertos são adicionados à \textit{frontier}.
+    \item \textbf{Loop Principal:} Enquanto há salas abaixo de \texttt{maxMainRooms} e sockets disponíveis:
+    \begin{enumerate}
+        \item Consome um socket aleatório da \textit{frontier}.
+        \item Instancia corredor de transição e encaixa.
+        \item Escolhe sala principal válida e encaixa.
+        \item Adiciona os sockets da nova sala à \textit{frontier}.
+    \end{enumerate}
+    \item \textbf{Pós-Loop:} Distribui sala de saída, tenta spawnar Mercador (25\% por beco), sela becos restantes com prefabs variados.
+    \item \textbf{Gerenciador de Inimigos (EnemyPoolManager):} O sistema centralizado de Pools injeta os inimigos configurados nas salas geradas. Caso uma sala não tenha inimigos assinalados, o \texttt{DefaultEnemyPool} da pasta \texttt{Resources} é usado como fallback.
+    \item \textbf{Spawn de Itens:} O \texttt{ItemSpawner} é acionado para popular o mapa.
+    \item \textbf{Jogador é Posicionado:} O \texttt{GameManager} posiciona o jogador no \texttt{Player\_StartPoint} da sala inicial.
+\end{enumerate}
+
+% =========================================================================
+% CAPÍTULO 10: SISTEMA ECONÔMICO (IMPLEMENTAÇÃO)
+% =========================================================================
+\chapter{Sistema Econômico (Implementação)}\label{cap:economia}
+
+Este capítulo detalha as fórmulas e parâmetros do sistema econômico \textbf{atualmente implementados} no código, servindo como referência técnica para a equipe de design de níveis e balanceamento.
+
+\section{Progressão de Dificuldade das Salas}
+
+\subsection{Fórmula de Budget de Spawn}
+\[
+P(n) = B_{spawn} + G_{spawn} \times n
+\]
+Onde $B_{spawn} = 5$, $G_{spawn} = 0{,}65$, e $n$ = índice da sala (começa em 1).
+\textit{Nota: As duas primeiras salas são limitadas a 1 onda leve (2 a 3 mobs menores) para curva de aprendizado suave.}
+
+\begin{center}
+\begin{tabular}{|c|c|l|}
+    \hline
+    \textbf{Sala} & \textbf{Budget Total} & \textbf{Composição possível (por onda)} \\
+    \hline
+    1  & 5,65 pts & $\approx$ 2 a 3 Mobs Menores (1 onda suave) \\
+    5  & 8,25 pts & 2 Tanques / Atiradores + Mobs Menores \\
+    10 & 11,5 pts & 1 Elite (10) + Mobs Menores \\
+    20 & 18,0 pts & 1 Elite + 2 Tanques + Atiradores \\
+    \hline
+\end{tabular}
+\end{center}
+
+\subsection{Fórmula de Escalonamento de HP dos Inimigos}
+\[
+HP(n) = HP_{base} \times (1 + 0{,}03 \times (n - 1))
+\]
+A cada sala avançada $n$, a vida máxima de todos os inimigos aumenta \textbf{+3\%}.
+
+\subsection{Budget por Onda}
+\[
+\text{Budget}_{onda} = \max\!\left(4,\ \left\lfloor \frac{P(n)}{\text{Total de ondas}} \right\rceil \right)
+\]
+
+\subsection{Fórmula de Drop de Essência}
+\[
+E(n) = d \times (1 + \alpha_{drop} \times n)
+\]
+Onde $d$ é o drop base do inimigo e $\alpha_{drop} = 0{,}05$ (+5\% por sala).
+
+\section{Classes de Inimigos e Sistema de Pontos}
+\begin{center}
+\begin{tabular}{|l|c|l|}
+    \hline
+    \textbf{Classe} & \textbf{Custo} & \textbf{Restrições} \\
+    \hline
+    Mob Menor              & 1 ponto   & Máx. de 50--70\% dos pontos da onda \\
+    Atirador               & 4 pontos  & Sempre em par (2 unidades por 4 pts) \\
+    Tanque                 & 4 pontos  & Máx. de 4 por sala (limite global) \\
+    Suporte (Sintonizador) & 5 pontos  & Máx. de 2 por sala \\
+    Estrutura (Totem)      & 6 pontos  & Máx. de 1 por sala; crânios não consomem budget \\
+    Elite                  & 10 pontos & Máx. de 1 por sala (limite global) \\
+    \hline
+\end{tabular}
+\end{center}
+
+\subsection{Garantia de Mínimo de Inimigos}
+Independentemente do budget, o \texttt{RoomController} garante ao menos \texttt{minEnemiesPerWave = 6} inimigos por onda, preenchendo com \textbf{Mob Menores} sem custo adicional.
+
+\section{Sistema de Ondas por Sala}
+\begin{itemize}
+    \item \textbf{Número de ondas:} Sorteado entre \texttt{minWaves = 1} e \texttt{maxWaves = 3}.
+    \item \textbf{Intervalo entre ondas:} \texttt{timeBetweenWaves = 2} segundos.
+    \item \textbf{Delay pré-onda:} 1 segundo após as portas travarem.
+    \item \textbf{Indicador Visual:} Todo inimigo é gerado com um marcador visual (\texttt{SpawnIndicator}) que aparece 1,5 segundo antes do inimigo surgir.
+\end{itemize}
+
+\section{Sistema de Infusão e Inflação de Custo}\label{sec:inflacao}
+
+A fórmula de custo de infusão implementada no \texttt{InfusionManager} é:
+\[
+C = B \times (1{,}0 + \alpha \times P_{total})
+\]
+Onde:
+\begin{itemize}
+    \item $B$ = custo base do item (definido pelo Tier)
+    \item $\alpha = 0{,}1$ \quad (coeficiente de inflação por \textit{run})
+    \item $P_{total}$ = soma dos \textbf{pesos de inflação} de todos os itens \textbf{infundidos} nesta \textit{run}
+\end{itemize}
+
+\subsection{Custos Base e Pesos por Tier}
+\begin{center}
+\begin{tabular}{|c|l|c|c|c|}
+    \hline
+    \textbf{Tier} & \textbf{Nome} & \textbf{Cor} & \textbf{Custo Base ($B$)} & \textbf{Peso ($P$)} \\
+    \hline
+    T1 & Comum    & Branco/Cinza & 60  & 1,00 \\
+    T2 & Incomum  & Verde        & 180 & 2,25 \\
+    T3 & Raro     & Azul         & 300 & 4,00 \\
+    T4 & Lendário & Dourado      & 420 & 6,00 \\
+    \hline
+\end{tabular}
+\end{center}
+
+\subsection{Regras Críticas do $P_{total}$}
+
+\begin{description}
+    \item[Infusão Normal:] Ao infundir um item (de qualquer origem), seu peso $P$ é somado ao $P_{total}$.
+    \item[Cirurgia de Remoção (Mercador):] Ao remover cirurgicamente um item já infundido, o peso $P$ daquele item é \textbf{subtraído} do $P_{total}$. O $P_{total}$ nunca vai abaixo de zero. Exemplo: se $P_{total} = 5{,}25$ e um T2 ($P = 2{,}25$) é removido, o novo $P_{total} = 3{,}00$.
+    \item[Compra no Mercador (Artefatos):] Comprar um item identificado no Mercador \textbf{não altera} o $P_{total}$. O $P_{total}$ só aumenta no momento da \textbf{infusão} do item, independente de sua origem.
+\end{description}
+
+\subsection{Exemplo de Escalonamento de Custo}
+Considere um jogador que infundiu sequencialmente: T1, T1, T2.
+\[
+P_{total} = 1{,}00 + 1{,}00 + 2{,}25 = 4{,}25
+\]
+O custo da próxima infusão de um item T3 ($B = 300$):
+\[
+C = 300 \times (1{,}0 + 0{,}1 \times 4{,}25) = 300 \times 1{,}425 = \textbf{428 Essências}
+\]
+Um aumento de \textbf{+42,5\%} sobre o custo original.
+
+\section{Criação de Itens (Pipeline de Design)}
+Cada item do jogo é um \textbf{ScriptableObject} do tipo \texttt{ItemData}, criado via \texttt{Assets > Create > Inventory > Item Data}.
+
+\begin{description}
+    \item[\texttt{itemId}:] Identificador único em texto. Deve casar com o \texttt{CharacteristicItemPickup} no prefab inimigo.
+    \item[\texttt{tier}:] O \textit{Tier} de raridade (Common / Uncommon / Rare / Legendary).
+    \item[\texttt{infusionEssenceCost}:] Custo base $B$ (recomendado: 60 / 180 / 300 / 420 por tier).
+    \item[\texttt{itemAttributes}:] Lista de \texttt{ItemAttributeParam}, onde cada entrada define \textbf{qual atributo} é modificado, \textbf{quanto}, e se o valor é \textbf{somado} ou \textbf{multiplicado}.
+\end{description}
+
+\subsection{Atributos Disponíveis para Itens}
+\begin{center}
+\begin{tabular}{|l|l|}
+    \hline
+    \textbf{Categoria} & \textbf{Atributos} \\
+    \hline
+    Ofensivos  & \texttt{BaseDamageMultiplier}, \texttt{AttackSpeedMelee}, \texttt{CritChance}, \\
+               & \texttt{CritMultiplier}, \texttt{Knockback}, \texttt{WeaponRangeMelee}, \\
+               & \texttt{WeaponRangeProjectile}, \texttt{Piercing}, \texttt{BounceChance}, \\
+               & \texttt{BounceCount}, \texttt{MultiShotChance}, \texttt{Spread} \\
+    \hline
+    Defensivos & \texttt{MaxHealth}, \texttt{MaxArmor}, \texttt{ArmorRegen}, \\
+               & \texttt{DodgeChance}, \texttt{DamageNegation}, \texttt{Thorns} \\
+    \hline
+    Mobilidade & \texttt{DashCooldownMultiplier}, \\
+               & \texttt{DashCounts}, \texttt{DashInvulnerability} \\
+    \hline
+\end{tabular}
+\end{center}
+
+% =========================================================================
+% CAPÍTULO 11: SISTEMAS DE UI, CÂMERA E ÁUDIO
+% =========================================================================
+\chapter{Sistemas de UI, Câmera e Áudio}
+
+A versão mais recente implementou sistemas fundamentais de usabilidade e resposta sensitiva (game feel).
+
+\section{Interface e Menus}
+\begin{itemize}
+    \item \textbf{Navegação Base:} Adição da Cena de Menu Principal (0) e suporte ao Menu de Pausa via tecla \texttt{ESC}.
+    \item \textbf{Painel de Opções:} Conta com integração completa ao \textit{AudioMixer} para controle de volumes e \textit{Keybinds} mapeáveis de forma dinâmica.
+    \item \textbf{Damage Numbers (VFX):} Feedback imediato em combate. Números de dano base sobem em branco com gradiente cinza; acertos críticos se destacam em vermelho e vinho. Efeitos animados via \textit{Cartoon FX} com fade-out suave de 0.5s após o hit.
+\end{itemize}
+
+\section{Câmera Preview do Inventário (Spring Arm)}
+A visualização 3D do personagem no inventário possui agora um sistema anti-colisão (anti-clipping):
+\begin{itemize}
+    \item A câmera utiliza um \textbf{Spring Arm} disparando \textit{SphereCasts}. Caso o jogador se posicione de costas para uma parede, o braço da câmera encolhe suavemente e traz a visão mais perto, impedindo que ela entre dentro da malha do cenário (evitando buracos no vazio).
+    \item \textbf{Filtros Inteligentes:} Ignora colisões com Player, Enemy, Item e Weapon para focar puramente em obstáculos geométricos do mapa.
+\end{itemize}
+
+\section{Sonoplastia (SFX)}
+A experiência sonora foi completamente reimaginada:
+\begin{itemize}
+    \item \textbf{Passos e Tensão:} O jogador possui áudios de passos dinâmicos (footsteps) e batimentos cardíacos (heartbeats) que escalam de acordo com a tensão e estado da batalha.
+    \item \textbf{Impacto:} Efeitos dedicados para o arremate no ar (Swing) e para o contato bruto com o corpo/cristal inimigo.
+    \item \textbf{Companheiro:} Eptinho ganhou seus próprios SFX customizados para dar peso às interações de tutorial.
+\end{itemize}
+
+\section{Motor Técnico: Segurança de Ultimates}
+Uma grande refatoração de movimentação protege a jogabilidade durante saltos de habilidades supremas:
+\begin{itemize}
+    \item \textbf{Substituição do Agent:} Em vez de desligar o sistema de inteligência (\texttt{agent.enabled = false}) enquanto o jogador voa (o que causava crashes se ele caísse no vazio), o sistema utiliza \texttt{updatePosition = false}. O "fantasma" do NavMesh acompanha o jogador em voo mas recusa terrenos inválidos.
+    \item \textbf{Pouso Seguro:} Na aterrissagem, o jogo usa \texttt{SamplePosition} + \texttt{Warp} para forçar e travar o personagem de volta em um ponto perfeitamente caminhável do mapa. Se ele for ejetado por um Boss para o abismo, é retornado instantaneamente ao ponto inicial seguro.
+\end{itemize}
+
+\end{document}

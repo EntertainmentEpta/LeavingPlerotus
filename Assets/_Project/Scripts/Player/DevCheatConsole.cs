@@ -211,6 +211,32 @@ public class DevCheatConsole : MonoBehaviour
                 EptinhoPopupController.instancia.MostrarPopupAviso($"Modo Todos os Mobs: {status}");
             }
         }
+        else if (cmd == "unlockmap" || cmd == "unlockenemies" || cmd == "6")
+        {
+            if (SaveManager.instance != null)
+            {
+                SaveManager.instance.CachedData.inimigosDescobertos.Clear();
+                
+                // Unlock all enemies dynamically from Resources
+                EnemyData[] allEnemies = Resources.LoadAll<EnemyData>("Enemies");
+                if (allEnemies != null)
+                {
+                    foreach (var e in allEnemies)
+                    {
+                        SaveManager.instance.CachedData.inimigosDescobertos.Add(e.enemyName);
+                        // Also add T2, T3, T4 synonyms just in case the name differs
+                    }
+                }
+                
+                // Forca as sinergias principais do mapa
+                SaveManager.instance.CachedData.inimigosDescobertos.Add("Golem");
+                SaveManager.instance.CachedData.inimigosDescobertos.Add("Goblin");
+                SaveManager.instance.CachedData.inimigosDescobertos.Add("Aranha");
+
+                SaveManager.instance.SavePersistentData();
+                Log("> [CHEAT] Bestiario 100% desbloqueado e Mapa de Sinergias revelado!");
+            }
+        }
         else if (cmd == "help" || cmd == "?")
         {
             Log("Comandos disponíveis:");

@@ -1748,6 +1748,7 @@ GameObject:
   - component: {fileID: 8291047582019485713}
   - component: {fileID: 8147240710932523325}
   - component: {fileID: 7903399675111266686}
+  - component: {fileID: 4810983626657079719}
   m_Layer: 8
   m_Name: Player
   m_TagString: Player
@@ -1854,6 +1855,10 @@ MonoBehaviour:
   dashCooldown: 5
   dashCountText: {fileID: 0}
   dashKey: 101
+  keyUp: 119
+  keyDown: 115
+  keyLeft: 97
+  keyRight: 100
   inputBufferWindow: 0.2
   dashDurationMultiplier: 1
 --- !u!114 &5799582598024903971
@@ -1889,7 +1894,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
   maxHealth: 10000
-  maxArmor: 300
+  maxArmor: 30
   armorRegenRate: 50
   isInvulnerable: 0
   playerMovement: {fileID: 0}
@@ -1907,6 +1912,7 @@ MonoBehaviour:
   damageTakenMultiplier: 1
   canHeal: 1
   hasDoubleLoot: 0
+  hasChaosSymphony: 0
   hasVampirism: 0
   hasNecrosis: 0
   lastKillTime: 0
@@ -1915,7 +1921,7 @@ MonoBehaviour:
   abilityCooldownMultiplier: 1
   enemiesBuffed: 0
   heartbeatClip: {fileID: 8300000, guid: 9699e7ecb5d3f424987bd5414e8999b4, type: 3}
-  heartbeatVolume: 0.5
+  heartbeatVolume: 0.55
   canRegenArmor: 1
   damageLightObj: {fileID: 0}
   damageIFrameCooldown: 0.25
@@ -1945,6 +1951,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerM
   dashScript: {fileID: 9188255382873321215}
   attackScript: {fileID: 399265535294509767}
+  keyUp: 119
+  keyDown: 115
+  keyLeft: 97
+  keyRight: 100
   walkSpeed: 5
   sprintSpeed: 10
   rotationSpeed: 10
@@ -2000,6 +2010,7 @@ MonoBehaviour:
   ultimateCooldown: 2
   forwardLeapImpulse: 6
   grantInvulnerability: 1
+  navMeshLandingSearchRadius: 4
   isUltimateReady: 1
   isUltimateActive: 0
   currentCooldown: 0
@@ -2222,12 +2233,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6a6e23913e76ab549b2631e77ace4e66, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Ultimate_Axe
-  chargeClip: {fileID: 8300000, guid: 6d95ef5c5d0eb7f48805c265089b2e7c, type: 3}
-  groundImpactClip: {fileID: 8300000, guid: 8abf098f5c9ec6342b7e3a8e50c72154, type: 3}
-  crystalShatterClip: {fileID: 8300000, guid: b1d87d3a154af9b42935bf058ccd1eac, type: 3}
-  chargeVolume: 1
-  groundImpactVolume: 1
-  crystalShatterVolume: 1
   axeBladeTip: {fileID: 0}
   groundYOffset: -0.225
   useRootMotion: 0
@@ -2397,6 +2402,12 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   triggerVFXTestNow: 0
+  chargeClip: {fileID: 8300000, guid: 6d95ef5c5d0eb7f48805c265089b2e7c, type: 3}
+  chargeVolume: 1
+  groundImpactClip: {fileID: 8300000, guid: 8abf098f5c9ec6342b7e3a8e50c72154, type: 3}
+  groundImpactVolume: 1
+  crystalShatterClip: {fileID: 8300000, guid: b1d87d3a154af9b42935bf058ccd1eac, type: 3}
+  crystalShatterVolume: 1
 --- !u!114 &8291047582019485713
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2455,6 +2466,18 @@ MonoBehaviour:
   enhancedDashVFXType: 10
   showExplosionGizmo: 1
   gizmoColor: {r: 1, g: 0.3, b: 0, a: 0.3}
+--- !u!114 &4810983626657079719
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3017463410146802124}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0536f880292e9e9419ca90496c4c0c2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::KeybindApplier
 --- !u!1 &3037435734811326214
 GameObject:
   m_ObjectHideFlags: 0
@@ -4256,6 +4279,8 @@ GameObject:
   - component: {fileID: 4903610608914846769}
   - component: {fileID: 7616712902417337525}
   - component: {fileID: 4453166240833020818}
+  - component: {fileID: 7179540730892993535}
+  - component: {fileID: 6995510205871001195}
   m_Layer: 8
   m_Name: astronaut
   m_TagString: Player
@@ -4272,7 +4297,7 @@ Transform:
   m_GameObject: {fileID: 6284554266325809849}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.9, z: 0}
+  m_LocalPosition: {x: 0, y: 1, z: 0}
   m_LocalScale: {x: 0.01, y: 0.008698678, z: 0.01}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -4315,6 +4340,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d885b6f971474394b86e9c0df6231369, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PrimaryAttackKnife
+  attackKey: 113
   hasWeapon: 1
   animator: {fileID: 3618305479678570340}
   playerRb: {fileID: 5240561299179774875}
@@ -4344,12 +4370,6 @@ MonoBehaviour:
   swing3Volume: 0.6
   axeSwing4: {fileID: 8300000, guid: 6c33346e9ccc302439eceb869f582175, type: 3}
   swing4Volume: 0.6
-  axeSwingAirSounds:
-  - {fileID: 8300000, guid: a3feedcdd886b144ab4a79e6b1462d4c, type: 3}
-  - {fileID: 8300000, guid: 008d307cce6a60c48b6572f43c943c44, type: 3}
-  - {fileID: 8300000, guid: ab1322e654678d645b0de1835310afc9, type: 3}
-  - {fileID: 8300000, guid: 6c33346e9ccc302439eceb869f582175, type: 3}
-  axeSwingAirVolume: 0.3
   weaponTrail: {fileID: 0}
   attackAnimationSpeed: 1
   defaultAttackSpeed: 1
@@ -4400,7 +4420,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerAttributesOffensive
   baseDamageMultiplier: 1
   attackSpeedMelee: 1
-  critChance: 50
+  critChance: 5
   critMultiplier: 1.5
   weaponRangeMelee: 1
   weaponRangeProjectile: 10
@@ -4468,6 +4488,38 @@ MonoBehaviour:
   followPlayer: 1
   detachDelay: 0
   dashScript: {fileID: 0}
+--- !u!114 &7179540730892993535
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6284554266325809849}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 55d5bf26756cae847a610bb1c2ae7bf6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Ultimate_Dagger
+  bladeWaveVFX: {fileID: 3020920808754819069, guid: 9e1749955dc6c7042aa459a890276a34, type: 3}
+  groundYOffset: 0
+  spawnForwardOffset: 1
+  waveDamage: 500
+  waveSpeed: 8
+  waveMaxDistance: 10
+  hitboxHalfExtents: {x: 1.5, y: 1, z: 0.5}
+  knockbackForce: 5
+--- !u!114 &6995510205871001195
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6284554266325809849}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0536f880292e9e9419ca90496c4c0c2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: '::'
 --- !u!1 &6320494353973819877
 GameObject:
   m_ObjectHideFlags: 0
@@ -5663,5 +5715,3 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1830613685876521810}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-
-
