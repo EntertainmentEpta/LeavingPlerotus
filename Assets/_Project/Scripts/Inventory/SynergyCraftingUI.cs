@@ -34,25 +34,25 @@ public class SynergyCraftingUI : MonoBehaviour
 
         if (selectedCount == 0)
         {
-            if (costText != null) costText.text = ""Custo: 0 Essências"";
-            if (statusText != null) statusText.text = ""Selecione 2 itens para fundir."";
+            if (costText != null) costText.text = "Custo: 0 Essências";
+            if (statusText != null) statusText.text = "Selecione 2 itens para fundir.";
         }
         else if (selectedCount == 1)
         {
-            if (costText != null) costText.text = $""Custo Parcial: {totalCost} Essências"";
-            if (statusText != null) statusText.text = ""Falta mais 1 item..."";
+            if (costText != null) costText.text = $"Custo Parcial: {totalCost} Essências";
+            if (statusText != null) statusText.text = "Falta mais 1 item...";
         }
         else if (selectedCount == 2)
         {
-            if (costText != null) costText.text = $""Custo Total Inflacionado: {totalCost} Essências"";
+            if (costText != null) costText.text = $"Custo Total Inflacionado: {totalCost} Essências";
             
             if (SynergyCraftingManager.Instance.CanAffordSynergy())
             {
-                if (statusText != null) statusText.text = ""<color=green>Pronto para Sintetizar!</color>"";
+                if (statusText != null) statusText.text = "<color=green>Pronto para Sintetizar!</color>";
             }
             else
             {
-                if (statusText != null) statusText.text = ""<color=red>Essências Insuficientes!</color>"";
+                if (statusText != null) statusText.text = "<color=red>Essências Insuficientes!</color>";
             }
         }
     }

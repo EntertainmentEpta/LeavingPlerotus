@@ -87,6 +87,6 @@ public class SynergyCraftingManager : MonoBehaviour
         PlayerEssence wallet = FindFirstObjectByType<PlayerEssence>();
         if (wallet == null) return false;
 
-        return wallet.CurrentEssence >= GetCombinedInfusionCost();
+        return wallet.currentEssence >= GetCombinedInfusionCost();
     }
 }
