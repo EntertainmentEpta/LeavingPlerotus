@@ -4,21 +4,18 @@ using UnityEngine;
 // ItemTier já definido em ItemData.cs (Common, Uncommon, Rare, Legendary)
 
 /// <summary>
-/// Tipo funcional de cada nó dentro da Árvore de Sinergias.
+/// Tipo funcional de cada nó no catálogo de infusões.
 /// </summary>
 public enum NodeType
 {
-    /// <summary>Raiz — catálogo de inimigos derrotados.</summary>
-    EnemyCatalog,
+    /// <summary>Nó raiz — identifica o monstro catalogado.</summary>
+    EnemyOrigin,
 
-    /// <summary>Nós menores pagos — melhorias de atributo.</summary>
-    StatUpgrade,
+    /// <summary>Peça dropada (T1–T4) que fornece status base ao ser infundida.</summary>
+    InfusionPart,
 
-    /// <summary>Combos automáticos — desbloqueiam-se ao cumprir pré-requisitos.</summary>
-    ComboSynergy,
-
-    /// <summary>Poderes supremos — ascensões de alto custo.</summary>
-    Ascension
+    /// <summary>Receita de combo que exige múltiplas peças para ser ativada.</summary>
+    SynergyRecipe
 }
 
 
