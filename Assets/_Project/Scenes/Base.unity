@@ -10803,6 +10803,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c5b8c06fd3644804ab39f495c3a5a9fd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InventoryUI
+  selectedSlots: []
   toggleKey: 9
   columns: 5
   slotSize: 72
@@ -10973,10 +10974,26 @@ PrefabInstance:
       propertyPath: m_Name
       value: Player
       objectReference: {fileID: 0}
+    - target: {fileID: 3618305479678570340, guid: 217bae9f660890143a86775e613ef9a4, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 9100000, guid: b06cbbe08fe816e41b5cc3db0dc1afa9, type: 2}
     - target: {fileID: 8291047582019485712, guid: 217bae9f660890143a86775e613ef9a4, type: 3}
       propertyPath: axeBladeTip
       value: 
       objectReference: {fileID: 1773390499}
+    - target: {fileID: 8291047582019485712, guid: 217bae9f660890143a86775e613ef9a4, type: 3}
+      propertyPath: chargeVolume
+      value: 0.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 8291047582019485712, guid: 217bae9f660890143a86775e613ef9a4, type: 3}
+      propertyPath: groundImpactVolume
+      value: 0.08
+      objectReference: {fileID: 0}
+    - target: {fileID: 8291047582019485712, guid: 217bae9f660890143a86775e613ef9a4, type: 3}
+      propertyPath: crystalShatterVolume
+      value: 0.7
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
