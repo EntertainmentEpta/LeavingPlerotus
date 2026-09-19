@@ -76,6 +76,10 @@ public class ItemData : ScriptableObject
     [Tooltip("Nome do inimigo de origem (ex: Spider, Golem)")]
     public string enemySource;
 
+    [Tooltip("ID do nó correspondente no catálogo de sinergias (SynergyNodeData.nodeID). " +
+             "Deixe vazio se o item não participa do sistema de sinergias.")]
+    public string synergyNodeID;
+
     [Header("Upgrades e Infusão")]
     [Tooltip("Se true, este item retorna à base ao morrer e é salvo na progressão permanente.\n" +
              "Use para recursos usados em upgrades permanentes da base.\n" +
