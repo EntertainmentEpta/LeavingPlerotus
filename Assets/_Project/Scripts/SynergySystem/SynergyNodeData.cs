@@ -21,18 +21,7 @@ public enum NodeType
     Ascension
 }
 
-/// <summary>
-/// Custo necessário para desbloquear um nó na árvore.
-/// </summary>
-[System.Serializable]
-public class UnlockCost
-{
-    [Tooltip("Tier do item exigido como pagamento.")]
-    public ItemTier tierRequired;
 
-    [Tooltip("Quantidade de itens desse tier necessária.")]
-    public int amountRequired;
-}
 
 /// <summary>
 /// Modificador de atributo concedido ao desbloquear um nó.
@@ -51,8 +40,8 @@ public class StatModifier
 }
 
 /// <summary>
-/// ScriptableObject que representa um único nó na Árvore de Sinergias.
-/// Crie novos nós pelo menu: Assets → Create → Synergy System → Node Data.
+/// ScriptableObject que representa uma receita de sinergia no catálogo de infusão.
+/// Crie novas receitas pelo menu: Assets → Create → Synergy System → Node Data.
 /// </summary>
 [CreateAssetMenu(fileName = "New Synergy Node", menuName = "Synergy System/Node Data")]
 public class SynergyNodeData : ScriptableObject
@@ -67,16 +56,14 @@ public class SynergyNodeData : ScriptableObject
     [Tooltip("Tipo funcional deste nó na árvore.")]
     [SerializeField] private NodeType nodeType;
 
-    [Header("Custo e Desbloqueio")]
-    [Tooltip("Custo para comprar/desbloquear este nó.")]
-    [SerializeField] private UnlockCost cost;
+    [Header("Infusão")]
+    [Tooltip("Porcentagem de desconto na essência ao aplicar esta sinergia (0 = sem desconto, 1 = 100% de desconto).")]
+    [Range(0f, 1f)]
+    [SerializeField] private float essenceDiscountPercentage;
 
-    [Tooltip("Se verdadeiro, ignora o custo e desbloqueia automaticamente quando os pré-requisitos forem atingidos (ideal para ComboSynergy).")]
-    [SerializeField] private bool isAutoUnlock;
-
-    [Header("Conexões")]
-    [Tooltip("Lista de nós que precisam estar desbloqueados antes deste.")]
-    [SerializeField] private List<SynergyNodeData> prerequisites;
+    [Header("Requisitos de Sinergia")]
+    [Tooltip("Lista de nós que precisam estar desbloqueados para habilitar esta receita.")]
+    [SerializeField] private List<SynergyNodeData> synergyRequirements;
 
     [Header("Modificadores")]
     [Tooltip("Lista de modificadores de atributo concedidos ao desbloquear este nó.")]
@@ -86,12 +73,11 @@ public class SynergyNodeData : ScriptableObject
     // Propriedades públicas de leitura (read-only)
     // ──────────────────────────────────────────────
 
-    public string NodeID          => nodeID;
-    public string DisplayName     => displayName;
-    public NodeType NodeType      => nodeType;
-    public UnlockCost Cost        => cost;
-    public bool IsAutoUnlock      => isAutoUnlock;
+    public string NodeID                    => nodeID;
+    public string DisplayName               => displayName;
+    public NodeType NodeType                => nodeType;
+    public float EssenceDiscountPercentage  => essenceDiscountPercentage;
 
-    public IReadOnlyList<SynergyNodeData> Prerequisites => prerequisites;
-    public IReadOnlyList<StatModifier> StatModifiers     => statModifiers;
+    public IReadOnlyList<SynergyNodeData> SynergyRequirements => synergyRequirements;
+    public IReadOnlyList<StatModifier> StatModifiers          => statModifiers;
 }
