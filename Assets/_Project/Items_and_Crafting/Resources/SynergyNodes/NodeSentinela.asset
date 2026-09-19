@@ -10,14 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4df69c7bb706d6e4493614e576c37e00, type: 3}
-  m_Name: New Synergy Node
+  m_Name: NodeSentinela
   m_EditorClassIdentifier: Assembly-CSharp::SynergyNodeData
-  nodeID: 
-  displayName: 
+  nodeID: enemy_sentinel
+  displayName: Sentinela
   nodeType: 0
-  cost:
-    tierRequired: 0
-    amountRequired: 0
-  isAutoUnlock: 0
-  prerequisites: []
+  essenceDiscountPercentage: 0
+  synergyRequirements: []
   statModifiers: []
