@@ -1,17 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// Tier de item usado como moeda para desbloquear nós na Árvore de Sinergias.
-/// </summary>
-public enum ItemTier
-{
-    None,
-    T1,
-    T2,
-    T3,
-    T4
-}
+// ItemTier já definido em ItemData.cs (Common, Uncommon, Rare, Legendary)
 
 /// <summary>
 /// Tipo funcional de cada nó dentro da Árvore de Sinergias.
