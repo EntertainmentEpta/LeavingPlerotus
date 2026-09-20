@@ -46,6 +46,19 @@ public class SharpBlur : MonoBehaviour
     public Material hologramMaterial;
     [Range(0.1f, 1f)] public float hologramAlpha = 0.6f;
 
+    [Header("Áudio")]
+    [Tooltip("Som da distorção de teleporte / dash do SharpBlur")]
+    public AudioClip teleportSound;
+    [Tooltip("Volume do som de teleporte")]
+    [Range(0f, 1f)]
+    public float teleportSoundVolume = 0.8f;
+
+    [Tooltip("Som do ataque (swoosh / swish de cristal)")]
+    public AudioClip meleeAttackSound;
+    [Tooltip("Volume do som de ataque")]
+    [Range(0f, 1f)]
+    public float meleeAttackSoundVolume = 0.8f;
+
     // Adicionado o estado MeleeAttacking
     private enum State { Idle, Chasing, Dashing, MeleeAttacking, Resting }
     private State currentState = State.Idle;
@@ -149,6 +162,9 @@ public class SharpBlur : MonoBehaviour
         // Substitua "Melee" pelo nome exato da sua animação de soco/mordida no Animator
         if (anim != null) anim.Play("Melee", 0, 0f); 
 
+        // Toca o som do ataque (swoosh / swish de cristal)
+        PlayMeleeAttackSound();
+
         // Aguarda o tempo do ataque acontecer
         yield return new WaitForSeconds(meleeDuration / 2f);
 
@@ -227,6 +243,9 @@ public class SharpBlur : MonoBehaviour
     {
         if (direction == Vector3.zero) direction = transform.forward;
         transform.rotation = Quaternion.LookRotation(direction);
+
+        // Toca o som de distorção de teleporte / dash
+        PlayTeleportSound();
 
         Vector3 startPos = transform.position;
         targetBasePos.y = startPos.y; 
@@ -312,5 +331,40 @@ public class SharpBlur : MonoBehaviour
             Quaternion rot = Quaternion.LookRotation(dir);
             transform.rotation = Quaternion.Slerp(transform.rotation, rot, rotationSpeed * Time.deltaTime);
         }
+    }
+
+    // =============================================
+    // SISTEMA DE ÁUDIO (Teleporte/Dash & Ataques)
+    // =============================================
+
+    private void PlayTeleportSound()
+    {
+        if (teleportSound == null) return;
+        float pitch = Random.Range(0.9f, 1.1f);
+        PlayClipAtPointWithPitch(teleportSound, transform.position, pitch, teleportSoundVolume);
+    }
+
+    private void PlayMeleeAttackSound()
+    {
+        if (meleeAttackSound == null) return;
+        float pitch = Random.Range(0.95f, 1.05f);
+        PlayClipAtPointWithPitch(meleeAttackSound, transform.position, pitch, meleeAttackSoundVolume);
+    }
+
+    private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
+    {
+        GameObject audioObj = new GameObject("TempSharpBlurAudio");
+        audioObj.transform.position = position;
+        AudioSource aSource = audioObj.AddComponent<AudioSource>();
+        aSource.clip = clip;
+        aSource.pitch = pitch;
+        aSource.volume = volume;
+        aSource.spatialBlend = 1f; // Som 3D
+        aSource.minDistance = 3f;
+        aSource.maxDistance = 25f;
+        aSource.rolloffMode = AudioRolloffMode.Linear;
+        aSource.Play();
+        float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;
+        Destroy(audioObj, clip.length / safePitch);
     }
 }

@@ -274,9 +274,11 @@ public class Geobionte_AI : MonoBehaviour
 
     [Tooltip("Vetor de áudios de ataque (Cruzado/Soco) do Bismutado selecionados aleatoriamente")]
     public AudioClip[] bismutadoAttackSounds;
+
     [Tooltip("Volume do som de ataque do Bismutado")]
     [Range(0f, 1f)]
     public float bismutadoAttackSoundVolume = 0.8f;
+    private AudioSource audioSource;
 
     // ==================== VISUAL ====================
 
@@ -304,6 +306,7 @@ public class Geobionte_AI : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         health = GetComponent<DummyHealth>();
+        audioSource = GetComponent<AudioSource>();
 
         // Configurar Rigidbody
         rb.freezeRotation = true;
@@ -1187,22 +1190,13 @@ public class Geobionte_AI : MonoBehaviour
     }
 
     private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
-    {
-        GameObject audioObj = new GameObject("TempGeobionteAudio");
-        audioObj.transform.position = position;
-        AudioSource aSource = audioObj.AddComponent<AudioSource>();
-        aSource.clip = clip;
-        aSource.pitch = pitch;
-        aSource.volume = volume;
-        aSource.spatialBlend = 1f; // Som 3D
-        aSource.minDistance = 3f;
-        aSource.maxDistance = 25f;
-        aSource.rolloffMode = AudioRolloffMode.Linear;
-        aSource.Play();
-        float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;
-        Destroy(audioObj, clip.length / safePitch);
-    }
-
+        {
+            if (audioSource != null)
+            {
+                audioSource.pitch = pitch;
+                audioSource.PlayOneShot(clip, volume);
+            }
+        }
     void HandleCombat()
     {
         if (playerTransform == null)

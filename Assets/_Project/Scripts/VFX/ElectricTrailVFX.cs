@@ -18,7 +18,9 @@ public class ElectricTrailVFX : MonoBehaviour
     private float timer = 0f;
     private float flickerTimer = 0f;
 
-    public static void CreateTrailSegment(Vector3 startPos, Vector3 endPos, int damage, float trailLifetime)
+    public AudioClip zapSoundClip;
+
+    public static void CreateTrailSegment(Vector3 startPos, Vector3 endPos, int damage, float trailLifetime, AudioClip zapClip = null)
     {
         GameObject trailObj = new GameObject("ElectricAirTrail");
         Vector3 midPoint = (startPos + endPos) * 0.5f;
@@ -27,6 +29,7 @@ public class ElectricTrailVFX : MonoBehaviour
         ElectricTrailVFX trail = trailObj.AddComponent<ElectricTrailVFX>();
         trail.damagePerTick = (damage > 0) ? damage : 5;
         trail.lifetime = (trailLifetime > 0f) ? trailLifetime : 2.5f;
+        trail.zapSoundClip = zapClip;
         trail.SetupAirLine(startPos, endPos);
     }
 
@@ -139,12 +142,20 @@ public class ElectricTrailVFX : MonoBehaviour
         TriggerStatusOnPlayer(other);
     }
 
+    private bool hasPlayedSoundThisContact = false;
+
     private void TriggerStatusOnPlayer(Collider other)
     {
         if (other.CompareTag("Player") || (other.transform.root != null && other.transform.root.CompareTag("Player")))
         {
             int actualDamage = (damagePerTick > 0) ? damagePerTick : 5;
             ElectrocutedStatus.ApplyElectrocuted(other.gameObject, actualDamage, 0.50f, 3.0f);
+
+            if (zapSoundClip != null && !hasPlayedSoundThisContact)
+            {
+                hasPlayedSoundThisContact = true;
+                AudioSource.PlayClipAtPoint(zapSoundClip, transform.position, 0.8f);
+            }
         }
     }
 }

@@ -1,14 +1,14 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
-/// Motor central de Upgrades (Infusão e Reciclagem).
+/// Motor central de Upgrades (InfusÃ£o e Reciclagem).
 /// Fica no objeto Player (junto com o PlayerInventory e os Status base).
 /// 
-/// Implementa a fórmula de inflação do GDD (Economy.pdf §1.3):
-///   C = B × (1,0 + α × Ptotal)
+/// Implementa a fÃ³rmula de inflaÃ§Ã£o do GDD (Economy.pdf Â§1.3):
+///   C = B Ã— (1,0 + Î± Ã— Ptotal)
 ///   B     = custo base do tier (T1=60, T2=180, T3=300, T4=420)
-///   α     = 0,1 (coeficiente de inflação - usando o valor dos exemplos do GDD)
-///   Ptotal = soma dos pesos dos itens já infundidos (T1=1, T2=2.25, T3=4, T4=6)
+///   Î±     = 0,1 (coeficiente de inflaÃ§Ã£o - usando o valor dos exemplos do GDD)
+///   Ptotal = soma dos pesos dos itens jÃ¡ infundidos (T1=1, T2=2.25, T3=4, T4=6)
 /// </summary>
 public class InfusionManager : MonoBehaviour
 {
@@ -18,14 +18,14 @@ public class InfusionManager : MonoBehaviour
     private PlayerHealth healthStats;
     private PlayerEssence essenceWallet;
 
-    [Header("Inflação de Infusão (GDD §1.3)")]
-    [Tooltip("α = coeficiente de inflação. GDD usa 0,1 conforme os exemplos da tabela.")]
+    [Header("InflaÃ§Ã£o de InfusÃ£o (GDD Â§1.3)")]
+    [Tooltip("Î± = coeficiente de inflaÃ§Ã£o. GDD usa 0,1 conforme os exemplos da tabela.")]
     public float inflationAlpha = 0.1f;
 
-    // Peso total acumulado de todos os itens já infundidos (Ptotal)
+    // Peso total acumulado de todos os itens jÃ¡ infundidos (Ptotal)
     private float totalInfusionWeight = 0f;
     
-    // Histórico de itens infundidos
+    // HistÃ³rico de itens infundidos
     [HideInInspector]
     public System.Collections.Generic.List<ItemData> infusedItems = new System.Collections.Generic.List<ItemData>();
 
@@ -40,15 +40,15 @@ public class InfusionManager : MonoBehaviour
         healthStats = GetComponent<PlayerHealth>();
         essenceWallet = GetComponent<PlayerEssence>();
 
-        // Diagnóstico para garantir que não falta nada
+        // DiagnÃ³stico para garantir que nÃ£o falta nada
         if (inventory == null || offensiveStats == null || defensiveStats == null || healthStats == null || essenceWallet == null)
         {
-            Debug.LogWarning("[INFUSION MANAGER] Faltando componentes no Player! Verifique se todos os scripts de status estão adicionados no mesmo objeto.");
+            Debug.LogWarning("[INFUSION MANAGER] Faltando componentes no Player! Verifique se todos os scripts de status estÃ£o adicionados no mesmo objeto.");
         }
     }
 
     /// <summary>
-    /// Recicla o item, ganhando a essência configurada no ItemData e removendo o item da mochila.
+    /// Recicla o item, ganhando a essÃªncia configurada no ItemData e removendo o item da mochila.
     /// </summary>
     public bool RecycleItem(string itemId)
     {
@@ -57,17 +57,17 @@ public class InfusionManager : MonoBehaviour
         ItemData data = ItemDatabase.Instance.GetItemData(itemId);
         if (data == null) return false;
 
-        // Verifica se tem o item no inventário antes de destruir
+        // Verifica se tem o item no inventÃ¡rio antes de destruir
         if (inventory.HasItem(itemId, 1))
         {
-            // Dá essência
+            // DÃ¡ essÃªncia
             if (essenceWallet != null)
                 essenceWallet.AddEssence(data.recycleEssenceValue);
             
-            // Remove 1 do inventário
+            // Remove 1 do inventÃ¡rio
             inventory.RemoveItem(itemId, 1);
             
-            Debug.Log($"[INFUSÃO] Item Reciclado: {data.itemName} -> +{data.recycleEssenceValue} Essências");
+            Debug.Log($"[INFUSÃƒO] Item Reciclado: {data.itemName} -> +{data.recycleEssenceValue} EssÃªncias");
             return true;
         }
 
@@ -75,12 +75,12 @@ public class InfusionManager : MonoBehaviour
     }
 
     // =====================================================
-    // SISTEMA DE INFLAÇÃO (GDD §1.3)
+    // SISTEMA DE INFLAÃ‡ÃƒO (GDD Â§1.3)
     // =====================================================
 
     /// <summary>
-    /// Calcula o custo REAL de infusão com a inflação acumulada.
-    /// Fórmula: C = B × (1,0 + α × Ptotal)
+    /// Calcula o custo REAL de infusÃ£o com a inflaÃ§Ã£o acumulada.
+    /// FÃ³rmula: C = B Ã— (1,0 + Î± Ã— Ptotal)
     /// </summary>
     public int GetInflatedCost(ItemData data)
     {
@@ -90,8 +90,8 @@ public class InfusionManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Retorna o Ptotal atual (peso acumulado de infusões).
-    /// Útil para exibir na UI info sobre o estado de inflação.
+    /// Retorna o Ptotal atual (peso acumulado de infusÃµes).
+    /// Ãštil para exibir na UI info sobre o estado de inflaÃ§Ã£o.
     /// </summary>
     public float GetTotalWeight() => totalInfusionWeight;
 
@@ -103,12 +103,12 @@ public class InfusionManager : MonoBehaviour
     {
         totalInfusionWeight = 0f;
         if (infusedItems != null) infusedItems.Clear();
-        Debug.Log("[INFUSION MANAGER] Peso de inflação e histórico de infusões resetados para nova Run.");
+        Debug.Log("[INFUSION MANAGER] Peso de inflaÃ§Ã£o e histÃ³rico de infusÃµes resetados para nova Run.");
     }
 
     /// <summary>
-    /// Infunde o item no corpo, ganhando TODOS os atributos permanentemente e consumindo o item do inventário.
-    /// O custo é calculado com inflação: C = B × (1 + α × Ptotal).
+    /// Infunde o item no corpo, ganhando TODOS os atributos permanentemente e consumindo o item do inventÃ¡rio.
+    /// O custo Ã© calculado com inflaÃ§Ã£o: C = B Ã— (1 + Î± Ã— Ptotal).
     /// </summary>
     public bool InfuseItem(string itemId)
     {
@@ -117,16 +117,16 @@ public class InfusionManager : MonoBehaviour
         ItemData data = ItemDatabase.Instance.GetItemData(itemId);
         if (data == null) return false;
 
-        // Regra de Balanceamento (Brotato x Hades): Itens Lendários (T4) têm limite de 1 infusão por run (Max Stacks = 1)
+        // Regra de Balanceamento (Brotato x Hades): Itens LendÃ¡rios (T4) tÃªm limite de 1 infusÃ£o por run (Max Stacks = 1)
         if (data.tier == ItemTier.Legendary && infusedItems.Contains(data))
         {
-            Debug.LogWarning($"[INFUSÃO] {data.itemName} é um item Lendário (T4) e já foi infundido nesta run! (Limite = 1)");
+            Debug.LogWarning($"[INFUSÃƒO] {data.itemName} Ã© um item LendÃ¡rio (T4) e jÃ¡ foi infundido nesta run! (Limite = 1)");
             return false;
         }
 
         if (inventory.HasItem(itemId, 1))
         {
-            // Calcula custo com inflação acumulada
+            // Calcula custo com inflaÃ§Ã£o acumulada
             int actualCost = GetInflatedCost(data);
 
             // TENTA PAGAR O CUSTO PRIMEIRO!
@@ -134,7 +134,7 @@ public class InfusionManager : MonoBehaviour
             {
                 if (!essenceWallet.SpendEssence(actualCost))
                 {
-                    Debug.Log($"[INFUSÃO] Bloqueado! Custo atual: {actualCost} Essências (base:{data.infusionEssenceCost} × inflação:{(1f + inflationAlpha * totalInfusionWeight):F2}). Você tem: {essenceWallet.GetEssence()}");
+                    Debug.Log($"[INFUSÃƒO] Bloqueado! Custo atual: {actualCost} EssÃªncias (base:{data.infusionEssenceCost} Ã— inflaÃ§Ã£o:{(1f + inflationAlpha * totalInfusionWeight):F2}). VocÃª tem: {essenceWallet.GetEssence()}");
                     return false;
                 }
             }
@@ -145,17 +145,31 @@ public class InfusionManager : MonoBehaviour
                 ApplyAttribute(buff);
             }
 
-            // Acumula o peso desta infusão no Ptotal
+            // Acumula o peso desta infusÃ£o no Ptotal
             float addedWeight = data.GetTierWeight();
             totalInfusionWeight += addedWeight;
             
-            // Registra a infusão para possível cirurgia de remoção
+            // Registra a infusÃ£o para possÃ­vel cirurgia de remoÃ§Ã£o
             infusedItems.Add(data);
 
-            // Consome 1 item do inventário
+            // Ativa efeito especial T4 (se houver)
+            if (data.tier4Effect != Tier4EffectType.None)
+            {
+                Tier4EffectManager t4Manager = GetComponent<Tier4EffectManager>();
+                if (t4Manager != null)
+                {
+                    t4Manager.ActivateEffect(data.tier4Effect);
+                }
+                else
+                {
+                    Debug.LogWarning("[INFUSÃƒO] Item T4 com efeito especial, mas Tier4EffectManager nÃ£o encontrado no Player!");
+                }
+            }
+
+            // Consome 1 item do inventÃ¡rio
             inventory.RemoveItem(itemId, 1);
 
-            Debug.Log($"[INFUSÃO] Sucesso! {data.itemName} | Custo pago: {actualCost} | Ptotal agora: {totalInfusionWeight:F2}");
+            Debug.Log($"[INFUSÃƒO] Sucesso! {data.itemName} | Custo pago: {actualCost} | Ptotal agora: {totalInfusionWeight:F2}");
             return true;
         }
         
@@ -163,31 +177,106 @@ public class InfusionManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Usado pelo Mercador na "Cirurgia de Remoção".
-    /// Remove permanentemente os efeitos de um item e reduz o peso de inflação.
+    /// Usado pelo Mercador na "Cirurgia de RemoÃ§Ã£o".
+    /// Remove permanentemente os efeitos de um item e reduz o peso de inflaÃ§Ã£o.
     /// </summary>
+            public bool InfuseMultipleItems(System.Collections.Generic.List<string> itemIds)
+    {
+        if (ItemDatabase.Instance == null || inventory == null || essenceWallet == null) return false;
+
+        int totalCost = 0;
+        float currentWeight = totalInfusionWeight; 
+        System.Collections.Generic.List<ItemData> validItems = new System.Collections.Generic.List<ItemData>();
+        
+        foreach(var id in itemIds)
+        {
+            ItemData data = ItemDatabase.Instance.GetItemData(id);
+            if (data == null) continue;
+            if (data.tier == ItemTier.Legendary && infusedItems.Contains(data)) continue; 
+            if (!inventory.HasItem(id, 1)) continue;
+            
+            float costF = data.infusionEssenceCost * (1f + inflationAlpha * currentWeight);
+            int cost = UnityEngine.Mathf.RoundToInt(costF);
+            
+            totalCost += cost;
+            currentWeight += data.GetTierWeight();
+            validItems.Add(data);
+        }
+
+        if (validItems.Count == 0) return false;
+
+        if (essenceWallet.GetEssence() < totalCost)
+        {
+            UnityEngine.Debug.Log("[INFUSÃO MULTIPLA] Bloqueado! Sem essência suficiente.");
+            return false;
+        }
+
+        bool success = false;
+        foreach (var data in validItems)
+        {
+            if (InfuseItem(data.itemId))
+            {
+                success = true;
+            }
+        }
+        return success;
+    }
+    public bool InfuseSynergy(string item1Id, string item2Id)
+    {
+        if (ItemDatabase.Instance == null || inventory == null) return false;
+
+        ItemData data1 = ItemDatabase.Instance.GetItemData(item1Id);
+        ItemData data2 = ItemDatabase.Instance.GetItemData(item2Id);
+
+        if (data1 == null || data2 == null) return false;
+
+        int cost1 = GetInflatedCost(data1);
+        int cost2 = GetInflatedCost(data2);
+        int totalCost = cost1 + cost2;
+
+        if (essenceWallet != null && essenceWallet.GetEssence() < totalCost)
+        {
+            Debug.Log("[INFUSÃO SINERGIA] Bloqueado! Sem essência suficiente.");
+            return false;
+        }
+
+        bool s1 = InfuseItem(item1Id);
+        bool s2 = InfuseItem(item2Id);
+
+        return s1 && s2;
+    }
     public bool RemoveInfusion(ItemData data)
     {
         if (data == null || !infusedItems.Contains(data)) return false;
 
-        // Reverte todos os buffs (sinal negativo para somas, ou inversão para multiplicadores)
+        // Reverte todos os buffs (sinal negativo para somas, ou inversÃ£o para multiplicadores)
         foreach (var buff in data.itemAttributes)
         {
             RemoveAttribute(buff);
         }
 
-        // Subtrai o peso de inflação
+        // Desativa efeito especial T4 (se houver)
+        if (data.tier4Effect != Tier4EffectType.None)
+        {
+            Tier4EffectManager t4Manager = GetComponent<Tier4EffectManager>();
+            if (t4Manager != null)
+            {
+                t4Manager.DeactivateEffect(data.tier4Effect);
+            }
+        }
+
+        // Subtrai o peso de inflaÃ§Ã£o
         float removedWeight = data.GetTierWeight();
         totalInfusionWeight = Mathf.Max(0f, totalInfusionWeight - removedWeight);
 
         infusedItems.Remove(data);
         
-        Debug.Log($"[REMOÇÃO] Item extraído: {data.itemName}. Ptotal reduzido para {totalInfusionWeight:F2}");
+        Debug.Log($"[REMOÃ‡ÃƒO] Item extraÃ­do: {data.itemName}. Ptotal reduzido para {totalInfusionWeight:F2}");
         return true;
     }
 
     /// <summary>
-    /// Roteador: Descobre de quem é esse atributo e manda pro script correto
+    /// Roteador: Descobre de quem Ã© esse atributo e manda pro script correto
     /// </summary>
     private void ApplyAttribute(ItemAttributeParam buff)
     {
@@ -241,7 +330,7 @@ public class InfusionManager : MonoBehaviour
         string attrName = buff.attributeType.ToString();
 
         // Para inverter a soma, mandamos -buff.value
-        // Para inverter o multiplicador, mandamos 1f / buff.value (com verificação contra divisão por zero)
+        // Para inverter o multiplicador, mandamos 1f / buff.value (com verificaÃ§Ã£o contra divisÃ£o por zero)
         float invertedValue = buff.isMultiplier ? (Mathf.Abs(buff.value) > 0.0001f ? (1f / buff.value) : 1f) : (-buff.value);
 
         switch (buff.attributeType)
@@ -300,3 +389,4 @@ public class InfusionManager : MonoBehaviour
         return infusedItems;
     }
 }
+

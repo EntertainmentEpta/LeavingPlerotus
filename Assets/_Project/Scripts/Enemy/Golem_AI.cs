@@ -14,6 +14,8 @@ public class Golem_AI : MonoBehaviour
     private DummyHealth health;
     private Rigidbody rb;
 
+    private AudioSource audioSource;
+
     [Header("VFX Prefabs (Placeholders ok)")]
     [Tooltip("Prefab do círculo de aviso no chão antes do stun. Se null, usa um placeholder.")]
     public GameObject stunMarkerPrefab;
@@ -72,6 +74,12 @@ public class Golem_AI : MonoBehaviour
     public float stepInterval = 0.45f;
     private float stepTimer = 0f;
 
+    [Tooltip("Som do impacto da pisada/estouro de Stun (Stomp)")]
+    public AudioClip stompSound;
+    [Tooltip("Volume do som de Stomp")]
+    [Range(0f, 1f)]
+    public float stompSoundVolume = 0.9f;
+
     public bool IsAttacking => isAttacking;
     public bool IsCastingStun => isCastingStun;
     public bool IsActivated => isActivated;
@@ -79,6 +87,7 @@ public class Golem_AI : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody>();
+        audioSource = GetComponent<AudioSource>();
         health = GetComponent<DummyHealth>();
 
         // Configura Rigidbody
@@ -181,22 +190,22 @@ public class Golem_AI : MonoBehaviour
         }
     }
 
-    private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
+    private void PlayStompSound(Vector3 position)
     {
-        GameObject audioObj = new GameObject("TempGolemAudio");
-        audioObj.transform.position = position;
-        AudioSource aSource = audioObj.AddComponent<AudioSource>();
-        aSource.clip = clip;
-        aSource.pitch = pitch;
-        aSource.volume = volume;
-        aSource.spatialBlend = 1f; // Som 3D
-        aSource.minDistance = 3f;
-        aSource.maxDistance = 25f;
-        aSource.rolloffMode = AudioRolloffMode.Linear;
-        aSource.Play();
-        float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;
-        Destroy(audioObj, clip.length / safePitch);
+        if (stompSound == null) return;
+
+        float pitch = Random.Range(0.9f, 1.1f);
+        PlayClipAtPointWithPitch(stompSound, position, pitch, stompSoundVolume);
     }
+
+    private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
+        {
+            if (audioSource != null)
+            {
+                audioSource.pitch = pitch;
+                audioSource.PlayOneShot(clip, volume);
+            }
+        }
 
     void HandleRotation()
     {
@@ -324,6 +333,9 @@ public class Golem_AI : MonoBehaviour
 
         // Destrói o marcador
         if (marker != null) Destroy(marker);
+
+        // Toca o som do impacto do Stomp
+        PlayStompSound(targetPosition);
 
         // Dispara o stun
         if (stunBeamPrefab != null)

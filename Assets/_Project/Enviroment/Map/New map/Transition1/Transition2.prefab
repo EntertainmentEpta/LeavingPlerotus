@@ -26,7 +26,7 @@ Transform:
   m_GameObject: {fileID: 2077897442007732375}
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: -0.00704, y: -0.00661, z: 0.0006}
+  m_LocalPosition: {x: -0.00704, y: -0.006289, z: 0.000691}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -47,6 +47,11 @@ MonoBehaviour:
   pointType: 1
   connectionTag: Standard
   floorOffset: 0
+  doorWidth: 3
+  doorHeight: 3.2
+  overlapDepth: 0.15
+  showRuler: 1
+  showDoorFrame: 1
   isOccupied: 0
 --- !u!1 &3983895947159109457
 GameObject:
@@ -74,7 +79,7 @@ Transform:
   m_GameObject: {fileID: 3983895947159109457}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: -0.70710677, z: -0.70710677, w: 0}
-  m_LocalPosition: {x: 0.00743, y: 0.0064, z: 0.0006}
+  m_LocalPosition: {x: 0.00743, y: 0.006332, z: 0.000686}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -95,6 +100,11 @@ MonoBehaviour:
   pointType: 0
   connectionTag: Standard
   floorOffset: 0
+  doorWidth: 3
+  doorHeight: 3.2
+  overlapDepth: 0.15
+  showRuler: 1
+  showDoorFrame: 1
   isOccupied: 0
 --- !u!1 &8036747435783641409
 GameObject:

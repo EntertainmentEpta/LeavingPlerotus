@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e31866c5ea326c74fbe71613556564ac, type: 3}
+  m_Name: eq_arma_projetil
+  m_EditorClassIdentifier: Assembly-CSharp::EquipmentData
+  equipmentId: eq_arma_projetil
+  equipmentName: Arquetipo Arma de Projetil
+  description: Desbloqueia a Arma de Projetil para a run.
+  icon: {fileID: 0}
+  effectType: 19
+  effectValue: 1
+  maxStack: 1

@@ -221,7 +221,11 @@ public class MainMenuUI : MonoBehaviour
     // ═══════════════════════════════════════
     //  ACTIONS
     // ═══════════════════════════════════════
-    void OnPlay()    { SceneManager.LoadScene(playSceneName); }
+    void OnPlay()
+    {
+        PlayerHealth.shouldPlayWakeUpAnimation = true;
+        SceneManager.LoadScene(playSceneName);
+    }
     void OnOptions() { ShowOptions(); }
     void OnCredits() { ShowCredits(); }
     void OnQuit()

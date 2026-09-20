@@ -1746,6 +1746,9 @@ GameObject:
   - component: {fileID: 1286581841674779122}
   - component: {fileID: 8291047582019485712}
   - component: {fileID: 8291047582019485713}
+  - component: {fileID: 8147240710932523325}
+  - component: {fileID: 7903399675111266686}
+  - component: {fileID: 4810983626657079719}
   m_Layer: 8
   m_Name: Player
   m_TagString: Player
@@ -1848,11 +1851,16 @@ MonoBehaviour:
   isDashing: 0
   dashSpeed: 100
   dashDuration: 0.05
-  maxDashes: 10
+  maxDashes: 100
   dashCooldown: 5
   dashCountText: {fileID: 0}
   dashKey: 101
+  keyUp: 119
+  keyDown: 115
+  keyLeft: 97
+  keyRight: 100
   inputBufferWindow: 0.2
+  dashDurationMultiplier: 1
 --- !u!114 &5799582598024903971
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1885,8 +1893,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1f438548421a8c841b86d43804752999, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
-  maxHealth: 100
-  maxArmor: 300
+  maxHealth: 10000
+  maxArmor: 30
   armorRegenRate: 50
   isInvulnerable: 0
   playerMovement: {fileID: 0}
@@ -1904,6 +1912,7 @@ MonoBehaviour:
   damageTakenMultiplier: 1
   canHeal: 1
   hasDoubleLoot: 0
+  hasChaosSymphony: 0
   hasVampirism: 0
   hasNecrosis: 0
   lastKillTime: 0
@@ -1911,6 +1920,8 @@ MonoBehaviour:
   isKnockbackImmune: 0
   abilityCooldownMultiplier: 1
   enemiesBuffed: 0
+  heartbeatClip: {fileID: 8300000, guid: 9699e7ecb5d3f424987bd5414e8999b4, type: 3}
+  heartbeatVolume: 0.55
   canRegenArmor: 1
   damageLightObj: {fileID: 0}
   damageIFrameCooldown: 0.25
@@ -1940,6 +1951,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerM
   dashScript: {fileID: 9188255382873321215}
   attackScript: {fileID: 399265535294509767}
+  keyUp: 119
+  keyDown: 115
+  keyLeft: 97
+  keyRight: 100
   walkSpeed: 5
   sprintSpeed: 10
   rotationSpeed: 10
@@ -1954,6 +1969,8 @@ MonoBehaviour:
   groundRadius: 0.2
   animator: {fileID: 3618305479678570340}
   debuffSpeedMultiplier: 1
+  runningFootstepClip: {fileID: 8300000, guid: cbd2ad0506c6bcb4e84e17726f093dec, type: 3}
+  footstepVolume: 0.3
 --- !u!114 &5745442842706831329
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1993,6 +2010,7 @@ MonoBehaviour:
   ultimateCooldown: 2
   forwardLeapImpulse: 6
   grantInvulnerability: 1
+  navMeshLandingSearchRadius: 4
   isUltimateReady: 1
   isUltimateActive: 0
   currentCooldown: 0
@@ -2384,6 +2402,12 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   triggerVFXTestNow: 0
+  chargeClip: {fileID: 8300000, guid: 6d95ef5c5d0eb7f48805c265089b2e7c, type: 3}
+  chargeVolume: 1
+  groundImpactClip: {fileID: 8300000, guid: 8abf098f5c9ec6342b7e3a8e50c72154, type: 3}
+  groundImpactVolume: 1
+  crystalShatterClip: {fileID: 8300000, guid: b1d87d3a154af9b42935bf058ccd1eac, type: 3}
+  crystalShatterVolume: 1
 --- !u!114 &8291047582019485713
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2406,6 +2430,54 @@ MonoBehaviour:
   readyColor: {r: 0.2, g: 1, b: 0.4, a: 1}
   cooldownColor: {r: 1, g: 0.3, b: 0.2, a: 1}
   activeColor: {r: 1, g: 0.85, b: 0.2, a: 1}
+--- !u!114 &8147240710932523325
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3017463410146802124}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e96bcef8f745bbe4f9194b14ae4b554b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Tier4EffectManager
+  explosiveDashEffect: {fileID: 0}
+--- !u!114 &7903399675111266686
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3017463410146802124}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dc1972bcf90ef7d4fbba95fc060c7cba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ExplosiveDashEffect
+  isActive: 0
+  dashDurationMultiplier: 1.5
+  explosionRadius: 4
+  explosionDamage: 50
+  explosionKnockback: 12
+  upwardKnockback: 0.3
+  explosionVFXType: 11
+  explosionVFXScale: 1.5
+  enhancedDashVFXType: 10
+  showExplosionGizmo: 1
+  gizmoColor: {r: 1, g: 0.3, b: 0, a: 0.3}
+--- !u!114 &4810983626657079719
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3017463410146802124}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0536f880292e9e9419ca90496c4c0c2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::KeybindApplier
 --- !u!1 &3037435734811326214
 GameObject:
   m_ObjectHideFlags: 0
@@ -4206,6 +4278,9 @@ GameObject:
   - component: {fileID: 5301761075157900069}
   - component: {fileID: 4903610608914846769}
   - component: {fileID: 7616712902417337525}
+  - component: {fileID: 4453166240833020818}
+  - component: {fileID: 7179540730892993535}
+  - component: {fileID: 6995510205871001195}
   m_Layer: 8
   m_Name: astronaut
   m_TagString: Player
@@ -4222,7 +4297,7 @@ Transform:
   m_GameObject: {fileID: 6284554266325809849}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.9, z: 0}
+  m_LocalPosition: {x: 0, y: 1, z: 0}
   m_LocalScale: {x: 0.01, y: 0.008698678, z: 0.01}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -4265,6 +4340,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d885b6f971474394b86e9c0df6231369, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PrimaryAttackKnife
+  attackKey: 113
   hasWeapon: 1
   animator: {fileID: 3618305479678570340}
   playerRb: {fileID: 5240561299179774875}
@@ -4277,8 +4353,23 @@ MonoBehaviour:
   swordRange: 7
   axeRange: 7.5
   hitImpactVariations:
-  - {fileID: 383840337370359756, guid: 898dc2ffaeee5bf46a1db7ebc4ff1e7c, type: 3}
+  - {fileID: 5085208710604937735, guid: 415eb90ccc98be644a2a61308ed50644, type: 3}
+  criticalHitImpactPrefab: {fileID: 8827767439292419669, guid: eb35369d1a0ba8548a679606b869f46e, type: 3}
   hitImpactPrefab: {fileID: 383840337370359756, guid: 898dc2ffaeee5bf46a1db7ebc4ff1e7c, type: 3}
+  axeHitSounds:
+  - {fileID: 8300000, guid: 7cf2d9e620d64a84786e9e8b2869d6aa, type: 3}
+  - {fileID: 8300000, guid: d8d145cbc4821e542976857612fcaec3, type: 3}
+  - {fileID: 8300000, guid: 67b65d083273b3f4b82610e974ae5991, type: 3}
+  - {fileID: 8300000, guid: 77ceb9485bcbcda448fec49de86efc6a, type: 3}
+  axeHitVolume: 0.4
+  axeSwing1: {fileID: 8300000, guid: 4d70cdf98ef5b304580e7856d09ab8e0, type: 3}
+  swing1Volume: 0.6
+  axeSwing2: {fileID: 8300000, guid: 008d307cce6a60c48b6572f43c943c44, type: 3}
+  swing2Volume: 0.6
+  axeSwing3: {fileID: 8300000, guid: f6204551c453c7846ae123c53685bc9c, type: 3}
+  swing3Volume: 0.6
+  axeSwing4: {fileID: 8300000, guid: 6c33346e9ccc302439eceb869f582175, type: 3}
+  swing4Volume: 0.6
   weaponTrail: {fileID: 0}
   attackAnimationSpeed: 1
   defaultAttackSpeed: 1
@@ -4375,6 +4466,60 @@ MonoBehaviour:
   waveMaxDistance: 10
   hitboxHalfExtents: {x: 1.5, y: 1, z: 0.5}
   knockbackForce: 5
+--- !u!114 &4453166240833020818
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6284554266325809849}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d0dd87ab0412bc4885743995febc8ad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerDashVFX
+  dashVFXType: 9
+  vfxScale: 1
+  verticalOffset: 0.3
+  spawnAtStart: 1
+  customSimulationSpeed: -1
+  rotationOffset: {x: -90, y: 0, z: 0}
+  rotationMode: 0
+  followPlayer: 1
+  detachDelay: 0
+  dashScript: {fileID: 0}
+--- !u!114 &7179540730892993535
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6284554266325809849}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 55d5bf26756cae847a610bb1c2ae7bf6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Ultimate_Dagger
+  bladeWaveVFX: {fileID: 3020920808754819069, guid: 9e1749955dc6c7042aa459a890276a34, type: 3}
+  groundYOffset: 0
+  spawnForwardOffset: 1
+  waveDamage: 500
+  waveSpeed: 8
+  waveMaxDistance: 10
+  hitboxHalfExtents: {x: 1.5, y: 1, z: 0.5}
+  knockbackForce: 5
+--- !u!114 &6995510205871001195
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6284554266325809849}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0536f880292e9e9419ca90496c4c0c2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: '::'
 --- !u!1 &6320494353973819877
 GameObject:
   m_ObjectHideFlags: 0

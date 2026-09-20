@@ -10,7 +10,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8098169881513260187, guid: e50082332ad41084cab3ed3dd91cf705, type: 3}
       propertyPath: m_Name
-      value: Sharp_Blur
+      value: Sh
       objectReference: {fileID: 0}
     - target: {fileID: -8098169881513260187, guid: e50082332ad41084cab3ed3dd91cf705, type: 3}
       propertyPath: m_Layer
@@ -109,7 +109,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9b1d1b3e172858c47913a9d62f9c3c5d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DummyHealth
+  isSlowed: 0
   maxHealth: 100
+  debugLogDamage: 0
   healthBarSlider: {fileID: 0}
   normalColor: {r: 0.3803922, g: 0.49411768, b: 0.6627451, a: 1}
   buffedColor: {r: 0, g: 1, b: 1, a: 1}
@@ -119,6 +121,7 @@ MonoBehaviour:
   hitFlashTime: 0.2
   isInvulnerable: 0
   isBuffed: 0
+  fixedDamageOverride: 0
 --- !u!114 &1255017292783913048
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -180,12 +183,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SharpBlur
   activationDistance: 25
-  attackTriggerDistance: 2
   chaseSpeed: 6
+  dashTriggerDistance: 8
+  meleeTriggerDistance: 2.5
   dashDistance: 8
   dashSpeed: 25
   pauseBetweenDashes: 0.4
   endSequenceRest: 1.5
+  meleeDuration: 1
+  meleeDamage: 20
   anticipationTime: 0.2
   leadPrediction: 0.5
   retreatDistance: 4
@@ -193,6 +199,10 @@ MonoBehaviour:
   hologramPrefab: {fileID: 0}
   hologramMaterial: {fileID: 0}
   hologramAlpha: 0.6
+  teleportSound: {fileID: 8300000, guid: 5e27c96573a6eb347ba4ea633f5627a9, type: 3}
+  teleportSoundVolume: 0.8
+  meleeAttackSound: {fileID: 8300000, guid: f75792465661afe42acaebbfc98f757e, type: 3}
+  meleeAttackSoundVolume: 0.8
 --- !u!65 &3588484501910454750
 BoxCollider:
   m_ObjectHideFlags: 0

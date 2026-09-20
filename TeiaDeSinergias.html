@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Laboratório de Sinergias Completas - RogueLikeProject</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; background-color: #f4f5f7; overflow: hidden; }
+        
+        /* Painel Esquerdo (Estatísticas e Lista) */
+        #left-sidebar { width: 340px; background: #ffffff; border-right: 1px solid #ddd; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; overflow-y: auto; box-shadow: 2px 0 5px rgba(0,0,0,0.05); z-index: 10; }
+        #left-sidebar h3 { margin-top: 0; font-size: 16px; color: #333; border-bottom: 2px solid #5a7ade; padding-bottom: 5px; }
+        #synergy-list { list-style: none; padding: 0; margin: 0; font-size: 13px; flex-grow: 1; overflow-y: auto; border: 1px solid #eee; border-radius: 5px; background: #fafafa; }
+        #synergy-list li { padding: 8px 10px; border-bottom: 1px solid #eee; }
+        #synergy-list li:last-child { border-bottom: none; }
+        #synergy-list li strong { color: #5a7ade; }
+        .chart-container { width: 100%; height: 180px; margin-bottom: 20px; }
+        .chart-container-small { width: 100%; height: 150px; margin-bottom: 20px; }
+
+        /* Área do Mapa (Centro) */
+        #map-container { flex: 1; position: relative; background-color: #ffffff; }
+        #mynetwork { width: 100%; height: 100%; outline: none; }
+        .instructions { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: white; padding: 10px 20px; border-radius: 20px; font-size: 13px; pointer-events: none; }
+
+        /* Painel Direito (Detalhes e Ferramentas) */
+        #right-sidebar { width: 300px; background: #ffffff; border-left: 1px solid #ddd; padding: 20px; box-sizing: border-box; overflow-y: auto; box-shadow: -2px 0 5px rgba(0,0,0,0.05); z-index: 10; }
+        #right-sidebar h3 { font-size: 16px; color: #333; border-bottom: 2px solid #d4b83f; padding-bottom: 5px; margin-top: 0; }
+        #details-box { background: #f9f9f9; border: 1px solid #eee; border-radius: 8px; padding: 15px; min-height: 150px; font-size: 14px; margin-bottom: 20px; color: #555; }
+        #details-box .title { font-weight: bold; font-size: 16px; color: #222; margin-bottom: 10px; }
+        #details-box .badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 11px; color: white; margin-bottom: 10px; font-weight: bold; }
+        
+        .help-text { font-size: 12px; color: #777; margin-top: 10px; line-height: 1.5; }
+        
+        .badge-t1 { background: #999999; }
+        .badge-t2 { background: #5a7ade; }
+        .badge-t3 { background: #6a329f; }
+        .badge-t4 { background: #b4981f; }
+        .badge-enemy { background: #000; }
+        .badge-syn { background: #93b070; }
+        .badge-god { background: #ffcc00; color: #000 !important; }
+    </style>
+</head>
+<body>
+
+    <div id="left-sidebar">
+        <h3>📊 Top Itens Mais Combados</h3>
+        <div class="chart-container">
+            <canvas id="statsChart"></canvas>
+        </div>
+        
+        <h3>🍰 Uso por Raridade (Tiers)</h3>
+        <div class="chart-container-small">
+            <canvas id="tierChart"></canvas>
+        </div>
+        
+        <h3 style="margin-top: 10px;">📜 Registro de Combos</h3>
+        <ul id="synergy-list"></ul>
+    </div>
+
+    <div id="map-container">
+        <div id="mynetwork"></div>
+        <div class="instructions">Use o modo "Edit" no topo do mapa para arrastar conexões entre itens!</div>
+    </div>
+
+    <div id="right-sidebar">
+        <h3>🔍 Inspeção de Item</h3>
+        <div id="details-box">
+            Clique em qualquer bolinha ou caixa no mapa para ver seus status aqui.
+        </div>
+
+        <h3>➕ Criar Sinergia Manual</h3>
+        <p class="help-text">Para conectar itens novos, clique no botão <b>"Edit"</b>, depois em <b>"Add Edge"</b> e arraste de uma bolinha para a outra.</p>
+        <p class="help-text">Ao fazer isso, o gráfico de pizza à esquerda atualizará automaticamente para mostrar qual Tier está dominando o meta do seu balanceamento!</p>
+    </div>
+
+<script>
+    // ==========================================
+    // 1. DADOS DE TODOS OS 13 INIMIGOS E 52 ITENS
+    // ==========================================
+    const enemiesData = [
+        {id: "E1", name: "Aranha", desc: "Mob rápido e esquivo", items: [
+            { id: "E1_T1", tier: "T1", label: "Vel. Ataque", desc: "+ Vel de Ataque" },
+            { id: "E1_T2", tier: "T2", label: "Dash", desc: "- CD do Dash" },
+            { id: "E1_T3", tier: "T3", label: "Vel+Dash", desc: "Velocidade + Dash" },
+            { id: "E1_T4", tier: "T4", label: "Veneno", desc: "Ataques envenenam" }
+        ]},
+        {id: "E2", name: "SharpBlur", desc: "Mob de dano explosivo", items: [
+            { id: "E2_T1", tier: "T1", label: "Dano Base", desc: "+ Dano Base" },
+            { id: "E2_T2", tier: "T2", label: "Crítico", desc: "+ Chance Crítica" },
+            { id: "E2_T3", tier: "T3", label: "Dano+Crit", desc: "Dano + Crítico" },
+            { id: "E2_T4", tier: "T4", label: "Sangrar", desc: "Críticos sangram alvo" }
+        ]},
+        {id: "E3", name: "Dragão", desc: "Dragão Retaliador", items: [
+            { id: "E3_T1", tier: "T1", label: "Espinhos", desc: "Reflete Dano" },
+            { id: "E3_T2", tier: "T2", label: "Recuo", desc: "+ Knockback" },
+            { id: "E3_T3", tier: "T3", label: "Esp+Recuo", desc: "Espinhos + Recuo" },
+            { id: "E3_T4", tier: "T4", label: "Retaliação", desc: "Dano Refletido atordoa" }
+        ]},
+        {id: "E4", name: "Goblin", desc: "Especialista em caos em área", items: [
+            { id: "E4_T1", tier: "T1", label: "Multi-Tiro", desc: "Projéteis extras" },
+            { id: "E4_T2", tier: "T2", label: "Dispersão", desc: "Spread de tiros" },
+            { id: "E4_T3", tier: "T3", label: "Tiro+Disp", desc: "Multi-tiro + Spread" },
+            { id: "E4_T4", tier: "T4", label: "Bomba Dash", desc: "Solta bomba no Dash" }
+        ]},
+        {id: "E5", name: "Watcher", desc: "Inimigo de Alcance Visual", items: [
+            { id: "E5_T1", tier: "T1", label: "Range Proj", desc: "Alcance Projétil" },
+            { id: "E5_T2", tier: "T2", label: "Range Melee", desc: "Alcance Corpo a Corpo" },
+            { id: "E5_T3", tier: "T3", label: "Range Duplo", desc: "Alcance Melee + Proj" },
+            { id: "E5_T4", tier: "T4", label: "Teleguiado", desc: "Tiros perseguem inimigo" }
+        ]},
+        {id: "E6", name: "Tuner", desc: "Buffer Acústico", items: [
+            { id: "E6_T1", tier: "T1", label: "Perfuração", desc: "Atravessa inimigos" },
+            { id: "E6_T2", tier: "T2", label: "Quicar", desc: "Tiros Quicam" },
+            { id: "E6_T3", tier: "T3", label: "Furar+Quicar", desc: "Perfurar + Quicar" },
+            { id: "E6_T4", tier: "T4", label: "Marca Amp", desc: "Aumenta dano no alvo" }
+        ]},
+        {id: "E7", name: "Cristalus", desc: "Suporte Defensivo", items: [
+            { id: "E7_T1", tier: "T1", label: "Regen Armor", desc: "Regenera Armadura" },
+            { id: "E7_T2", tier: "T2", label: "Lentidão", desc: "Ataques dão slow" },
+            { id: "E7_T3", tier: "T3", label: "Regen+Slow", desc: "Regen + Lentidão" },
+            { id: "E7_T4", tier: "T4", label: "Regen Contínua", desc: "Sem delay no escudo" }
+        ]},
+        {id: "E8", name: "Golem", desc: "O gigante de pedra", items: [
+            { id: "E8_T1", tier: "T1", label: "Armor Máx", desc: "+ Armadura" },
+            { id: "E8_T2", tier: "T2", label: "Negar Dano", desc: "Chance de ignorar hit" },
+            { id: "E8_T3", tier: "T3", label: "Armor+Neg", desc: "Armadura + Negação" },
+            { id: "E8_T4", tier: "T4", label: "Escudo HP", desc: "Escudo com HP baixo" }
+        ]},
+        {id: "E9", name: "P. Mágica", desc: "Tanque de Vida Absoluta", items: [
+            { id: "E9_T1", tier: "T1", label: "Vida Máx", desc: "+ HP Máximo" },
+            { id: "E9_T2", tier: "T2", label: "Esquiva", desc: "+ Chance de Dodge" },
+            { id: "E9_T3", tier: "T3", label: "Vida+Esq", desc: "Vida + Esquiva" },
+            { id: "E9_T4", tier: "T4", label: "Regen Sala", desc: "Curar ao fim da sala" }
+        ]},
+        {id: "E10", name: "Swarm", desc: "Enxame Cortante", items: [
+            { id: "E10_T1", tier: "T1", label: "I-Frames", desc: "I-Frames no Dash" },
+            { id: "E10_T2", tier: "T2", label: "Mult. Crítico", desc: "Dano extra no crítico" },
+            { id: "E10_T3", tier: "T3", label: "I-Frame+Crit", desc: "I-Frames + Mult Crit" },
+            { id: "E10_T4", tier: "T4", label: "Enxame Crit", desc: "Ataques soltam cristais" }
+        ]},
+        {id: "E11", name: "Totem", desc: "Controle de Espaço", items: [
+            { id: "E11_T1", tier: "T1", label: "Cargas Dash", desc: "+ Cargas de Dash" },
+            { id: "E11_T2", tier: "T2", label: "Knockback", desc: "Empurrar inimigos" },
+            { id: "E11_T3", tier: "T3", label: "Dash+Knock", desc: "Dash + Knockback" },
+            { id: "E11_T4", tier: "T4", label: "Barreira", desc: "Escudo ao dashear" }
+        ]},
+        {id: "E12", name: "Bismutado", desc: "Elite Ofensivo", items: [
+            { id: "E12_T1", tier: "T1", label: "Dano Colossal", desc: "Dano Base ++" },
+            { id: "E12_T2", tier: "T2", label: "Crítico Bruto", desc: "Crit Multiplier ++" },
+            { id: "E12_T3", tier: "T3", label: "Dano+Crit", desc: "Dano + Crítico ++" },
+            { id: "E12_T4", tier: "T4", label: "Varredura", desc: "Ataques em área (Cleave)" }
+        ]},
+        {id: "E13", name: "Sentinela", desc: "O Juggernaut Imortal", items: [
+            { id: "E13_T1", tier: "T1", label: "HP Colossal", desc: "HP Máximo ++" },
+            { id: "E13_T2", tier: "T2", label: "Armor Colossal", desc: "Armadura Máxima ++" },
+            { id: "E13_T3", tier: "T3", label: "HP+Armor", desc: "HP + Armadura ++" },
+            { id: "E13_T4", tier: "T4", label: "Lifesteal", desc: "Roubo de vida puro" }
+        ]}
+    ];
+
+    let synergiesData = [
+        { id: "SYN_1", name: "Chuva de Lâminas", nodes: ["E4_T1", "E2_T1"] },
+        { id: "SYN_2", name: "Parede Intransponível", nodes: ["E8_T1", "E13_T2"] },
+        { id: "SYN_3", name: "Corte Congelante", nodes: ["E7_T2", "E2_T3"] },
+        { id: "SYN_4", name: "Assassino Fantasma", nodes: ["E1_T2", "E9_T2"] },
+        { id: "SYN_5", name: "Domínio de Espaço", nodes: ["E11_T2", "E5_T2"] },
+        { id: "SYN_6", name: "Tempestade Focada", nodes: ["E6_T2", "E10_T2"] },
+        { id: "SYN_7", name: "Aura Espinhosa", nodes: ["E3_T1", "E7_T1"] },
+        { id: "SYN_8", name: "Fuga Explosiva", nodes: ["E11_T1", "E4_T2"] },
+        { id: "SYN_BERSERK", name: "🌟 BERSERKER IMORTAL", nodes: ["E8_T4", "E12_T3", "E10_T1", "E1_T1"], isSpecial: true },
+        { id: "SYN_GOD", name: "👑 A ASCENSÃO (Modo Deus)", nodes: ["E1_T4", "E2_T4", "E3_T4", "E4_T4", "E5_T4", "E6_T4", "E7_T4", "E8_T4", "E9_T4", "E10_T4", "E11_T4", "E12_T4", "E13_T4"], isSpecial: true }
+    ];
+
+    // ==========================================
+    // 2. CONFIGURAÇÃO VIS.JS (MAPA)
+    // ==========================================
+    const nodes = new vis.DataSet();
+    const edges = new vis.DataSet();
+    const itemsMap = {}; 
+
+    const colors = {
+        enemy: { background: "#000000", border: "#000000", font: "#ffffff" },
+        T1: { background: "#cccccc", border: "#aaaaaa", font: "#000000" },
+        T2: { background: "#5a7ade", border: "#3a5abe", font: "#ffffff" },
+        T3: { background: "#6a329f", border: "#4a127f", font: "#ffffff" },
+        T4: { background: "#d4b83f", border: "#b4981f", font: "#000000" },
+        synergy: { background: "#e8ede1", border: "#93b070", font: "#333333" },
+        special: { background: "#ffcc00", border: "#ff9900", font: "#000000" }
+    };
+
+    enemiesData.forEach(e => {
+        nodes.add({ id: e.id, label: e.name, shape: "circle", color: colors.enemy, font: { color: colors.enemy.font, size: 20, bold: true }, size: 35 });
+        itemsMap[e.id] = { type: 'enemy', data: e };
+
+        e.items.forEach(item => {
+            nodes.add({ id: item.id, label: item.label, shape: "ellipse", color: colors[item.tier], font: { color: colors[item.tier].font, size: 14 } });
+            edges.add({ id: `edge_${e.id}_${item.id}`, from: e.id, to: item.id, length: 120, color: {color: "#999"} }); // Aumentado length para as bolinhas soltarem mais
+            itemsMap[item.id] = { type: 'item', data: item, parent: e.name };
+        });
+    });
+
+    let synCounter = 100;
+    function renderSynergyToMap(syn) {
+        let col = syn.isSpecial ? colors.special : colors.synergy;
+        nodes.add({ id: syn.id, label: syn.name, shape: "box", color: col, font: { color: col.font, size: syn.isSpecial ? 20 : 14, bold: true } });
+        
+        syn.nodes.forEach(nodeId => {
+            edges.add({ from: nodeId, to: syn.id, length: syn.isSpecial ? 350 : 200, dashes: true, color: {color: syn.isSpecial ? "#ff9900" : "#666", width: syn.isSpecial ? 2 : 1} });
+        });
+        itemsMap[syn.id] = { type: 'synergy', data: syn };
+    }
+    synergiesData.forEach(renderSynergyToMap);
+
+    const container = document.getElementById('mynetwork');
+    const data = { nodes: nodes, edges: edges };
+    const options = {
+        physics: {
+            barnesHut: { gravitationalConstant: -10000, centralGravity: 0.1, springLength: 150, springConstant: 0.02 } // Força a repulsão para as linhas ficarem mais espalhadas e visíveis
+        },
+        manipulation: {
+            enabled: true,
+            addNode: function(data, callback) {
+                document.getElementById('node-operation').innerText = "Nova Sinergia/Nó";
+                document.getElementById('node-label').value = "Nova Ideia";
+                document.getElementById('node-desc').value = "Escreva o efeito aqui...";
+                document.getElementById('node-tier').value = "synergy";
+                document.getElementById('node-saveButton').onclick = function() { saveData(data, callback); };
+                document.getElementById('node-cancelButton').onclick = function() { cancelEdit(callback); };
+                document.getElementById('node-popUp').style.display = 'block';
+            },
+            editNode: function(data, callback) {
+                document.getElementById('node-operation').innerText = "Editar " + (data.label || "");
+                document.getElementById('node-label').value = data.label || "";
+                
+                let existingItem = itemsMap[data.id];
+                document.getElementById('node-desc').value = (existingItem && existingItem.data && existingItem.data.desc) ? existingItem.data.desc : "";
+                
+                let currentTier = "synergy";
+                if (existingItem) {
+                    if (existingItem.type === 'enemy') currentTier = "enemy";
+                    else if (existingItem.type === 'item') currentTier = existingItem.data.tier;
+                    else if (existingItem.type === 'synergy' && existingItem.data.isSpecial) currentTier = "special";
+                }
+                document.getElementById('node-tier').value = currentTier;
+                
+                document.getElementById('node-saveButton').onclick = function() { saveData(data, callback); };
+                document.getElementById('node-cancelButton').onclick = function() { cancelEdit(callback); };
+                document.getElementById('node-popUp').style.display = 'block';
+            },
+            addEdge: function (edgeData, callback) {
+                if (edgeData.from !== edgeData.to) {
+                    edgeData.dashes = true;
+                    edgeData.color = {color: "#93b070", width: 2};
+                    callback(edgeData);
+                    setTimeout(updateStats, 100);
+                }
+            },
+            deleteNode: function(data, callback) {
+                callback(data);
+                setTimeout(updateStats, 100);
+            },
+            deleteEdge: function(data, callback) {
+                callback(data);
+                setTimeout(updateStats, 100);
+            }
+        }
+    };
+    const network = new vis.Network(container, data, options);
+
+    // ==========================================
+    // 3. INTERAÇÕES E GRÁFICOS
+    // ==========================================
+
+    network.on("click", function (params) {
+        if (params.nodes.length > 0) {
+            let nodeId = params.nodes[0];
+            let info = itemsMap[nodeId];
+            let html = "";
+            if (!info) return;
+
+            if (info.type === 'enemy') {
+                html = `<div class="badge badge-enemy">INIMIGO</div>
+                        <div class="title">${info.data.name}</div>
+                        <p>${info.data.desc}</p>`;
+            } else if (info.type === 'item') {
+                let badgeClass = "badge-" + info.data.tier.toLowerCase();
+                html = `<div class="badge ${badgeClass}">${info.data.tier}</div>
+                        <div class="title">${info.data.label}</div>
+                        <p><b>Efeito:</b> ${info.data.desc}</p>
+                        <p><b>Origem:</b> ${info.parent}</p>`;
+            } else if (info.type === 'synergy') {
+                let badgeClass = info.data.isSpecial ? "badge-god" : "badge-syn";
+                html = `<div class="badge ${badgeClass}">SINERGIA</div>
+                        <div class="title">${info.data.name}</div>
+                        <p>Itens conectados: ${info.data.nodes.length}</p>`;
+            }
+            document.getElementById("details-box").innerHTML = html;
+        }
+    });
+
+    let statsChart, tierChart;
+    function initCharts() {
+        const ctxStats = document.getElementById('statsChart').getContext('2d');
+        statsChart = new Chart(ctxStats, {
+            type: 'bar',
+            data: { labels: [], datasets: [{ label: 'Vezes em Combo', data: [], backgroundColor: '#5a7ade' }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+
+        const ctxTier = document.getElementById('tierChart').getContext('2d');
+        tierChart = new Chart(ctxTier, {
+            type: 'doughnut',
+            data: { labels: ['T1', 'T2', 'T3', 'T4'], datasets: [{ data: [], backgroundColor: ['#cccccc', '#5a7ade', '#6a329f', '#d4b83f'] }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+        });
+    }
+    initCharts();
+
+    function updateUI() {
+        const listEl = document.getElementById("synergy-list");
+        listEl.innerHTML = "";
+        
+        let itemUsageCount = {};
+        let tierUsageCount = { 'T1': 0, 'T2': 0, 'T3': 0, 'T4': 0 };
+
+        synergiesData.forEach(syn => {
+            let names = syn.nodes.map(n => itemsMap[n]?.data?.label || n).join(" + ");
+            let li = document.createElement("li");
+            li.innerHTML = `<strong>${syn.name}</strong><br><span style="color:#777; font-size:11px;">${names}</span>`;
+            listEl.appendChild(li);
+
+            syn.nodes.forEach(n => {
+                let itemData = itemsMap[n]?.data;
+                if(itemData) {
+                    itemUsageCount[itemData.label] = (itemUsageCount[itemData.label] || 0) + 1;
+                    if(itemData.tier) tierUsageCount[itemData.tier]++;
+                }
+            });
+        });
+
+        let sortedItems = Object.keys(itemUsageCount).map(k => ({ name: k, count: itemUsageCount[k] })).sort((a,b) => b.count - a.count).slice(0, 5);
+        statsChart.data.labels = sortedItems.map(i => i.name);
+        statsChart.data.datasets[0].data = sortedItems.map(i => i.count);
+        statsChart.update();
+
+        tierChart.data.datasets[0].data = [tierUsageCount['T1'], tierUsageCount['T2'], tierUsageCount['T3'], tierUsageCount['T4']];
+        tierChart.update();
+    }
+    updateUI();
+
+</script>
+</body>
+</html>

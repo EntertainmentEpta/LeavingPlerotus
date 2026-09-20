@@ -1,11 +1,11 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
 
 /// <summary>
-/// Componente visual de um slot individual do inventário.
-/// Exibe ícone do item, quantidade e borda colorida por tier.
+/// Componente visual de um slot individual do inventÃ¡rio.
+/// Exibe Ã­cone do item, quantidade e borda colorida por tier.
 /// Detecta hover do mouse para exibir tooltip.
 /// </summary>
 public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
@@ -19,13 +19,13 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     public TextMeshProUGUI lockText;
 
     // Dados do slot
-    private string currentItemId;
+    public string currentItemId;
     private int currentQuantity;
     private ItemData currentItemData;
     private bool isOccupied = false;
     private bool isLocked = false;
 
-    // Referência ao tooltip
+    // ReferÃªncia ao tooltip
     private InventoryTooltip tooltip;
 
     // Cores
@@ -36,23 +36,23 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
 
     private bool isHovered = false;
 
-    // Micro-animação de hover
+    // Micro-animaÃ§Ã£o de hover
     private Vector3 targetScale = Vector3.one;
     private float scaleSpeed = 15f;
 
-    // Sprite estático para glow radial de tier
+    // Sprite estÃ¡tico para glow radial de tier
     private static Sprite radialGlowSprite;
 
     /// <summary>
-    /// Inicializa o slot criando todos os elementos visuais ou usando referências existentes do Prefab
+    /// Inicializa o slot criando todos os elementos visuais ou usando referÃªncias existentes do Prefab
     /// <summary>
-    /// Inicializa o slot criando todos os elementos visuais ou usando referências existentes do Prefab
+    /// Inicializa o slot criando todos os elementos visuais ou usando referÃªncias existentes do Prefab
     /// </summary>
     public void Initialize(InventoryTooltip tooltipRef, float slotSize)
     {
         tooltip = tooltipRef;
 
-        // Se já tiver as referências do Prefab atribuídas, não cria nada por código!
+        // Se jÃ¡ tiver as referÃªncias do Prefab atribuÃ­das, nÃ£o cria nada por cÃ³digo!
         if (backgroundImage != null && borderImage != null && iconImage != null && quantityText != null)
         {
             if (lockText != null) lockText.enabled = false;
@@ -110,7 +110,7 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         borderImage.fillCenter = false;
         borderImage.pixelsPerUnitMultiplier = 1f;
 
-        // === Ícone do Item ===
+        // === Ãcone do Item ===
         GameObject iconObj = new GameObject("ItemIcon");
         iconObj.transform.SetParent(transform, false);
         iconObj.layer = uiLayer;
@@ -125,7 +125,7 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         iconImage = iconObj.AddComponent<Image>();
         iconImage.preserveAspect = true;
         iconImage.raycastTarget = false;
-        iconImage.enabled = false; // Escondido até ter item
+        iconImage.enabled = false; // Escondido atÃ© ter item
 
         // === Texto de Quantidade ===
         GameObject textObj = new GameObject("Quantity");
@@ -221,7 +221,7 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         if (!isHovered)
             backgroundImage.color = SLOT_OCCUPIED_BG;
 
-        // Ícone
+        // Ãcone
         if (itemData != null && itemData.icon != null)
         {
             iconImage.sprite = itemData.icon;
@@ -229,7 +229,7 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         }
         else
         {
-            // Fallback: mostra slot ocupado sem ícone (item sem sprite configurado)
+            // Fallback: mostra slot ocupado sem Ã­cone (item sem sprite configurado)
             iconImage.enabled = false;
         }
 
@@ -335,9 +335,13 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     {
         if (isLocked) return;
         isHovered = false;
-        targetScale = Vector3.one;
+        
+        targetScale = isSelected ? new Vector3(1.04f, 1.04f, 1.04f) : Vector3.one;
 
-        backgroundImage.color = isOccupied ? SLOT_OCCUPIED_BG : SLOT_EMPTY_BG;
+        if (!isSelected)
+        {
+            backgroundImage.color = isOccupied ? SLOT_OCCUPIED_BG : SLOT_EMPTY_BG;
+        }
 
         if (tooltip != null)
         {
@@ -345,30 +349,60 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         }
     }
 
-    // === Click Event para enviar o item para o Upgrade (Infusão) ===
+    public bool isSelected = false;
+
+    public void SetSelected(bool selected)
+    {
+        if (isLocked || !isOccupied) return;
+        isSelected = selected;
+
+        if (isSelected)
+        {
+            backgroundImage.color = new UnityEngine.Color(0.2f, 0.4f, 0.8f, 0.8f);
+            borderImage.color = new UnityEngine.Color(0.3f, 0.7f, 1f, 1f); // Glow border color
+            
+            if (glowImage != null)
+            {
+                glowImage.color = new UnityEngine.Color(0.2f, 0.6f, 1f, 0.8f);
+                glowImage.enabled = true;
+            }
+            targetScale = new UnityEngine.Vector3(1.06f, 1.06f, 1.06f);
+        }
+        else
+        {
+            backgroundImage.color = SLOT_OCCUPIED_BG;
+            if (currentItemData != null)
+            {
+                UnityEngine.Color tierColor = currentItemData.GetTierColor();
+                borderImage.color = new UnityEngine.Color(tierColor.r, tierColor.g, tierColor.b, 0.8f);
+                
+                if (glowImage != null)
+                {
+                    glowImage.color = new UnityEngine.Color(tierColor.r, tierColor.g, tierColor.b, 0.35f);
+                    glowImage.enabled = true;
+                }
+            }
+            else
+            {
+                if (glowImage != null) glowImage.enabled = false;
+            }
+            targetScale = UnityEngine.Vector3.one;
+        }
+    }
 
     public void OnPointerClick(PointerEventData eventData)
     {
         if (isLocked) return;
 
-        // Só faz algo se fomos clicados e se tem um item aqui dentro
         if (isOccupied && !string.IsNullOrEmpty(currentItemId))
         {
-            InfusionUI telaDeUpgrades = Object.FindFirstObjectByType<InfusionUI>(FindObjectsInactive.Include);
-
-            if (telaDeUpgrades != null)
+            if (InventoryUI.Instance != null)
             {
-                // Só seleciona o item se o painel conseguiu abrir (sem inimigos por perto)
-                bool abriu = telaDeUpgrades.OpenPanel();
-                if (abriu)
-                {
-                    telaDeUpgrades.SelectItem(currentItemId);
-                    Debug.Log($"[SLOT] Item '{currentItemId}' enviado para Infusão.");
-                }
+                InventoryUI.Instance.ToggleItemSelection(this, currentItemId);
             }
             else
             {
-                Debug.LogWarning($"[SLOT] InfusionUI não encontrada na cena!");
+                Debug.LogWarning("[SLOT] Não encontrou InventoryUI.Instance ativo na cena!");
             }
         }
     }

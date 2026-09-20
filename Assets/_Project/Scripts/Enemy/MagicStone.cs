@@ -44,6 +44,18 @@ public class MagicStone_AI : MonoBehaviour
     [Range(0f, 1f)]
     public float hoverSoundVolume = 0.4f;
 
+    [Tooltip("Som do teleporte/deslocamento instantâneo")]
+    public AudioClip teleportSound;
+    [Tooltip("Volume do som de teleporte")]
+    [Range(0f, 1f)]
+    public float teleportSoundVolume = 0.8f;
+
+    [Tooltip("Som do aviso/marcação de ataque no chão (AttackMarker)")]
+    public AudioClip telegraphSound;
+    [Tooltip("Volume do som do aviso de marcação")]
+    [Range(0f, 1f)]
+    public float telegraphSoundVolume = 0.8f;
+
     [Tooltip("Som do raio caindo do céu (Skybeam/Trovão)")]
     public AudioClip skybeamSound;
     [Tooltip("Volume do som do raio caindo")]
@@ -222,7 +234,9 @@ public class MagicStone_AI : MonoBehaviour
             targetPosition.y = transform.position.y;
         }
 
+        PlayTeleportSound(transform.position); // Som na posição de origem
         transform.position = targetPosition;
+        PlayTeleportSound(targetPosition);   // Som na posição de chegada
         teleportTimer = teleportCooldown;
 
         Debug.Log("MagicStone teleportou (dentro dos limites)!");
@@ -232,6 +246,9 @@ public class MagicStone_AI : MonoBehaviour
     {
         Vector3 targetPosition = new Vector3(playerTransform.position.x, 0.01f, playerTransform.position.z);
         GameObject marker = Instantiate(attackMarkerPrefab, targetPosition, Quaternion.Euler(90, 0, 0));
+
+        // Toca o som do aviso de marcação no chão
+        PlayTelegraphSound(targetPosition);
 
         // Sincroniza a duração do efeito visual com o tempo de telegrafagem
         AttackMarkerEffect effect = marker.GetComponent<AttackMarkerEffect>();
@@ -254,7 +271,7 @@ public class MagicStone_AI : MonoBehaviour
     }
 
     // =============================================
-    // SISTEMA DE ÁUDIO (Hover & Skybeam)
+    // SISTEMA DE ÁUDIO (Hover, Telegraph & Skybeam)
     // =============================================
 
     private void SetupHoverAudio()
@@ -272,6 +289,22 @@ public class MagicStone_AI : MonoBehaviour
             hoverAudioSource.maxDistance = 25f;
             hoverAudioSource.Play();
         }
+    }
+
+    private void PlayTeleportSound(Vector3 position)
+    {
+        if (teleportSound == null) return;
+
+        float pitch = Random.Range(0.95f, 1.05f);
+        PlayClipAtPointWithPitch(teleportSound, position, pitch, teleportSoundVolume);
+    }
+
+    private void PlayTelegraphSound(Vector3 position)
+    {
+        if (telegraphSound == null) return;
+
+        float pitch = Random.Range(0.95f, 1.05f);
+        PlayClipAtPointWithPitch(telegraphSound, position, pitch, telegraphSoundVolume);
     }
 
     private void PlaySkybeamSound(Vector3 position)

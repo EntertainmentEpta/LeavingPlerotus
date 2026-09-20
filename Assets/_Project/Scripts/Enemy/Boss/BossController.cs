@@ -67,11 +67,45 @@ public class BossController : MonoBehaviour
     [Tooltip("O Animator do boss. Se nulo, tentará encontrar nos filhos.")]
     public Animator animator;
 
-    [Tooltip("Triggers do Animator a serem sorteados nos ataques corpo a corpo (4 ataques: Swipe, Punch, JumpAttack, Stomp).")]
+    [Header("🎨 Múltiplas Fases (Modelos Visuais)")]
+    [Tooltip("GameObject do modelo visual da Fase 2 (ex: IdleNovoBoss).")]
+    public GameObject visualPhase2;
+
+    [Tooltip("GameObject do modelo visual da Fase 3 (ex: Neutral Idle / Boss Fase 3).")]
+    public GameObject visualPhase3;
+
+    [Tooltip("Animator Controller exclusivo da Fase 3 (PHASE3.controller).")]
+    public RuntimeAnimatorController phase3AnimatorController;
+
+    [Tooltip("Triggers do Animator a serem sorteados nos ataques corpo a corpo das Fases 1 e 2 (4 ataques: Swipe, Punch, JumpAttack, Stomp).")]
     public string[] meleeAttackTriggers = new string[] { "bossSwipe", "bossPunch", "bossJumpAttack", "bossStomp" };
 
+    [Header("🌸 Fase 3 - Ataques Melee")]
+    [Tooltip("Triggers dos ataques corpo a corpo na Fase 3 (Ataque Básico Baixo e Ataque Baixo Uppercut).")]
+    public string[] phase3MeleeAttackTriggers = new string[] { "bossLowAttack", "bossUpAttack" };
+
+    [Header("🌱 Fase 3 - Ataques do Serralha (Cuspe Ácido & Salva de Espinhos)")]
+    [Tooltip("Dano base estimado do Cuspe Ácido (Serralha).")]
+    public int acidSpitDamage = 20;
+
+    [Tooltip("Dano base estimado da Salva de Espinhos (Serralha).")]
+    public int thornVolleyDamage = 15;
+
+    [Tooltip("Prefab do projétil de Cuspe Ácido (Serralha).")]
+    public GameObject acidSpitProjectilePrefab;
+
+    [Tooltip("Prefab do projétil de Espinho / Salva de Espinhos (Serralha).")]
+    public GameObject thornVolleyProjectilePrefab;
+
+    [Tooltip("Ponto de spawn dos projéteis da Fase 3 (ex: boca/flor do modelo).")]
+    public Transform phase3ProjectileSpawnPoint;
+
+    // Callbacks / Eventos públicos para o Serralha plugar seus scripts externos
+    public System.Action OnAcidSpitTriggered;
+    public System.Action OnThornVolleyTriggered;
+
     [Tooltip("Triggers do Animator a serem sorteados nos ataques de Magia/Spell (visível ou invisível).")]
-    public string[] spellAttackTriggers = new string[] { "bossSpell", "SimpleCast", "BossSpellWide", "PowerUp" };
+    public string[] spellAttackTriggers = new string[] { "Spell", "bossSpell", "SimpleCast", "BossSpellWide", "PowerUp" };
 
     [Header("VFX de Impacto em Área (Stomp & Jump Attack)")]
     [Tooltip("Objeto de VFX de Pisada (Stomp) pré-posicionado como filho no Prefab do Boss.")]
@@ -124,11 +158,12 @@ public class BossController : MonoBehaviour
     [Tooltip("Dano de cada espinho do BossSpellWide.")]
     public int wideSpikeDamage = 45;
 
-    [Header("💧 Cuspida Ácida (Fase 3)")]
-    [Tooltip("Prefab do projétil com AcidSpitProjectile + Rigidbody + Collider (non-trigger).")]
-    public GameObject acidSpitProjectilePrefab;
+    [Tooltip("Prefab de VFX de estilhaço de cristal opcional ao quebrar os espinhos (se nulo, gerado proceduralmente com alta performance).")]
+    public GameObject spikeShatterVFXPrefab;
 
-    [Tooltip("Prefab da AcidPuddle — fallback se não houver AcidPuddleSpawner na cena.")]
+    [Header("🧪 Cuspida Ácida (Fase 3)")]
+
+    [Tooltip("Prefab da AcidPuddle – fallback se não houver AcidPuddleSpawner na cena.")]
     public GameObject acidPuddlePrefabForSpit;
 
     [Tooltip("Trigger do Animator no telegraph (cabeça recua). Troque pelo clip de spit quando disponível.")]
@@ -140,11 +175,14 @@ public class BossController : MonoBehaviour
     [Tooltip("Cooldown entre cuspidas ácidas (segundos).")]
     public float acidSpitCooldown = 9f;
 
-    [Tooltip("Distância mínima — boss não cuspe se player está no alcance melee.")]
-    public float acidSpitMinRange = 4f;
+    [Tooltip("Força do lançamento (parábola calculada internamente no projétil).")]
+    public float acidSpitForce = 15f;
 
-    [Tooltip("Distância máxima para disparar a cuspida.")]
-    public float acidSpitMaxRange = 16f;
+    [Tooltip("Distância mínima para cuspir.")]
+    public float acidSpitMinRange = 4.5f;
+
+    [Tooltip("Distância máxima para cuspir.")]
+    public float acidSpitMaxRange = 12f;
 
     [Tooltip("Transform do osso/mão de onde o projétil sai. Se nulo usa chest + forward offset.")]
     public Transform acidSpitLaunchPoint;
@@ -196,8 +234,14 @@ public class BossController : MonoBehaviour
     [Tooltip("Prefab do Canvas da barra de vida do Boss. Se atribuído (ou em Resources/BossHealthBar_Canvas), será instanciado automaticamente no mapa.")]
     public GameObject bossHealthBarPrefab;
 
-    [Header("Debug")]
+    [Header("Configuração de Root Motion")]
+    [Tooltip("Ativa a aplicação orgânica de Root Motion durante animações para que passos, socos e a pisada (Stomp) movimentem o Boss sem patinar no lugar.")]
+    public bool useRootMotion = true;
+
+    [Header("Debug & Sandbox")]
     public bool showDebugLog = true;
+    [Tooltip("Se ativado, o Boss continua virando em direção ao player mesmo no modo Sandbox de testes.")]
+    public bool alwaysFacePlayerInSandbox = true;
 
     // =====================================================
     // ESTADO PÚBLICO (somente leitura)
@@ -230,7 +274,7 @@ public class BossController : MonoBehaviour
 
     private DummyHealth health;
     private NavMeshAgent agent;
-    private Transform playerTransform;
+    public Transform playerTransform;
 
     // Ataque melee e Locomoção
     private float meleeTimer = 0f;
@@ -248,6 +292,11 @@ public class BossController : MonoBehaviour
         {
             if (hb != null) hb.DisableHitbox();
         }
+    }
+
+    public void DisableAllHitboxes()
+    {
+        DesativarTodosOsTrails();
     }
 
     public void EnableMeleeHitboxBothHands(float duration, int attackDamage = 35, float pushForce = 15f)
@@ -348,13 +397,16 @@ public class BossController : MonoBehaviour
     // =====================================================
 
     void OnDisable()
-    {
-        if (Time.timeScale < 1.0f)
         {
-            Time.timeScale = 1.0f;
-            Time.fixedDeltaTime = 0.02f;
+            // Se o Boss já está morto, a Tela de Vitória assumiu. Não despause o jogo!
+            if (CurrentState == BossState.Dead) return;
+
+            if (Time.timeScale < 1.0f)
+            {
+                Time.timeScale = 1.0f;
+                Time.fixedDeltaTime = 0.02f;
+            }
         }
-    }
 
     void Awake()
     {
@@ -372,13 +424,50 @@ public class BossController : MonoBehaviour
         // Sanitiza colisores: Garante que APENAS o CapsuleCollider raiz (raio 0.45m) seja sólido
         SanitizeBossColliders();
 
-        // Auto-conecta o componente Animator presente no modelo filho (Orc Idle)
+        // Auto-detecta os modelos visuais da Fase 2 e Fase 3 se não estiverem atribuídos no Inspector
+        if (visualPhase2 == null)
+        {
+            Transform t2 = transform.Find("IdleNovoBoss") ?? transform.Find("Orc Idle");
+            if (t2 != null) visualPhase2 = t2.gameObject;
+        }
+
+        if (visualPhase3 == null)
+        {
+            Transform t3 = transform.Find("Neutral Idle") ?? transform.Find("Fase3") ?? transform.Find("Visual_Phase3") ?? transform.Find("Boss_Fase3");
+            if (t3 != null) visualPhase3 = t3.gameObject;
+        }
+
+#if UNITY_EDITOR
+        if (phase3AnimatorController == null)
+        {
+            phase3AnimatorController = UnityEditor.AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>("Assets/_Project/Enemies/Boss/Fase3/PHASE3.controller");
+        }
+#endif
+
+        // Garante que no início apenas o modelo da fase correta esteja ativo
+        if (visualPhase3 != null && CurrentPhase < 3)
+        {
+            visualPhase3.SetActive(false);
+        }
+        if (visualPhase2 != null && CurrentPhase < 3)
+        {
+            visualPhase2.SetActive(true);
+        }
+
+        // Auto-conecta o componente Animator presente no modelo filho ativo
         if (animator == null)
-            animator = GetComponentInChildren<Animator>(true);
+        {
+            if (visualPhase2 != null && visualPhase2.activeInHierarchy)
+                animator = visualPhase2.GetComponentInChildren<Animator>(true);
+            else if (visualPhase3 != null && visualPhase3.activeInHierarchy)
+                animator = visualPhase3.GetComponentInChildren<Animator>(true);
+            else
+                animator = GetComponentInChildren<Animator>(true);
+        }
 
         if (animator != null)
         {
-            animator.applyRootMotion = false; // Desativa Root Motion para evitar que animações elevem o Boss no ar
+            animator.applyRootMotion = useRootMotion;
 
             if (animator.GetComponent<BossAnimationEvents>() == null)
             {
@@ -414,6 +503,12 @@ public class BossController : MonoBehaviour
         if (drippingParticlePrefab == null)
         {
             drippingParticlePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Enemies/Boss/BossDrippingFX.prefab");
+        }
+
+        if (spikeShatterVFXPrefab == null)
+        {
+            spikeShatterVFXPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Hovl Studio/Magic effects pack/Prefabs/Hits and explosions/Stones hit.prefab")
+                                 ?? UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/VFX/Texture Packs/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Impacts/CFXR Hit A (Red).prefab");
         }
 #endif
 
@@ -503,6 +598,11 @@ public class BossController : MonoBehaviour
             gameObject.AddComponent<BossPhase2_Refraction>();
         }
 
+        if (GetComponent<BossArmStretch>() == null)
+        {
+            gameObject.AddComponent<BossArmStretch>();
+        }
+
         DesativarTodosOsTrails();
     }
 
@@ -546,6 +646,16 @@ public class BossController : MonoBehaviour
         if (rightHandHitbox != null) rightHandHitbox.OnAnimationEvent_GroundImpact();
     }
 
+    /// <summary>
+    /// Executa o feitiço ou impacto mágico disparado pelo Animation Event do clipe de magia.
+    /// </summary>
+    public virtual void CastSpell()
+    {
+        AnimEvent_GroundImpact();
+        TriggerCameraShake(0.3f, 0.18f);
+        if (showDebugLog) Debug.Log("[BossController] 🪄 CastSpell executado via Animation Event!");
+    }
+
     public void AnimEvent_StompImpact()
     {
         // Previne disparo duplo consecutivo (ex: AnimationEvent no FBX + chamada de segurança no script)
@@ -574,29 +684,42 @@ public class BossController : MonoBehaviour
             if (found != null) stompVFXChildObject = found.gameObject;
         }
 
-        // 2. Dispara o VFX nativo do Prefab mantendo sua posição no pé, rotação (-90° Y) e escala (0.65) intactas!
+        // 2. Dispara o VFX desacoplado no World Space (parent = null) para que os cristais fiquem 100% fixos no chão!
         if (stompVFXChildObject != null)
         {
-            stompVFXChildObject.SetActive(true);
+            Vector3 spawnPos = stompVFXChildObject.transform.position;
+            Quaternion spawnRot = stompVFXChildObject.transform.rotation;
+            Vector3 spawnScale = stompVFXChildObject.transform.lossyScale;
 
-            ParticleSystem[] psList = stompVFXChildObject.GetComponentsInChildren<ParticleSystem>(true);
+            GameObject worldStomp = Instantiate(stompVFXChildObject, spawnPos, spawnRot, null);
+            worldStomp.transform.localScale = spawnScale;
+            worldStomp.SetActive(true);
+
+            // Mantém o objeto filho de referência oculto no Boss
+            stompVFXChildObject.SetActive(false);
+
+            ParticleSystem[] psList = worldStomp.GetComponentsInChildren<ParticleSystem>(true);
             if (psList != null && psList.Length > 0)
             {
                 foreach (var ps in psList)
                 {
                     ps.gameObject.SetActive(true);
+                    var main = ps.main;
+                    main.simulationSpace = ParticleSystemSimulationSpace.World;
                     ps.Clear(true);
                     ps.time = 0f;
                     ps.Play(true);
                 }
             }
 
-            // Dano progressivo em cone através do próprio VFX
-            BossStompConeHitbox coneHitbox = stompVFXChildObject.GetComponent<BossStompConeHitbox>() ?? stompVFXChildObject.GetComponentInChildren<BossStompConeHitbox>();
-            if (coneHitbox == null) coneHitbox = stompVFXChildObject.AddComponent<BossStompConeHitbox>();
+            // Dano progressivo em cone através do próprio VFX desacoplado
+            BossStompConeHitbox coneHitbox = worldStomp.GetComponent<BossStompConeHitbox>() ?? worldStomp.GetComponentInChildren<BossStompConeHitbox>();
+            if (coneHitbox == null) coneHitbox = worldStomp.AddComponent<BossStompConeHitbox>();
             coneHitbox.StartWave(gameObject);
 
-            Debug.Log($"🦶 [BOSS STOMP] ✅ Disparou VFX Nativo do Prefab: '{stompVFXChildObject.name}' (Posição, Rotação e Escala preservadas)!");
+            Destroy(worldStomp, 4.0f);
+
+            Debug.Log($"🦶 [BOSS STOMP] ✅ Disparou VFX Desacoplado no Mundo: '{worldStomp.name}' (100% fixo no chão, imune a recuos do pé)!");
         }
         else
         {
@@ -840,14 +963,19 @@ public class BossController : MonoBehaviour
         if (p != null) return p.transform;
 
         // 2. Tenta por Componente PlayerHealth
-        PlayerHealth ph = FindObjectOfType<PlayerHealth>();
+        PlayerHealth ph = UnityEngine.Object.FindFirstObjectByType<PlayerHealth>();
         if (ph != null) return ph.transform;
 
-        // 3. Tenta qualquer GameObject cujo nome contenha "player"
-        GameObject[] all = FindObjectsOfType<GameObject>();
+        // 3. Tenta por Componente PlayerM
+        PlayerM pm = UnityEngine.Object.FindFirstObjectByType<PlayerM>();
+        if (pm != null) return pm.transform;
+
+        // 4. Tenta qualquer GameObject cujo nome contenha "player", "astro", "astronaut"
+        GameObject[] all = UnityEngine.Object.FindObjectsByType<GameObject>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         foreach (GameObject obj in all)
         {
-            if (obj.name.ToLower().Contains("player"))
+            string n = obj.name.ToLower();
+            if (n.Contains("player") || n.Contains("astro") || n.Contains("astronaut"))
                 return obj.transform;
         }
 
@@ -860,6 +988,17 @@ public class BossController : MonoBehaviour
 
         if (playerTransform == null)
             playerTransform = FindPlayerTransform();
+
+        // Se o boss estiver em modo Sandbox / congelado pelo tester, para o agente e não auto-inicia combate
+        if (OverrideMovement)
+        {
+            if (agent != null && agent.enabled && agent.isOnNavMesh)
+            {
+                agent.isStopped = true;
+                agent.velocity = Vector3.zero;
+            }
+            return;
+        }
 
         // Se o boss estiver em Idle, auto-inicia o combate se o player estiver dentro da distância de detecção ou se o boss tomar dano
         if (CurrentState == BossState.Idle)
@@ -1017,18 +1156,64 @@ public class BossController : MonoBehaviour
     /// </summary>
     public void TriggerSpellAnimation()
     {
-        if (animator == null || !CanInitiateAction) return;
-
-        FreezeMovementForSpell(1.4f);
-
-        if (spellAttackTriggers != null && spellAttackTriggers.Length > 0)
+        if (animator == null)
         {
-            string chosen = spellAttackTriggers[UnityEngine.Random.Range(0, spellAttackTriggers.Length)];
-            animator.SetTrigger(chosen);
+            animator = GetComponentInChildren<Animator>(true);
         }
-        else
+        if (animator == null) return;
+
+        FreezeMovementForSpell(1.8f);
+
+        animator.ResetTrigger("bossSwipe");
+        animator.ResetTrigger("bossPunch");
+        animator.ResetTrigger("bossStomp");
+        animator.ResetTrigger("bossJumpAttack");
+        animator.ResetTrigger("bossLowAttack");
+        animator.ResetTrigger("bossUpAttack");
+
+        bool triggered = false;
+        if (animator.parameters != null)
         {
-            animator.SetTrigger("bossSpell");
+            foreach (var p in animator.parameters)
+            {
+                if (p.name == "Spell" || p.name == "bossSpell")
+                {
+                    animator.SetTrigger(p.name);
+                    triggered = true;
+                    break;
+                }
+            }
+        }
+
+        if (!triggered)
+        {
+            try { animator.SetTrigger("Spell"); } catch { }
+        }
+
+        if (animator.HasState(0, Animator.StringToHash("SpellGround")))
+        {
+            animator.Play("SpellGround", 0, 0f);
+        }
+        else if (animator.HasState(0, Animator.StringToHash("Spell")))
+        {
+            animator.Play("Spell", 0, 0f);
+        }
+
+        if (showDebugLog) Debug.Log("[BossController] 🪄 Feitiço de Chão (SpellGround) executado!");
+    }
+
+    /// <summary>
+    /// Dispara a invocação de pilares/feitiço no solo.
+    /// Executa a animação SpellGround e invoca os pilares de cristal ao redor do alvo.
+    /// </summary>
+    public void TriggerPillarSummon()
+    {
+        TriggerSpellAnimation();
+
+        BossPhase1_MestreDoSolo mestre = GetComponent<BossPhase1_MestreDoSolo>();
+        if (mestre != null)
+        {
+            mestre.InvocarPrisaoForcado(bypassActionCheck: true, forceClearOld: true);
         }
     }
 
@@ -1053,9 +1238,9 @@ public class BossController : MonoBehaviour
 
         yield return new WaitForSeconds(duration);
 
-        if (agent != null && !IsStunned && !IsDead && CanInitiateAction)
+        if (agent != null && !IsStunned && !IsDead && CanInitiateAction && !OverrideMovement)
         {
-            // Restaura a movimentação e velocidade normal se o Boss estiver livre
+            // Restaura a movimentação e velocidade normal se o Boss estiver livre e não congelado por testes
             agent.speed = baseNavSpeed;
             agent.isStopped = false;
         }
@@ -1156,31 +1341,36 @@ public class BossController : MonoBehaviour
     private IEnumerator GolemStunCastRoutine(float stunRadius, float stunDuration, float telegraphTime)
     {
         isCastingSpell = true;
-        if (agent != null && agent.enabled && agent.isOnNavMesh)
+        bool prevUpdateRotation = true;
+        if (agent != null && agent.enabled)
         {
-            agent.isStopped = true;
-            agent.velocity = Vector3.zero;
+            prevUpdateRotation = agent.updateRotation;
+            agent.updateRotation = false;
+            if (agent.isOnNavMesh)
+            {
+                agent.isStopped = true;
+                agent.velocity = Vector3.zero;
+            }
         }
 
         try
         {
             FreezeMovementForSpell(telegraphTime + 0.6f);
 
-            if (animator != null) animator.SetTrigger("SimpleCast");
-
             // Rastreia a posição exata do player no momento do cast
             if (playerTransform == null) playerTransform = FindPlayerTransform();
 
-            Vector3 targetPos = (playerTransform != null) ? playerTransform.position : transform.position + transform.forward * 4f;
-
-            // Vira o Boss instantaneamente para encarar o player
+            // Vira o Boss imediatamente para encarar e apontar para o player
             if (playerTransform != null)
             {
-                Vector3 lookDir = (playerTransform.position - transform.position).normalized;
+                Vector3 lookDir = (playerTransform.position - transform.position);
                 lookDir.y = 0f;
-                if (lookDir != Vector3.zero) transform.rotation = Quaternion.LookRotation(lookDir);
+                if (lookDir.sqrMagnitude > 0.001f) transform.rotation = Quaternion.LookRotation(lookDir);
             }
 
+            if (animator != null) animator.SetTrigger("SimpleCast");
+
+            Vector3 targetPos = (playerTransform != null) ? playerTransform.position : transform.position + transform.forward * 4f;
             Vector3 groundPos = new Vector3(targetPos.x, targetPos.y + 0.05f, targetPos.z);
 
             GameObject marker = null;
@@ -1190,7 +1380,23 @@ public class BossController : MonoBehaviour
                 marker.transform.localScale = new Vector3(stunRadius * 2, stunRadius * 2, 1);
             }
 
-            yield return new WaitForSeconds(telegraphTime);
+            // Mantém o Boss apontando diretamente em direção ao player durante toda a telegrafagem
+            float elapsed = 0f;
+            while (elapsed < telegraphTime)
+            {
+                elapsed += Time.deltaTime;
+                if (playerTransform == null) playerTransform = FindPlayerTransform();
+                if (playerTransform != null)
+                {
+                    Vector3 lookDir = (playerTransform.position - transform.position);
+                    lookDir.y = 0f;
+                    if (lookDir.sqrMagnitude > 0.001f)
+                    {
+                        transform.rotation = Quaternion.LookRotation(lookDir);
+                    }
+                }
+                yield return null;
+            }
 
             if (marker != null) Destroy(marker);
 
@@ -1230,9 +1436,13 @@ public class BossController : MonoBehaviour
         finally
         {
             isCastingSpell = false;
-            if (agent != null && agent.enabled && agent.isOnNavMesh && !IsStunned && !IsDead)
+            if (agent != null && agent.enabled)
             {
-                agent.isStopped = false;
+                agent.updateRotation = prevUpdateRotation;
+                if (agent.isOnNavMesh && !IsStunned && !IsDead && !OverrideMovement)
+                {
+                    agent.isStopped = false;
+                }
             }
         }
     }
@@ -1370,9 +1580,9 @@ public class BossController : MonoBehaviour
                 }
             }
 
-            // A. Ergue os espinhos rapidamente do chão (0.25s)
+            // A. Ergue os espinhos rapidamente do chão com impacto veloz (0.10s em vez de 0.25s)
             float elapsed = 0f;
-            float emergeDuration = 0.25f;
+            float emergeDuration = 0.10f;
             while (elapsed < emergeDuration)
             {
                 elapsed += Time.deltaTime;
@@ -1387,44 +1597,120 @@ public class BossController : MonoBehaviour
                 yield return null;
             }
 
-            // B. Permanece no topo por um breve instante para espetar (0.40s)
-            yield return new WaitForSeconds(0.40f);
+            // B. Permanece no topo por um breve instante para espetar (0.35s)
+            yield return new WaitForSeconds(0.35f);
 
-            // C. Retrai os espinhos de volta para o subsolo (0.30s)
-            elapsed = 0f;
-            float retractDuration = 0.30f;
-            while (elapsed < retractDuration)
+            // C. Estilhaçamento dos Espinhos (Shatter / Explosão de Fragmentos de Cristal)
+            TriggerCameraShake(0.25f, 0.12f);
+
+            for (int i = 0; i < spawnedSpikes.Count; i++)
             {
-                elapsed += Time.deltaTime;
-                float t = elapsed / retractDuration;
-                for (int i = 0; i < spawnedSpikes.Count; i++)
+                if (spawnedSpikes[i] != null)
                 {
-                    if (spawnedSpikes[i] != null)
-                    {
-                        spawnedSpikes[i].position = Vector3.Lerp(spikePositions[i], startPositions[i], t);
-                    }
+                    Vector3 shatterPos = spawnedSpikes[i].position + Vector3.up * 0.75f;
+                    SpawnSpikeShatterFX(shatterPos);
+                    Destroy(spawnedSpikes[i].gameObject);
                 }
-                yield return null;
             }
+            spawnedSpikes.Clear();
 
-            // Destrói os objetos de espinho após retornarem ao chão
-            foreach (Transform s in spawnedSpikes)
-            {
-                if (s != null) Destroy(s.gameObject);
-            }
+            if (showDebugLog) Debug.Log("[BossController] 💎 Espinhos do BossSpellWide estilhaçaram em cristais com impacto!");
 
-            if (showDebugLog) Debug.Log("[BossController] 🌊 Espinhos do BossSpellWide espetaram e recolheram!");
-
-            yield return new WaitForSeconds(0.3f);
+            yield return new WaitForSeconds(0.20f);
         }
         finally
         {
             isCastingSpell = false;
-            if (agent != null && agent.enabled && agent.isOnNavMesh && !IsStunned && !IsDead)
+            if (agent != null && agent.enabled && agent.isOnNavMesh && !IsStunned && !IsDead && !OverrideMovement)
             {
                 agent.isStopped = false;
             }
         }
+    }
+
+    /// <summary>
+    /// Instancia o efeito de estilhaçamento de cristal no ponto onde cada espinho é destruído.
+    /// Utiliza prefabs de VFX do projeto (Hovl Studio / Cartoon FX) ou gera partículas cristalinas refinadas com textura.
+    /// </summary>
+    private void SpawnSpikeShatterFX(Vector3 position)
+    {
+        if (spikeShatterVFXPrefab != null)
+        {
+            GameObject fx = Instantiate(spikeShatterVFXPrefab, position, Quaternion.identity);
+            fx.transform.localScale = Vector3.one * 0.45f;
+            Destroy(fx, 1.5f);
+            return;
+        }
+
+        // Sistema procedural de partículas de estilhaços cristalinos refinados
+        GameObject shatterObj = new GameObject("VFX_SpikeCrystalShatter");
+        shatterObj.transform.position = position;
+
+        ParticleSystem ps = shatterObj.AddComponent<ParticleSystem>();
+        var main = ps.main;
+        main.duration = 0.35f;
+        main.loop = false;
+        main.startLifetime = new ParticleSystem.MinMaxCurve(0.20f, 0.45f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(4.0f, 9.0f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.05f, 0.14f); // Partículas muito menores e sutis
+        main.startRotation = new ParticleSystem.MinMaxCurve(0f, 360f * Mathf.Deg2Rad);
+        main.gravityModifier = 1.6f;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.stopAction = ParticleSystemStopAction.Destroy;
+
+        // Gradiente Crystalline Shard (tons de cristal e faísca brilhante sem parecer shader magenta sem textura)
+        Gradient grad = new Gradient();
+        grad.SetKeys(
+            new GradientColorKey[] { 
+                new GradientColorKey(new Color(0.85f, 0.40f, 1.0f), 0.0f), 
+                new GradientColorKey(new Color(0.50f, 0.85f, 1.0f), 0.4f),
+                new GradientColorKey(new Color(1f, 1f, 1f), 1.0f) 
+            },
+            new GradientAlphaKey[] { 
+                new GradientAlphaKey(1.0f, 0.0f), 
+                new GradientAlphaKey(0.80f, 0.5f), 
+                new GradientAlphaKey(0.0f, 1.0f) 
+            }
+        );
+        main.startColor = new ParticleSystem.MinMaxGradient(grad);
+
+        var emission = ps.emission;
+        emission.rateOverTime = 0;
+        emission.SetBursts(new ParticleSystem.Burst[] { new ParticleSystem.Burst(0.0f, (short)10, (short)16) });
+
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Hemisphere;
+        shape.radius = 0.3f;
+
+        var sizeOverLifetime = ps.sizeOverLifetime;
+        sizeOverLifetime.enabled = true;
+        AnimationCurve sizeCurve = new AnimationCurve();
+        sizeCurve.AddKey(0f, 1.0f);
+        sizeCurve.AddKey(0.5f, 0.7f);
+        sizeCurve.AddKey(1f, 0.0f);
+        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1.0f, sizeCurve);
+
+        ParticleSystemRenderer renderer = shatterObj.GetComponent<ParticleSystemRenderer>();
+        if (renderer != null)
+        {
+            renderer.renderMode = ParticleSystemRenderMode.Billboard;
+            Material particleMat = null;
+#if UNITY_EDITOR
+            particleMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Hovl Studio/Magic effects pack/Materials/Flash.mat")
+                       ?? UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Hovl Studio/Magic effects pack/Materials/Stone.mat");
+#endif
+            if (particleMat == null)
+            {
+                Shader s = Shader.Find("Universal Render Pipeline/Particles/Unlit") 
+                        ?? Shader.Find("Particles/Standard Unlit") 
+                        ?? Shader.Find("Sprites/Default");
+                particleMat = new Material(s);
+            }
+            renderer.material = particleMat;
+        }
+
+        ps.Play();
+        Destroy(shatterObj, 0.8f);
     }
 
     // =====================================================
@@ -1597,8 +1883,12 @@ public class BossController : MonoBehaviour
 
             if (animator != null)
             {
-                animator.ResetTrigger("bossSpell");
-                animator.SetTrigger("bossSpell");
+                animator.ResetTrigger("bossSwipe");
+                animator.ResetTrigger("bossPunch");
+                animator.ResetTrigger("bossStomp");
+                animator.ResetTrigger("bossJumpAttack");
+                animator.ResetTrigger("Spell");
+                animator.SetTrigger("Spell");
                 animator.Play("SpellGround", 0, 0f);
             }
 
@@ -1656,7 +1946,7 @@ public class BossController : MonoBehaviour
         isAttacking = false;
         isExecutingCombo = false;
 
-        if (agent != null && agent.enabled && agent.isOnNavMesh && !IsStunned && !IsDead && CanInitiateAction)
+        if (agent != null && agent.enabled && agent.isOnNavMesh && !IsStunned && !IsDead && CanInitiateAction && !OverrideMovement)
             agent.isStopped = false;
 
         if (showDebugLog) Debug.Log("⚔️ [BOSS COMBO] ✅ Combo Prisão Esmagadora finalizado com sucesso!");
@@ -1915,6 +2205,16 @@ public class BossController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Força a transição imediata para a fase especificada (1, 2 ou 3).
+    /// </summary>
+    public void ForcePhase(int targetPhase)
+    {
+        if (targetPhase < 1 || targetPhase > 3) return;
+        if (showDebugLog) Debug.Log($"[BossController] ⚡ Forçando transição para FASE {targetPhase}");
+        TransitionToPhase(targetPhase);
+    }
+
     private void TransitionToPhase(int newPhase)
     {
         if (showDebugLog) Debug.Log($"[BossController] 🔄 FASE {CurrentPhase} → FASE {newPhase} (HP: {HealthPercent:P0})");
@@ -1935,17 +2235,20 @@ public class BossController : MonoBehaviour
         {
             case 1:
                 CurrentState = BossState.Phase1;
+                if (visualPhase2 != null) visualPhase2.SetActive(true);
+                if (visualPhase3 != null) visualPhase3.SetActive(false);
                 break;
             case 2:
                 CurrentState = BossState.Phase2;
+                if (visualPhase2 != null) visualPhase2.SetActive(true);
+                if (visualPhase3 != null) visualPhase3.SetActive(false);
                 TriggerCameraShake(0.5f, 0.20f);
                 StartCoroutine(CocoonShatterLightPulseRoutine());
                 TriggerPowerUP(2.5f);
                 break;
             case 3:
                 CurrentState = BossState.Phase3;
-                TriggerCameraShake(0.5f, 0.22f);
-                TriggerPowerUP(2.5f);
+                StartCoroutine(Phase3EclosionRoutine());
                 break;
         }
 
@@ -1957,11 +2260,104 @@ public class BossController : MonoBehaviour
             {
                 agent.Warp(hit.position);
             }
-            if (agent.isOnNavMesh && CanInitiateAction) agent.isStopped = false;
+            if (agent.isOnNavMesh && CanInitiateAction && !OverrideMovement && newPhase != 3) agent.isStopped = false;
         }
 
         // Notifica todos os sistemas
         BossEvents.RaisePhaseChanged(newPhase);
+    }
+
+    /// <summary>
+    /// Cutscene de Eclosão da Fase 3:
+    ///  • Transição INSTANTÂNEA direta para a Fase 3 (sem tocar animação de PowerUp).
+    ///  • Troca imediata de malhas e Animator Controller para a Fase 3.
+    ///  • Efeito visual de clímax: Flash esmeralda + Explosão de folhas + Shockwave.
+    /// </summary>
+    public IEnumerator Phase3EclosionRoutine()
+    {
+        isInvulnerableDuringTransition = true;
+        if (health != null) health.isInvulnerable = true;
+
+        if (agent != null && agent.isOnNavMesh)
+        {
+            agent.isStopped = true;
+            agent.velocity = Vector3.zero;
+        }
+
+        if (showDebugLog) Debug.Log("🌱 [PHASE 3 ECLOSION] Transição direta para Fase 3 (sem PowerUp)...");
+
+        // 1. CLÍMAX VISUAL INSTANTÂNEO
+        TriggerHitstop(0.08f);
+        VFXManager.Play(VFXType.ImpactFrame, transform.position + Vector3.up * 1.5f, Quaternion.identity);
+        VFXManager.Play(VFXType.CocoonLeavesBurst, transform.position + Vector3.up * 1.5f, Quaternion.identity);
+        TriggerCameraShake(0.5f, 0.25f);
+
+        // Onda de choque explosiva de 8.5m com knockback no Player
+        BossAoEShockwave.TriggerBossExplosion(transform.position, 8.5f, 15, 18.0f);
+
+        // Pulso de luz intensa na arena
+        GameObject flashLightObj = new GameObject("Phase3_Eclosion_Flash");
+        flashLightObj.transform.position = transform.position + Vector3.up * 2.0f;
+        Light flashLight = flashLightObj.AddComponent<Light>();
+        flashLight.color = new Color(0.20f, 1.00f, 0.40f); // Verde esmeralda / neon
+        flashLight.intensity = 40f;
+        flashLight.range = 35f;
+
+        // 2. TROCA DE MALHAS & ANIMATOR INSTANTÂNEA
+        if (visualPhase2 != null) visualPhase2.SetActive(false);
+        if (visualPhase3 != null) visualPhase3.SetActive(true);
+
+        Animator p3Anim = visualPhase3 != null ? visualPhase3.GetComponentInChildren<Animator>(true) : null;
+        if (p3Anim != null)
+        {
+            animator = p3Anim;
+            animator.applyRootMotion = useRootMotion;
+            if (phase3AnimatorController != null)
+            {
+                animator.runtimeAnimatorController = phase3AnimatorController;
+            }
+            if (animator.GetComponent<BossAnimationEvents>() == null)
+            {
+                animator.gameObject.AddComponent<BossAnimationEvents>();
+            }
+            animator.ResetTrigger("Roar");
+            animator.ResetTrigger("bossLowAttack");
+            animator.ResetTrigger("bossUpAttack");
+            animator.ResetTrigger("AcidSpit");
+            animator.ResetTrigger("ThornVolley");
+            animator.Play("Idle", 0, 0f);
+        }
+
+        // Vincula o estiramento de braços aos ossos exclusivos do modelo da Fase 3
+        var armStretch = GetComponent<BossArmStretch>() ?? GetComponentInChildren<BossArmStretch>();
+        if (armStretch != null && visualPhase3 != null)
+        {
+            armStretch.FindBones(visualPhase3);
+        }
+
+        // Fade out rápido da luz de flash
+        float elapsed = 0f;
+        float flashDur = 0.5f;
+        while (elapsed < flashDur)
+        {
+            elapsed += Time.deltaTime;
+            if (flashLight != null) flashLight.intensity = Mathf.Lerp(40f, 0f, elapsed / flashDur);
+            yield return null;
+        }
+        if (flashLightObj != null) Destroy(flashLightObj);
+
+        yield return new WaitForSeconds(0.2f);
+
+        // 3. Retomada de combate na Fase 3
+        if (health != null) health.isInvulnerable = false;
+        isInvulnerableDuringTransition = false;
+
+        if (agent != null && agent.isOnNavMesh && CanInitiateAction && !OverrideMovement)
+        {
+            agent.isStopped = false;
+        }
+
+        if (showDebugLog) Debug.Log("🌺 [PHASE 3 ECLOSION] Boss Flor ativo! Fase 3 iniciada com sucesso.");
     }
 
     private IEnumerator PhaseTransitionInvulnerabilityRoutine(float duration)
@@ -2015,12 +2411,18 @@ public class BossController : MonoBehaviour
 
     private void HandleCombatUpdate()
     {
-        if (!CanInitiateAction)
+        if (!CanInitiateAction || OverrideMovement)
         {
             if (agent != null && agent.enabled && agent.isOnNavMesh)
             {
                 agent.isStopped = true;
                 agent.velocity = Vector3.zero;
+            }
+
+            // No modo Sandbox (OverrideMovement), permite continuar encarando o player para testes de animação
+            if (OverrideMovement && alwaysFacePlayerInSandbox && !IsDead)
+            {
+                HandleRotation();
             }
             return;
         }
@@ -2063,11 +2465,11 @@ public class BossController : MonoBehaviour
             return;
         }
 
-        // Decisão de Aproximação: Teleporte estilo SharpBlur OU Sprint tradicional
+        // Decisão de Aproximação: Teleporte estilo SharpBlur (EXCLUSIVO DA FASE 2) OU Sprint tradicional
         float sprintThreshold = phaseConfig != null ? phaseConfig.sprintDistanceThreshold : 5.5f;
         float teleportThreshold = Mathf.Min(sprintThreshold, meleeRange + 0.5f);
 
-        if (enableSharpBlurTeleport && distToPlayer > teleportThreshold && meleeTimer <= 0f && !isTeleporting && CanInitiateAction)
+        if (CurrentPhase == 2 && enableSharpBlurTeleport && distToPlayer > teleportThreshold && meleeTimer <= 0f && !isTeleporting && CanInitiateAction)
         {
             if (UnityEngine.Random.Range(0f, 100f) <= teleportChance)
             {
@@ -2119,17 +2521,34 @@ public class BossController : MonoBehaviour
     }
     // --------------------
 
-    [Header("🏃 Root Motion & Locomotion")]
-    [Tooltip("Usa o Root Motion da animação durante o Sprint para sincronização 100% perfeita com a passada do Boss.")]
-    public bool useRootMotionOnSprint = false;
-
     /// <summary>
     /// Chamado pelo BossAnimationEvents no GameObject do Animator.
-    /// O NavMeshAgent já conduz o Boss com precisão a 8.5m/s evitando duplicação indesejada de deslocamento.
+    /// Aplica o deslocamento completo do Root Motion (passadas, socos, agachamentos/dobrar joelho),
+    /// permitindo que o Boss se abaixe naturalmente sem que os pés flutuem no ar.
     /// </summary>
     public void OnChildAnimatorMove(Animator anim)
     {
-        if (anim == null) return;
+        if (anim == null || !useRootMotion) return;
+
+        Vector3 deltaPos = anim.deltaPosition;
+
+        if (deltaPos.sqrMagnitude > 0.000001f)
+        {
+            if (agent != null && agent.enabled && agent.isOnNavMesh)
+            {
+                agent.Move(deltaPos);
+            }
+            else
+            {
+                transform.position += deltaPos;
+            }
+        }
+
+        // Aplica rotação do Animator apenas quando o Boss NÃO estiver mirando/conjurando magias manuais
+        if (anim.deltaRotation != Quaternion.identity && !isCastingSpell)
+        {
+            transform.rotation *= anim.deltaRotation;
+        }
     }
 
     [Header("🏃 Steering & Locomotion Easing")]
@@ -2363,7 +2782,20 @@ public class BossController : MonoBehaviour
         // Define a lista de candidatos para o ataque
         List<string> candidateAttacks = new List<string>();
 
-        if (isTargetStunned)
+        if (CurrentPhase == 3)
+        {
+            // FASE 3: Apenas os 2 ataques Melee ativos (Ataque Básico Baixo e Ataque Baixo Uppercut)
+            if (phase3MeleeAttackTriggers != null && phase3MeleeAttackTriggers.Length > 0)
+            {
+                candidateAttacks.AddRange(phase3MeleeAttackTriggers);
+            }
+            else
+            {
+                candidateAttacks.Add("bossLowAttack");
+                candidateAttacks.Add("bossUpAttack");
+            }
+        }
+        else if (isTargetStunned)
         {
             // Player atordoado: punição pesada com Stomp ou Punch
             candidateAttacks.Add("bossStomp");
@@ -2395,8 +2827,16 @@ public class BossController : MonoBehaviour
             candidateAttacks.RemoveAll(atk => atk == lastMeleeAttack);
             if (candidateAttacks.Count == 0)
             {
-                candidateAttacks.Add("bossPunch");
-                candidateAttacks.Add("bossSwipe");
+                if (CurrentPhase == 3)
+                {
+                    candidateAttacks.Add("bossLowAttack");
+                    candidateAttacks.Add("bossUpAttack");
+                }
+                else
+                {
+                    candidateAttacks.Add("bossPunch");
+                    candidateAttacks.Add("bossSwipe");
+                }
             }
         }
 
@@ -2411,14 +2851,28 @@ public class BossController : MonoBehaviour
             else if (selectedTrigger == "bossPunch") stateName = "BossPunch";
             else if (selectedTrigger == "bossJumpAttack") stateName = "JumpAttack";
             else if (selectedTrigger == "bossStomp") stateName = "STOMP";
+            else if (selectedTrigger == "bossLowAttack") stateName = "Attack_Low";
+            else if (selectedTrigger == "bossUpAttack") stateName = "Attack_Uppercut";
 
             animator.ResetTrigger("bossSwipe");
             animator.ResetTrigger("bossPunch");
             animator.ResetTrigger("bossJumpAttack");
             animator.ResetTrigger("bossStomp");
+            animator.ResetTrigger("bossLowAttack");
+            animator.ResetTrigger("bossUpAttack");
 
             animator.SetTrigger(selectedTrigger);
             animator.Play(stateName, 0, 0f);
+        }
+
+        // Estiramento elástico contínuo de braço na Fase 3 (Calibrado individualmente com Delay e Duração)
+        if (selectedTrigger == "bossUpAttack" || selectedTrigger == "bossLowAttack")
+        {
+            var armStretch = GetComponent<BossArmStretch>() ?? GetComponentInChildren<BossArmStretch>();
+            if (armStretch != null)
+            {
+                armStretch.TriggerAttackStretch(selectedTrigger);
+            }
         }
 
         // === 1. ANTICIPATION, SALTO PERSEGUIDOR & TRACKING CUTOFF ===
@@ -2427,6 +2881,8 @@ public class BossController : MonoBehaviour
         // - JumpAttack (speed 1.0x, duração total: 3.67s): windup/salto = 2.03s, recovery/pouso = 1.64s
         // - BossPunch (speed 1.0x, duração total: 2.67s): windup = 0.80s, recovery = 1.87s
         // - BossSwipe (speed 1.0x, duração total: 1.10s): windup = 0.45s, recovery = 0.65s
+        // - BossLowAttack (Fase 3, duração 2.50s): windup = 0.55s, recovery = 1.25s
+        // - BossUpAttack (Fase 3, duração 3.17s): windup = 0.75s, recovery = 1.45s
         float windUp = 0.45f;
         float recoveryWindow = 0.65f;
 
@@ -2449,6 +2905,16 @@ public class BossController : MonoBehaviour
         {
             windUp = 0.45f;
             recoveryWindow = 0.65f;
+        }
+        else if (selectedTrigger == "bossLowAttack")
+        {
+            windUp = 0.55f;
+            recoveryWindow = 1.25f;
+        }
+        else if (selectedTrigger == "bossUpAttack")
+        {
+            windUp = 0.75f;
+            recoveryWindow = 1.45f;
         }
 
         if (IsInvisible)
@@ -2565,7 +3031,7 @@ public class BossController : MonoBehaviour
             refractionComp.SetTemporaryVisibility(false);
         }
 
-        if (agent != null && agent.enabled && agent.isOnNavMesh && !IsStunned && !IsDead && CanInitiateAction)
+        if (agent != null && agent.enabled && agent.isOnNavMesh && !IsStunned && !IsDead && CanInitiateAction && !OverrideMovement)
         {
             agent.isStopped = false;
             if (playerTransform != null)
@@ -2575,6 +3041,44 @@ public class BossController : MonoBehaviour
         }
 
         isAttacking = false;
+    }
+
+    private IEnumerator DelayedArmStretch(BossArmStretch stretch, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        if (stretch != null) stretch.StretchRightArm();
+    }
+
+    // =====================================================
+    // 🌱 FASE 3 - ATAQUES DO SERRALHA (CUSPE ÁCIDO & SALVA DE ESPINHOS)
+    // =====================================================
+
+    /// <summary>
+    /// Dispara o ataque de Cuspe Ácido (Fase 3 - Desenvolvido pelo Serralha).
+    /// </summary>
+    public virtual void TriggerAcidSpit()
+    {
+        if (animator != null)
+        {
+            animator.ResetTrigger("AcidSpit");
+            animator.SetTrigger("AcidSpit");
+        }
+        OnAcidSpitTriggered?.Invoke();
+        if (showDebugLog) Debug.Log("🧪 [BossController] Cuspe Ácido disparado (Hook Serralha)!");
+    }
+
+    /// <summary>
+    /// Dispara a Salva de Espinhos (Fase 3 - Desenvolvido pelo Serralha).
+    /// </summary>
+    public virtual void TriggerThornVolley()
+    {
+        if (animator != null)
+        {
+            animator.ResetTrigger("ThornVolley");
+            animator.SetTrigger("ThornVolley");
+        }
+        OnThornVolleyTriggered?.Invoke();
+        if (showDebugLog) Debug.Log("🌵 [BossController] Salva de Espinhos disparada (Hook Serralha)!");
     }
 
     public static void TriggerCameraShake(float duration = 0.35f, float magnitude = 0.12f)
@@ -2645,20 +3149,60 @@ public class BossController : MonoBehaviour
     // MORTE
     // =====================================================
 
+    public void TriggerDeathSequence()
+    {
+        // Se visualPhase3 existir, ativa imediatamente
+        if (visualPhase3 != null)
+        {
+            if (visualPhase2 != null) visualPhase2.SetActive(false);
+            visualPhase3.SetActive(true);
+
+            Animator p3Anim = visualPhase3.GetComponentInChildren<Animator>(true);
+            if (p3Anim != null)
+            {
+                animator = p3Anim;
+                if (phase3AnimatorController != null)
+                {
+                    animator.runtimeAnimatorController = phase3AnimatorController;
+                }
+            }
+        }
+        CurrentPhase = 3;
+        OnBossDeath();
+    }
+
+    private bool isDeathSequenceRunning = false;
+
     /// <summary>
     /// Chamado pelo DummyHealth.onDeathOverride quando o HP chega a 0.
     /// NÃO usa o Destroy padrão — controla a animação de derrota.
     /// </summary>
     private void OnBossDeath()
     {
-        if (CurrentState == BossState.Dead) return;
+        if (CurrentState == BossState.Dead || isDeathSequenceRunning) return;
+        isDeathSequenceRunning = true;
+
+        // REGRA ABSOLUTA: O Boss só morre definitivamente no final da FASE 3!
+        if (CurrentPhase < 3)
+        {
+            isDeathSequenceRunning = false;
+            if (CurrentPhase == 1)
+            {
+                TransitionToPhase(2);
+            }
+            else if (CurrentPhase == 2)
+            {
+                TransitionToPhase(3);
+            }
+            return;
+        }
 
         CurrentState = BossState.Dead;
         CurrentPhase = 0;
 
-        if (showDebugLog) Debug.Log("[BossController] 💀 BOSS DERROTADO!");
+        if (showDebugLog) Debug.Log("[BossController] 💀 BOSS DERROTADO NO FINAL DA FASE 3!");
 
-        // Para tudo
+        // Para a movimentação e navegação
         if (agent != null && agent.enabled)
         {
             agent.isStopped = true;
@@ -2667,39 +3211,154 @@ public class BossController : MonoBehaviour
 
         StopAllCoroutines();
 
-        // Desativa refração
+        // Desativa refração/invisibilidade
         if (IsInvisible) SetRefraction(false);
 
-        // Destrói o selo da arena
+        // Desativa todos os hitboxes de ataque
+        DisableAllHitboxes();
+
+        // Para imediatamente todas as partículas ativas no corpo para não ficarem flutuando no ar
+        ParticleSystem[] existingParticles = GetComponentsInChildren<ParticleSystem>();
+        foreach (var ps in existingParticles)
+        {
+            if (ps != null)
+            {
+                ps.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+            }
+        }
+
+        // Destrói o selo da arena liberando passagem
         if (arenaSeal != null)
         {
             Destroy(arenaSeal);
             if (showDebugLog) Debug.Log("[BossController] 🚪 Selo da arena destruído — caminho aberto!");
         }
 
-        // Notifica todos
+        // Notifica evento de vitória para o jogo
         BossEvents.RaiseBossDefeated();
 
-        // Animação provisória de morte: encolhe e some
+        // Dispara a animação de morte
         StartCoroutine(DeathAnimation());
+    }
+
+    /// <summary>
+    /// Retorna o Transform exato do tórax / peito (Chest) da malha animada do Boss.
+    /// </summary>
+    private Transform GetChestTransform(Animator anim)
+    {
+        if (anim != null)
+        {
+            // 1. Tenta obter pelo Mecanim Humanoid Avatar
+            Transform chest = anim.GetBoneTransform(HumanBodyBones.UpperChest);
+            if (chest == null) chest = anim.GetBoneTransform(HumanBodyBones.Chest);
+            if (chest == null) chest = anim.GetBoneTransform(HumanBodyBones.Spine);
+            if (chest != null) return chest;
+
+            // 2. Busca recursiva pelos nomes dos ossos na hierarquia
+            string[] chestNames = new string[] { "mixamorig:Spine2", "mixamorig:Spine1", "mixamorig:Spine", "Spine2", "Spine1", "Chest", "mixamorig:Hips" };
+            foreach (var name in chestNames)
+            {
+                Transform found = FindBoneRecursive(anim.transform, name);
+                if (found != null) return found;
+            }
+        }
+
+        return transform;
+    }
+
+    private Transform FindBoneRecursive(Transform parent, string boneName)
+    {
+        if (parent.name.Equals(boneName, System.StringComparison.OrdinalIgnoreCase)) return parent;
+        for (int i = 0; i < parent.childCount; i++)
+        {
+            Transform found = FindBoneRecursive(parent.GetChild(i), boneName);
+            if (found != null) return found;
+        }
+        return null;
     }
 
     private IEnumerator DeathAnimation()
     {
-        // Animação provisória: encolhe durante 2 segundos
-        float duration = 2f;
-        float elapsed = 0f;
-        Vector3 startScale = transform.localScale;
+        // 1. Garante que o visual da Fase 3 está ativo e configurado
+        if (visualPhase3 != null)
+        {
+            if (visualPhase2 != null) visualPhase2.SetActive(false);
+            visualPhase3.SetActive(true);
+        }
 
-        while (elapsed < duration)
+        Animator activeAnim = null;
+        if (visualPhase3 != null && visualPhase3.activeInHierarchy)
+            activeAnim = visualPhase3.GetComponentInChildren<Animator>(true);
+        if (activeAnim == null && visualPhase2 != null && visualPhase2.activeInHierarchy)
+            activeAnim = visualPhase2.GetComponentInChildren<Animator>(true);
+        if (activeAnim == null)
+            activeAnim = animator;
+
+        if (activeAnim != null)
+        {
+            activeAnim.enabled = true;
+            activeAnim.speed = 1f;
+
+            if (phase3AnimatorController != null && visualPhase3 != null && visualPhase3.activeInHierarchy)
+            {
+                activeAnim.runtimeAnimatorController = phase3AnimatorController;
+            }
+
+            activeAnim.ResetTrigger("bossLowAttack");
+            activeAnim.ResetTrigger("bossUpAttack");
+            activeAnim.ResetTrigger("ThornVolley");
+            activeAnim.ResetTrigger("AcidSpit");
+            try { activeAnim.SetTrigger("Die"); } catch { }
+            try { activeAnim.SetTrigger("DeathBoss"); } catch { }
+
+            // Força a execução direta do estado "Die" ou "DeathBoss"
+            if (activeAnim.HasState(0, Animator.StringToHash("Die")))
+                activeAnim.Play("Die", 0, 0f);
+            else if (activeAnim.HasState(0, Animator.StringToHash("DeathBoss")))
+                activeAnim.Play("DeathBoss", 0, 0f);
+
+            activeAnim.Update(0f);
+        }
+
+        // 2. Aguarda a queda do Boss até atingir o chão (~2 segundos)
+        yield return new WaitForSeconds(2.0f);
+
+        // Impacto do corpo caindo no chão: tremor de tela
+        TriggerCameraShake(0.30f, 0.25f);
+
+        // DISPARO ÚNICO DO EFEITO DE FOLHAS: Acontece no CHEST (peito) do Boss, EXATAMENTE UMA VEZ
+        Transform chestBone = GetChestTransform(activeAnim);
+        Vector3 chestPos = chestBone != null ? chestBone.position : (transform.position + transform.forward * 1.8f);
+        VFXManager.Play(VFXType.CocoonLeavesBurst, chestPos, Quaternion.identity);
+
+        // 3. Momento de silêncio e vitória: corpo inerte no chão por 2 segundos
+        yield return new WaitForSeconds(2.0f);
+
+        if (showDebugLog) Debug.Log("[BossController] 🌱 O Boss está sendo absorvido pela terra...");
+
+        // 4. Inicia o afundamento / sucção para dentro do planeta (SEM disparar novos efeitos repetidos)
+        Vector3 startSinkPos = transform.position;
+        float sinkDepth = 3.5f;     // Metros que ele afunda para sumir sob o chão
+        float sinkDuration = 3.2f;  // Tempo suave de sucção
+        float elapsed = 0f;
+
+        while (elapsed < sinkDuration)
         {
             elapsed += Time.deltaTime;
-            float t = elapsed / duration;
-            transform.localScale = Vector3.Lerp(startScale, Vector3.zero, t);
+            float t = elapsed / sinkDuration;
+            // Interpolação suave de afundamento
+            float smoothT = Mathf.SmoothStep(0f, 1f, t);
+
+            transform.position = startSinkPos + Vector3.down * (smoothT * sinkDepth);
             yield return null;
         }
 
-        // Destroi o GameObject do boss
+        // 5. Destroi ou desativa o objeto após a absorção completa
+        if (VictoryScreenUI.Instance != null)
+        {
+            VictoryScreenUI.Instance.ShowVictoryScreen();
+        }
+
         Destroy(gameObject);
     }
 

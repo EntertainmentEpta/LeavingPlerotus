@@ -164,7 +164,7 @@ MonoBehaviour:
   healthBarSlider: {fileID: 0}
   normalColor: {r: 0.45705712, g: 1, b: 0, a: 1}
   buffedColor: {r: 0, g: 1, b: 1, a: 1}
-  floatingDamageTextPrefab: {fileID: 7217528928149285678, guid: d0cfc8be9256baf4d853d1a092c24d9d, type: 3}
+  floatingDamageTextPrefab: {fileID: 119183615461286708, guid: e1f50e2f4933445c94ed847caa8c7a3c, type: 3}
   textOffset: {x: 0, y: 3, z: 0}
   hitColor: {r: 1, g: 0, b: 0, a: 1}
   hitFlashTime: 0.2
@@ -198,6 +198,14 @@ MonoBehaviour:
   stunTelegraphTime: 1.5
   stunRadius: 5
   comboHitsForStun: 2
+  walkingSounds:
+  - {fileID: 8300000, guid: b88a35714c3dce4488a829bdef12597c, type: 3}
+  - {fileID: 8300000, guid: 19678d1edcee861418bdd8c5fbe57634, type: 3}
+  - {fileID: 8300000, guid: 46caeddc30d4e5a4fbaa0bee3a91f65d, type: 3}
+  walkingSoundVolume: 0.6
+  stepInterval: 0.45
+  stompSound: {fileID: 8300000, guid: 63fc45f809a3c804cb02d179f93058b8, type: 3}
+  stompSoundVolume: 0.9
 --- !u!114 &343962479280987070
 MonoBehaviour:
   m_ObjectHideFlags: 0

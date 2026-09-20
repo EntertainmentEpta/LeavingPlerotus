@@ -17,7 +17,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &8412268608241055937
 Transform:
   m_ObjectHideFlags: 0
@@ -162,11 +162,26 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6768228173e17864ea3191da694f1384, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::HomingHazard
-  moveSpeed: 2.5
-  maxFlyHeight: 1.5
-  bobAmplitude: 0.15
-  bobSpeed: 2.2
+  moveSpeed: 3.2
+  emergeDuration: 0.25
+  emergeUpSpeed: 1.0
+  bobAmplitude: 0.12
+  bobSpeed: 2.5
+  fuseTriggerDistance: 2.5
+  fuseDuration: 0.9
+  explosionRadius: 3.5
+  explosionDamage: 25
+  explosionSound: {fileID: 8300000, guid: b10e970ebfc7ad6429e84ff52c84bc55, type: 3}
+  explosionSoundVolume: 1
+  fuseTickSound: {fileID: 8300000, guid: 287e278dcf11a2a43849136ca75064bd, type: 3}
+  fuseTickVolume: 0.75
+  enableCameraShake: 1
+  cameraShakeDuration: 0.28
+  cameraShakeIntensity: 0.42
+  knockbackForce: 12
+  explosionVFXPrefab: {fileID: 8194992990867289339, guid: 99bc28c0d45f51c4fbac01080b73edc7, type: 3}
+  explosionColor: {r: 1, g: 0.4, b: 0.05, a: 1}
+  shockwaveRingColor: {r: 1, g: 0.65, b: 0.2, a: 1}
 --- !u!114 &2242724033947634081
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -183,7 +198,7 @@ MonoBehaviour:
   healthBarSlider: {fileID: 0}
   normalColor: {r: 1, g: 0, b: 0, a: 1}
   buffedColor: {r: 0, g: 1, b: 1, a: 1}
-  floatingDamageTextPrefab: {fileID: 7217528928149285678, guid: d0cfc8be9256baf4d853d1a092c24d9d, type: 3}
+  floatingDamageTextPrefab: {fileID: 119183615461286708, guid: e1f50e2f4933445c94ed847caa8c7a3c, type: 3}
   textOffset: {x: 0, y: 2, z: 0}
   hitColor: {r: 1, g: 0, b: 0, a: 1}
   hitFlashTime: 0.2
@@ -196,7 +211,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1155010451884850368}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d482dbe7eec93fe4982b02ec40e47af9, type: 3}
   m_Name: 

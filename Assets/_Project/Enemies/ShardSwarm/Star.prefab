@@ -17,7 +17,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &832261096942121257
 Transform:
   m_ObjectHideFlags: 0
@@ -15045,7 +15045,7 @@ MonoBehaviour:
   healthBarSlider: {fileID: 5836948737535164557}
   normalColor: {r: 1, g: 0, b: 0, a: 1}
   buffedColor: {r: 0, g: 1, b: 1, a: 1}
-  floatingDamageTextPrefab: {fileID: 7217528928149285678, guid: d0cfc8be9256baf4d853d1a092c24d9d, type: 3}
+  floatingDamageTextPrefab: {fileID: 119183615461286708, guid: e1f50e2f4933445c94ed847caa8c7a3c, type: 3}
   textOffset: {x: 0, y: 2, z: 0}
   hitColor: {r: 1, g: 0, b: 0, a: 1}
   hitFlashTime: 0.2
@@ -15109,6 +15109,15 @@ MonoBehaviour:
   spikeShieldHazardRadius: 2
   shieldVisualObject: {fileID: 779317303372619932}
   shieldFlashDuration: 1.5
+  shotSound: {fileID: 8300000, guid: 3082d34287cc95f4aaf16c910990def9, type: 3}
+  shotSoundVolume: 0.8
+  returnShotSound: {fileID: 0}
+  returnShotSoundVolume: 0.8
+  returnShotPitch: 0.62
+  useReturnShotReverb: 1
+  returnShotReverbPreset: 9
+  zapSound: {fileID: 8300000, guid: b42e55eda9c9a8d4f84f078642069000, type: 3}
+  zapSoundVolume: 0.9
 --- !u!114 &6288799467431216096
 MonoBehaviour:
   m_ObjectHideFlags: 0

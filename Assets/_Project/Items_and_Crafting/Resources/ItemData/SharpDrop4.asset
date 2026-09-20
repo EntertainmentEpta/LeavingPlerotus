@@ -31,3 +31,4 @@ MonoBehaviour:
   - attributeType: 20
     value: 2
     isMultiplier: 0
+  tier4Effect: 1

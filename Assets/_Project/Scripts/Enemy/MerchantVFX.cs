@@ -46,9 +46,27 @@ public class MerchantVFX : MonoBehaviour
     public GameObject surgicalRemovalVFX;
     public GameObject curseAuraVFX;
 
-    [Header("5. Áudio de Repulsão Mística")]
+    [Header("5. 🔊 Áudio do Escudo (3 sons aleatórios)")]
+    [Tooltip("AudioSource para tocar os sons do escudo. Se não atribuído, será criado automaticamente.")]
     public AudioSource audioSource;
-    public AudioClip deflectSound;
+
+    [Tooltip("Array de 3 AudioClips de deflexão do escudo. A cada hit, um será escolhido aleatoriamente.")]
+    public AudioClip[] deflectSounds = new AudioClip[3];
+
+    [Range(0f, 1f)]
+    [Tooltip("Volume dos sons de deflexão do escudo.")]
+    public float deflectVolume = 0.8f;
+
+    [Tooltip("Se verdadeiro, aplica leve variação de pitch a cada hit para soar mais natural.")]
+    public bool randomizePitch = true;
+
+    [Range(0.85f, 1.15f)]
+    [Tooltip("Pitch mínimo (variação para baixo).")]
+    public float pitchMin = 0.9f;
+
+    [Range(0.85f, 1.15f)]
+    [Tooltip("Pitch máximo (variação para cima).")]
+    public float pitchMax = 1.1f;
 
     [Header("6. Repulsão Leve de Knockback")]
     [Tooltip("Se verdadeiro, aplica um leve empurrão de repulsão no jogador ao atingir o escudo.")]
@@ -79,6 +97,7 @@ public class MerchantVFX : MonoBehaviour
     private int consecutiveHitCount = 0;
     private float timeSinceLastHit = 0f;
     private float lastShakeTime = -1f;
+    private int lastDeflectIndex = -1; // Evita repetir o mesmo som duas vezes seguidas
 
     private void Awake()
     {
@@ -109,6 +128,18 @@ public class MerchantVFX : MonoBehaviour
                     spark.SetActive(false);
                     cachedSparkParticles[spark] = spark.GetComponentsInChildren<ParticleSystem>(true);
                 }
+            }
+        }
+
+        // Auto-cria AudioSource se nenhum foi atribuído no Inspector
+        if (audioSource == null)
+        {
+            audioSource = GetComponent<AudioSource>();
+            if (audioSource == null)
+            {
+                audioSource = gameObject.AddComponent<AudioSource>();
+                audioSource.playOnAwake = false;
+                audioSource.spatialBlend = 0f;
             }
         }
     }
@@ -168,11 +199,8 @@ public class MerchantVFX : MonoBehaviour
         // 2. Disparo de Faíscas
         TriggerHitSpark(hitPosition);
 
-        // 3. Áudio de Repulsão
-        if (audioSource != null && deflectSound != null)
-        {
-            audioSource.PlayOneShot(deflectSound);
-        }
+        // 3. Áudio de Repulsão (som aleatório)
+        PlayRandomDeflectSound();
 
         // 4. Animação de Flash do Escudo Elipsoide
         if (shieldVisualObject != null)
@@ -224,6 +252,57 @@ public class MerchantVFX : MonoBehaviour
             yield return null;
         }
         repulsionCoroutine = null;
+    }
+
+    /// <summary>
+    /// Toca um som aleatório do array deflectSounds, evitando repetir o último tocado.
+    /// Aplica variação de pitch opcional para soar mais natural.
+    /// </summary>
+    private void PlayRandomDeflectSound()
+    {
+        if (deflectSounds == null || deflectSounds.Length == 0) return;
+        if (audioSource == null) return;
+
+        // Filtra apenas os clips não-nulos
+        int validCount = 0;
+        for (int i = 0; i < deflectSounds.Length; i++)
+        {
+            if (deflectSounds[i] != null) validCount++;
+        }
+        if (validCount == 0) return;
+
+        // Sorteia um índice diferente do último (se possível)
+        int index;
+        if (validCount > 1)
+        {
+            do
+            {
+                index = Random.Range(0, deflectSounds.Length);
+            } while (deflectSounds[index] == null || index == lastDeflectIndex);
+        }
+        else
+        {
+            // Só tem 1 clip válido, encontra ele
+            index = 0;
+            for (int i = 0; i < deflectSounds.Length; i++)
+            {
+                if (deflectSounds[i] != null) { index = i; break; }
+            }
+        }
+
+        lastDeflectIndex = index;
+
+        // Variação de pitch para naturalidade
+        if (randomizePitch)
+        {
+            audioSource.pitch = Random.Range(pitchMin, pitchMax);
+        }
+        else
+        {
+            audioSource.pitch = 1f;
+        }
+
+        audioSource.PlayOneShot(deflectSounds[index], deflectVolume);
     }
 
     public void TakeDamage(int damage, bool isCritical = false)

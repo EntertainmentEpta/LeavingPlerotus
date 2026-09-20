@@ -207,11 +207,32 @@ MonoBehaviour:
   fleeSpeed: 10
   fleeDestroyDistance: 50
   respawnDelay: 30
+  bismutadoWalkingSounds:
+  - {fileID: 8300000, guid: 20903468522bafe44aa689fdc644da13, type: 3}
+  - {fileID: 8300000, guid: 0223e9d892d552543be7000f0353ff47, type: 3}
+  - {fileID: 8300000, guid: 19937cfeec5c92647b9c4c48744c75c0, type: 3}
+  - {fileID: 8300000, guid: 0e9a745b3911c634987340a0f99f982b, type: 3}
+  - {fileID: 8300000, guid: 14746023fd1852c468437b56fe396eb6, type: 3}
+  - {fileID: 8300000, guid: a51e28cc418ff444eb721883d1c83b9e, type: 3}
+  bismutadoWalkingSoundVolume: 0.6
+  bismutadoStepInterval: 0.25
+  crystalFieldSounds:
+  - {fileID: 8300000, guid: 4ef3a1bf76d44704294acb4169450ed0, type: 3}
+  crystalFieldSoundVolume: 0.8
+  bismutadoAttackSounds:
+  - {fileID: 8300000, guid: 5d52b79d2d067aa45b7d817fba6b61ab, type: 3}
+  - {fileID: 8300000, guid: 56f9f55969e2d5146bfc136ecc2e2b94, type: 3}
+  - {fileID: 8300000, guid: 397ca08bf0df61549ae591b382987f6d, type: 3}
+  bismutadoAttackSoundVolume: 0.8
   baseColor: {r: 0.03, g: 0.01, b: 0.05, a: 1}
   transformedColor: {r: 0.7, g: 0.3, b: 0.6, a: 1}
   sentinelColor: {r: 0.9, g: 0.2, b: 0.8, a: 1}
   bismutadoModelPrefab: {fileID: 6152432553688559953, guid: b4f63be0b516643478d6dfc372b0fe5a, type: 3}
+  usePrefabOriginalScale: 1
   bismutado3DModelScale: {x: 1, y: 1, z: 1}
+  bismutadoModelOffsetY: 0
+  bismutadoColliderRadius: 1.8
+  bismutadoColliderCenterY: 1.5
 --- !u!114 &344258591659258005
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -225,7 +246,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MimicSpace.Mimic
   legPrefab: {fileID: 1682633662898237459, guid: fb7bce2dee9494540a1866bb5d230a51, type: 3}
-  legGenerationSounds: []
+  legGenerationSounds:
+  - {fileID: 8300000, guid: 3e03d417eb4c57b4da494a60ca688c0d, type: 3}
+  - {fileID: 8300000, guid: 83421658a5454e547be1739c50386f82, type: 3}
+  - {fileID: 8300000, guid: 5f1acde3031ef0d479401ce9d6900667, type: 3}
   legSoundVolume: 1
   numberOfLegs: 5
   partsPerLeg: 3

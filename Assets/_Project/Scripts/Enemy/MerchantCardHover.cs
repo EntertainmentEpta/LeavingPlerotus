@@ -18,6 +18,10 @@ using TMPro;
 /// </summary>
 public class MerchantCardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler
 {
+    // SFX de hover injetado pelo MerchantUIController (não precisa configurar aqui)
+    private AudioClip hoverClip;
+    private float hoverVolume = 0.7f;
+    private AudioSource audioSource;
     [Header(" Configurações de Elevação & Escala no Hover")]
     public float hoverScale = 1.08f;
     public float clickScale = 0.95f;
@@ -78,6 +82,16 @@ public class MerchantCardHover : MonoBehaviour, IPointerEnterHandler, IPointerEx
 
         // Garante temporizador inicial desfasado para evitar disparos simultâneos
         glitchTimer = Random.Range(2.0f, 5.0f);
+    }
+
+    /// <summary>
+    /// Chamado pelo MerchantUIController para injetar o som de hover nas cartas.
+    /// </summary>
+    public void SetHoverAudio(AudioClip clip, float volume, AudioSource source)
+    {
+        hoverClip = clip;
+        hoverVolume = volume;
+        audioSource = source;
     }
 
     void OnEnable()
@@ -201,6 +215,10 @@ public class MerchantCardHover : MonoBehaviour, IPointerEnterHandler, IPointerEx
             targetScale = initialScale * hoverScale;
             targetPositionOffset = new Vector3(0f, liftAmountY, 0f);
         }
+
+        // SFX de carta trocando ao passar o mouse
+        if (audioSource != null && hoverClip != null)
+            audioSource.PlayOneShot(hoverClip, hoverVolume);
     }
 
     public void OnPointerExit(PointerEventData eventData)

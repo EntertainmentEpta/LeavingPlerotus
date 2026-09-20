@@ -94,6 +94,13 @@ public class EptinhoPopupController : MonoBehaviour
     [SerializeField] private Color textColor = new Color(0.72f, 0.76f, 0.78f, 1.0f);
     [SerializeField] private bool previewPermanente = false;
 
+    [Header("🔊 Som do Popup")]
+    [Tooltip("Arraste o AudioClip 'Beep_Eptinho' aqui (Audio/SoundFX/Eptinho).")]
+    [SerializeField] private AudioClip popupBeepClip;
+    [Range(0f, 1f)]
+    [SerializeField] private float popupBeepVolume = 0.7f;
+    private AudioSource popupAudioSource;
+
     private Coroutine esconderCoroutine;
 
     private void Reset()
@@ -527,6 +534,9 @@ public class EptinhoPopupController : MonoBehaviour
         // 📐 AJUSTE DINÂMICO: Redimensiona o painel de acordo com a mensagem
         AjustarTamanhoDoPainelDinamico(mensagem);
 
+        // 🔊 Toca o beep do popup
+        PlayPopupBeep();
+
         Debug.Log("[EPTINHO POPUP] MOSTRANDO POPUP AUTO-AJUSTADO: " + mensagem);
 
         if (esconderCoroutine != null)
@@ -536,6 +546,20 @@ public class EptinhoPopupController : MonoBehaviour
         {
             esconderCoroutine = StartCoroutine(EsconderApos(3.5f));
         }
+    }
+
+    private void PlayPopupBeep()
+    {
+        if (popupBeepClip == null) return;
+
+        if (popupAudioSource == null)
+        {
+            popupAudioSource = gameObject.AddComponent<AudioSource>();
+            popupAudioSource.playOnAwake = false;
+            popupAudioSource.spatialBlend = 0f; // 2D para garantir que o player sempre ouça
+        }
+
+        popupAudioSource.PlayOneShot(popupBeepClip, popupBeepVolume);
     }
 
     IEnumerator EsconderApos(float segundos)

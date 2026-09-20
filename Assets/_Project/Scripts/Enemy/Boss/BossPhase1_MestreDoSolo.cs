@@ -87,6 +87,36 @@ public class BossPhase1_MestreDoSolo : MonoBehaviour
         animator = GetComponentInChildren<Animator>();
         rb = GetComponent<Rigidbody>();
         bossCollider = GetComponent<Collider>();
+
+#if UNITY_EDITOR
+        if (cristalPrefab == null)
+        {
+            cristalPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Enemies/Boss/Teste_casulo.prefab");
+        }
+        if (pilarPrefab == null)
+        {
+            pilarPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Enemies/Boss/Pilar_Cristal_Base.prefab");
+        }
+        if (espinhoPrefab == null)
+        {
+            espinhoPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Enemies/Boss/Espinhos_Cristal.prefab");
+        }
+#endif
+        if (cristalPrefab == null)
+        {
+            cristalPrefab = Resources.Load<GameObject>("Teste_casulo") 
+                         ?? Resources.Load<GameObject>("Enemies/Boss/Teste_casulo");
+        }
+        if (pilarPrefab == null)
+        {
+            pilarPrefab = Resources.Load<GameObject>("Pilar_Cristal_Base") 
+                       ?? Resources.Load<GameObject>("Enemies/Boss/Pilar_Cristal_Base");
+        }
+        if (espinhoPrefab == null)
+        {
+            espinhoPrefab = Resources.Load<GameObject>("Espinhos_Cristal") 
+                         ?? Resources.Load<GameObject>("Enemies/Boss/Espinhos_Cristal");
+        }
         
         Renderer[] todosRenderers = GetComponentsInChildren<Renderer>(true);
         foreach(Renderer r in todosRenderers)
@@ -116,22 +146,42 @@ public class BossPhase1_MestreDoSolo : MonoBehaviour
         if (p != null) playerTransform = p.transform;
     }
 
-    private void ControlarFase(int novaFase)
+    public void ControlarFase(int novaFase)
     {
         if (novaFase == 1)
         {
             phase1Ativa = true;
             
-            // 1. TÉCNICA DO FANTASMA
+            // 1. TÉCNICA DO FANTASMA: Esconde o modelo do Boss para que apenas o Casulo fique visível
             if (agent != null) agent.enabled = false; 
             if (rb != null) rb.isKinematic = true;
             if (bossCollider != null) bossCollider.enabled = false;
             foreach (Renderer r in renderersDoBoss) { if (r != null) r.enabled = false; }
 
+            // Destroi casulo anterior se existir
+            if (cristalInstanciado != null)
+            {
+                Destroy(cristalInstanciado);
+                cristalInstanciado = null;
+            }
+
+            // Garante auto-carregamento do prefab do casulo
+#if UNITY_EDITOR
+            if (cristalPrefab == null)
+            {
+                cristalPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Enemies/Boss/Teste_casulo.prefab");
+            }
+#endif
+            if (cristalPrefab == null)
+            {
+                cristalPrefab = Resources.Load<GameObject>("Teste_casulo") ?? Resources.Load<GameObject>("Enemies/Boss/Teste_casulo");
+            }
+
             // 2. Instancia o Casulo (Objeto separado com seu próprio colisor dedicado de 1.8m de raio)
             if (cristalPrefab != null)
             {
                 cristalInstanciado = Instantiate(cristalPrefab, transform.position, transform.rotation);
+                cristalInstanciado.name = "Casulo_Boss_Fase1";
                 
                 CapsuleCollider casuloCol = cristalInstanciado.GetComponent<CapsuleCollider>();
                 if (casuloCol == null) casuloCol = cristalInstanciado.AddComponent<CapsuleCollider>();
@@ -153,12 +203,13 @@ public class BossPhase1_MestreDoSolo : MonoBehaviour
                 DummyHealth casuloHealth = cristalInstanciado.GetComponent<DummyHealth>();
                 if (casuloHealth != null)
                 {
-                    DummyHealth vidaDoBoss = bossController.GetComponent<DummyHealth>();
-                    float limiteFase2 = bossController.phaseConfig != null ? bossController.phaseConfig.phase2Threshold : 0.7f;
+                    if (bossController == null) bossController = GetComponent<BossController>() ?? GetComponentInParent<BossController>();
+                    DummyHealth vidaDoBoss = (bossController != null) ? bossController.GetComponent<DummyHealth>() : GetComponent<DummyHealth>();
+                    float limiteFase2 = (bossController != null && bossController.phaseConfig != null) ? bossController.phaseConfig.phase2Threshold : 0.7f;
                     
-                    // O Casulo recebe a quantidade exata de vida necessária para passar de fase
-                    int danoNecessario = Mathf.RoundToInt(vidaDoBoss.maxHealth * (1f - limiteFase2));
-                    casuloHealth.maxHealth = danoNecessario;
+                    int maxHpBoss = (vidaDoBoss != null) ? vidaDoBoss.maxHealth : 500;
+                    int danoNecessario = Mathf.RoundToInt(maxHpBoss * (1f - limiteFase2));
+                    casuloHealth.maxHealth = Mathf.Max(50, danoNecessario);
                     casuloHealth.ResetHealth();
 
                     // Conecta com o script CristalCasulo se houver
@@ -169,8 +220,17 @@ public class BossPhase1_MestreDoSolo : MonoBehaviour
                     }
                 }
             }
+            else
+            {
+                Debug.LogWarning("[BossPhase1_MestreDoSolo] ⚠️ cristalPrefab (Teste_casulo) não encontrado para instanciar!");
+            }
 
-            StartCoroutine(RotinaDeAtaquesFase1());
+            // Inicia rotina de ataques se a IA estiver ativa
+            StopAllCoroutines();
+            if (bossController == null || !bossController.OverrideMovement)
+            {
+                StartCoroutine(RotinaDeAtaquesFase1());
+            }
             Debug.Log("[Fase 1] Mestre do Solo: Casulo Ativado!");
         }
         else
@@ -205,7 +265,7 @@ public class BossPhase1_MestreDoSolo : MonoBehaviour
                 if (agent.isOnNavMesh) agent.isStopped = false;
             }
             
-            Debug.Log("[Fase 1] Fim! Boss revelado para a Fase 2.");
+            Debug.Log($"[Fase 1] Fim da Fase 1! Boss revelado para a Fase {novaFase}.");
         }
     }
 
@@ -267,12 +327,22 @@ public class BossPhase1_MestreDoSolo : MonoBehaviour
     // =====================================================
     // LÓGICA DE GERAR AS PRISÕES (CÍRCULO OU QUADRADO)
     // =====================================================
-    private IEnumerator Ataque_Prisao(GameObject prefabObstaculo, bool formatoQuadrado)
+    private IEnumerator Ataque_Prisao(GameObject prefabObstaculo, bool formatoQuadrado, bool bypassPillarsCheck = false)
     {
-        // Se o prefab for nulo ou se já houver pilares/espinhos ativos na arena, NÃO TOCA NENHUMA ANIMAÇÃO e cancela imediatamente!
-        if (prefabObstaculo == null || ExistemPilaresNaCena())
+        // Se o prefab for nulo ou se já houver pilares/espinhos ativos na arena (sem bypass), cancela
+        if (prefabObstaculo == null || (!bypassPillarsCheck && ExistemPilaresNaCena()))
         {
             yield break;
+        }
+
+        if (bypassPillarsCheck)
+        {
+            activePrisonObjects.RemoveAll(item => item == null);
+            foreach (var old in activePrisonObjects)
+            {
+                if (old != null) Destroy(old);
+            }
+            activePrisonObjects.Clear();
         }
 
         atacando = true;
@@ -290,6 +360,12 @@ public class BossPhase1_MestreDoSolo : MonoBehaviour
             animator.SetTrigger("Spell");
             animator.Play("SpellGround", 0, 0f);
         }
+
+        if (playerTransform == null)
+        {
+            GameObject p = GameObject.FindGameObjectWithTag("Player");
+            if (p != null) playerTransform = p.transform;
+        }
         
         if (playerTransform != null)
         {
@@ -302,7 +378,7 @@ public class BossPhase1_MestreDoSolo : MonoBehaviour
         yield return new WaitForSeconds(0.25f);
 
         List<Vector3> posicoesFinais = new List<Vector3>();
-        Vector3 centro = playerTransform != null ? playerTransform.position : transform.position;
+        Vector3 centro = playerTransform != null ? playerTransform.position : (transform.position + transform.forward * 4f);
 
         if (!formatoQuadrado)
         {
@@ -352,7 +428,7 @@ public class BossPhase1_MestreDoSolo : MonoBehaviour
         // Mantém o Boss congelado até a animação de conjuração SpellGround finalizar completamente (~1.80s total)
         yield return new WaitForSeconds(0.85f);
 
-        if (agent != null && agent.enabled && agent.isOnNavMesh && bossController != null && bossController.CanInitiateAction)
+        if (agent != null && agent.enabled && agent.isOnNavMesh && bossController != null && bossController.CanInitiateAction && !bossController.OverrideMovement)
             agent.isStopped = false;
 
         atacando = false;
@@ -479,11 +555,20 @@ public class BossPhase1_MestreDoSolo : MonoBehaviour
         InvocarPrisaoForcado(false);
     }
 
-    public bool InvocarPrisaoForcado(bool bypassActionCheck = false)
+    public bool InvocarPrisaoForcado(bool bypassActionCheck = false, bool forceClearOld = false)
     {
-        if (atacando) return false;
+        if (atacando && !forceClearOld) return false;
         if (!bypassActionCheck && (bossController == null || !bossController.CanInitiateAction)) return false;
-        if (ExistemPilaresNaCena()) return false;
+        if (!forceClearOld && ExistemPilaresNaCena()) return false;
+
+#if UNITY_EDITOR
+        if (pilarPrefab == null)
+            pilarPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Enemies/Boss/Pilar_Cristal_Base.prefab");
+        if (espinhoPrefab == null)
+            espinhoPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Enemies/Boss/Espinhos_Cristal.prefab");
+#endif
+        if (pilarPrefab == null) pilarPrefab = Resources.Load<GameObject>("Pilar_Cristal_Base") ?? Resources.Load<GameObject>("Enemies/Boss/Pilar_Cristal_Base");
+        if (espinhoPrefab == null) espinhoPrefab = Resources.Load<GameObject>("Espinhos_Cristal") ?? Resources.Load<GameObject>("Enemies/Boss/Espinhos_Cristal");
 
         // Sorteia entre pilares ou espinhos
         if (pilarPrefab != null || espinhoPrefab != null)
@@ -495,7 +580,7 @@ public class BossPhase1_MestreDoSolo : MonoBehaviour
             if (prefab == null) return false;
 
             bool quadrado = (prefab == espinhoPrefab);
-            StartCoroutine(Ataque_Prisao(prefab, quadrado));
+            StartCoroutine(Ataque_Prisao(prefab, quadrado, bypassPillarsCheck: forceClearOld));
             return true;
         }
         return false;

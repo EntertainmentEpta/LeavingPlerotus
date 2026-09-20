@@ -91,6 +91,7 @@ public class AcidPuddleSpawner : MonoBehaviour
     private void OnPhaseChanged(int newPhase)
     {
         if (activateOnPhase > 0 && newPhase == activateOnPhase) Activate();
+        else if (activateOnPhase > 0 && newPhase != activateOnPhase) Deactivate();
     }
 
     private void OnBossDefeated()

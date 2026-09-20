@@ -72,3 +72,5 @@ MonoBehaviour:
   textFontSize: 40
   textColor: {r: 0.72, g: 0.76, b: 0.78, a: 1}
   previewPermanente: 0
+  popupBeepClip: {fileID: 8300000, guid: dd4009ea45efe58448cf68f099bc5c46, type: 3}
+  popupBeepVolume: 0.5

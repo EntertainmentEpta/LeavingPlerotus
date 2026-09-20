@@ -67,7 +67,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RoomTriggerProxy
   roomController: {fileID: 0}
---- !u!1 &569033321382338796
+--- !u!1 &1874209651432304369
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -75,8 +75,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 6476561625404661261}
-  - component: {fileID: 4828716481601849602}
+  - component: {fileID: 796807597942210167}
+  - component: {fileID: 7754110051726775590}
   m_Layer: 0
   m_Name: Barrier_Cp_Entrance
   m_TagString: Untagged
@@ -84,28 +84,28 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 0
---- !u!4 &6476561625404661261
+--- !u!4 &796807597942210167
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 569033321382338796}
+  m_GameObject: {fileID: 1874209651432304369}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.00049999973, y: 0.00049999985, z: 0.0004999998}
+  m_LocalScale: {x: 0.00037037017, y: 0.00043478253, z: 0.0003703702}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4473021552865317210}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!65 &4828716481601849602
+--- !u!65 &7754110051726775590
 BoxCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 569033321382338796}
+  m_GameObject: {fileID: 1874209651432304369}
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -119,7 +119,7 @@ BoxCollider:
   m_Enabled: 1
   serializedVersion: 3
   m_Size: {x: 12, y: 5, z: 0.4}
-  m_Center: {x: 0, y: 4.300001, z: 0}
+  m_Center: {x: 0, y: 4.3147035, z: 0}
 --- !u!1 &3338707733555335470
 GameObject:
   m_ObjectHideFlags: 0
@@ -146,11 +146,11 @@ Transform:
   m_GameObject: {fileID: 3338707733555335470}
   serializedVersion: 2
   m_LocalRotation: {x: 0.6532815, y: 0.27059805, z: 0.27059805, w: 0.6532815}
-  m_LocalPosition: {x: 0.00761, y: -0.00763, z: -0.00091}
+  m_LocalPosition: {x: 0.00761, y: -0.00763, z: -0.000794}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 5829685576720993506}
+  - {fileID: 3995497054176470091}
   m_Father: {fileID: 5331466559826976119}
   m_LocalEulerAnglesHint: {x: 45, y: 90, z: 90}
 --- !u!114 &136922798410651549
@@ -168,8 +168,13 @@ MonoBehaviour:
   pointType: 1
   connectionTag: Standard
   floorOffset: 0
+  doorWidth: 3
+  doorHeight: 3.2
+  overlapDepth: 0.15
+  showRuler: 1
+  showDoorFrame: 1
   isOccupied: 0
---- !u!1 &4409675088004065852
+--- !u!1 &3685330142872494824
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -177,8 +182,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 5829685576720993506}
-  - component: {fileID: 1094554543989745310}
+  - component: {fileID: 3995497054176470091}
+  - component: {fileID: 4872823998001608226}
   m_Layer: 0
   m_Name: Barrier_CP_Exit
   m_TagString: Untagged
@@ -186,28 +191,28 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 0
---- !u!4 &5829685576720993506
+--- !u!4 &3995497054176470091
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4409675088004065852}
+  m_GameObject: {fileID: 3685330142872494824}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.00049999997, y: 0.00049999985, z: 0.00049999997}
+  m_LocalScale: {x: 0.00037037034, y: 0.00043478253, z: 0.0003703703}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 7120192452467800972}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!65 &1094554543989745310
+--- !u!65 &4872823998001608226
 BoxCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4409675088004065852}
+  m_GameObject: {fileID: 3685330142872494824}
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -221,7 +226,7 @@ BoxCollider:
   m_Enabled: 1
   serializedVersion: 3
   m_Size: {x: 12, y: 5, z: 0.4}
-  m_Center: {x: 0, y: 4.3199987, z: 0}
+  m_Center: {x: 0, y: 4.326198, z: 0}
 --- !u!1 &4647290271472337757
 GameObject:
   m_ObjectHideFlags: 0
@@ -248,11 +253,11 @@ Transform:
   m_GameObject: {fileID: 4647290271472337757}
   serializedVersion: 2
   m_LocalRotation: {x: 0.27059805, y: -0.6532815, z: -0.6532815, w: 0.27059805}
-  m_LocalPosition: {x: -0.0082, y: 0.0082, z: -0.0009}
+  m_LocalPosition: {x: -0.008131, y: 0.008269, z: -0.000789}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 6476561625404661261}
+  - {fileID: 796807597942210167}
   m_Father: {fileID: 5331466559826976119}
   m_LocalEulerAnglesHint: {x: -45, y: -90, z: -90}
 --- !u!114 &8712667665693787836
@@ -270,6 +275,11 @@ MonoBehaviour:
   pointType: 0
   connectionTag: Standard
   floorOffset: 0
+  doorWidth: 3
+  doorHeight: 3.2
+  overlapDepth: 0.15
+  showRuler: 1
+  showDoorFrame: 1
   isOccupied: 0
 --- !u!1 &6303555823580562968
 GameObject:
@@ -586,16 +596,17 @@ MonoBehaviour:
   roomCategory: 0
   doorsAreLocked: 0
   roomIndex: 1
+  enemyPoolConfig: {fileID: 11400000, guid: c6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1, type: 2}
   mobMenorPrefabs:
   - {fileID: 8934992465927708091, guid: 56182097e246d7b4b895b2c1feb0d2ba, type: 3}
-  - {fileID: 4268998290841704769, guid: 54907d67b9c4ae344968f4a78411c6ac, type: 3}
-  atiradorPrefabs:
-  - {fileID: 3359006950562635497, guid: 5e5b6987e167aa04eb10ca7764b6880b, type: 3}
-  - {fileID: 6393874332621996799, guid: 7e7c3ed779af1c546bc02b3423ebde95, type: 3}
+  - {fileID: 5825432386404738263, guid: 69c1af8f17b4ffe4cb2a1e940deae7b8, type: 3}
   - {fileID: 326464074420430212, guid: 75587e19386eb024c8b895034e0d087d, type: 3}
+  atiradorPrefabs:
+  - {fileID: 6393874332621996799, guid: 7e7c3ed779af1c546bc02b3423ebde95, type: 3}
+  - {fileID: 3359006950562635497, guid: 5e5b6987e167aa04eb10ca7764b6880b, type: 3}
   tanquePrefabs:
   - {fileID: 748345383327806496, guid: 1a7976a1e55d949409c9a7bb2c781cac, type: 3}
-  - {fileID: 6240220712296181312, guid: 5cb7d0c703daa5642aad10250777eb0e, type: 3}
+  - {fileID: 6393874332621996799, guid: 7e7c3ed779af1c546bc02b3423ebde95, type: 3}
   - {fileID: 4138484601771036003, guid: ab85fa72aae18184ea4dcf33ea87c8ff, type: 3}
   elitePrefabs:
   - {fileID: 2219830635270719724, guid: d8bf9856a9590de499ed775858ed6a48, type: 3}
@@ -615,8 +626,8 @@ MonoBehaviour:
   doors:
   - {fileID: 4647290271472337757}
   - {fileID: 3338707733555335470}
-  - {fileID: 569033321382338796}
-  - {fileID: 4409675088004065852}
+  - {fileID: 1874209651432304369}
+  - {fileID: 3685330142872494824}
   showSpawnLog: 1
 --- !u!65 &2396026864998720726
 BoxCollider:

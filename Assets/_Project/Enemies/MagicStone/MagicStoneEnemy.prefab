@@ -59,7 +59,7 @@ MonoBehaviour:
   healthBarSlider: {fileID: 6981643806915397011}
   normalColor: {r: 0.27056146, g: 1, b: 0, a: 1}
   buffedColor: {r: 0, g: 1, b: 1, a: 1}
-  floatingDamageTextPrefab: {fileID: 7217528928149285678, guid: d0cfc8be9256baf4d853d1a092c24d9d, type: 3}
+  floatingDamageTextPrefab: {fileID: 119183615461286708, guid: e1f50e2f4933445c94ed847caa8c7a3c, type: 3}
   textOffset: {x: 0, y: 2, z: 0}
   hitColor: {r: 1, g: 0, b: 0, a: 1}
   hitFlashTime: 0.2
@@ -89,12 +89,20 @@ MonoBehaviour:
   orbitDirection: 1
   floatHeight: 0.25
   floatSpeed: 1
-  attackInterval: 1.5
-  attackTelegraphTime: 0.5
-  teleportCooldown: 30
   teleportRange: 4
   minTeleportDistance: 15
   maxTeleportDistance: 20
+  teleportCooldown: 30
+  attackInterval: 1.5
+  attackTelegraphTime: 0.5
+  hoverSound: {fileID: 8300000, guid: 1a7958a85828d894091fd61e1973427b, type: 3}
+  hoverSoundVolume: 0.4
+  teleportSound: {fileID: 8300000, guid: 5e27c96573a6eb347ba4ea633f5627a9, type: 3}
+  teleportSoundVolume: 0.8
+  telegraphSound: {fileID: 8300000, guid: 7fb6525b7763856469aea26dcbf67519, type: 3}
+  telegraphSoundVolume: 0.76
+  skybeamSound: {fileID: 8300000, guid: 02233295b715d2e41ac88150aa77bc42, type: 3}
+  skybeamSoundVolume: 0.25
 --- !u!65 &1884827477303362434
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -324,6 +332,10 @@ PrefabInstance:
       propertyPath: m_Layer
       value: 6
       objectReference: {fileID: 0}
+    - target: {fileID: 4976247005849802404, guid: 01139e293efaea64b85b9723c4371284, type: 3}
+      propertyPath: m_PresetInfoIsWorld
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 6707596665340170635, guid: 01139e293efaea64b85b9723c4371284, type: 3}
       propertyPath: m_Layer
       value: 6
@@ -398,7 +410,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8789996716743726861, guid: 01139e293efaea64b85b9723c4371284, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 0
+      value: -8.3
       objectReference: {fileID: 0}
     - target: {fileID: 8789996716743726861, guid: 01139e293efaea64b85b9723c4371284, type: 3}
       propertyPath: m_AnchoredPosition.y

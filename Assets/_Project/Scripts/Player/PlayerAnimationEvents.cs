@@ -5,6 +5,7 @@ public class PlayerAnimationEvents : MonoBehaviour
     private PrimaryAttackKnife attackScript;
     private Animator anim;
     private Rigidbody playerRb;
+    private Ultimate_Axe cachedAxeUlt;
 
     private void Awake()
     {
@@ -15,11 +16,24 @@ public class PlayerAnimationEvents : MonoBehaviour
 
     private void OnAnimatorMove()
     {
+        // Durante a Ultimate, não interfere com o salto da habilidade
+        PlayerUltimate ult = GetComponentInParent<PlayerUltimate>() ?? GetComponent<PlayerUltimate>();
+        if (ult != null && ult.IsUltimateActive()) return;
+
+        if (anim == null) anim = GetComponent<Animator>();
+        if (playerRb == null) playerRb = GetComponentInParent<Rigidbody>() ?? GetComponent<Rigidbody>();
+
         if (anim != null && anim.applyRootMotion && playerRb != null)
         {
             // Repassa o deslocamento do Root Motion da animação para a física do Rigidbody pai
-            playerRb.MovePosition(playerRb.position + anim.deltaPosition);
-            playerRb.MoveRotation(playerRb.rotation * anim.deltaRotation);
+            if (anim.deltaPosition.sqrMagnitude > 0.000001f)
+            {
+                playerRb.MovePosition(playerRb.position + anim.deltaPosition);
+            }
+            if (anim.deltaRotation != Quaternion.identity)
+            {
+                playerRb.MoveRotation(playerRb.rotation * anim.deltaRotation);
+            }
         }
     }
 
@@ -37,6 +51,24 @@ public class PlayerAnimationEvents : MonoBehaviour
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Busca e faz cache da referência ao Ultimate_Axe na hierarquia do Player.
+    /// </summary>
+    private Ultimate_Axe FindUltimateAxe()
+    {
+        if (cachedAxeUlt != null) return cachedAxeUlt;
+
+        cachedAxeUlt = GetComponentInParent<Ultimate_Axe>() ?? GetComponent<Ultimate_Axe>();
+        if (cachedAxeUlt == null)
+        {
+            GameObject player = GameObject.FindGameObjectWithTag("Player");
+            if (player != null)
+                cachedAxeUlt = player.GetComponentInChildren<Ultimate_Axe>() ?? player.GetComponent<Ultimate_Axe>();
+        }
+
+        return cachedAxeUlt;
     }
 
     public void EnableHitbox()
@@ -75,8 +107,12 @@ public class PlayerAnimationEvents : MonoBehaviour
             GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
             if (playerObj != null)
             {
-                healthScript = playerObj.GetComponent<PlayerHealth>();
+                healthScript = playerObj.GetComponent<PlayerHealth>() ?? playerObj.GetComponentInChildren<PlayerHealth>();
             }
+        }
+        if (healthScript == null)
+        {
+            healthScript = Object.FindFirstObjectByType<PlayerHealth>();
         }
         
         if (healthScript != null)
@@ -99,12 +135,7 @@ public class PlayerAnimationEvents : MonoBehaviour
     public void OnAxeSlamImpact()
     {
         Debug.Log("[PlayerAnimationEvents] Repassando evento 'OnAxeSlamImpact' para o Ultimate_Axe...");
-        Ultimate_Axe axeUlt = GetComponentInParent<Ultimate_Axe>() ?? GetComponent<Ultimate_Axe>();
-        if (axeUlt == null)
-        {
-            GameObject player = GameObject.FindGameObjectWithTag("Player");
-            if (player != null) axeUlt = player.GetComponentInChildren<Ultimate_Axe>() ?? player.GetComponent<Ultimate_Axe>();
-        }
+        Ultimate_Axe axeUlt = FindUltimateAxe();
 
         if (axeUlt != null)
         {
@@ -116,11 +147,54 @@ public class PlayerAnimationEvents : MonoBehaviour
         }
     }
 
+    // ── Ponte de SFX para Animation Events (Combo Primário do Machado) ──────
+    public void PlayAxeSwing1() { FindAttackScript(); if (attackScript != null) attackScript.PlaySwing1(); }
+    public void PlayAxeSwing2() { FindAttackScript(); if (attackScript != null) attackScript.PlaySwing2(); }
+    public void PlayAxeSwing3() { FindAttackScript(); if (attackScript != null) attackScript.PlaySwing3(); }
+    public void PlayAxeSwing4() { FindAttackScript(); if (attackScript != null) attackScript.PlaySwing4(); }
+
+    // ── Ponte de SFX para Animation Events (Ultimate do Machado) ──────
+
+    /// <summary>
+    /// Ponte: Toca o som de carregamento da Ultimate do Machado. Chamado via Animation Event.
+    /// </summary>
+    public void PlayChargeSFX()
+    {
+        Ultimate_Axe axeUlt = FindUltimateAxe();
+        if (axeUlt != null)
+            axeUlt.PlayChargeSFX();
+    }
+
+    /// <summary>
+    /// Ponte: Toca o som de impacto no chão da Ultimate do Machado. Chamado via Animation Event.
+    /// </summary>
+    public void PlayGroundImpactSFX()
+    {
+        Ultimate_Axe axeUlt = FindUltimateAxe();
+        if (axeUlt != null)
+            axeUlt.PlayGroundImpactSFX();
+    }
+
+    /// <summary>
+    /// Ponte: Toca o som de estilhaçamento de cristais da Ultimate do Machado. Chamado via Animation Event.
+    /// </summary>
+    public void PlayCrystalShatterSFX()
+    {
+        Ultimate_Axe axeUlt = FindUltimateAxe();
+        if (axeUlt != null)
+            axeUlt.PlayCrystalShatterSFX();
+    }
+
     /// <summary>
     /// Evento de animação para o fim da sequência do Ultimate (retorno ao Idle).
     /// </summary>
     public void EndUltimateSequence()
     {
+        if (anim != null)
+        {
+            anim.applyRootMotion = false;
+        }
+
         PlayerUltimate ultManager = GetComponentInParent<PlayerUltimate>() ?? GetComponent<PlayerUltimate>();
         if (ultManager == null)
         {

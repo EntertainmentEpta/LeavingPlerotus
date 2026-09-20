@@ -126,6 +126,32 @@ public class ShardSwarm_AI : MonoBehaviour
     [Tooltip("Duração do brilho/pulsar do holograma do escudo ao receber dano no modo protegido.")]
     public float shieldFlashDuration = 0.35f;
 
+    [Header("--- Áudio ---")]
+    [Tooltip("Som do disparo das pontas/espinhos da Estrela")]
+    public AudioClip shotSound;
+    [Tooltip("Volume do som de disparo")]
+    [Range(0f, 1f)]
+    public float shotSoundVolume = 0.8f;
+
+    [Tooltip("Som do tiro voltando/recolhimento (Se nulo, usa o shotSound com o pitch ajustado)")]
+    public AudioClip returnShotSound;
+    [Tooltip("Volume do som do tiro voltando")]
+    [Range(0f, 1f)]
+    public float returnShotSoundVolume = 0.8f;
+    [Tooltip("Tom/Pitch do som do tiro voltando (Valores menores que 1.0 deixam mais GRAVE, acima de 1.0 deixam mais AGUDO)")]
+    [Range(0.2f, 2.0f)]
+    public float returnShotPitch = 0.65f;
+    [Tooltip("Ativa o efeito de Reverb / Eco no som do tiro voltando")]
+    public bool useReturnShotReverb = true;
+    [Tooltip("Estilo / Preset do Reverb (Cave, Room, Hallway, Generic, etc.)")]
+    public AudioReverbPreset returnShotReverbPreset = AudioReverbPreset.Cave;
+
+    [Tooltip("Som do choque elétrico / zap (pulso elétrico / debuff)")]
+    public AudioClip zapSound;
+    [Tooltip("Volume do som do choque (zap)")]
+    [Range(0f, 1f)]
+    public float zapSoundVolume = 0.9f;
+
     // Privados internos
     private Transform playerTransform;
     private Rigidbody rb;
@@ -694,6 +720,7 @@ public class ShardSwarm_AI : MonoBehaviour
     public void TriggerElectricPulse()
     {
         Debug.Log("[ESTRELA] ⚡ Pulso Elétrico descarregado!");
+        PlayZapSound(transform.position);
 
         Collider[] hits = Physics.OverlapSphere(transform.position, electricPulseRadius);
         foreach (Collider h in hits)
@@ -780,6 +807,7 @@ public class ShardSwarm_AI : MonoBehaviour
             {
                 spikeTransforms[i].SetParent(null);
                 spikeLastTrailPositions[i] = spikeTransforms[i].position;
+                PlayShotSound(spikeTransforms[i].position);
             }
             StartCoroutine(FlySingleSpike(i));
 
@@ -812,6 +840,7 @@ public class ShardSwarm_AI : MonoBehaviour
             if (spikeTransforms[spikeIndex] != null)
             {
                 spikeLastTrailPositions[spikeIndex] = spikeTransforms[spikeIndex].position;
+                PlayReturnShotSound(spikeTransforms[spikeIndex].position);
             }
             yield return new WaitForSeconds(Mathf.Max(0.05f, spikeReturnInterval));
         }
@@ -842,7 +871,7 @@ public class ShardSwarm_AI : MonoBehaviour
                 float distToCore = (coreTransform != null) ? Vector3.Distance(trailEnd, coreTransform.position) : Vector3.Distance(trailEnd, transform.position);
                 if (distToCore >= 3.0f)
                 {
-                    ElectricTrailVFX.CreateTrailSegment(trailStart, trailEnd, trailDamagePerTick, trailDuration);
+                    ElectricTrailVFX.CreateTrailSegment(trailStart, trailEnd, trailDamagePerTick, trailDuration, zapSound);
                 }
                 spikeLastTrailPositions[i] = next;
             }
@@ -1189,5 +1218,63 @@ public class ShardSwarm_AI : MonoBehaviour
 
         Gizmos.color = Color.cyan;
         Gizmos.DrawWireSphere(transform.position, electricPulseRadius);
+    }
+
+    // =============================================
+    // SISTEMA DE ÁUDIO (Disparo & Choque / Zap)
+    // =============================================
+
+    private void PlayShotSound(Vector3 position)
+    {
+        if (shotSound == null) return;
+        float pitch = Random.Range(0.95f, 1.05f);
+        PlayClipAtPointWithPitch(shotSound, position, pitch, shotSoundVolume);
+    }
+
+    private void PlayReturnShotSound(Vector3 position)
+    {
+        AudioClip clipToPlay = (returnShotSound != null) ? returnShotSound : shotSound;
+        if (clipToPlay == null)
+        {
+            Debug.LogWarning("[ESTRELA] Nenhum AudioClip atribuído em 'Return Shot Sound' nem em 'Shot Sound' no Inspector da Estrela!");
+            return;
+        }
+
+        float pitchJitter = Random.Range(-0.04f, 0.04f);
+        float finalPitch = Mathf.Clamp(returnShotPitch + pitchJitter, 0.1f, 3.0f);
+        PlayClipAtPointWithPitch(clipToPlay, position, finalPitch, returnShotSoundVolume, useReturnShotReverb, returnShotReverbPreset);
+    }
+
+    private void PlayZapSound(Vector3 position)
+    {
+        if (zapSound == null) return;
+        float pitch = Random.Range(0.9f, 1.1f);
+        PlayClipAtPointWithPitch(zapSound, position, pitch, zapSoundVolume);
+    }
+
+    private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume, bool addReverb = false, AudioReverbPreset reverbPreset = AudioReverbPreset.Cave)
+    {
+        if (clip == null) return;
+        GameObject audioObj = new GameObject("TempStarAudio");
+        audioObj.transform.position = position;
+        AudioSource aSource = audioObj.AddComponent<AudioSource>();
+        aSource.clip = clip;
+        aSource.pitch = pitch;
+        aSource.volume = volume;
+        aSource.spatialBlend = 0.5f; // Semi-3D para garantir audibilidade clara na cena
+        aSource.minDistance = 8f;
+        aSource.maxDistance = 50f;
+        aSource.rolloffMode = AudioRolloffMode.Linear;
+
+        if (addReverb)
+        {
+            AudioReverbFilter reverb = audioObj.AddComponent<AudioReverbFilter>();
+            reverb.reverbPreset = reverbPreset;
+        }
+
+        aSource.Play();
+        float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;
+        float destroyDelay = (clip.length / safePitch) + (addReverb ? 1.5f : 0.1f);
+        Destroy(audioObj, destroyDelay);
     }
 }

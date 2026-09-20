@@ -4,6 +4,8 @@ public class PlayerInteraction : MonoBehaviour
 {
     public GameObject pressFUI;
 
+    public KeyCode interactKey = KeyCode.F;
+
     private Interactable itemAtual;
 
     void Start()
@@ -35,7 +37,7 @@ public class PlayerInteraction : MonoBehaviour
 
     void Update()
     {
-        if (itemAtual != null && Input.GetKeyDown(KeyCode.F))
+        if (itemAtual != null && Input.GetKeyDown(interactKey))
         {
             if (itemAtual.gameObject.name.Contains("Eptinho") || itemAtual.gameObject.name.Contains("Eptin"))
             {

@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 public class BaseSectorTransition : MonoBehaviour
 {
@@ -19,26 +20,55 @@ public class BaseSectorTransition : MonoBehaviour
     private static bool isTransitioning = false;
     private static float nextAllowedTransitionTime = 0f;
 
+    // NOVO: Lista de players que acabaram de nascer dentro deste trigger especfico.
+    // Eles s podero ativar este trigger DEPOIS que sairem dele (OnTriggerExit).
+    private HashSet<Collider> immunePlayers = new HashSet<Collider>();
+
     private void OnTriggerEnter(Collider other)
     {
-        // Check if transition is already running or if we are in transition cooldown
-        if (isTransitioning || Time.time < nextAllowedTransitionTime) return;
+        // Se o player acabou de nascer DENTRO da porta, ignora ele at ele sair.
+        if (immunePlayers.Contains(other))
+        {
+            Debug.Log("[BaseSectorTransition] " + gameObject.name + " ignorando " + other.name + " pois ele nasceu aqui dentro.");
+            return;
+        }
 
-        // Check if it is the Player
+        // Check if transition is already running
+        if (isTransitioning) 
+        { 
+            Debug.Log("[BaseSectorTransition] Blocked by isTransitioning"); 
+            return; 
+        }
+
+        // (Opcional) Cooldown de segurana global de 0.5s para evitar bugs de mltiplos triggers no mesmo frame
+        if (Time.time < nextAllowedTransitionTime)
+        {
+            Debug.Log("[BaseSectorTransition] Blocked by global cooldown");
+            return;
+        }
+
         PlayerM playerMovement = other.GetComponent<PlayerM>();
         if (playerMovement != null)
         {
-            // Start the coroutine on the player to prevent it from being killed
-            // when the trigger's parent sector is deactivated.
-            playerMovement.StartCoroutine(DoTransition(playerMovement));
+            Debug.Log("[BaseSectorTransition] Iniciando transio de " + gameObject.name);
+            playerMovement.StartCoroutine(DoTransition(playerMovement, other));
         }
     }
 
-    private IEnumerator DoTransition(PlayerM player)
+    private void OnTriggerExit(Collider other)
+    {
+        // Quando o player sai da porta, ele perde a imunidade e pode usar a porta normalmente de novo.
+        if (immunePlayers.Contains(other))
+        {
+            immunePlayers.Remove(other);
+            Debug.Log("[BaseSectorTransition] " + other.name + " saiu de " + gameObject.name + " e perdeu a imunidade.");
+        }
+    }
+
+    private IEnumerator DoTransition(PlayerM player, Collider playerCollider)
     {
         isTransitioning = true;
 
-        // 1. Disable player movement controls and reset velocity
         player.enabled = false;
         Rigidbody rb = player.GetComponent<Rigidbody>();
         if (rb != null)
@@ -47,91 +77,82 @@ public class BaseSectorTransition : MonoBehaviour
             rb.angularVelocity = Vector3.zero;
         }
 
-        // Make the animator play idle animation
         if (player.animator != null)
         {
             player.animator.SetFloat("Speed", 0f);
         }
 
-        // Safety check: Unparent the player if they are a child of the deactivated sector
         if (sectorToDeactivate != null && player.transform.parent == sectorToDeactivate.transform)
         {
             player.transform.SetParent(null);
         }
 
-        // 2. Find ScreenFader (on player or in the scene)
         ScreenFader fader = player.GetComponentInChildren<ScreenFader>();
-        if (fader == null)
-        {
-            fader = Object.FindFirstObjectByType<ScreenFader>();
-        }
+        if (fader == null) fader = Object.FindFirstObjectByType<ScreenFader>();
 
         if (fader != null)
         {
-            // Fade Out (screen goes black)
             yield return player.StartCoroutine(fader.FadeOut());
         }
-        else
-        {
-            Debug.LogWarning("[BaseSectorTransition] ScreenFader not found. Transitioning instantly.");
-        }
 
-        // 3. Teleport Player to the new sector's spawn point
         if (spawnPoint != null)
         {
             player.transform.position = spawnPoint.position;
-            
-            // Align player rotation to spawn point rotation if set
             player.transform.rotation = spawnPoint.rotation;
+
         }
         else
         {
-            Debug.LogError("[BaseSectorTransition] Spawn Point is not assigned!");
+            Debug.LogError("[BaseSectorTransition] Spawn Point is not assigned on " + gameObject.name);
         }
 
-        // 4. Snap Camera to avoid smooth slide through space
         MoveCam cameraController = Object.FindFirstObjectByType<MoveCam>();
         if (cameraController != null)
         {
-            cameraController.playerTransform = player.transform; // Re-bind just in case
+            cameraController.playerTransform = player.transform;
             cameraController.transform.position = player.transform.position + cameraController.offset;
         }
 
-        // 5. Toggle Sector GameObjects (show/hide rooms)
-        if (sectorToActivate != null)
-        {
-            sectorToActivate.SetActive(true);
-        }
-        if (sectorToDeactivate != null)
-        {
-            sectorToDeactivate.SetActive(false);
-        }
+        if (sectorToActivate != null) sectorToActivate.SetActive(true);
+        if (sectorToDeactivate != null) sectorToDeactivate.SetActive(false);
 
-        // 6. Brief pause while screen is black
-        yield return new WaitForSeconds(blackScreenDuration);
+        // Forca atualizacao da fisica para que as portas recem ativadas sejam detectadas!
+        Physics.SyncTransforms();
 
-        // 7. Fade In (screen becomes visible)
-        if (fader != null)
+        if (spawnPoint != null)
         {
-            yield return player.StartCoroutine(fader.FadeIn());
-        }
-
-        // 8. Re-enable player movement
-        player.enabled = true;
-
-        // Apply temporary speed boost if boots are equipped
-        if (EquipmentManager.Instance != null && EquipmentManager.Instance.IsEquipped("equip_aprimoramento_bota"))
-        {
-            PlayerAttributesDefensive defStats = player.GetComponent<PlayerAttributesDefensive>();
-            if (defStats != null)
+            // NOVO: Imunidade de Portal DEPOIS de ativar o setor
+            Collider[] hitColliders = Physics.OverlapSphere(spawnPoint.position, 1.5f);
+            foreach (var hit in hitColliders)
             {
-                defStats.temporarySpeedBoost = 0.5f; // +50% speed boost that decays over time
+                BaseSectorTransition destTransition = hit.GetComponent<BaseSectorTransition>();
+                if (destTransition != null && destTransition != this)
+                {
+                    destTransition.immunePlayers.Add(playerCollider);
+                    Debug.Log("[BaseSectorTransition] Dando imunidade ao player no portal de destino: " + destTransition.gameObject.name);
+                }
             }
         }
 
-        // Set cooldown (1.5 seconds) to prevent instant back-and-forth triggering
-        nextAllowedTransitionTime = Time.time + 1.5f;
+        yield return new WaitForSeconds(blackScreenDuration);
 
+        // Permite que o jogador se mova IMEDIATAMENTE enquanto a tela clareia! (Game Feel rpido)
+        player.enabled = true;
+        
+        if (fader != null)
+        {
+            player.StartCoroutine(fader.FadeIn());
+        }
+
+        if (EquipmentManager.Instance != null && EquipmentManager.Instance.IsEquipped("equip_aprimoramento_bota"))
+        {
+            PlayerAttributesDefensive defStats = player.GetComponent<PlayerAttributesDefensive>();
+            if (defStats != null) defStats.temporarySpeedBoost = 0.5f;
+        }
+
+        // Cooldown global mnimo de 0.5s apenas para evitar bizarrices de fsica, mas a verdadeira trava  a Imunidade.
+        nextAllowedTransitionTime = Time.time + 0.5f;
         isTransitioning = false;
     }
 }
+

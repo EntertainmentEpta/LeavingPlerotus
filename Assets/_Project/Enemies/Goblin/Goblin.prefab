@@ -370,6 +370,15 @@ MonoBehaviour:
   meleeCooldown: 1.5
   meleeHitRadius: 1.8
   strafeChangeDuration: 1.2
+  walkSound: {fileID: 8300000, guid: 7ddcaa7f58c0a65418ecee13d9709d9b, type: 3}
+  walkSoundVolume: 0.5
+  stepInterval: 0.22
+  throwSound: {fileID: 8300000, guid: 0f8a4560ceec1bb4783220c07ce7e3de, type: 3}
+  throwSoundVolume: 0.8
+  bombTickSound: {fileID: 8300000, guid: 287e278dcf11a2a43849136ca75064bd, type: 3}
+  bombTickSoundVolume: 0.6
+  bombExplosionSound: {fileID: 8300000, guid: b10e970ebfc7ad6429e84ff52c84bc55, type: 3}
+  bombExplosionSoundVolume: 1
 --- !u!114 &5303528467312566948
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -388,7 +397,7 @@ MonoBehaviour:
   healthBarSlider: {fileID: 6228831577645147432}
   normalColor: {r: 1, g: 0, b: 0, a: 1}
   buffedColor: {r: 0, g: 1, b: 1, a: 1}
-  floatingDamageTextPrefab: {fileID: 7217528928149285678, guid: d0cfc8be9256baf4d853d1a092c24d9d, type: 3}
+  floatingDamageTextPrefab: {fileID: 119183615461286708, guid: e1f50e2f4933445c94ed847caa8c7a3c, type: 3}
   textOffset: {x: 0, y: 2, z: 0}
   hitColor: {r: 1, g: 0, b: 0, a: 1}
   hitFlashTime: 0.2

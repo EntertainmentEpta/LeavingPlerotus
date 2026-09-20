@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.AI;
 using System.Collections;
 
 /// <summary>
@@ -18,7 +19,7 @@ public class Ultimate_Axe : MonoBehaviour
     public float groundYOffset = -0.225f;
 
     [Header("🚀 Mecânica de Root Motion e Salto")]
-    [Tooltip("Quando ativado, usa o Root Motion nativo da animação para mover e saltar o personagem com a fluidez original, sem scripts.")]
+    [Tooltip("Quando ativado, usa o Root Motion nativo da animação. Se desativado (padrão), usa o salto parabólico dinâmico da habilidade.")]
     public bool useRootMotion = false;
 
     [Tooltip("Modo legado de deslocamento por script (usado apenas se useRootMotion for desmarcado).")]
@@ -134,7 +135,24 @@ public class Ultimate_Axe : MonoBehaviour
     [Tooltip("Marque esta caixinha no Inspector no Play Mode para disparar o VFX e Dano instantaneamente!")]
     public bool triggerVFXTestNow = false;
 
+    [Header("🔊 Sons da Ultimate (Animation Events)")]
+    [Tooltip("Som de carregamento / wind-up da Ultimate.")]
+    [SerializeField] private AudioClip chargeClip;
+    [Range(0.0f, 1.0f)]
+    [SerializeField] private float chargeVolume = 1.0f;
+
+    [Tooltip("Som do impacto do machado no chão.")]
+    [SerializeField] private AudioClip groundImpactClip;
+    [Range(0.0f, 1.0f)]
+    [SerializeField] private float groundImpactVolume = 1.0f;
+
+    [Tooltip("Som de estilhaçamento / cristais quebrando.")]
+    [SerializeField] private AudioClip crystalShatterClip;
+    [Range(0.0f, 1.0f)]
+    [SerializeField] private float crystalShatterVolume = 1.0f;
+
     // Componentes e Estado Interno
+    private AudioSource audioSource;
     private Rigidbody playerRb;
     private Animator playerAnimator;
     private bool slamImpactExecuted = false;
@@ -143,6 +161,7 @@ public class Ultimate_Axe : MonoBehaviour
     void Awake()
     {
         playerRb = GetComponentInParent<Rigidbody>() ?? GetComponent<Rigidbody>();
+        audioSource = GetComponentInParent<AudioSource>() ?? GetComponent<AudioSource>();
         FindAnimator();
     }
 
@@ -217,18 +236,17 @@ public class Ultimate_Axe : MonoBehaviour
             playerRb.linearVelocity = Vector3.zero;
         }
 
-        // Ativa Root Motion para a animação do pulo/slam se useRootMotion estiver ativado
-        if (useRootMotion)
+        // Garante que o applyRootMotion fique desligado durante o salto parabólico para não travar a posição
+        if (playerAnimator != null)
         {
-            if (playerAnimator != null)
-            {
-                Debug.Log("🚀 [Ultimate_Axe] Ativando applyRootMotion para o salto e golpe original do Machado!");
-                playerAnimator.applyRootMotion = true;
-            }
+            playerAnimator.applyRootMotion = false;
         }
-        else if (playerRb != null)
+
+        // O NavMeshAgent é suspenso pelo PlayerUltimate (via updatePosition=false) ANTES desta
+        // chamada. Ultimate_Axe NAO deve tocar no agent — apenas executa o salto parabólico.
+        // Executa o salto guiado por física e parábola (salto original da Ultimate)
+        if (playerRb != null)
         {
-            // Modo legado: salto guiado por script
             switch (leapMode)
             {
                 case LeapMode.ParabolicCurve:
@@ -255,6 +273,15 @@ public class Ultimate_Axe : MonoBehaviour
     {
         if (playerRb == null) yield break;
 
+        // SEGURANCA: O NavMeshAgent ja foi suspenso pelo PlayerUltimate antes desta corrotina.
+        // NAO desativar nem tocar em agent.enabled aqui — o agente permanece vivo como ancora.
+
+        // 2. ATIVA KINEMATIC NO RIGIDBODY DURANTE O VOO
+        // Isso impede que a gravidade da Unity puxe o jogador para baixo enquanto a parábola eleva o Y
+        bool wasKinematic = playerRb.isKinematic;
+        playerRb.isKinematic = true;
+        playerRb.linearVelocity = Vector3.zero;
+
         float runSpeed = runVelocity.magnitude;
         Vector3 runDir = isRunning ? runVelocity.normalized : transform.forward;
 
@@ -271,7 +298,9 @@ public class Ultimate_Axe : MonoBehaviour
 
                 if (isRunning && currentGlideSpeed > 0.05f)
                 {
-                    playerRb.MovePosition(playerRb.position + (runDir * currentGlideSpeed * delta));
+                    Vector3 glidePos = playerRb.position + (runDir * currentGlideSpeed * delta);
+                    playerRb.position = glidePos;
+                    transform.position = glidePos;
                     currentGlideSpeed = Mathf.Lerp(currentGlideSpeed, 0f, delta * 12f);
                 }
 
@@ -283,9 +312,24 @@ public class Ultimate_Axe : MonoBehaviour
         Vector3 startPos = playerRb.position;
         Vector3 leapDir = isRunning ? runDir : transform.forward;
         Vector3 targetXZPos = startPos + (leapDir * parabolaForwardDistance);
-        if (Physics.Raycast(startPos + Vector3.up * 0.5f, leapDir, out RaycastHit wallHit, parabolaForwardDistance))
+
+        // 3. RAYCAST ROBUSTO (Ignora triggers, o próprio player, inimigos e itens, focando apenas em paredes)
+        int wallMask = LayerMask.GetMask("Default", "Ground");
+        if (wallMask == 0) wallMask = ~LayerMask.GetMask("Player", "Enemy", "Item", "Weapon", "DeadBody", "Ignore Raycast");
+
+        Vector3 rayOrigin = startPos + Vector3.up * 0.8f;
+        Vector3 flatLeapDir = new Vector3(leapDir.x, 0f, leapDir.z).normalized;
+        if (flatLeapDir.sqrMagnitude < 0.001f) flatLeapDir = transform.forward;
+
+        RaycastHit[] hits = Physics.RaycastAll(rayOrigin, flatLeapDir, parabolaForwardDistance, wallMask, QueryTriggerInteraction.Ignore);
+        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+        foreach (var hit in hits)
         {
-            targetXZPos = startPos + (leapDir * Mathf.Max(0.5f, wallHit.distance - 0.5f));
+            if (hit.collider.gameObject == gameObject || hit.collider.transform.IsChildOf(transform.root)) continue;
+            if (hit.collider.isTrigger) continue;
+
+            targetXZPos = startPos + (flatLeapDir * Mathf.Max(0.5f, hit.distance - 0.5f));
+            break;
         }
 
         while (elapsed < parabolaAirTime && !slamImpactExecuted)
@@ -309,10 +353,17 @@ public class Ultimate_Axe : MonoBehaviour
             float currentY = Mathf.Max(startPos.y, startPos.y + (heightFactor * parabolaPeakHeight));
 
             Vector3 nextPos = new Vector3(currentXZ.x, currentY, currentXZ.z);
-            playerRb.MovePosition(nextPos);
+
+            // 4. ATUALIZA TANTO O RIGIDBODY QUANTO O TRANSFORM DIRETAMENTE
+            playerRb.position = nextPos;
+            transform.position = nextPos;
 
             yield return null;
         }
+
+        // 5. RESTAURA KINEMATIC E VELOCIDADE
+        playerRb.isKinematic = wasKinematic;
+        playerRb.linearVelocity = Vector3.zero;
     }
 
     private IEnumerator SmoothSlidingCoroutine()
@@ -423,6 +474,7 @@ public class Ultimate_Axe : MonoBehaviour
 
         if (playerRb != null)
         {
+            playerRb.isKinematic = false;
             playerRb.linearVelocity = Vector3.zero;
         }
 
@@ -800,5 +852,34 @@ public class Ultimate_Axe : MonoBehaviour
             Gizmos.DrawLine(prevPoint, point);
             prevPoint = point;
         }
+    }
+
+    // ── Métodos de SFX para Animation Events ──────────────────────────
+
+    /// <summary>
+    /// Toca o som de carregamento da Ultimate. Chamado via Animation Event.
+    /// </summary>
+    public void PlayChargeSFX()
+    {
+        if (audioSource != null && chargeClip != null)
+            audioSource.PlayOneShot(chargeClip, chargeVolume);
+    }
+
+    /// <summary>
+    /// Toca o som de impacto no chão. Chamado via Animation Event.
+    /// </summary>
+    public void PlayGroundImpactSFX()
+    {
+        if (audioSource != null && groundImpactClip != null)
+            audioSource.PlayOneShot(groundImpactClip, groundImpactVolume);
+    }
+
+    /// <summary>
+    /// Toca o som de estilhaçamento de cristais. Chamado via Animation Event.
+    /// </summary>
+    public void PlayCrystalShatterSFX()
+    {
+        if (audioSource != null && crystalShatterClip != null)
+            audioSource.PlayOneShot(crystalShatterClip, crystalShatterVolume);
     }
 }

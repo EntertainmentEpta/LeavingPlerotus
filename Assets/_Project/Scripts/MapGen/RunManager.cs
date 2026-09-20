@@ -241,7 +241,15 @@ public class RunManager : MonoBehaviour
     public float GetEssenceMultiplier(int roomNumber = -1)
     {
         int n = roomNumber < 0 ? currentRoomNumber : roomNumber;
-        return 1f + dropInflationAlpha * n;
+        float baseMult = 1f + dropInflationAlpha * n;
+
+        PlayerHealth player = Object.FindFirstObjectByType<PlayerHealth>();
+        if (player != null && player.hasChaosSymphony)
+        {
+            baseMult *= 2f; // Dobro de essência
+        }
+
+        return baseMult;
     }
 
     /// <summary>
@@ -251,6 +259,14 @@ public class RunManager : MonoBehaviour
     public int GetSpawnBudget(int roomNumber)
     {
         int n = Mathf.Max(1, roomNumber);
-        return Mathf.RoundToInt(3f + 1.1f * n);
+        int budget = Mathf.RoundToInt(3f + 1.1f * n);
+
+        PlayerHealth player = Object.FindFirstObjectByType<PlayerHealth>();
+        if (player != null && player.hasChaosSymphony)
+        {
+            budget = Mathf.RoundToInt(budget * 2.0f); // Dobra o budget de inimigos na sala
+        }
+
+        return budget;
     }
 }

@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e31866c5ea326c74fbe71613556564ac, type: 3}
+  m_Name: eq_consertar_porta
+  m_EditorClassIdentifier: Assembly-CSharp::EquipmentData
+  equipmentId: eq_consertar_porta
+  equipmentName: Reparo da Porta do Lab
+  description: Substitui os conduites de energia queimados, abrindo acesso ao Laboratorio.
+  icon: {fileID: 0}
+  effectType: 20
+  effectValue: 1
+  isBaseUpgrade: 1
+  maxStack: 1

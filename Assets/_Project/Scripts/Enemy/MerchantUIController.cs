@@ -51,6 +51,18 @@ public class MerchantUIController : MonoBehaviour
     [Header("Geral")]
     public Button closeButton;
 
+    [Header("🔊 Sons do Mercador")]
+    [Tooltip("Som tocado ao passar o mouse sobre uma carta do pacto.")]
+    [SerializeField] private AudioClip cardHoverClip;
+    [Range(0.0f, 1.0f)]
+    [SerializeField] private float cardHoverVolume = 0.7f;
+
+    [Tooltip("Som de downgrade tocado ao aceitar o Pacto de Sangue.")]
+    [SerializeField] private AudioClip pactAcceptClip;
+    [Range(0.0f, 1.0f)]
+    [SerializeField] private float pactAcceptVolume = 1.0f;
+    private AudioSource audioSource;
+
     [Header("Câmera do Pacto (Ajustes em Tempo Real)")]
     public bool enablePactCamera = true;
     public Vector3 cameraOffset = new Vector3(0f, 0.35f, 2.2f);
@@ -163,6 +175,11 @@ public class MerchantUIController : MonoBehaviour
             name = "O COLAPSO TEMPORAL",
             description = "<color=#00ff99>✦ Recarga de Habilidades reduzida em 60%.</color>\n<color=#ff4455>✖ Inimigos causam +25% de dano e correm +20%.</color>",
             healthCostPercent = 0.20f
+        },
+        new PactData {
+            name = "A SINFONIA DO CAOS",
+            description = "<color=#00ff99>✦ Dobro de loot, o dobro de essência e maior sorte.</color>\n<color=#ff4455>✖ Inimigos de elite mais fortes e em maior quantidade.</color>",
+            healthCostPercent = 0.35f
         }
     };
 
@@ -217,6 +234,11 @@ public class MerchantUIController : MonoBehaviour
         if (btnComprarArtefato != null) btnComprarArtefato.onClick.AddListener(OnComprarArtefatoClicked);
 
         EnsurePanelReferences();
+
+        // AudioSource para SFX do Mercador (cria automaticamente se não existir)
+        audioSource = GetComponent<AudioSource>();
+        if (audioSource == null) audioSource = GetComponentInChildren<AudioSource>(true);
+        if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
 
         if (interactionPrompt != null) interactionPrompt.SetActive(false);
         if (rootPanel != null) rootPanel.SetActive(false);
@@ -410,6 +432,11 @@ public class MerchantUIController : MonoBehaviour
 
             if (btn.GetComponent<MerchantCardHover>() == null)
                 btn.gameObject.AddComponent<MerchantCardHover>();
+
+            // Injeta o som de hover configurado no MerchantUIController para cada carta
+            MerchantCardHover hoverComp = btn.GetComponent<MerchantCardHover>();
+            if (hoverComp != null && cardHoverClip != null)
+                hoverComp.SetHoverAudio(cardHoverClip, cardHoverVolume, audioSource);
         }
     }
 
@@ -497,6 +524,18 @@ public class MerchantUIController : MonoBehaviour
         isRevealingPactCard = false;
         if (pendingPactIndex >= 0)
         {
+            // SFX de downgrade ao aceitar o pacto
+            if (pactAcceptClip != null)
+            {
+                GameObject tempAudio = new GameObject("TempPactAudio");
+                AudioSource aSource = tempAudio.AddComponent<AudioSource>();
+                aSource.clip = pactAcceptClip;
+                aSource.volume = pactAcceptVolume;
+                aSource.spatialBlend = 0f; // Som 2D
+                aSource.Play();
+                Destroy(tempAudio, pactAcceptClip.length + 0.1f);
+            }
+
             ApplyTarotEffect(pendingPactIndex, pendingHealthCost);
             OnPactCompleted();
         }
@@ -860,6 +899,11 @@ public class MerchantUIController : MonoBehaviour
             case 7: // O COLAPSO TEMPORAL
                 playerHealth.abilityCooldownMultiplier *= 0.40f; // -60% Cooldown
                 playerHealth.enemiesBuffed = true;
+                break;
+
+            case 8: // A SINFONIA DO CAOS
+                playerHealth.hasDoubleLoot = true;
+                playerHealth.hasChaosSymphony = true;
                 break;
         }
     }

@@ -184,7 +184,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7974098721705991124}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
+  m_LocalRotation: {x: -0.7071068, y: -0.00000006181724, z: -0.00000006181724, w: -0.7071068}
   m_LocalPosition: {x: 0, y: -0.0033, z: 0.00031}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -206,6 +206,10 @@ MonoBehaviour:
   pointType: 0
   connectionTag: Standard
   floorOffset: 0
+  doorWidth: 3
+  doorHeight: 3.2
+  showRuler: 1
+  showDoorFrame: 1
   isOccupied: 0
 --- !u!1 &8378669188895182561
 GameObject:
@@ -248,15 +252,15 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: 71eba4d0e0d599242bf727e7612fe725, type: 3}
       propertyPath: m_LocalScale.x
-      value: 1500
+      value: 1250
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 71eba4d0e0d599242bf727e7612fe725, type: 3}
       propertyPath: m_LocalScale.y
-      value: 1500
+      value: 1250
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 71eba4d0e0d599242bf727e7612fe725, type: 3}
       propertyPath: m_LocalScale.z
-      value: 1500
+      value: 1250
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 71eba4d0e0d599242bf727e7612fe725, type: 3}
       propertyPath: m_LocalPosition.x

@@ -55,8 +55,21 @@ public class LevelGenerator : MonoBehaviour
     [Tooltip("Sala final com portal para o próximo nível. Deve ter 1 Entrada.")]
     public GameObject exitRoomPrefab;
 
-    [Tooltip("Prefab que sela becos sem saída organicamente (raízes, rochas). Deve ter 1 Entrada.")]
+    [Tooltip("Lista de prefabs de becos sem saída (raízes, tocos, rochas). Sorteia aleatoriamente entre eles para variar a dungeon.")]
+    public List<GameObject> deadEndPrefabs = new List<GameObject>();
+
+    [Tooltip("Prefab legado único (usado como fallback se a lista acima estiver vazia). Deve ter 1 Entrada.")]
     public GameObject deadEndPrefab;
+
+    public GameObject GetRandomDeadEndPrefab()
+    {
+        if (deadEndPrefabs != null && deadEndPrefabs.Count > 0)
+        {
+            var valid = deadEndPrefabs.Where(p => p != null).ToList();
+            if (valid.Count > 0) return valid[Random.Range(0, valid.Count)];
+        }
+        return deadEndPrefab;
+    }
 
     [Header("Boss Fight")]
     [Tooltip("Prefab da sala de Boss Fight (Round 4). Deve ter 1 ConnectionPoint(Entrada).\nQuando o round boss for detectado, apenas Safe Room + Boss Room são gerados.")]
@@ -478,11 +491,11 @@ public class LevelGenerator : MonoBehaviour
                 if (TrySpawnMerchantRoom(deadEnds[i]))
                     merchantRoomSpawned = true;
                 else
-                    TrySpawnSpecialRoom(deadEndPrefab, deadEnds[i], "Dead End", useTransition: false);
+                    TrySpawnSpecialRoom(GetRandomDeadEndPrefab(), deadEnds[i], "Dead End", useTransition: false);
             }
             else
             {
-                TrySpawnSpecialRoom(deadEndPrefab, deadEnds[i], "Dead End", useTransition: false);
+                TrySpawnSpecialRoom(GetRandomDeadEndPrefab(), deadEnds[i], "Dead End", useTransition: false);
             }
         }
 
@@ -786,25 +799,38 @@ public class LevelGenerator : MonoBehaviour
         Transform roomA = socketA.root;
         Transform roomB = socketB.root;
 
-        // 1. Rotação: faz o forward de socketB apontar contra o forward de socketA
-        Quaternion targetRotation = Quaternion.LookRotation(-socketA.forward, Vector3.up);
-        Quaternion correctionRotation = targetRotation * Quaternion.Inverse(socketB.rotation);
+        // 1. Rotação: alinha no plano horizontal (XZ), garantindo 0° de Pitch e Roll (sala 100% nivelada)
+        Vector3 fwdA = socketA.forward;
+        fwdA.y = 0f;
+        if (fwdA.sqrMagnitude < 0.0001f) fwdA = Vector3.forward;
+        fwdA.Normalize();
+
+        Vector3 fwdB = socketB.forward;
+        fwdB.y = 0f;
+        if (fwdB.sqrMagnitude < 0.0001f) fwdB = Vector3.forward;
+        fwdB.Normalize();
+
+        Quaternion targetRotation = Quaternion.LookRotation(-fwdA, Vector3.up);
+        Quaternion currentSocketBRot = Quaternion.LookRotation(fwdB, Vector3.up);
+        Quaternion correctionRotation = targetRotation * Quaternion.Inverse(currentSocketBRot);
         roomB.rotation = correctionRotation * roomB.rotation;
+
+        // Força rotação perfeitamente horizontal (apenas Yaw no eixo Y)
+        Vector3 euler = roomB.eulerAngles;
+        roomB.rotation = Quaternion.Euler(0f, euler.y, 0f);
 
         // 2. Posição XZ: alinha os sockets horizontalmente
         Vector3 delta = socketA.position - socketB.position;
         roomB.position += new Vector3(delta.x, 0f, delta.z);
 
-        // 3. Posição Y: iguala diretamente o Y de socketB ao Y de socketA.
-        //
-        //    ABORDAGEM ANTERIOR (bugada): definia roomB.position.y = socketA.y
-        //    Isso ignorava o offset local do socket dentro do prefab, causando
-        //    acúmulo de erro a cada conexão (cada sala afundava um pouco mais).
-        //
-        //    ABORDAGEM CORRETA: como todos os ConnectionPoints são posicionados
-        //    rentes ao chão nos prefabs, igualar o Y dos sockets é equivalente
-        //    a igualar os pisos — independente de onde o pivot/root do prefab esteja.
-        float deltaY = socketA.position.y - socketB.position.y;
+        // 3. Posição Y: alinha o nível exato do chão dos dois sockets
+        ConnectionPoint cpA = socketA.GetComponent<ConnectionPoint>();
+        ConnectionPoint cpB = socketB.GetComponent<ConnectionPoint>();
+
+        float floorYA = (cpA != null) ? cpA.GetFloorWorldY() : socketA.position.y;
+        float floorYB = (cpB != null) ? cpB.GetFloorWorldY() : socketB.position.y;
+
+        float deltaY = floorYA - floorYB;
         roomB.position += new Vector3(0f, deltaY, 0f);
     }
 

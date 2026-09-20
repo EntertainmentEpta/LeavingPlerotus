@@ -44,7 +44,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 32b38efbc40cc88468dbf29167fd6da1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ConnectionPoint
-  pointType: 1
+  pointType: 0
   connectionTag: Standard
   isOccupied: 0
 --- !u!1 &8504647292491605152

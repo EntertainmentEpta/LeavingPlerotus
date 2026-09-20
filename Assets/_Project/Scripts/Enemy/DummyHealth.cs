@@ -193,8 +193,7 @@ public class DummyHealth : MonoBehaviour
             FloatingDamageText dmgScript = textObject.GetComponent<FloatingDamageText>();
             if (dmgScript != null)
             {
-                dmgScript.SetText(damage.ToString());
-                dmgScript.SetCritical(isCritical);
+                dmgScript.SetDamage(damage, isCritical);
             }
         }
 

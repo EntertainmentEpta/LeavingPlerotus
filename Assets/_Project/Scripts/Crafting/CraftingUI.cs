@@ -64,6 +64,7 @@ public class CraftingUI : MonoBehaviour
     private bool isOpen = false;
     private bool uiBuilt = false;
     private CraftingRecipe selectedRecipe;
+    private int currentTab = 0;
 
     public TMP_FontAsset customFont;
 
@@ -239,7 +240,15 @@ public class CraftingUI : MonoBehaviour
 
     private void RefreshRecipeList()
     {
-        List<CraftingRecipe> recipes = CraftingManager.Instance.GetAllRecipes();
+        List<CraftingRecipe> allRecipes = CraftingManager.Instance.GetAllRecipes();
+        List<CraftingRecipe> recipes = new List<CraftingRecipe>();
+        
+        foreach (var r in allRecipes)
+        {
+            bool isBase = r.resultEquipment != null && r.resultEquipment.isBaseUpgrade;
+            if (currentTab == 0 && !isBase) recipes.Add(r);
+            else if (currentTab == 1 && isBase) recipes.Add(r);
+        }
 
         // Limpa slots antigos
         foreach (var slot in recipeSlots)
@@ -346,6 +355,7 @@ public class CraftingUI : MonoBehaviour
 
         // Cria slots para cada equipamento craftado
         List<EquipmentData> owned = EquipmentManager.Instance.GetOwnedEquipment();
+        owned.RemoveAll(e => e.isBaseUpgrade);
 
         foreach (var equip in owned)
         {
@@ -658,24 +668,57 @@ public class CraftingUI : MonoBehaviour
         bg.color = sectionBg;
         bg.raycastTarget = true;
 
-        // Label
-        GameObject labelObj = new GameObject("RecipesLabel");
-        labelObj.transform.SetParent(listPanel.transform, false);
-        RectTransform lr = labelObj.AddComponent<RectTransform>();
-        lr.anchorMin = new Vector2(0f, 1f);
-        lr.anchorMax = new Vector2(1f, 1f);
-        lr.pivot = new Vector2(0.5f, 1f);
-        lr.sizeDelta = new Vector2(0f, 22f);
-        lr.anchoredPosition = new Vector2(0f, -2f);
-        labelObj.AddComponent<CanvasRenderer>();
-        TextMeshProUGUI labelText = labelObj.AddComponent<TextMeshProUGUI>();
-        labelText.text = "RECEITAS";
-        labelText.fontSize = 14f; // Revertido para o padrão limpo e compacto
-        labelText.fontStyle = FontStyles.Bold;
-        labelText.color = accentColor;
-        labelText.alignment = TextAlignmentOptions.Center;
-        labelText.raycastTarget = false;
-        if (customFont != null) labelText.font = customFont;
+        // TABS - Traje
+        GameObject tabBase = new GameObject("TabTraje");
+        tabBase.transform.SetParent(listPanel.transform, false);
+        RectTransform rtTraje = tabBase.AddComponent<RectTransform>();
+        rtTraje.anchorMin = new Vector2(0f, 1f);
+        rtTraje.anchorMax = new Vector2(0.5f, 1f);
+        rtTraje.pivot = new Vector2(0.5f, 1f);
+        rtTraje.sizeDelta = new Vector2(0f, 30f);
+        rtTraje.anchoredPosition = new Vector2(0f, 0f);
+        Image imgTraje = tabBase.AddComponent<Image>();
+        imgTraje.color = new Color(0.1f, 0.1f, 0.15f, 1f);
+        Button btnTraje = tabBase.AddComponent<Button>();
+        btnTraje.onClick.AddListener(() => { currentTab = 0; RefreshRecipeList(); });
+        
+        GameObject txtTraje = new GameObject("Text");
+        txtTraje.transform.SetParent(tabBase.transform, false);
+        TextMeshProUGUI labelTraje = txtTraje.AddComponent<TextMeshProUGUI>();
+        labelTraje.text = "TRAJE";
+        labelTraje.fontSize = 14f;
+        labelTraje.fontStyle = FontStyles.Bold;
+        labelTraje.color = accentColor;
+        labelTraje.alignment = TextAlignmentOptions.Center;
+        if (customFont != null) labelTraje.font = customFont;
+        RectTransform rtTxt1 = txtTraje.GetComponent<RectTransform>();
+        rtTxt1.anchorMin = Vector2.zero; rtTxt1.anchorMax = Vector2.one; rtTxt1.sizeDelta = Vector2.zero;
+
+        // TABS - Base
+        GameObject tabBase2 = new GameObject("TabBase");
+        tabBase2.transform.SetParent(listPanel.transform, false);
+        RectTransform rtBase = tabBase2.AddComponent<RectTransform>();
+        rtBase.anchorMin = new Vector2(0.5f, 1f);
+        rtBase.anchorMax = new Vector2(1f, 1f);
+        rtBase.pivot = new Vector2(0.5f, 1f);
+        rtBase.sizeDelta = new Vector2(0f, 30f);
+        rtBase.anchoredPosition = new Vector2(0f, 0f);
+        Image imgBase = tabBase2.AddComponent<Image>();
+        imgBase.color = new Color(0.12f, 0.12f, 0.17f, 1f);
+        Button btnBase = tabBase2.AddComponent<Button>();
+        btnBase.onClick.AddListener(() => { currentTab = 1; RefreshRecipeList(); });
+        
+        GameObject txtBase = new GameObject("Text");
+        txtBase.transform.SetParent(tabBase2.transform, false);
+        TextMeshProUGUI labelBase = txtBase.AddComponent<TextMeshProUGUI>();
+        labelBase.text = "BASE";
+        labelBase.fontSize = 14f;
+        labelBase.fontStyle = FontStyles.Bold;
+        labelBase.color = accentColor;
+        labelBase.alignment = TextAlignmentOptions.Center;
+        if (customFont != null) labelBase.font = customFont;
+        RectTransform rtTxt2 = txtBase.GetComponent<RectTransform>();
+        rtTxt2.anchorMin = Vector2.zero; rtTxt2.anchorMax = Vector2.one; rtTxt2.sizeDelta = Vector2.zero;
 
         // ScrollView para as receitas
         GameObject scrollObj = new GameObject("RecipeScroll");
@@ -1218,3 +1261,5 @@ public class UpgradeHoverHandler : MonoBehaviour, IPointerEnterHandler, IPointer
         onHover?.Invoke(equipment, false);
     }
 }
+
+

@@ -106,7 +106,7 @@ MonoBehaviour:
   healthBarSlider: {fileID: 0}
   normalColor: {r: 0.45882353, g: 1, b: 0, a: 1}
   buffedColor: {r: 0, g: 1, b: 1, a: 1}
-  floatingDamageTextPrefab: {fileID: 7217528928149285678, guid: d0cfc8be9256baf4d853d1a092c24d9d, type: 3}
+  floatingDamageTextPrefab: {fileID: 119183615461286708, guid: e1f50e2f4933445c94ed847caa8c7a3c, type: 3}
   textOffset: {x: 0, y: 2, z: 0}
   hitColor: {r: 1, g: 0, b: 0, a: 1}
   hitFlashTime: 0.2
@@ -161,6 +161,14 @@ MonoBehaviour:
   rotationSpeed: 30
   laserRange: 30
   laserWidth: 0.5
+  hoverSound: {fileID: 8300000, guid: 1a7958a85828d894091fd61e1973427b, type: 3}
+  hoverSoundVolume: 0.4
+  chargeSound: {fileID: 8300000, guid: b9957e08c0a7fc2459e3d76fcd8be036, type: 3}
+  chargeSoundVolume: 0.8
+  firingSound: {fileID: 8300000, guid: ec07d54076feaf34b850ab0fe4b0d953, type: 3}
+  firingSoundVolume: 0.8
+  impactSound: {fileID: 8300000, guid: 64d109e81035d064fa02de6c260ecdbc, type: 3}
+  impactSoundVolume: 0.8
 --- !u!114 &2726038420584316830
 MonoBehaviour:
   m_ObjectHideFlags: 0
