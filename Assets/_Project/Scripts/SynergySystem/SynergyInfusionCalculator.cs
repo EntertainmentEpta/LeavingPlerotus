@@ -37,6 +37,7 @@ public class SynergyInfusionCalculator : MonoBehaviour
 
     // ── Receitas em Cache ──────────────────────────────────────
     private List<SynergyNodeData> availableRecipes = new List<SynergyNodeData>();
+    private List<SynergyNodeData> allLoadedNodes = new List<SynergyNodeData>();
 
     // ── Lifecycle ──────────────────────────────────────────────
     void Awake()
@@ -58,6 +59,9 @@ public class SynergyInfusionCalculator : MonoBehaviour
         // Carrega todos os nós de sinergia da pasta Resources/SynergyNodes
         SynergyNodeData[] allNodes = Resources.LoadAll<SynergyNodeData>("SynergyNodes");
         
+        allLoadedNodes.Clear();
+        allLoadedNodes.AddRange(allNodes);
+
         // Filtra apenas os nós que são receitas de combo
         foreach (var node in allNodes)
         {
@@ -71,6 +75,14 @@ public class SynergyInfusionCalculator : MonoBehaviour
     }
 
     // ── API Pública ────────────────────────────────────────────
+
+    /// <summary>
+    /// Retorna todos os ScriptableObjects carregados (do tipo EnemyOrigin, InfusionPart e SynergyRecipe).
+    /// </summary>
+    public List<SynergyNodeData> GetAllNodes()
+    {
+        return allLoadedNodes;
+    }
 
     /// <summary>
     /// Avalia a lista de IDs selecionados e retorna o desconto na essência e modificadores extras gerados pelos combos válidos.

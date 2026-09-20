@@ -86,7 +86,7 @@ public class SynergyCatalogManager : MonoBehaviour
     /// <summary>
     /// Verifica se um nó já foi descoberto.
     /// </summary>
-    public bool IsDiscovered(string nodeID)
+    public bool IsNodeDiscovered(string nodeID)
     {
         return discoveredSet.Contains(nodeID);
     }
