@@ -161,7 +161,13 @@ public class Ultimate_Axe : MonoBehaviour
     void Awake()
     {
         playerRb = GetComponentInParent<Rigidbody>() ?? GetComponent<Rigidbody>();
-        audioSource = GetComponentInParent<AudioSource>() ?? GetComponent<AudioSource>();
+        audioSource = GetComponent<AudioSource>() ?? GetComponentInParent<AudioSource>();
+        if (audioSource == null)
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
+            audioSource.playOnAwake = false;
+            audioSource.spatialBlend = 0f;
+        }
         FindAnimator();
     }
 
@@ -861,8 +867,9 @@ public class Ultimate_Axe : MonoBehaviour
     /// </summary>
     public void PlayChargeSFX()
     {
-        if (audioSource != null && chargeClip != null)
-            audioSource.PlayOneShot(chargeClip, chargeVolume);
+        if (audioSource == null) { Debug.LogWarning("[Ultimate_Axe] PlayChargeSFX: audioSource é NULL!"); return; }
+        if (chargeClip == null) { Debug.LogWarning("[Ultimate_Axe] PlayChargeSFX: chargeClip não atribuído!"); return; }
+        audioSource.PlayOneShot(chargeClip, chargeVolume);
     }
 
     /// <summary>
@@ -870,8 +877,9 @@ public class Ultimate_Axe : MonoBehaviour
     /// </summary>
     public void PlayGroundImpactSFX()
     {
-        if (audioSource != null && groundImpactClip != null)
-            audioSource.PlayOneShot(groundImpactClip, groundImpactVolume);
+        if (audioSource == null) { Debug.LogWarning("[Ultimate_Axe] PlayGroundImpactSFX: audioSource é NULL!"); return; }
+        if (groundImpactClip == null) { Debug.LogWarning("[Ultimate_Axe] PlayGroundImpactSFX: groundImpactClip não atribuído!"); return; }
+        audioSource.PlayOneShot(groundImpactClip, groundImpactVolume);
     }
 
     /// <summary>
@@ -879,7 +887,8 @@ public class Ultimate_Axe : MonoBehaviour
     /// </summary>
     public void PlayCrystalShatterSFX()
     {
-        if (audioSource != null && crystalShatterClip != null)
-            audioSource.PlayOneShot(crystalShatterClip, crystalShatterVolume);
+        if (audioSource == null) { Debug.LogWarning("[Ultimate_Axe] PlayCrystalShatterSFX: audioSource é NULL!"); return; }
+        if (crystalShatterClip == null) { Debug.LogWarning("[Ultimate_Axe] PlayCrystalShatterSFX: crystalShatterClip não atribuído!"); return; }
+        audioSource.PlayOneShot(crystalShatterClip, crystalShatterVolume);
     }
 }

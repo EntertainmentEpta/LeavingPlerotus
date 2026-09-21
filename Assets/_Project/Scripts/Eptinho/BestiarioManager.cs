@@ -117,6 +117,10 @@ public class BestiarioManager : MonoBehaviour
         if (EptinhoPopupController.instancia != null)
             EptinhoPopupController.instancia.MostrarPopupInimigo(inimigo.enemyData);
 
+        // Integração com o catálogo de sinergias
+        if (!string.IsNullOrEmpty(inimigo.enemyData.synergyNodeID))
+            SynergyCatalogManager.Instance.DiscoverNode(inimigo.enemyData.synergyNodeID);
+
         Debug.Log($"[BESTIÁRIO] Novo inimigo registrado e salvo: {inimigo.enemyData.enemyName}");
     }
 
