@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 9184082940477446558}
   - component: {fileID: 455817420649938523}
   - component: {fileID: 3222405590951172655}
+  - component: {fileID: 3466362595407180927}
   m_Layer: 0
   m_Name: "proj\xE9til"
   m_TagString: Untagged
@@ -28,13 +29,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 514596912357238656}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
   m_LocalPosition: {x: 0.89875, y: 0, z: 15.83}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0.25, y: 1, z: 0.25}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 90, y: 0, z: 0}
 --- !u!33 &1292031588071534264
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -141,3 +142,22 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
+--- !u!114 &3466362595407180927
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 514596912357238656}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f1a3814423a66dd4cb8774e66daac8b2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Espinho
+  speed: 14
+  damage: 10
+  maxLifetime: 4
+  poisonDamagePerTick: 3
+  poisonSlow: 0.2
+  poisonDuration: 4
+  owner: {fileID: 0}

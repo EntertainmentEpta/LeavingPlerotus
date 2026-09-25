@@ -1798,6 +1798,7 @@ GameObject:
   - component: {fileID: 699877862}
   - component: {fileID: 699877861}
   - component: {fileID: 699877860}
+  - component: {fileID: 699877866}
   m_Layer: 0
   m_Name: Peixe
   m_TagString: Untagged
@@ -1818,7 +1819,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DummyHealth
   isSlowed: 0
-  maxHealth: 100
+  maxHealth: 500
   debugLogDamage: 0
   healthBarSlider: {fileID: 0}
   normalColor: {r: 1, g: 0, b: 0, a: 1}
@@ -1950,6 +1951,39 @@ Transform:
   - {fileID: 1481826881}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &699877866
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 699877859}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 12a7fc78e5a92e04ca2a3014335e11c3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PeixeAI
+  player: {fileID: 0}
+  espinhoPrefab: {fileID: 514596912357238656, guid: e0c7cdda65864f4438840f2dc0929def, type: 3}
+  firePoint: {fileID: 1481826881}
+  shootDistance: 10
+  defendDistance: 3
+  chaseDistance: 25
+  chaseSpeed: 4.5
+  acceleration: 10
+  projectileSpeed: 14
+  shootCooldown: 2
+  defendDuration: 3
+  defendScaleMultiplier: 2
+  scaleLerpSpeed: 4
+  defendColor: {r: 1, g: 0, b: 0, a: 1}
+  contactDamage: 20
+  poisonDamagePerTick: 3
+  poisonSlow: 0.2
+  poisonDuration: 4
+  stunnedDuration: 2
+  stunnedColor: {r: 0, g: 0, b: 1, a: 1}
+  isInvulnerable: 0
 --- !u!1 &783843620
 GameObject:
   m_ObjectHideFlags: 0
