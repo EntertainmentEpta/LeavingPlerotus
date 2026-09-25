@@ -167,6 +167,9 @@ public class DummyHealth : MonoBehaviour
 
     public void TakeDamage(int damage, bool isCritical = false)
     {
+        // Peixe: respeita invulnerabilidade do estado Defend
+        if (TryGetComponent<PeixeAI>(out PeixeAI peixeAI) && peixeAI.isInvulnerable) return;
+
         if (isInvulnerable) return;
         if (CurrentHealth <= 0) return;
 
@@ -286,6 +289,33 @@ public class DummyHealth : MonoBehaviour
         {
             Debug.LogWarning("[DROPS] EnemyDrops NÃO encontrado em " + gameObject.name + "! Adicione o componente EnemyDrops.");
         }
+
+        // --- DROP ESPECÍFICO DO PEIXE: Espinhos ---
+        if (TryGetComponent<PeixeAI>(out PeixeAI _))
+        {
+            ItemData espinhosData = Resources.Load<ItemData>("ItemData/CristalusDrop2");
+            if (espinhosData != null)
+            {
+                GameObject dropObj = new GameObject("Drop_Espinhos");
+                dropObj.transform.position = transform.position + Vector3.up * 0.5f;
+
+                CharacteristicItemPickup pickup = dropObj.AddComponent<CharacteristicItemPickup>();
+                pickup.itemId = espinhosData.itemId;
+                pickup.itemName = espinhosData.itemName;
+                pickup.itemDescription = espinhosData.description;
+
+                SphereCollider col = dropObj.AddComponent<SphereCollider>();
+                col.isTrigger = true;
+                col.radius = 1f;
+
+                Debug.Log("[DROPS] Peixe dropou item específico: " + espinhosData.itemName);
+            }
+            else
+            {
+                Debug.LogWarning("[DROPS] ItemData 'CristalusDrop2' (Espinhos) não encontrado em Resources/ItemData!");
+            }
+        }
+        // ------------------------------------------
 
         Destroy(gameObject);
     }
