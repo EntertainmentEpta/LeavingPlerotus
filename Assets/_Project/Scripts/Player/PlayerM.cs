@@ -43,6 +43,7 @@ public class PlayerM : MonoBehaviour
     private Vector3 moveDirection;
     private float targetSpeed;
     private float currentRotationSpeed;
+    private bool isPlasmaFiring;
 
     [HideInInspector]
     public float debuffSpeedMultiplier = 1.0f;
@@ -126,11 +127,34 @@ public class PlayerM : MonoBehaviour
         }
 
         if (dashScript != null && dashScript.isDashing) return;
+        if (isPlasmaFiring)
+        {
+            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            return;
+        }
         MovePlayer();
+    }
+
+    public void SetPlasmaFiring(bool isFiring)
+    {
+        isPlasmaFiring = isFiring;
+        if (!isFiring) return;
+
+        moveDirection = Vector3.zero;
+        targetSpeed = 0f;
+        currentRotationSpeed = 0f;
     }
 
     private void MyInput()
     {
+        if (isPlasmaFiring)
+        {
+            moveDirection = Vector3.zero;
+            targetSpeed = 0f;
+            currentRotationSpeed = 0f;
+            return;
+        }
+
         // === LÓGICA MANUAL DE MOVIMENTO (Substitui o GetAxisRaw) ===
         float horizontal = 0f;
         if (Input.GetKey(keyRight)) horizontal += 1f;

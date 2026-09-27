@@ -140,11 +140,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cd91e9cfa9ea39e48865b1d23ba6932d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GunAttack
-  projectilePrefab: {fileID: -2539612545482232048, guid: 5560577bc9977f54aaae780e18bc9445, type: 3}
+  projectilePrefab: {fileID: -6173952573389582666, guid: 62990efdbcb116b43a5a0174988292a8, type: 3}
   muzzle: {fileID: 577326026319440339}
   fireCooldown: 0.5
   baseDamage: 10
-  maxExtraProjectiles: 80
+  maxExtraProjectiles: 5
+  batteryCapacity: 6
+  batteryRechargeDuration: 1
+  chargePerTrigger: 1
   useMuzzleForward: 1
   aimTransform: {fileID: 0}
 --- !u!114 &5590839371842489967
@@ -178,7 +181,7 @@ MonoBehaviour:
   weaponType: 3
   equipPosition: {x: -0.338, y: -0.067, z: -0.128}
   equipRotation: {x: 5.8, y: -197, z: -161}
-  weaponAnimatorOverride: {fileID: 0}
+  weaponAnimatorOverride: {fileID: 9100000, guid: f3a791f61d9b45f0b23e41a392fbd884, type: 2}
 --- !u!65 &1895922270732995986
 BoxCollider:
   m_ObjectHideFlags: 0
