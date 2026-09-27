@@ -256,7 +256,7 @@ public class Geobionte_AI : MonoBehaviour
 
     // ==================== ÁUDIO ====================
 
-    [Header("Áudio — Bismutado")]
+    [Header("Áudio — Bismutado (Movimentação)")]
     [Tooltip("Vetor de áudios de passos do Bismutado selecionados aleatoriamente")]
     public AudioClip[] bismutadoWalkingSounds;
     [Tooltip("Volume dos sons de passos do Bismutado")]
@@ -266,6 +266,7 @@ public class Geobionte_AI : MonoBehaviour
     public float bismutadoStepInterval = 0.25f;
     private float bismutadoStepTimer = 0f;
 
+    [Header("Áudio — Bismutado (Ataques)")]
     [Tooltip("Vetor de áudios do campo de cristais (Crystal Field) selecionados aleatoriamente")]
     public AudioClip[] crystalFieldSounds;
     [Tooltip("Volume do som do campo de cristais")]
@@ -278,9 +279,10 @@ public class Geobionte_AI : MonoBehaviour
     [Range(0f, 1f)]
     public float bismutadoAttackSoundVolume = 0.8f;
 
-    [Tooltip("Sons reproduzidos aleatoriamente quando o Bismutado recebe um hit")]
+    [Header("Áudio — Bismutado (Dano Recebido / Hit)")]
+    [Tooltip("Sons reproduzidos quando o Bismutado leva dano (golpe do player). NÃO colocar sons de socos/ataques do Bismutado aqui.")]
     public AudioClip[] bismutadoHitSounds;
-    [Tooltip("Volume dos sons de hit do Bismutado")]
+    [Tooltip("Volume dos sons de dano recebido (hit) do Bismutado")]
     [Range(0f, 1f)]
     public float bismutadoHitSoundVolume = 0.7f;
 

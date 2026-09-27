@@ -126,7 +126,7 @@ public class ShardSwarm_AI : MonoBehaviour
     [Tooltip("Duração do brilho/pulsar do holograma do escudo ao receber dano no modo protegido.")]
     public float shieldFlashDuration = 0.35f;
 
-    [Header("--- Áudio ---")]
+    [Header("--- Áudio — Ataque (Disparos & Choque) ---")]
     [Tooltip("Som do disparo das pontas/espinhos da Estrela")]
     public AudioClip shotSound;
     [Tooltip("Volume do som de disparo")]
@@ -152,9 +152,10 @@ public class ShardSwarm_AI : MonoBehaviour
     [Range(0f, 1f)]
     public float zapSoundVolume = 0.9f;
 
-    [Tooltip("Sons reproduzidos aleatoriamente quando a Estrela recebe um hit")]
+    [Header("--- Áudio — Dano Recebido (Hit) ---")]
+    [Tooltip("Sons reproduzidos quando a Estrela leva dano (golpe do player). NÃO colocar sons de ataque aqui.")]
     public AudioClip[] hitSounds;
-    [Tooltip("Volume dos sons de hit da Estrela")]
+    [Tooltip("Volume dos sons de dano recebido (hit)")]
     [Range(0f, 1f)]
     public float hitSoundVolume = 0.7f;
 

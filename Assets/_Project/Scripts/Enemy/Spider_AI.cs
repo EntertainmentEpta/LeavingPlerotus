@@ -55,8 +55,8 @@ public class Spider_AI : MonoBehaviour
     [Tooltip("Cooldown do recuo")]
     public float retreatCooldown = 5f;
 
-    [Header("Áudio")]
-    [Tooltip("Vetor de áudios que serão selecionados aleatoriamente")]
+    [Header("Áudio — Movimentação (Passos)")]
+    [Tooltip("Vetor de áudios de passos da Aranha selecionados aleatoriamente")]
     public AudioClip[] walkingSounds;
     [Tooltip("Volume dos sons de passos")]
     [Range(0f, 1f)]
@@ -65,15 +65,17 @@ public class Spider_AI : MonoBehaviour
     public float stepInterval = 0.18f;
     private float stepTimer = 0f;
 
+    [Header("Áudio — Ataque (Salto / Dash)")]
     [Tooltip("Vetor de áudios de dash/ataque que serão selecionados aleatoriamente")]
     public AudioClip[] dashSounds;
     [Tooltip("Volume dos sons de dash/ataque")]
     [Range(0f, 1f)]
     public float dashSoundVolume = 0.8f;
 
-    [Tooltip("Sons reproduzidos aleatoriamente quando a Aranha recebe um hit")]
+    [Header("Áudio — Dano Recebido (Hit)")]
+    [Tooltip("Sons reproduzidos quando a Aranha leva dano (golpe do player). NÃO colocar sons de ataque aqui.")]
     public AudioClip[] hitSounds;
-    [Tooltip("Volume dos sons de hit da Aranha")]
+    [Tooltip("Volume dos sons de dano recebido (hit)")]
     [Range(0f, 1f)]
     public float hitSoundVolume = 0.7f;
 

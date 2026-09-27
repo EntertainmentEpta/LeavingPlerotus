@@ -37,7 +37,7 @@ public class MagicStone_AI : MonoBehaviour
     public float attackInterval = 5f;
     public float attackTelegraphTime = 2.5f;
 
-    [Header("Áudio")]
+    [Header("Áudio — Movimentação / Flutuação")]
     [Tooltip("Som do hover/flutuação (loop constante da pedra flutuando)")]
     public AudioClip hoverSound;
     [Tooltip("Volume do som de hover")]
@@ -50,6 +50,7 @@ public class MagicStone_AI : MonoBehaviour
     [Range(0f, 1f)]
     public float teleportSoundVolume = 0.8f;
 
+    [Header("Áudio — Ataque (Raio e Marcação)")]
     [Tooltip("Som do aviso/marcação de ataque no chão (AttackMarker)")]
     public AudioClip telegraphSound;
     [Tooltip("Volume do som do aviso de marcação")]
@@ -62,9 +63,10 @@ public class MagicStone_AI : MonoBehaviour
     [Range(0f, 1f)]
     public float skybeamSoundVolume = 0.9f;
 
-    [Tooltip("Sons reproduzidos aleatoriamente quando o MagicStone recebe um hit")]
+    [Header("Áudio — Dano Recebido (Hit)")]
+    [Tooltip("Sons reproduzidos quando o MagicStone leva dano (golpe do player). NÃO colocar sons de ataque aqui.")]
     public AudioClip[] hitSounds;
-    [Tooltip("Volume dos sons de hit do MagicStone")]
+    [Tooltip("Volume dos sons de dano recebido (hit)")]
     [Range(0f, 1f)]
     public float hitSoundVolume = 0.7f;
 

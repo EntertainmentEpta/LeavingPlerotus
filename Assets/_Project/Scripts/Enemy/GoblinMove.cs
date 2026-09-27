@@ -90,7 +90,7 @@ public class GoblinAI_Transform : MonoBehaviour
     public float strafeChangeDuration = 1.2f;
 
     // ── Audio ────────────────────────────────────────────────────────
-    [Header("Áudio")]
+    [Header("Áudio — Movimentação (Passos)")]
     [Tooltip("Som único de passo do Goblin (tocado a cada stepInterval)")]
     public AudioClip walkSound;
     [Tooltip("Volume do som de passo")]
@@ -100,6 +100,7 @@ public class GoblinAI_Transform : MonoBehaviour
     public float stepInterval = 0.22f;
     private float stepTimer = 0f;
 
+    [Header("Áudio — Ataque (Bomba)")]
     [Tooltip("Som do arremesso da bomba pelo Goblin")]
     public AudioClip throwSound;
     [Tooltip("Volume do som de arremesso")]
@@ -118,9 +119,10 @@ public class GoblinAI_Transform : MonoBehaviour
     [Range(0f, 1f)]
     public float bombExplosionSoundVolume = 1.0f;
 
-    [Tooltip("Sons reproduzidos aleatoriamente quando o Goblin recebe um hit")]
+    [Header("Áudio — Dano Recebido (Hit)")]
+    [Tooltip("Sons reproduzidos quando o Goblin leva dano (golpe do player). NÃO colocar sons de ataque aqui.")]
     public AudioClip[] hitSounds;
-    [Tooltip("Volume dos sons de hit do Goblin")]
+    [Tooltip("Volume dos sons de dano recebido (hit)")]
     [Range(0f, 1f)]
     public float hitSoundVolume = 0.7f;
 

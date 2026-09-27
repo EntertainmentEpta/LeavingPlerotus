@@ -224,10 +224,7 @@ MonoBehaviour:
   - {fileID: 8300000, guid: 56f9f55969e2d5146bfc136ecc2e2b94, type: 3}
   - {fileID: 8300000, guid: 397ca08bf0df61549ae591b382987f6d, type: 3}
   bismutadoAttackSoundVolume: 0.8
-  bismutadoHitSounds:
-  - {fileID: 8300000, guid: 5d52b79d2d067aa45b7d817fba6b61ab, type: 3}
-  - {fileID: 8300000, guid: 56f9f55969e2d5146bfc136ecc2e2b94, type: 3}
-  - {fileID: 8300000, guid: 397ca08bf0df61549ae591b382987f6d, type: 3}
+  bismutadoHitSounds: []
   bismutadoHitSoundVolume: 0.7
   baseColor: {r: 0.03, g: 0.01, b: 0.05, a: 1}
   transformedColor: {r: 0.7, g: 0.3, b: 0.6, a: 1}

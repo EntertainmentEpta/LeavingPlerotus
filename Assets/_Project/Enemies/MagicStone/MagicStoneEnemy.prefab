@@ -103,10 +103,7 @@ MonoBehaviour:
   telegraphSoundVolume: 0.76
   skybeamSound: {fileID: 8300000, guid: 02233295b715d2e41ac88150aa77bc42, type: 3}
   skybeamSoundVolume: 0.25
-  hitSounds:
-  - {fileID: 8300000, guid: 5d52b79d2d067aa45b7d817fba6b61ab, type: 3}
-  - {fileID: 8300000, guid: 56f9f55969e2d5146bfc136ecc2e2b94, type: 3}
-  - {fileID: 8300000, guid: 397ca08bf0df61549ae591b382987f6d, type: 3}
+  hitSounds: []
   hitSoundVolume: 0.7
 --- !u!65 &1884827477303362434
 BoxCollider:

@@ -67,13 +67,14 @@ public class CrystalWatcher_AI : MonoBehaviour
 
     // ÁUDIO
 
-    [Header("Áudio")]
+    [Header("Áudio — Movimentação / Flutuação")]
     [Tooltip("Som do hover/flutuação (loop constante do inimigo)")]
     public AudioClip hoverSound;
     [Tooltip("Volume do som de hover")]
     [Range(0f, 1f)]
     public float hoverSoundVolume = 0.4f;
 
+    [Header("Áudio — Ataque (Laser)")]
     [Tooltip("Som do carregamento antes do disparo")]
     public AudioClip chargeSound;
     [Tooltip("Volume do som de carregamento")]
@@ -86,15 +87,16 @@ public class CrystalWatcher_AI : MonoBehaviour
     [Range(0f, 1f)]
     public float firingSoundVolume = 0.8f;
 
-    [Tooltip("Som do impacto do laser no player (loop enquanto atinge o player)")]
+    [Tooltip("Som do impacto contínuo do laser no player enquanto atinge")]
     public AudioClip impactSound;
     [Tooltip("Volume do som de impacto no player")]
     [Range(0f, 1f)]
     public float impactSoundVolume = 0.8f;
 
-    [Tooltip("Sons reproduzidos aleatoriamente quando o CrystalWatcher recebe um hit")]
+    [Header("Áudio — Dano Recebido (Hit)")]
+    [Tooltip("Sons reproduzidos quando o CrystalWatcher leva dano (golpe do player). NÃO colocar sons de ataque aqui.")]
     public AudioClip[] hitSounds;
-    [Tooltip("Volume dos sons de hit do CrystalWatcher")]
+    [Tooltip("Volume dos sons de dano recebido (hit)")]
     [Range(0f, 1f)]
     public float hitSoundVolume = 0.7f;
 

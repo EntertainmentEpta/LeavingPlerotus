@@ -62,7 +62,7 @@ public class Golem_AI : MonoBehaviour
     private int meleeCombo = 0; // Para usar stun em combos
     private bool isBuffed = false;
 
-    [Header("Áudio")]
+    [Header("Áudio — Movimentação (Passos)")]
     [Tooltip("Vetor de áudios de passos do Golem selecionados aleatoriamente")]
     public AudioClip[] walkingSounds;
     [Tooltip("Volume dos sons de passos do Golem")]
@@ -72,15 +72,17 @@ public class Golem_AI : MonoBehaviour
     public float stepInterval = 0.45f;
     private float stepTimer = 0f;
 
+    [Header("Áudio — Ataque")]
     [Tooltip("Som do impacto da pisada/estouro de Stun (Stomp)")]
     public AudioClip stompSound;
     [Tooltip("Volume do som de Stomp")]
     [Range(0f, 1f)]
     public float stompSoundVolume = 0.9f;
 
-    [Tooltip("Sons reproduzidos aleatoriamente quando o Golem recebe um hit")]
+    [Header("Áudio — Dano Recebido (Hit)")]
+    [Tooltip("Sons reproduzidos quando o Golem leva dano (golpe do player). NÃO colocar sons de ataque aqui.")]
     public AudioClip[] hitSounds;
-    [Tooltip("Volume dos sons de hit do Golem")]
+    [Tooltip("Volume dos sons de dano recebido (hit)")]
     [Range(0f, 1f)]
     public float hitSoundVolume = 0.7f;
 

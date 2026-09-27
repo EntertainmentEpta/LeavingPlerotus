@@ -46,22 +46,24 @@ public class SharpBlur : MonoBehaviour
     public Material hologramMaterial;
     [Range(0.1f, 1f)] public float hologramAlpha = 0.6f;
 
-    [Header("Áudio")]
+    [Header("Áudio — Movimentação (Teleporte / Dash)")]
     [Tooltip("Som da distorção de teleporte / dash do SharpBlur")]
     public AudioClip teleportSound;
     [Tooltip("Volume do som de teleporte")]
     [Range(0f, 1f)]
     public float teleportSoundVolume = 0.8f;
 
-    [Tooltip("Som do ataque (swoosh / swish de cristal)")]
+    [Header("Áudio — Ataque (Golpe)")]
+    [Tooltip("Som do ataque (swoosh / corte de cristal)")]
     public AudioClip meleeAttackSound;
     [Tooltip("Volume do som de ataque")]
     [Range(0f, 1f)]
     public float meleeAttackSoundVolume = 0.8f;
 
-    [Tooltip("Sons reproduzidos aleatoriamente quando o SharpBlur recebe um hit")]
+    [Header("Áudio — Dano Recebido (Hit)")]
+    [Tooltip("Sons reproduzidos quando o SharpBlur leva dano (golpe do player). NÃO colocar sons de ataque aqui.")]
     public AudioClip[] hitSounds;
-    [Tooltip("Volume dos sons de hit do SharpBlur")]
+    [Tooltip("Volume dos sons de dano recebido (hit)")]
     [Range(0f, 1f)]
     public float hitSoundVolume = 0.7f;
 

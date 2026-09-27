@@ -379,10 +379,7 @@ MonoBehaviour:
   bombTickSoundVolume: 0.6
   bombExplosionSound: {fileID: 8300000, guid: b10e970ebfc7ad6429e84ff52c84bc55, type: 3}
   bombExplosionSoundVolume: 1
-  hitSounds:
-  - {fileID: 8300000, guid: 5d52b79d2d067aa45b7d817fba6b61ab, type: 3}
-  - {fileID: 8300000, guid: 56f9f55969e2d5146bfc136ecc2e2b94, type: 3}
-  - {fileID: 8300000, guid: 397ca08bf0df61549ae591b382987f6d, type: 3}
+  hitSounds: []
   hitSoundVolume: 0.7
 --- !u!114 &5303528467312566948
 MonoBehaviour:

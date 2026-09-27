@@ -206,10 +206,7 @@ MonoBehaviour:
   stepInterval: 0.45
   stompSound: {fileID: 8300000, guid: 63fc45f809a3c804cb02d179f93058b8, type: 3}
   stompSoundVolume: 0.9
-  hitSounds:
-  - {fileID: 8300000, guid: 5d52b79d2d067aa45b7d817fba6b61ab, type: 3}
-  - {fileID: 8300000, guid: 56f9f55969e2d5146bfc136ecc2e2b94, type: 3}
-  - {fileID: 8300000, guid: 397ca08bf0df61549ae591b382987f6d, type: 3}
+  hitSounds: []
   hitSoundVolume: 0.7
 --- !u!114 &343962479280987070
 MonoBehaviour:

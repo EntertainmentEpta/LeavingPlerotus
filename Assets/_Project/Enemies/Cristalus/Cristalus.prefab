@@ -93,10 +93,7 @@ MonoBehaviour:
   crystalYOffset: 0.5
   playerMovementTolerance: 2
   minRepositionAngle: 90
-  hitSounds:
-  - {fileID: 8300000, guid: 5d52b79d2d067aa45b7d817fba6b61ab, type: 3}
-  - {fileID: 8300000, guid: 56f9f55969e2d5146bfc136ecc2e2b94, type: 3}
-  - {fileID: 8300000, guid: 397ca08bf0df61549ae591b382987f6d, type: 3}
+  hitSounds: []
   hitSoundVolume: 0.7
   crystalSpawnSounds:
   - {fileID: 8300000, guid: 4ef3a1bf76d44704294acb4169450ed0, type: 3}

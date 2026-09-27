@@ -31,18 +31,19 @@ public class Cristalus_AI : MonoBehaviour
     public float playerMovementTolerance = 2.0f;
     public float minRepositionAngle = 90f;
 
-    [Header("Áudio")]
-    [Tooltip("Sons reproduzidos aleatoriamente quando o Cristalus recebe um hit")]
-    public AudioClip[] hitSounds;
-    [Tooltip("Volume dos sons de hit do Cristalus")]
-    [Range(0f, 1f)]
-    public float hitSoundVolume = 0.7f;
-
-    [Tooltip("Sons reproduzidos ao criar/dropar cristais")]
+    [Header("Áudio — Habilidade / Ataque (Cristais)")]
+    [Tooltip("Sons reproduzidos ao criar/dropar cristais (arco e rastro)")]
     public AudioClip[] crystalSpawnSounds;
     [Tooltip("Volume do som de spawn de cristais")]
     [Range(0f, 1f)]
     public float crystalSpawnVolume = 0.75f;
+
+    [Header("Áudio — Dano Recebido (Hit)")]
+    [Tooltip("Sons reproduzidos quando o Cristalus leva dano (golpe do player). NÃO colocar sons de ataque aqui.")]
+    public AudioClip[] hitSounds;
+    [Tooltip("Volume dos sons de dano recebido (hit)")]
+    [Range(0f, 1f)]
+    public float hitSoundVolume = 0.7f;
 
     // Variaveis Crystal Tunner
     private bool isBuffed = false;
