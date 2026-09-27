@@ -204,6 +204,8 @@ MonoBehaviour:
   - {fileID: 8300000, guid: 46caeddc30d4e5a4fbaa0bee3a91f65d, type: 3}
   walkingSoundVolume: 0.6
   stepInterval: 0.45
+  meleeAttackSound: {fileID: 0}
+  meleeAttackSoundVolume: 0.8
   stompSound: {fileID: 8300000, guid: 63fc45f809a3c804cb02d179f93058b8, type: 3}
   stompSoundVolume: 0.9
   hitSounds: []

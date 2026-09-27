@@ -380,16 +380,10 @@ public class Spider_AI : MonoBehaviour
 
         int randIndex = Random.Range(0, walkingSounds.Length);
         AudioClip clipToPlay = walkingSounds[randIndex];
-        
-        float pitch = Random.Range(0.9f, 1.1f);
-        
-        // Se contiver "3" no nome ou for o índice correspondente, pode dar uma variação (seguindo a mesma lógica do Mimic)
+
         if (clipToPlay != null)
         {
-            if (randIndex == 2 || clipToPlay.name.Contains("3"))
-            {
-                pitch = Random.Range(1.4f, 1.6f);
-            }
+            float pitch = Random.Range(0.9f, 1.1f);
             PlayClipAtPointWithPitch(clipToPlay, transform.position, pitch, walkingSoundVolume);
         }
     }
@@ -417,7 +411,7 @@ public class Spider_AI : MonoBehaviour
         aSource.clip = clip;
         aSource.pitch = pitch;
         aSource.volume = volume;
-        aSource.spatialBlend = 0.5f; // Semi-3D: audível mesmo quando câmera está a 15-20m
+        aSource.spatialBlend = 0.85f; // Quase totalmente 3D — sons somem com a distância
         aSource.minDistance = 3f;
         aSource.maxDistance = 50f;
         aSource.rolloffMode = AudioRolloffMode.Linear;

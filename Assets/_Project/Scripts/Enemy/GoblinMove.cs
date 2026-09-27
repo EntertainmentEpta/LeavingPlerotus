@@ -91,14 +91,11 @@ public class GoblinAI_Transform : MonoBehaviour
 
     // ── Audio ────────────────────────────────────────────────────────
     [Header("Áudio — Movimentação (Passos)")]
-    [Tooltip("Som único de passo do Goblin (tocado a cada stepInterval)")]
+    [Tooltip("Som do passo do Goblin disparado pelo gatilho/evento da animação de corrida (AnimationEvent_Step)")]
     public AudioClip walkSound;
     [Tooltip("Volume do som de passo")]
     [Range(0f, 1f)]
     public float walkSoundVolume = 0.5f;
-    [Tooltip("Intervalo entre cada passo enquanto caminha em segundos (ex: 0.22s)")]
-    public float stepInterval = 0.22f;
-    private float stepTimer = 0f;
 
     [Header("Áudio — Ataque (Bomba)")]
     [Tooltip("Som do arremesso da bomba pelo Goblin")]
@@ -233,31 +230,23 @@ public class GoblinAI_Transform : MonoBehaviour
     {
         if (player == null) return;
         ExecuteMovement();
-        HandleWalkSound();
     }
 
-    private void HandleWalkSound()
+    // ── Footstep Events ──────────────────────────────────────────────
+    /// <summary>
+    /// Disparado pelo evento/gatilho da animação de corrida (RunningGoblin) quando o pé toca o chão.
+    /// </summary>
+    public void AnimationEvent_Step()
     {
-        if (walkSound == null) return;
-        if (rb == null) return;
-
-        Vector3 flatVel = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
-        if (flatVel.magnitude > 0.1f)
-        {
-            stepTimer -= Time.fixedDeltaTime;
-            if (stepTimer <= 0f)
-            {
-                PlayWalkSound();
-                stepTimer = stepInterval;
-            }
-        }
-        else
-        {
-            stepTimer = 0f;
-        }
+        PlayStepSound();
     }
 
-    private void PlayWalkSound()
+    public void OnStep() => PlayStepSound();
+    public void Passo() => PlayStepSound();
+    public void Footstep() => PlayStepSound();
+    public void PlayWalkSound() => PlayStepSound();
+
+    public void PlayStepSound()
     {
         if (walkSound == null) return;
 

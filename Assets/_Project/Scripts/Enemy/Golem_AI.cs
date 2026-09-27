@@ -72,7 +72,14 @@ public class Golem_AI : MonoBehaviour
     public float stepInterval = 0.45f;
     private float stepTimer = 0f;
 
-    [Header("Áudio — Ataque")]
+    [Header("Áudio — Ataque Normal (Melee)")]
+    [Tooltip("Som do golpe corpo a corpo normal do Golem")]
+    public AudioClip meleeAttackSound;
+    [Tooltip("Volume do som de ataque normal")]
+    [Range(0f, 1f)]
+    public float meleeAttackSoundVolume = 0.8f;
+
+    [Header("Áudio — Habilidade (Stomp / Stun)")]
     [Tooltip("Som do impacto da pisada/estouro de Stun (Stomp)")]
     public AudioClip stompSound;
     [Tooltip("Volume do som de Stomp")]
@@ -302,6 +309,13 @@ public class Golem_AI : MonoBehaviour
         // Animação de vento (wind-up)
         Debug.Log("[GOLEM] MELEE ATTACK! Preparando golpe...");
         yield return new WaitForSeconds(0.5f);
+
+        // Som do golpe de ataque normal
+        if (meleeAttackSound != null)
+        {
+            float pitch = Random.Range(0.9f, 1.1f);
+            PlayClipAtPointWithPitch(meleeAttackSound, transform.position, pitch, meleeAttackSoundVolume);
+        }
 
         // Verifica hit
         Collider[] hits = Physics.OverlapSphere(transform.position + transform.forward * 1.5f, meleeHitRadius);
