@@ -49,6 +49,9 @@ public class PeixeAI : MonoBehaviour
     [Tooltip("Tempo de recarga entre disparos de Espinho (segundos).")]
     public float shootCooldown = 2.0f;
 
+    [Tooltip("Offset vertical adicionado à posição do jogador para mirar no torso em vez dos pés.")]
+    public float playerHeightOffset = 1.5f;
+
     // ── Defend ──────────────────────────────────────────────────────
     [Header("Defend")]
     [Tooltip("Duração do estado Defend em segundos.")]
@@ -263,8 +266,11 @@ public class PeixeAI : MonoBehaviour
     {
         if (espinhoPrefab == null || firePoint == null) return;
 
+        // Posição ajustada para mirar no torso do jogador, não nos pés
+        Vector3 targetPosition = player.position + new Vector3(0, playerHeightOffset, 0);
+
         // Direção para o jogador a partir do ponto de disparo
-        Vector3 direction = (player.position - firePoint.position).normalized;
+        Vector3 direction = (targetPosition - firePoint.position).normalized;
 
         GameObject espinho = Instantiate(espinhoPrefab, firePoint.position, Quaternion.LookRotation(direction));
 
