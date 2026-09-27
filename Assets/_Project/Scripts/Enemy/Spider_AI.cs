@@ -71,6 +71,12 @@ public class Spider_AI : MonoBehaviour
     [Range(0f, 1f)]
     public float dashSoundVolume = 0.8f;
 
+    [Tooltip("Sons reproduzidos aleatoriamente quando a Aranha recebe um hit")]
+    public AudioClip[] hitSounds;
+    [Tooltip("Volume dos sons de hit da Aranha")]
+    [Range(0f, 1f)]
+    public float hitSoundVolume = 0.7f;
+
     [Header("Estados")]
     private bool isLeaping = false;
     private bool isRetreating = false;
@@ -108,6 +114,20 @@ public class Spider_AI : MonoBehaviour
         {
             Debug.LogError("Spider_AI: Player não encontrado! Verifique a tag 'Player'.");
         }
+
+        // Registra callback de som de hit
+        if (health != null && hitSounds != null && hitSounds.Length > 0)
+        {
+            health.onDamageTaken += (damage, attacker) => PlayHitSound();
+        }
+    }
+
+    private void PlayHitSound()
+    {
+        if (hitSounds == null || hitSounds.Length == 0) return;
+        AudioClip clip = hitSounds[Random.Range(0, hitSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), hitSoundVolume);
     }
 
     void Update()
@@ -395,9 +415,9 @@ public class Spider_AI : MonoBehaviour
         aSource.clip = clip;
         aSource.pitch = pitch;
         aSource.volume = volume;
-        aSource.spatialBlend = 1f; // Som 3D
+        aSource.spatialBlend = 0.5f; // Semi-3D: audível mesmo quando câmera está a 15-20m
         aSource.minDistance = 3f;
-        aSource.maxDistance = 20f;
+        aSource.maxDistance = 50f;
         aSource.rolloffMode = AudioRolloffMode.Linear;
         aSource.Play();
         float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;

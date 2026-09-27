@@ -278,6 +278,12 @@ public class Geobionte_AI : MonoBehaviour
     [Range(0f, 1f)]
     public float bismutadoAttackSoundVolume = 0.8f;
 
+    [Tooltip("Sons reproduzidos aleatoriamente quando o Bismutado recebe um hit")]
+    public AudioClip[] bismutadoHitSounds;
+    [Tooltip("Volume dos sons de hit do Bismutado")]
+    [Range(0f, 1f)]
+    public float bismutadoHitSoundVolume = 0.7f;
+
     // ==================== VISUAL ====================
 
     private Renderer geobionteRenderer;
@@ -950,6 +956,11 @@ public class Geobionte_AI : MonoBehaviour
 
             // Override de morte: Bismutado derrotado → volta ao Geobionte padrão
             health.onDeathOverride = OnDefeated;
+
+            // Registra callback de som de hit do Bismutado (remove primeiro para evitar duplicatas)
+            health.onDamageTaken -= OnBismutadoHit;
+            if (bismutadoHitSounds != null && bismutadoHitSounds.Length > 0)
+                health.onDamageTaken += OnBismutadoHit;
         }
 
         // Cria health bar e damage canvas por código se não existir
@@ -1194,13 +1205,21 @@ public class Geobionte_AI : MonoBehaviour
         aSource.clip = clip;
         aSource.pitch = pitch;
         aSource.volume = volume;
-        aSource.spatialBlend = 1f; // Som 3D
+        aSource.spatialBlend = 0.5f; // Semi-3D: audível mesmo quando câmera está a 15-20m
         aSource.minDistance = 3f;
-        aSource.maxDistance = 25f;
+        aSource.maxDistance = 50f;
         aSource.rolloffMode = AudioRolloffMode.Linear;
         aSource.Play();
         float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;
         Destroy(audioObj, clip.length / safePitch);
+    }
+
+    private void OnBismutadoHit(int damage, GameObject attacker)
+    {
+        if (bismutadoHitSounds == null || bismutadoHitSounds.Length == 0) return;
+        AudioClip clip = bismutadoHitSounds[Random.Range(0, bismutadoHitSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), bismutadoHitSoundVolume);
     }
 
     void HandleCombat()
@@ -1389,6 +1408,9 @@ public class Geobionte_AI : MonoBehaviour
     /// </summary>
     void OnDefeated()
     {
+        // Remove callback de hit do Bismutado
+        if (health != null) health.onDamageTaken -= OnBismutadoHit;
+
         // Cancela qualquer sweep em andamento
         isSweeping = false;
 

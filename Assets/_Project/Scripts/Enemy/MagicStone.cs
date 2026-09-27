@@ -62,6 +62,12 @@ public class MagicStone_AI : MonoBehaviour
     [Range(0f, 1f)]
     public float skybeamSoundVolume = 0.9f;
 
+    [Tooltip("Sons reproduzidos aleatoriamente quando o MagicStone recebe um hit")]
+    public AudioClip[] hitSounds;
+    [Tooltip("Volume dos sons de hit do MagicStone")]
+    [Range(0f, 1f)]
+    public float hitSoundVolume = 0.7f;
+
     private AudioSource hoverAudioSource;
     private float originalAttackInterval;
     private float originalMoveSpeed;
@@ -94,6 +100,21 @@ public class MagicStone_AI : MonoBehaviour
 
         // Configura o som de flutuação/hover constante
         SetupHoverAudio();
+
+        // Registra callback de som de hit
+        DummyHealth health = GetComponent<DummyHealth>();
+        if (health != null && hitSounds != null && hitSounds.Length > 0)
+        {
+            health.onDamageTaken += (damage, attacker) => PlayHitSound();
+        }
+    }
+
+    private void PlayHitSound()
+    {
+        if (hitSounds == null || hitSounds.Length == 0) return;
+        AudioClip clip = hitSounds[Random.Range(0, hitSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), hitSoundVolume);
     }
 
     void Update()
@@ -284,9 +305,9 @@ public class MagicStone_AI : MonoBehaviour
             hoverAudioSource.clip = hoverSound;
             hoverAudioSource.volume = hoverSoundVolume;
             hoverAudioSource.loop = true;
-            hoverAudioSource.spatialBlend = 1f; // Som 3D
+            hoverAudioSource.spatialBlend = 0.5f; // Semi-3D
             hoverAudioSource.minDistance = 3f;
-            hoverAudioSource.maxDistance = 25f;
+            hoverAudioSource.maxDistance = 50f;
             hoverAudioSource.Play();
         }
     }
@@ -323,9 +344,9 @@ public class MagicStone_AI : MonoBehaviour
         aSource.clip = clip;
         aSource.pitch = pitch;
         aSource.volume = volume;
-        aSource.spatialBlend = 1f; // Som 3D
+        aSource.spatialBlend = 0.5f; // Semi-3D
         aSource.minDistance = 5f;
-        aSource.maxDistance = 40f;
+        aSource.maxDistance = 50f;
         aSource.rolloffMode = AudioRolloffMode.Linear;
         aSource.Play();
         float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;

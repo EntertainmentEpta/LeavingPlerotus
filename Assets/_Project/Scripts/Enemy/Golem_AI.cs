@@ -78,6 +78,12 @@ public class Golem_AI : MonoBehaviour
     [Range(0f, 1f)]
     public float stompSoundVolume = 0.9f;
 
+    [Tooltip("Sons reproduzidos aleatoriamente quando o Golem recebe um hit")]
+    public AudioClip[] hitSounds;
+    [Tooltip("Volume dos sons de hit do Golem")]
+    [Range(0f, 1f)]
+    public float hitSoundVolume = 0.7f;
+
     public bool IsAttacking => isAttacking;
     public bool IsCastingStun => isCastingStun;
     public bool IsActivated => isActivated;
@@ -108,6 +114,20 @@ public class Golem_AI : MonoBehaviour
         {
             Debug.LogError("Golem_AI: Player não encontrado! Verifique a tag 'Player'.");
         }
+
+        // Registra callback de som de hit
+        if (health != null && hitSounds != null && hitSounds.Length > 0)
+        {
+            health.onDamageTaken += (damage, attacker) => PlayHitSound();
+        }
+    }
+
+    private void PlayHitSound()
+    {
+        if (hitSounds == null || hitSounds.Length == 0) return;
+        AudioClip clip = hitSounds[Random.Range(0, hitSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), hitSoundVolume);
     }
 
     void Update()
@@ -203,9 +223,9 @@ public class Golem_AI : MonoBehaviour
         aSource.clip = clip;
         aSource.pitch = pitch;
         aSource.volume = volume;
-        aSource.spatialBlend = 1f; // Som 3D
+        aSource.spatialBlend = 0.5f; // Semi-3D: audível mesmo quando câmera está a 15-20m
         aSource.minDistance = 3f;
-        aSource.maxDistance = 25f;
+        aSource.maxDistance = 50f;
         aSource.rolloffMode = AudioRolloffMode.Linear;
         aSource.Play();
         float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;

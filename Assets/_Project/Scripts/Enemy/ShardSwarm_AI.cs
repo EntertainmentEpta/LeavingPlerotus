@@ -152,6 +152,12 @@ public class ShardSwarm_AI : MonoBehaviour
     [Range(0f, 1f)]
     public float zapSoundVolume = 0.9f;
 
+    [Tooltip("Sons reproduzidos aleatoriamente quando a Estrela recebe um hit")]
+    public AudioClip[] hitSounds;
+    [Tooltip("Volume dos sons de hit da Estrela")]
+    [Range(0f, 1f)]
+    public float hitSoundVolume = 0.7f;
+
     // Privados internos
     private Transform playerTransform;
     private Rigidbody rb;
@@ -284,6 +290,19 @@ public class ShardSwarm_AI : MonoBehaviour
         rb.freezeRotation = true;
 
         SetState(SwarmState.FormaUnida);
+
+        if (health != null && hitSounds != null && hitSounds.Length > 0)
+        {
+            health.onDamageTaken += (damage, attacker) => PlayHitSound();
+        }
+    }
+
+    private void PlayHitSound()
+    {
+        if (hitSounds == null || hitSounds.Length == 0) return;
+        AudioClip clip = hitSounds[Random.Range(0, hitSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), hitSoundVolume);
     }
 
     private Coroutine shieldFlashCoroutine;

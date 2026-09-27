@@ -49,6 +49,7 @@ public class ShardSwarmHealth : MonoBehaviour
     /// Usado pelo ShardSwarm_AI para controlar o split de gerações.
     /// </summary>
     [HideInInspector] public System.Action onDeathOverride = null;
+    [HideInInspector] public System.Action<int, GameObject> onDamageTaken = null;
 
     private Color originalRenderColor;
     private Color originalBaseColor;
@@ -166,6 +167,7 @@ public class ShardSwarmHealth : MonoBehaviour
         }
 
         CurrentHealth -= damage;
+        onDamageTaken?.Invoke(damage, null);
 
         UpdateHealthBar();
         ShowHealthBar();

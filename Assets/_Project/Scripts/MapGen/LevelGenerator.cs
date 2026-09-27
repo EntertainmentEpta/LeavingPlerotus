@@ -32,6 +32,39 @@ public class LevelGenerator : MonoBehaviour
     void Awake()
     {
         Instance = this;
+        EnsureAudioListenerInGameScene();
+    }
+
+    void Start()
+    {
+        // Se a GameScene for iniciada diretamente no Editor da Unity (sem passar pelo Menu/GameManager)
+        if (GameManager.instance == null)
+        {
+            EnsureAudioListenerInGameScene();
+            GenerateLevel();
+        }
+    }
+
+    private void EnsureAudioListenerInGameScene()
+    {
+        AudioListener.volume = 1f;
+        AudioListener.pause = false;
+
+        if (Object.FindFirstObjectByType<AudioListener>() == null)
+        {
+            Camera cam = Camera.main;
+            if (cam != null)
+            {
+                cam.gameObject.AddComponent<AudioListener>();
+            }
+            else
+            {
+                GameObject listenerObj = new GameObject("GameScene_AudioListener");
+                listenerObj.AddComponent<AudioListener>();
+                listenerObj.transform.position = new Vector3(0, 10, 0);
+            }
+            Debug.Log("[GameScene Audio Bootstrap] AudioListener inicializado para garantir sons na GameScene.");
+        }
     }
 
     // =========================================================

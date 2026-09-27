@@ -92,6 +92,12 @@ public class CrystalWatcher_AI : MonoBehaviour
     [Range(0f, 1f)]
     public float impactSoundVolume = 0.8f;
 
+    [Tooltip("Sons reproduzidos aleatoriamente quando o CrystalWatcher recebe um hit")]
+    public AudioClip[] hitSounds;
+    [Tooltip("Volume dos sons de hit do CrystalWatcher")]
+    [Range(0f, 1f)]
+    public float hitSoundVolume = 0.7f;
+
     private AudioSource hoverAudioSource;
     private AudioSource firingAudioSource;
     private AudioSource impactAudioSource;
@@ -161,6 +167,20 @@ public class CrystalWatcher_AI : MonoBehaviour
 
         // Configura AudioSources de hover, disparo e impacto
         SetupAudioSources();
+
+        // Registra callback de som de hit
+        if (health != null && hitSounds != null && hitSounds.Length > 0)
+        {
+            health.onDamageTaken += (damage, attacker) => PlayHitSound();
+        }
+    }
+
+    private void PlayHitSound()
+    {
+        if (hitSounds == null || hitSounds.Length == 0) return;
+        AudioClip clip = hitSounds[Random.Range(0, hitSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), hitSoundVolume);
     }
 
     // UPDATE — Roda todo frame
@@ -440,9 +460,9 @@ public class CrystalWatcher_AI : MonoBehaviour
             hoverAudioSource.clip = hoverSound;
             hoverAudioSource.volume = hoverSoundVolume;
             hoverAudioSource.loop = true;
-            hoverAudioSource.spatialBlend = 1f; // 3D Audio
+            hoverAudioSource.spatialBlend = 0.5f; // Semi-3D
             hoverAudioSource.minDistance = 3f;
-            hoverAudioSource.maxDistance = 25f;
+            hoverAudioSource.maxDistance = 50f;
             hoverAudioSource.Play();
         }
 
@@ -455,9 +475,9 @@ public class CrystalWatcher_AI : MonoBehaviour
             firingAudioSource.clip = firingSound;
             firingAudioSource.volume = firingSoundVolume;
             firingAudioSource.loop = true;
-            firingAudioSource.spatialBlend = 1f;
+            firingAudioSource.spatialBlend = 0.5f;
             firingAudioSource.minDistance = 3f;
-            firingAudioSource.maxDistance = 30f;
+            firingAudioSource.maxDistance = 50f;
         }
 
         // Impact AudioSource (Loop de impacto no player)
@@ -469,9 +489,9 @@ public class CrystalWatcher_AI : MonoBehaviour
             impactAudioSource.clip = impactSound;
             impactAudioSource.volume = impactSoundVolume;
             impactAudioSource.loop = true;
-            impactAudioSource.spatialBlend = 1f;
+            impactAudioSource.spatialBlend = 0.5f;
             impactAudioSource.minDistance = 3f;
-            impactAudioSource.maxDistance = 30f;
+            impactAudioSource.maxDistance = 50f;
         }
     }
 
@@ -539,9 +559,9 @@ public class CrystalWatcher_AI : MonoBehaviour
         aSource.clip = clip;
         aSource.pitch = pitch;
         aSource.volume = volume;
-        aSource.spatialBlend = 1f;
+        aSource.spatialBlend = 0.5f; // Semi-3D
         aSource.minDistance = 3f;
-        aSource.maxDistance = 25f;
+        aSource.maxDistance = 50f;
         aSource.rolloffMode = AudioRolloffMode.Linear;
         aSource.Play();
         float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;
