@@ -47,7 +47,7 @@ public class PeixeAI : MonoBehaviour
     public float projectileSpeed = 14f;
 
     [Tooltip("Tempo de recarga entre disparos de Espinho (segundos).")]
-    public float shootCooldown = 2.0f;
+    public float shootCooldown = 3.0f;
 
     [Tooltip("Offset vertical adicionado à posição do jogador para mirar no torso em vez dos pés.")]
     public float playerHeightOffset = 1.5f;
@@ -100,6 +100,12 @@ public class PeixeAI : MonoBehaviour
     private Vector3 currentVelocity = Vector3.zero;
 
     private float lastShootTime = -999f;
+    private Vector3 spawnPosition; // posição inicial para safety net
+
+    /// <summary>Velocidade máxima permitida para evitar que o physics solver arremesse o Peixe.</summary>
+    private const float MAX_VELOCITY = 20f;
+    /// <summary>Distância máxima do spawn antes de acionar o safety net.</summary>
+    private const float MAX_DISTANCE_FROM_SPAWN = 60f;
 
     private bool registeredInBestiary = false;
 
@@ -134,6 +140,8 @@ public class PeixeAI : MonoBehaviour
             GameObject p = GameObject.FindGameObjectWithTag("Player");
             if (p != null) player = p.transform;
         }
+
+        spawnPosition = transform.position;
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -164,9 +172,32 @@ public class PeixeAI : MonoBehaviour
     {
         if (player == null) return;
 
+        // ── Clamp de velocidade: previne que o physics solver lance o Peixe ──
+        if (rb.linearVelocity.sqrMagnitude > MAX_VELOCITY * MAX_VELOCITY)
+        {
+            Debug.LogWarning($"[PeixeAI] Velocidade excessiva detectada ({rb.linearVelocity.magnitude:F1} m/s)! Clamping para {MAX_VELOCITY}.");
+            rb.linearVelocity = rb.linearVelocity.normalized * MAX_VELOCITY;
+        }
+
+        // ── Safety net: reposiciona se saiu dos limites (qualquer eixo) ──
+        float distFromSpawn = Vector3.Distance(transform.position, spawnPosition);
+        if (transform.position.y < spawnPosition.y - 10f || distFromSpawn > MAX_DISTANCE_FROM_SPAWN)
+        {
+            Debug.LogWarning($"[PeixeAI] Safety net! Peixe fora dos limites (pos={transform.position}, dist={distFromSpawn:F1}). Reposicionando.");
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            transform.position = spawnPosition;
+        }
+
         float dist = Vector3.Distance(transform.position, player.position);
         UpdateState(dist);
         ExecuteMovement();
+
+        // Disparo contínuo enquanto estiver no estado Shoot
+        if (currentState == State.Shoot)
+        {
+            TryShoot();
+        }
     }
 
     // ── State Machine ───────────────────────────────────────────────
@@ -204,7 +235,8 @@ public class PeixeAI : MonoBehaviour
         switch (newState)
         {
             case State.Shoot:
-                TryShoot();
+                // Disparo imediato ao entrar no estado (reseta cooldown para atirar já)
+                lastShootTime = -999f;
                 break;
             case State.Defend:
                 StartCoroutine(DefendRoutine());
@@ -289,6 +321,11 @@ public class PeixeAI : MonoBehaviour
         isDefending = true;
         isInvulnerable = true;
 
+        // Torna kinematic para evitar que o physics solver arremesse o Peixe
+        // quando o collider infla e interpenetra chão/jogador/paredes
+        rb.linearVelocity = Vector3.zero;
+        rb.isKinematic = true;
+
         // Feedback visual: cor vermelha
         if (meshRenderer != null)
         {
@@ -300,7 +337,7 @@ public class PeixeAI : MonoBehaviour
 
         isDefending = false;
 
-        // Transição para Stunned
+        // Transição para Stunned (continua kinematic até o fim do Stunned)
         StartCoroutine(StunnedRoutine());
     }
 
@@ -326,6 +363,9 @@ public class PeixeAI : MonoBehaviour
             meshRenderer.material.color = originalColor;
         }
         transform.localScale = originalScale;
+
+        // Restaura a física agora que o scale voltou ao normal
+        rb.isKinematic = false;
 
         isStunned = false;
         currentState = State.Idle; // Permite que o UpdateState re-avalie no próximo FixedUpdate
@@ -373,5 +413,12 @@ public class PeixeAI : MonoBehaviour
             Quaternion targetRot = Quaternion.LookRotation(direction);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, 8f * Time.fixedDeltaTime);
         }
+    }
+
+    // ── Diagnóstico: detecta quem está destruindo o Peixe ────────────
+    void OnDestroy()
+    {
+        Debug.LogError($"[PeixeAI] ⚠️ Peixe '{gameObject.name}' foi DESTRUÍDO! Estado: {currentState}, isDefending={isDefending}, isStunned={isStunned}, isInvulnerable={isInvulnerable}, Pos={transform.position}");
+        Debug.LogError("[PeixeAI] Stack trace da destruição:\n" + System.Environment.StackTrace);
     }
 }
