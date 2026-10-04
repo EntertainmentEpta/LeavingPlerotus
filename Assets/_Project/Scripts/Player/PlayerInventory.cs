@@ -12,6 +12,25 @@ using System.Collections.Generic;
 /// </summary>
 public class PlayerInventory : MonoBehaviour
 {
+    [Header("Áudio — Inventário e Coleta")]
+    [Tooltip("Som reproduzido ao abrir o inventário")]
+    public AudioClip openInventorySound;
+    [Tooltip("Volume do som de abrir o inventário")]
+    [Range(0f, 1f)]
+    public float openInventorySoundVolume = 0.8f;
+
+    [Tooltip("Som reproduzido ao fechar o inventário")]
+    public AudioClip closeInventorySound;
+    [Tooltip("Volume do som de fechar o inventário")]
+    [Range(0f, 1f)]
+    public float closeInventorySoundVolume = 0.8f;
+
+    [Tooltip("Vetor de sons reproduzidos ao coletar/pegar um item do chão (seleciona aleatoriamente)")]
+    public AudioClip[] itemPickupSounds;
+    [Tooltip("Volume dos sons de coleta de item")]
+    [Range(0f, 1f)]
+    public float itemPickupSoundVolume = 0.8f;
+
     [Header("Inventário")]
     [Tooltip("Dicionário de itens coletados (ID -> Quantidade)")]
     private Dictionary<string, int> items = new Dictionary<string, int>();
@@ -105,6 +124,7 @@ public class PlayerInventory : MonoBehaviour
         }
 
         Debug.Log("[INVENTORY] +" + amount + " " + itemId + " | Total: " + items[itemId] + " | Slots: " + items.Count + "/" + maxSlots);
+        PlayItemPickupSound();
         onItemAdded?.Invoke(itemId, items[itemId]);
         onInventoryChanged?.Invoke();
         return true;
@@ -207,5 +227,39 @@ public class PlayerInventory : MonoBehaviour
             Debug.Log(item.Key + ": " + item.Value);
         }
         Debug.Log("==================");
+    }
+
+    // ── Áudio ───────────────────────────────────────────────────────
+    public void PlayItemPickupSound()
+    {
+        if (itemPickupSounds == null || itemPickupSounds.Length == 0) return;
+        AudioClip clip = itemPickupSounds[Random.Range(0, itemPickupSounds.Length)];
+        if (clip != null)
+            Play2DAudio(clip, itemPickupSoundVolume);
+    }
+
+    public void PlayOpenInventorySound()
+    {
+        if (openInventorySound == null) return;
+        Play2DAudio(openInventorySound, openInventorySoundVolume);
+    }
+
+    public void PlayCloseInventorySound()
+    {
+        if (closeInventorySound == null) return;
+        Play2DAudio(closeInventorySound, closeInventorySoundVolume);
+    }
+
+    private void Play2DAudio(AudioClip clip, float volume)
+    {
+        if (clip == null) return;
+        GameObject audioObj = new GameObject("TempInventoryAudio");
+        audioObj.transform.position = transform.position;
+        AudioSource aSource = audioObj.AddComponent<AudioSource>();
+        aSource.clip = clip;
+        aSource.volume = volume;
+        aSource.spatialBlend = 0f; // 2D som de UI/Player
+        aSource.Play();
+        Destroy(audioObj, clip.length + 0.1f);
     }
 }

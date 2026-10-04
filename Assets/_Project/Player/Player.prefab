@@ -2069,6 +2069,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7219fff5fdb244441b6e817bb2645e48, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerInventory
+  openInventorySound: {fileID: 8300000, guid: 27726599a512e36469b064895c3b23aa, type: 3}
+  openInventorySoundVolume: 0.8
+  closeInventorySound: {fileID: 8300000, guid: 722ff8a899e4148449cdfc1644a0e670, type: 3}
+  closeInventorySoundVolume: 0.8
+  itemPickupSounds:
+  - {fileID: 8300000, guid: b29a3b2dd41519547aaa970e43b578c6, type: 3}
+  - {fileID: 8300000, guid: f828eed3c22a64947b599b80a27239e6, type: 3}
+  - {fileID: 8300000, guid: c1bd6c3d31a6f434a840dbe962f29988, type: 3}
+  itemPickupSoundVolume: 0.8
   maxSlots: 10
   onItemAdded:
     m_PersistentCalls:
