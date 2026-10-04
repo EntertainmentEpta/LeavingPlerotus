@@ -93,11 +93,21 @@ MonoBehaviour:
   crystalYOffset: 0.5
   playerMovementTolerance: 2
   minRepositionAngle: 90
-  hitSounds: []
-  hitSoundVolume: 0.7
+  slideSounds:
+  - {fileID: 8300000, guid: 09357b5aa95de8f479435e01d8bcf2b6, type: 3}
+  slideSoundVolume: 0.8
   crystalSpawnSounds:
-  - {fileID: 8300000, guid: 4ef3a1bf76d44704294acb4169450ed0, type: 3}
+  - {fileID: 8300000, guid: 4931db2f5a293a849a8e390e5bb19a77, type: 3}
   crystalSpawnVolume: 0.75
+  crystalExplodeSounds:
+  - {fileID: 8300000, guid: e9bec62e29338f040b1d30bc7a82880b, type: 3}
+  crystalExplodeVolume: 0.8
+  hitSounds:
+  - {fileID: 8300000, guid: e8539116f9064234794d6ceb26bdbc9c, type: 3}
+  hitSoundVolume: 0.7
+  dieSounds:
+  - {fileID: 8300000, guid: 2a55b85948e4f3e4f969c89def593f56, type: 3}
+  dieSoundVolume: 0.8
 --- !u!114 &16886834917353225
 MonoBehaviour:
   m_ObjectHideFlags: 0

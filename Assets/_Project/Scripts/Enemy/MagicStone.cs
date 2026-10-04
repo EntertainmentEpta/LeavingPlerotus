@@ -70,6 +70,13 @@ public class MagicStone_AI : MonoBehaviour
     [Range(0f, 1f)]
     public float hitSoundVolume = 0.7f;
 
+    [Header("Áudio — Morte (Die)")]
+    [Tooltip("Sons reproduzidos quando o MagicStone morre.")]
+    public AudioClip[] dieSounds;
+    [Tooltip("Volume dos sons de morte")]
+    [Range(0f, 1f)]
+    public float dieSoundVolume = 0.8f;
+
     private AudioSource hoverAudioSource;
     private float originalAttackInterval;
     private float originalMoveSpeed;
@@ -103,11 +110,15 @@ public class MagicStone_AI : MonoBehaviour
         // Configura o som de flutuação/hover constante
         SetupHoverAudio();
 
-        // Registra callback de som de hit
+        // Registra callbacks de áudio de hit e morte
         DummyHealth health = GetComponent<DummyHealth>();
-        if (health != null && hitSounds != null && hitSounds.Length > 0)
+        if (health != null)
         {
-            health.onDamageTaken += (damage, attacker) => PlayHitSound();
+            if (hitSounds != null && hitSounds.Length > 0)
+                health.onDamageTaken += (damage, attacker) => PlayHitSound();
+
+            if (dieSounds != null && dieSounds.Length > 0)
+                health.onDeath += PlayDieSound;
         }
     }
 
@@ -117,6 +128,14 @@ public class MagicStone_AI : MonoBehaviour
         AudioClip clip = hitSounds[Random.Range(0, hitSounds.Length)];
         if (clip != null)
             PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), hitSoundVolume);
+    }
+
+    private void PlayDieSound()
+    {
+        if (dieSounds == null || dieSounds.Length == 0) return;
+        AudioClip clip = dieSounds[Random.Range(0, dieSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), dieSoundVolume);
     }
 
     void Update()

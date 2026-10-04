@@ -204,12 +204,16 @@ MonoBehaviour:
   - {fileID: 8300000, guid: 46caeddc30d4e5a4fbaa0bee3a91f65d, type: 3}
   walkingSoundVolume: 0.6
   stepInterval: 0.45
-  meleeAttackSound: {fileID: 0}
+  meleeAttackSound: {fileID: 8300000, guid: f75792465661afe42acaebbfc98f757e, type: 3}
   meleeAttackSoundVolume: 0.8
   stompSound: {fileID: 8300000, guid: 63fc45f809a3c804cb02d179f93058b8, type: 3}
   stompSoundVolume: 0.9
-  hitSounds: []
+  hitSounds:
+  - {fileID: 8300000, guid: 5ad980c6abd999e43b7d08880ed1f92f, type: 3}
   hitSoundVolume: 0.7
+  dieSounds:
+  - {fileID: 8300000, guid: 2bd262cf36ef71b4db40a0fc876b1327, type: 3}
+  dieSoundVolume: 0.8
 --- !u!114 &343962479280987070
 MonoBehaviour:
   m_ObjectHideFlags: 0

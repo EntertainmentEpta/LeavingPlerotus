@@ -159,6 +159,13 @@ public class ShardSwarm_AI : MonoBehaviour
     [Range(0f, 1f)]
     public float hitSoundVolume = 0.7f;
 
+    [Header("--- Áudio — Morte (Die) ---")]
+    [Tooltip("Sons reproduzidos quando a Estrela morre.")]
+    public AudioClip[] dieSounds;
+    [Tooltip("Volume dos sons de morte")]
+    [Range(0f, 1f)]
+    public float dieSoundVolume = 0.8f;
+
     // Privados internos
     private Transform playerTransform;
     private Rigidbody rb;
@@ -292,9 +299,14 @@ public class ShardSwarm_AI : MonoBehaviour
 
         SetState(SwarmState.FormaUnida);
 
-        if (health != null && hitSounds != null && hitSounds.Length > 0)
+        // Registra callbacks de áudio de hit e morte
+        if (health != null)
         {
-            health.onDamageTaken += (damage, attacker) => PlayHitSound();
+            if (hitSounds != null && hitSounds.Length > 0)
+                health.onDamageTaken += (damage, attacker) => PlayHitSound();
+
+            if (dieSounds != null && dieSounds.Length > 0)
+                health.onDeath += PlayDieSound;
         }
     }
 
@@ -304,6 +316,14 @@ public class ShardSwarm_AI : MonoBehaviour
         AudioClip clip = hitSounds[Random.Range(0, hitSounds.Length)];
         if (clip != null)
             PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), hitSoundVolume);
+    }
+
+    private void PlayDieSound()
+    {
+        if (dieSounds == null || dieSounds.Length == 0) return;
+        AudioClip clip = dieSounds[Random.Range(0, dieSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), dieSoundVolume);
     }
 
     private Coroutine shieldFlashCoroutine;

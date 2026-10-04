@@ -67,6 +67,13 @@ public class SharpBlur : MonoBehaviour
     [Range(0f, 1f)]
     public float hitSoundVolume = 0.7f;
 
+    [Header("Áudio — Morte (Die)")]
+    [Tooltip("Sons reproduzidos quando o SharpBlur morre.")]
+    public AudioClip[] dieSounds;
+    [Tooltip("Volume dos sons de morte")]
+    [Range(0f, 1f)]
+    public float dieSoundVolume = 0.8f;
+
     // Adicionado o estado MeleeAttacking
     private enum State { Idle, Chasing, Dashing, MeleeAttacking, Resting }
     private State currentState = State.Idle;
@@ -96,10 +103,14 @@ public class SharpBlur : MonoBehaviour
         rb.freezeRotation = true;
         rb.constraints |= RigidbodyConstraints.FreezePositionY;
 
-        // Registra callback de som de hit
-        if (health != null && hitSounds != null && hitSounds.Length > 0)
+        // Registra callbacks de áudio de hit e morte
+        if (health != null)
         {
-            health.onDamageTaken += (damage, attacker) => PlayHitSound();
+            if (hitSounds != null && hitSounds.Length > 0)
+                health.onDamageTaken += (damage, attacker) => PlayHitSound();
+
+            if (dieSounds != null && dieSounds.Length > 0)
+                health.onDeath += PlayDieSound;
         }
     }
 
@@ -109,6 +120,14 @@ public class SharpBlur : MonoBehaviour
         AudioClip clip = hitSounds[Random.Range(0, hitSounds.Length)];
         if (clip != null)
             PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), hitSoundVolume);
+    }
+
+    private void PlayDieSound()
+    {
+        if (dieSounds == null || dieSounds.Length == 0) return;
+        AudioClip clip = dieSounds[Random.Range(0, dieSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), dieSoundVolume);
     }
 
     void Update()

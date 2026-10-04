@@ -50,6 +50,7 @@ public class ShardSwarmHealth : MonoBehaviour
     /// </summary>
     [HideInInspector] public System.Action onDeathOverride = null;
     [HideInInspector] public System.Action<int, GameObject> onDamageTaken = null;
+    [HideInInspector] public System.Action onDeath = null;
 
     private Color originalRenderColor;
     private Color originalBaseColor;
@@ -222,6 +223,8 @@ public class ShardSwarmHealth : MonoBehaviour
 
     private void Die()
     {
+        onDeath?.Invoke();
+
         if (shardSwarmAI != null)
         {
             shardSwarmAI.DestroyAllSpikes();

@@ -31,12 +31,24 @@ public class Cristalus_AI : MonoBehaviour
     public float playerMovementTolerance = 2.0f;
     public float minRepositionAngle = 90f;
 
+    [Header("Áudio — Movimentação (Slide)")]
+    [Tooltip("Sons reproduzidos quando o Cristalus dá o slide/desliza")]
+    public AudioClip[] slideSounds;
+    [Tooltip("Volume dos sons de slide")]
+    [Range(0f, 1f)]
+    public float slideSoundVolume = 0.8f;
+
     [Header("Áudio — Habilidade / Ataque (Cristais)")]
     [Tooltip("Sons reproduzidos ao criar/dropar cristais (arco e rastro)")]
     public AudioClip[] crystalSpawnSounds;
     [Tooltip("Volume do som de spawn de cristais")]
     [Range(0f, 1f)]
     public float crystalSpawnVolume = 0.75f;
+    [Tooltip("Sons reproduzidos quando os cristais do Cristalus explodem")]
+    public AudioClip[] crystalExplodeSounds;
+    [Tooltip("Volume do som de explosão dos cristais")]
+    [Range(0f, 1f)]
+    public float crystalExplodeVolume = 0.8f;
 
     [Header("Áudio — Dano Recebido (Hit)")]
     [Tooltip("Sons reproduzidos quando o Cristalus leva dano (golpe do player). NÃO colocar sons de ataque aqui.")]
@@ -44,6 +56,13 @@ public class Cristalus_AI : MonoBehaviour
     [Tooltip("Volume dos sons de dano recebido (hit)")]
     [Range(0f, 1f)]
     public float hitSoundVolume = 0.7f;
+
+    [Header("Áudio — Morte (Die)")]
+    [Tooltip("Sons reproduzidos quando o Cristalus morre.")]
+    public AudioClip[] dieSounds;
+    [Tooltip("Volume dos sons de morte")]
+    [Range(0f, 1f)]
+    public float dieSoundVolume = 0.8f;
 
     // Variaveis Crystal Tunner
     private bool isBuffed = false;
@@ -64,10 +83,14 @@ public class Cristalus_AI : MonoBehaviour
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         if (player != null) playerTransform = player.transform;
 
-        // Registra callback de som de hit
-        if (health != null && hitSounds != null && hitSounds.Length > 0)
+        // Registra callbacks de áudio de hit e morte
+        if (health != null)
         {
-            health.onDamageTaken += (damage, attacker) => PlayHitSound();
+            if (hitSounds != null && hitSounds.Length > 0)
+                health.onDamageTaken += (damage, attacker) => PlayHitSound();
+
+            if (dieSounds != null && dieSounds.Length > 0)
+                health.onDeath += PlayDieSound;
         }
     }
 
@@ -144,6 +167,7 @@ public class Cristalus_AI : MonoBehaviour
 
             if (i < crystalsPerArc - 1)
             {
+                PlaySlideSound();
                 float timer = 0f;
                 Vector3 startPos = transform.position;
                 Vector3 startRelDir = startPos - pivot;
@@ -181,6 +205,7 @@ public class Cristalus_AI : MonoBehaviour
     IEnumerator RepositionRoutine()
     {
         currentState = State.Repositioning;
+        PlaySlideSound();
         Vector3 dirFromPlayerToEnemy = (transform.position - playerTransform.position).normalized;
         dirFromPlayerToEnemy.y = 0;
 
@@ -238,7 +263,20 @@ public class Cristalus_AI : MonoBehaviour
 
         PlayCrystalSpawnSound(position);
 
-        return Instantiate(selectedPrefab, position, Quaternion.identity);
+        GameObject crystalObj = Instantiate(selectedPrefab, position, Quaternion.identity);
+        if (crystalObj != null)
+        {
+            SonicCrystal sonic = crystalObj.GetComponent<SonicCrystal>();
+            if (sonic != null)
+            {
+                if ((sonic.explodeSounds == null || sonic.explodeSounds.Length == 0) && crystalExplodeSounds != null && crystalExplodeSounds.Length > 0)
+                {
+                    sonic.explodeSounds = crystalExplodeSounds;
+                    sonic.explodeVolume = crystalExplodeVolume;
+                }
+            }
+        }
+        return crystalObj;
     }
 
     void LookAtTarget(Vector3 target, float rotationSpeed)
@@ -283,12 +321,40 @@ public class Cristalus_AI : MonoBehaviour
             PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), hitSoundVolume);
     }
 
+    private void PlayDieSound()
+    {
+        if (dieSounds == null || dieSounds.Length == 0) return;
+        AudioClip clip = dieSounds[Random.Range(0, dieSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), dieSoundVolume);
+    }
+
+    public void PlayCrystalExplodeSound(Vector3 position)
+    {
+        if (crystalExplodeSounds == null || crystalExplodeSounds.Length == 0) return;
+        AudioClip clip = crystalExplodeSounds[Random.Range(0, crystalExplodeSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, position, Random.Range(0.9f, 1.1f), crystalExplodeVolume);
+    }
+
     private void PlayCrystalSpawnSound(Vector3 position)
     {
         if (crystalSpawnSounds == null || crystalSpawnSounds.Length == 0) return;
         AudioClip clip = crystalSpawnSounds[Random.Range(0, crystalSpawnSounds.Length)];
         if (clip != null)
             PlayClipAtPointWithPitch(clip, position, Random.Range(0.9f, 1.1f), crystalSpawnVolume);
+    }
+
+    public void AnimationEvent_Slide() => PlaySlideSound();
+    public void Slide() => PlaySlideSound();
+    public void OnSlide() => PlaySlideSound();
+
+    public void PlaySlideSound()
+    {
+        if (slideSounds == null || slideSounds.Length == 0) return;
+        AudioClip clip = slideSounds[Random.Range(0, slideSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), slideSoundVolume);
     }
 
     private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)

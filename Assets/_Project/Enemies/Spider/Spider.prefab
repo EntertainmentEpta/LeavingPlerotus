@@ -216,8 +216,12 @@ MonoBehaviour:
   - {fileID: 8300000, guid: abf282179dac9a14aa3796bb3546458d, type: 3}
   - {fileID: 8300000, guid: f312cbfc9547c674b9cbd57a3660a6f5, type: 3}
   dashSoundVolume: 0.8
-  hitSounds: []
+  hitSounds:
+  - {fileID: 8300000, guid: 5ad980c6abd999e43b7d08880ed1f92f, type: 3}
   hitSoundVolume: 0.7
+  dieSounds:
+  - {fileID: 8300000, guid: 2bd262cf36ef71b4db40a0fc876b1327, type: 3}
+  dieSoundVolume: 0.8
 --- !u!114 &5632678571611438161
 MonoBehaviour:
   m_ObjectHideFlags: 0

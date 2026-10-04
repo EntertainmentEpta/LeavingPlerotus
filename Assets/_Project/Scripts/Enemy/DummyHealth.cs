@@ -62,6 +62,11 @@ public class DummyHealth : MonoBehaviour
     /// </summary>
     [HideInInspector] public System.Action<int, GameObject> onDamageTaken = null;
 
+    /// <summary>
+    /// Evento disparado quando este inimigo morre (antes de ser destruído).
+    /// </summary>
+    [HideInInspector] public System.Action onDeath = null;
+
     private Color originalRenderColor;
     private Color originalBaseColor;
     private bool hasBaseColor = false;
@@ -243,6 +248,8 @@ public class DummyHealth : MonoBehaviour
 
     private void Die()
     {
+        onDeath?.Invoke();
+
         RunStatsManager.Instance?.RecordEnemyKilled();
 
         // Se um override foi definido (ex: Geobionte usa fuga ao invés de morte),

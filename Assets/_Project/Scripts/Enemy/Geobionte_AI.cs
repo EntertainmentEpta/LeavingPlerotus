@@ -286,6 +286,13 @@ public class Geobionte_AI : MonoBehaviour
     [Range(0f, 1f)]
     public float bismutadoHitSoundVolume = 0.7f;
 
+    [Header("Áudio — Morte / Derrota (Die)")]
+    [Tooltip("Sons reproduzidos quando o Geobionte / Bismutado morre ou é derrotado.")]
+    public AudioClip[] dieSounds;
+    [Tooltip("Volume dos sons de morte")]
+    [Range(0f, 1f)]
+    public float dieSoundVolume = 0.8f;
+
     // ==================== VISUAL ====================
 
     private Renderer geobionteRenderer;
@@ -1224,6 +1231,14 @@ public class Geobionte_AI : MonoBehaviour
             PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), bismutadoHitSoundVolume);
     }
 
+    private void PlayDieSound()
+    {
+        if (dieSounds == null || dieSounds.Length == 0) return;
+        AudioClip clip = dieSounds[Random.Range(0, dieSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), dieSoundVolume);
+    }
+
     void HandleCombat()
     {
         if (playerTransform == null)
@@ -1410,6 +1425,9 @@ public class Geobionte_AI : MonoBehaviour
     /// </summary>
     void OnDefeated()
     {
+        // Toca som de morte / derrota
+        PlayDieSound();
+
         // Remove callback de hit do Bismutado
         if (health != null) health.onDamageTaken -= OnBismutadoHit;
 

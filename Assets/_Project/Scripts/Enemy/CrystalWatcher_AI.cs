@@ -100,6 +100,13 @@ public class CrystalWatcher_AI : MonoBehaviour
     [Range(0f, 1f)]
     public float hitSoundVolume = 0.7f;
 
+    [Header("Áudio — Morte (Die)")]
+    [Tooltip("Sons reproduzidos quando o CrystalWatcher morre.")]
+    public AudioClip[] dieSounds;
+    [Tooltip("Volume dos sons de morte")]
+    [Range(0f, 1f)]
+    public float dieSoundVolume = 0.8f;
+
     private AudioSource hoverAudioSource;
     private AudioSource firingAudioSource;
     private AudioSource impactAudioSource;
@@ -170,10 +177,14 @@ public class CrystalWatcher_AI : MonoBehaviour
         // Configura AudioSources de hover, disparo e impacto
         SetupAudioSources();
 
-        // Registra callback de som de hit
-        if (health != null && hitSounds != null && hitSounds.Length > 0)
+        // Registra callbacks de áudio de hit e morte
+        if (health != null)
         {
-            health.onDamageTaken += (damage, attacker) => PlayHitSound();
+            if (hitSounds != null && hitSounds.Length > 0)
+                health.onDamageTaken += (damage, attacker) => PlayHitSound();
+
+            if (dieSounds != null && dieSounds.Length > 0)
+                health.onDeath += PlayDieSound;
         }
     }
 
@@ -183,6 +194,14 @@ public class CrystalWatcher_AI : MonoBehaviour
         AudioClip clip = hitSounds[Random.Range(0, hitSounds.Length)];
         if (clip != null)
             PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), hitSoundVolume);
+    }
+
+    private void PlayDieSound()
+    {
+        if (dieSounds == null || dieSounds.Length == 0) return;
+        AudioClip clip = dieSounds[Random.Range(0, dieSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), dieSoundVolume);
     }
 
     // UPDATE — Roda todo frame

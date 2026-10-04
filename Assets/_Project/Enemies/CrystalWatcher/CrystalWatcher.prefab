@@ -170,8 +170,11 @@ MonoBehaviour:
   impactSound: {fileID: 8300000, guid: 64d109e81035d064fa02de6c260ecdbc, type: 3}
   impactSoundVolume: 0.8
   hitSounds:
-  - {fileID: 0}
+  - {fileID: 8300000, guid: e8539116f9064234794d6ceb26bdbc9c, type: 3}
   hitSoundVolume: 0.7
+  dieSounds:
+  - {fileID: 8300000, guid: 2a55b85948e4f3e4f969c89def593f56, type: 3}
+  dieSoundVolume: 0.8
 --- !u!114 &2726038420584316830
 MonoBehaviour:
   m_ObjectHideFlags: 0
