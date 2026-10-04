@@ -46,6 +46,30 @@ public class ItemAttributeParam
     public bool isMultiplier = false;
 }
 
+public enum ItemPersistenceMode
+{
+    RunOnly,
+    PersistentInventory,
+    BaseResource,
+    SynergyTransient
+}
+
+public static class ItemIdentityValidator
+{
+    public static bool IsValid(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId)) return false;
+        if (itemId.Length < 3 || itemId.Length > 128) return false;
+        return System.Text.RegularExpressions.Regex.IsMatch(itemId, "^[a-z0-9_]+$");
+    }
+
+    public static string Normalize(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId)) return string.Empty;
+        return itemId.Trim().ToLowerInvariant().Replace(' ', '_');
+    }
+}
+
 /// <summary>
 /// ScriptableObject que define os dados visuais e de classificação de um item.
 /// Crie assets via: Assets > Create > Inventory > Item Data
@@ -56,8 +80,12 @@ public class ItemAttributeParam
 public class ItemData : ScriptableObject
 {
     [Header("Identificação")]
-    [Tooltip("ID único do item (deve ser igual ao itemId do CharacteristicItemPickup)")]
+    [Tooltip("ID único do item. Deve seguir slug em minúsculas e underscore. Ex.: spider_silk")]
     public string itemId;
+
+    [Header("Persistência e Destino")]
+    [Tooltip("Define se o item vai para o inventário de run, persistente, bolsa sintética ou restante apenas em sinergia efêmera.")]
+    public ItemPersistenceMode persistenceMode = ItemPersistenceMode.RunOnly;
 
     [Tooltip("Nome de exibição do item")]
     public string itemName;
@@ -92,6 +120,27 @@ public class ItemData : ScriptableObject
 
     [Tooltip("Use o '+' para adicionar quantos buffs o item der!")]
     public List<ItemAttributeParam> itemAttributes = new List<ItemAttributeParam>();
+
+    private void OnValidate()
+    {
+        if (string.IsNullOrWhiteSpace(itemId)) return;
+
+        string normalized = ItemIdentityValidator.Normalize(itemId);
+        if (!string.Equals(itemId, normalized, System.StringComparison.Ordinal))
+        {
+            itemId = normalized;
+        }
+
+        if (!ItemIdentityValidator.IsValid(itemId))
+        {
+            Debug.LogWarning($"[ItemData] itemId inválido: '{itemId}'. Use apenas letras minúsculas, números e underscore.");
+        }
+    }
+
+    public bool HasValidId()
+    {
+        return ItemIdentityValidator.IsValid(itemId);
+    }
 
     [Header("Tier 4 Special Effect")]
     [Tooltip("Efeito especial concedido ao infundir este item T4.\n" +

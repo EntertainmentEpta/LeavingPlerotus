@@ -56,5 +56,6 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "RogueLikeProject.sln"
+    "dotnet.defaultSolution": "RogueLikeProject.sln",
+    "dotnet.preferCSharpExtension": true
 }
