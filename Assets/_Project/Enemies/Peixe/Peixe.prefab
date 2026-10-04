@@ -186,7 +186,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DummyHealth
   isSlowed: 0
-  maxHealth: 100
+  maxHealth: 300
   debugLogDamage: 0
   healthBarSlider: {fileID: 0}
   normalColor: {r: 1, g: 0, b: 0, a: 1}
@@ -221,6 +221,8 @@ MonoBehaviour:
   projectileSpeed: 14
   shootCooldown: 2
   playerHeightOffset: 1.5
+  aimDelay: 0.3
+  spreadAngle: 60
   defendDuration: 3
   defendScaleMultiplier: 2
   scaleLerpSpeed: 4

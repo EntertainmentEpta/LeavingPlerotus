@@ -55,6 +55,9 @@ public class Espinho : MonoBehaviour
         // Ignora colisões com inimigos
         if (other.CompareTag("Enemy")) return;
 
+        // Ignora outros Espinhos (os 3 tiros do spread nascem sobrepostos)
+        if (other.GetComponentInParent<Espinho>() != null) return;
+
         // Ignora colisão com o próprio dono (Peixe que atirou)
         if (owner != null && (other.gameObject == owner || other.transform.IsChildOf(owner.transform)))
             return;

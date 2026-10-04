@@ -52,6 +52,12 @@ public class PeixeAI : MonoBehaviour
     [Tooltip("Offset vertical adicionado à posição do jogador para mirar no torso em vez dos pés.")]
     public float playerHeightOffset = 1.5f;
 
+    [Tooltip("Tempo mínimo de 'mira' ao entrar no range de tiro antes de disparar (segundos). O cooldown global sempre é respeitado.")]
+    public float aimDelay = 0.3f;
+
+    [Tooltip("Ângulo (graus) entre o tiro central e cada um dos tiros laterais do spread.")]
+    public float spreadAngle = 60f;
+
     // ── Defend ──────────────────────────────────────────────────────
     [Header("Defend")]
     [Tooltip("Duração do estado Defend em segundos.")]
@@ -99,7 +105,9 @@ public class PeixeAI : MonoBehaviour
     private Vector3 originalScale;
     private Vector3 currentVelocity = Vector3.zero;
 
-    private float lastShootTime = -999f;
+    /// <summary>Instante (Time.time) a partir do qual o próximo disparo é permitido.
+    /// Persiste entre trocas de estado, impedindo burlar o cooldown saindo/voltando ao range.</summary>
+    private float nextShootTime = 0f;
     private Vector3 spawnPosition; // posição inicial para safety net
 
     /// <summary>Velocidade máxima permitida para evitar que o physics solver arremesse o Peixe.</summary>
@@ -235,8 +243,10 @@ public class PeixeAI : MonoBehaviour
         switch (newState)
         {
             case State.Shoot:
-                // Disparo imediato ao entrar no estado (reseta cooldown para atirar já)
-                lastShootTime = -999f;
+                // NÃO reseta o cooldown: se o jogador sair e voltar ao range rapidamente,
+                // o Peixe ainda espera o tempo restante do cooldown.
+                // Além disso, aplica um pequeno tempo de mira ao (re)entrar no estado.
+                nextShootTime = Mathf.Max(nextShootTime, Time.time + aimDelay);
                 break;
             case State.Defend:
                 StartCoroutine(DefendRoutine());
@@ -287,10 +297,10 @@ public class PeixeAI : MonoBehaviour
     // ── Shoot ───────────────────────────────────────────────────────
     void TryShoot()
     {
-        if (Time.time >= lastShootTime + shootCooldown)
+        if (Time.time >= nextShootTime)
         {
             ShootEspinho();
-            lastShootTime = Time.time;
+            nextShootTime = Time.time + shootCooldown;
         }
     }
 
@@ -304,14 +314,22 @@ public class PeixeAI : MonoBehaviour
         // Direção para o jogador a partir do ponto de disparo
         Vector3 direction = (targetPosition - firePoint.position).normalized;
 
-        GameObject espinho = Instantiate(espinhoPrefab, firePoint.position, Quaternion.LookRotation(direction));
+        Quaternion centerRotation = Quaternion.LookRotation(direction);
 
-        // Configura o componente Espinho (owner + velocidade)
-        Espinho espinhoScript = espinho.GetComponent<Espinho>();
-        if (espinhoScript != null)
+        // Spread: tiro central (original) + 2 laterais girados no eixo Y
+        float[] angles = { 0f, -spreadAngle, spreadAngle };
+        foreach (float angle in angles)
         {
-            espinhoScript.owner = gameObject;
-            espinhoScript.speed = projectileSpeed;
+            Quaternion rot = Quaternion.AngleAxis(angle, Vector3.up) * centerRotation;
+            GameObject espinho = Instantiate(espinhoPrefab, firePoint.position, rot);
+
+            // Configura o componente Espinho (owner + velocidade)
+            Espinho espinhoScript = espinho.GetComponent<Espinho>();
+            if (espinhoScript != null)
+            {
+                espinhoScript.owner = gameObject;
+                espinhoScript.speed = projectileSpeed;
+            }
         }
     }
 
