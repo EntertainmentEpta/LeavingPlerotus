@@ -7,6 +7,7 @@ public class DashM : MonoBehaviour
     private Rigidbody rb;
     private PlayerAttributesDefensive playerAttributes;
     private PlayerHealth playerHealth;
+    private PlayerM playerMovement;
     public bool isDashing = false;
 
     [Header("Dash Settings")]
@@ -48,6 +49,7 @@ public class DashM : MonoBehaviour
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
+        playerMovement = GetComponent<PlayerM>();
         dashesLeft = maxDashes;
         attackScript = GetComponent<PrimaryAttackKnife>() ?? GetComponentInChildren<PrimaryAttackKnife>() ?? GetComponentInParent<PrimaryAttackKnife>();
         
@@ -84,13 +86,18 @@ public class DashM : MonoBehaviour
         PlayerUltimate playerUlt = GetComponent<PlayerUltimate>() ?? GetComponentInParent<PlayerUltimate>() ?? GetComponentInChildren<PlayerUltimate>();
         if (playerUlt != null && playerUlt.IsUltimateActive()) return;
 
-        if (Input.GetKeyDown(dashKey))
+        bool plasmaActionLocked = playerMovement != null && playerMovement.IsPlasmaActionLocked;
+        if (plasmaActionLocked)
+        {
+            lastDashInputTime = -999f;
+        }
+        else if (Input.GetKeyDown(dashKey))
         {
             lastDashInputTime = Time.time;
         }
 
         // Lógica para iniciar o dash com suporte a Input Buffer Temporal e Dash-Canceling de ataque (Estilo Hades)
-        if ((Time.time - lastDashInputTime <= inputBufferWindow) && dashesLeft > 0 && !isDashing && !isRecharging)
+        if ((Time.time - lastDashInputTime <= inputBufferWindow) && dashesLeft > 0 && !isDashing && !isRecharging && !plasmaActionLocked)
         {
             // Se o player estiver atacando, cancela a recuperação do ataque imediatamente para realizar o Dash
             if (attackScript != null && attackScript.isAttacking)

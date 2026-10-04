@@ -142,14 +142,29 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GunAttack
   projectilePrefab: {fileID: -6173952573389582666, guid: 62990efdbcb116b43a5a0174988292a8, type: 3}
   muzzle: {fileID: 577326026319440339}
-  fireCooldown: 0.5
+  fireCooldown: 0.1
   baseDamage: 10
   maxExtraProjectiles: 5
-  batteryCapacity: 6
-  batteryRechargeDuration: 1
+  batteryCapacity: 8
+  batteryRechargeDuration: 2
   chargePerTrigger: 1
+  batteryOrbSprites:
+  - {fileID: 21300000, guid: 56a4efcc7e5534349a44bae36e2b6e7c, type: 3}
+  - {fileID: 21300000, guid: 11fd70d77af2e3946926a21ed4a41b45, type: 3}
+  - {fileID: 21300000, guid: 9c77c2afab90b1249817ef930905505a, type: 3}
+  - {fileID: 21300000, guid: dca641a57198cb3449d76e2c657a96a1, type: 3}
+  - {fileID: 21300000, guid: dae67b6ec3afd634a934c895c69b6ef9, type: 3}
+  batteryOrbTint: {r: 1, g: 1, b: 1, a: 1}
+  batteryOrbSize: 96
+  batteryOrbSpacing: 4
+  batteryHUDOffset: {x: 24, y: -24}
   useMuzzleForward: 1
   aimTransform: {fileID: 0}
+  aimConeColor: {r: 0.05, g: 0.75, b: 1, a: 0.2}
+  aimConeSegments: 32
+  aimConeXOffset: 0
+  aimConeGroundOffset: 0.04
+  minimumAimConeHalfAngle: 5
 --- !u!114 &5590839371842489967
 MonoBehaviour:
   m_ObjectHideFlags: 0

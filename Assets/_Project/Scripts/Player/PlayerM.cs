@@ -43,7 +43,10 @@ public class PlayerM : MonoBehaviour
     private Vector3 moveDirection;
     private float targetSpeed;
     private float currentRotationSpeed;
-    private bool isPlasmaFiring;
+    private bool isPlasmaActionLocked;
+    private Vector3 plasmaAimDirection;
+
+    public bool IsPlasmaActionLocked => isPlasmaActionLocked;
 
     [HideInInspector]
     public float debuffSpeedMultiplier = 1.0f;
@@ -126,18 +129,18 @@ public class PlayerM : MonoBehaviour
             return;
         }
 
-        if (dashScript != null && dashScript.isDashing) return;
-        if (isPlasmaFiring)
+        if (isPlasmaActionLocked)
         {
             rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
             return;
         }
+        if (dashScript != null && dashScript.isDashing) return;
         MovePlayer();
     }
 
     public void SetPlasmaFiring(bool isFiring)
     {
-        isPlasmaFiring = isFiring;
+        isPlasmaActionLocked = isFiring;
         if (!isFiring) return;
 
         moveDirection = Vector3.zero;
@@ -145,9 +148,14 @@ public class PlayerM : MonoBehaviour
         currentRotationSpeed = 0f;
     }
 
+    public void SetPlasmaAimDirection(Vector3 direction)
+    {
+        plasmaAimDirection = Vector3.ProjectOnPlane(direction, Vector3.up).normalized;
+    }
+
     private void MyInput()
     {
-        if (isPlasmaFiring)
+        if (isPlasmaActionLocked)
         {
             moveDirection = Vector3.zero;
             targetSpeed = 0f;
@@ -213,6 +221,13 @@ public class PlayerM : MonoBehaviour
 
     private void LookAtMoveDirection()
     {
+        if (isPlasmaActionLocked && plasmaAimDirection.sqrMagnitude > 0.0001f)
+        {
+            Quaternion aimRotation = Quaternion.LookRotation(plasmaAimDirection, Vector3.up);
+            transform.rotation = Quaternion.Slerp(transform.rotation, aimRotation, rotationSpeed * Time.deltaTime);
+            return;
+        }
+
         if (moveDirection != Vector3.zero)
         {
             Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
