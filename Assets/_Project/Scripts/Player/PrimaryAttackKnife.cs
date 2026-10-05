@@ -19,6 +19,7 @@ public class PrimaryAttackKnife : MonoBehaviour
     public Rigidbody playerRb;
     public PlayerHealth playerHealth;
     private PlayerAttributesOffensive playerAttributes;
+    private Tier4EffectManager tier4Manager;
 
     [Header("Weapon Hitbox")]
     public Collider handHitbox;
@@ -576,6 +577,14 @@ public class PrimaryAttackKnife : MonoBehaviour
             if (enemy != null)
             {
                 enemy.TakeDamage(finalDamage, isCritical);
+
+                // Efeitos T4 on-hit (ex: Poison) — só se o inimigo sobreviveu ao golpe
+                if (tier4Manager == null)
+                    tier4Manager = GetComponent<Tier4EffectManager>()
+                                ?? GetComponentInParent<Tier4EffectManager>()
+                                ?? FindFirstObjectByType<Tier4EffectManager>();
+                if (tier4Manager != null && enemy != null && enemy.CurrentHealth > 0)
+                    tier4Manager.ApplyOnHitEffects(enemy.gameObject);
                 if (playerAttributes != null && playerAttributes.slowOnHit > 0f)
                 {
                     enemy.ApplySlow(playerAttributes.slowOnHit, 3.0f);

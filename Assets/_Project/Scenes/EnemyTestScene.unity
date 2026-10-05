@@ -3933,6 +3933,10 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: -0
       objectReference: {fileID: 0}
+    - target: {fileID: 2718093008628533155, guid: 01139e293efaea64b85b9723c4371284, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 4911626264200761076, guid: 01139e293efaea64b85b9723c4371284, type: 3}
       propertyPath: m_Name
       value: HealthBar_Canvas
@@ -4015,7 +4019,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8789996716743726861, guid: 01139e293efaea64b85b9723c4371284, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: -0.19
+      value: -0.34
       objectReference: {fileID: 0}
     - target: {fileID: 8789996716743726861, guid: 01139e293efaea64b85b9723c4371284, type: 3}
       propertyPath: m_AnchoredPosition.y
@@ -5434,7 +5438,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 4991438441872711960, guid: 566d2c0cfd6c0f64fb1b03e316183aa5, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 1.92413
+      value: 1.78
       objectReference: {fileID: 0}
     - target: {fileID: 4991438441872711960, guid: 566d2c0cfd6c0f64fb1b03e316183aa5, type: 3}
       propertyPath: m_LocalPosition.y
@@ -5483,6 +5487,10 @@ PrefabInstance:
     - target: {fileID: 7363615238620693774, guid: 566d2c0cfd6c0f64fb1b03e316183aa5, type: 3}
       propertyPath: spreadAngle
       value: 45
+      objectReference: {fileID: 0}
+    - target: {fileID: 7735817908024443685, guid: 566d2c0cfd6c0f64fb1b03e316183aa5, type: 3}
+      propertyPath: maxHealth
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 7735817908024443685, guid: 566d2c0cfd6c0f64fb1b03e316183aa5, type: 3}
       propertyPath: healthBarSlider
