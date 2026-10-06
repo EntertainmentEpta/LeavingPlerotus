@@ -1,25 +1,19 @@
 using UnityEngine;
+using TMPro;
 
 /// <summary>
-/// Script de interação física com a Mesa de Trabalho na cena da Base.
-/// Detecta proximidade do jogador e abre a UI de Crafting ao pressionar T.
-///
-/// SETUP NA CENA:
-///   1. Adicione este script ao GameObject da mesa de trabalho
-///   2. Adicione um BoxCollider com isTrigger = true ao objeto
-///   3. Arraste o GameObject do prompt visual "T" para pressTUI
-///   4. O CraftingUI é encontrado automaticamente (singleton)
-///
-/// DEPENDÊNCIAS:
-///   - CraftingUI.Instance (tela de crafting — criada automaticamente)
-///   - Player deve ter a tag "Player"
+/// Script de interação física com a Mesa de Trabalho (Robozinho).
+/// - Detecta proximidade e abre a UI de Crafting.
+/// - Fade Suave (CanvasGroup) no texto de interação.
+/// - Conectado ao KeybindManager (Lê "KeyInteract" do PlayerPrefs automaticamente).
+/// - Suporte a efeitos sonoros de fala, síntese bem-sucedida e falha.
 /// </summary>
 public class CraftingTableInteraction : MonoBehaviour
 {
     public static CraftingTableInteraction Instance { get; private set; }
 
     [Header("Áudio / Sons do Robozinho")]
-    [Tooltip("Som reproduzido ao interagir/falar com o robô de síntese (tecla F ou T).")]
+    [Tooltip("Som reproduzido ao interagir/falar com o robô de síntese.")]
     public AudioClip talkSound;
 
     [Tooltip("Som reproduzido ao sintetizar/craftar um item com sucesso.")]
@@ -32,16 +26,21 @@ public class CraftingTableInteraction : MonoBehaviour
     [Tooltip("Volume dos efeitos sonoros do robô.")]
     public float soundVolume = 1f;
 
-    [Header("UI References")]
-    [Tooltip("Prompt visual 'Pressione T/F' (world space, filho da crafting table)")]
-    public GameObject pressTUI;
+    [Header("Configuração de Interação")]
+    [Tooltip("Texto da ação (ex: Interagir, Craftar, Falar).")]
+    public string actionText = "Interagir";
 
-    [Header("Fallback")]
-    [Tooltip("Painel legado da CraftingTableUI. Se CraftingUI.Instance existir, este é ignorado.")]
-    public GameObject craftingTableUI;
+    [Header("UI do Robozinho")]
+    public GameObject promptUI;
+    public TextMeshProUGUI promptTextMesh;
+    public float fadeSpeed = 6f;
+
+    [Header("Modelos")]
+    public Transform robotModelTransform;
 
     private bool playerPerto = false;
     private AudioSource audioSource;
+    private CanvasGroup promptCanvasGroup;
 
     void Awake()
     {
@@ -54,71 +53,137 @@ public class CraftingTableInteraction : MonoBehaviour
             audioSource.playOnAwake = false;
             audioSource.spatialBlend = 0f; // 2D som limpo de interface/NPC
         }
+    }
 
-        if (pressTUI != null)
-            pressTUI.SetActive(false);
-        if (craftingTableUI != null)
-            craftingTableUI.SetActive(false);
+    void Start()
+    {
+        if (promptUI != null)
+        {
+            promptCanvasGroup = promptUI.GetComponent<CanvasGroup>();
+            if (promptCanvasGroup == null)
+            {
+                promptCanvasGroup = promptUI.AddComponent<CanvasGroup>();
+            }
+            
+            promptCanvasGroup.alpha = 0f;
+            promptUI.SetActive(false);
+        }
+
+        if (robotModelTransform == null) robotModelTransform = transform;
+        
+        UpdatePromptText();
+    }
+
+    /// <summary>
+    /// Busca a tecla de interação atualizada diretamente do sistema de Keybinds (PlayerPrefs).
+    /// </summary>
+    private KeyCode GetCurrentInteractKey()
+    {
+        string savedKey = PlayerPrefs.GetString("KeyInteract", "F");
+        try 
+        {
+            return (KeyCode)System.Enum.Parse(typeof(KeyCode), savedKey);
+        }
+        catch 
+        {
+            return KeyCode.F;
+        }
+    }
+
+    /// <summary>
+    /// Atualiza o texto na tela para refletir a tecla exata configurada pelo jogador.
+    /// </summary>
+    private void UpdatePromptText()
+    {
+        if (promptTextMesh != null)
+        {
+            KeyCode currentKey = GetCurrentInteractKey();
+            promptTextMesh.text = $"[ {currentKey.ToString()} ] {actionText}";
+        }
     }
 
     void OnTriggerEnter(Collider other)
     {
         if (!other.CompareTag("Player")) return;
         playerPerto = true;
-        if (pressTUI != null)
-            pressTUI.SetActive(true);
+        UpdatePromptText();
     }
 
     void OnTriggerExit(Collider other)
     {
         if (!other.CompareTag("Player")) return;
         playerPerto = false;
-        if (pressTUI != null)
-            pressTUI.SetActive(false);
-
-        // Fecha o crafting ao sair da área
+        
         if (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen())
+        {
             CraftingUI.Instance.CloseCrafting();
-        else if (craftingTableUI != null)
-            craftingTableUI.SetActive(false);
+            if (RobotPreviewManager.Instance != null) RobotPreviewManager.Instance.Deactivate();
+        }
     }
 
     void Update()
     {
+        // === 1. LÓGICA DO FADE SUAVE DO PROMPT ===
+        if (promptUI != null && promptCanvasGroup != null)
+        {
+            bool isCraftingOpen = CraftingUI.Instance != null && CraftingUI.Instance.IsOpen();
+            bool shouldShowPrompt = playerPerto && !isCraftingOpen;
+
+            float targetAlpha = shouldShowPrompt ? 1f : 0f;
+
+            if (shouldShowPrompt && !promptUI.activeSelf)
+            {
+                promptUI.SetActive(true);
+            }
+
+            promptCanvasGroup.alpha = Mathf.MoveTowards(promptCanvasGroup.alpha, targetAlpha, Time.deltaTime * fadeSpeed);
+
+            if (!shouldShowPrompt && promptCanvasGroup.alpha <= 0.01f && promptUI.activeSelf)
+            {
+                promptUI.SetActive(false);
+            }
+
+            if (promptUI.activeSelf && Camera.main != null)
+            {
+                promptUI.transform.forward = Camera.main.transform.forward;
+            }
+        }
+
         if (!playerPerto) return;
 
-        // Aceita tanto T quanto F para interagir com o robô
-        if (Input.GetKeyDown(KeyCode.T) || Input.GetKeyDown(KeyCode.F))
+        // === 2. LÓGICA DE INTERAÇÃO (USANDO A TECLA DINÂMICA OU T) ===
+        KeyCode interactKey = GetCurrentInteractKey();
+
+        if (Input.GetKeyDown(interactKey) || Input.GetKeyDown(KeyCode.T))
         {
             PlayTalkSound();
 
-            // Usa o novo CraftingUI se disponível
             if (CraftingUI.Instance != null)
             {
                 if (CraftingUI.Instance.IsOpen())
+                {
                     CraftingUI.Instance.CloseCrafting();
+                    if (RobotPreviewManager.Instance != null) RobotPreviewManager.Instance.Deactivate();
+                }
                 else
+                {
                     CraftingUI.Instance.OpenCrafting();
-            }
-            // Fallback para o painel legado
-            else if (craftingTableUI != null)
-            {
-                craftingTableUI.SetActive(!craftingTableUI.activeSelf);
+                    
+                    if (RobotPreviewManager.Instance != null) 
+                    {
+                        RobotPreviewManager.Instance.Activate(robotModelTransform);
+                    }
+                }
             }
         }
 
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             if (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen())
+            {
                 CraftingUI.Instance.CloseCrafting();
-            else if (craftingTableUI != null && craftingTableUI.activeSelf)
-                craftingTableUI.SetActive(false);
-        }
-
-        // Billboard: pressTUI sempre virado para a câmera
-        if (pressTUI != null && pressTUI.activeSelf && Camera.main != null)
-        {
-            pressTUI.transform.forward = Camera.main.transform.forward;
+                if (RobotPreviewManager.Instance != null) RobotPreviewManager.Instance.Deactivate();
+            }
         }
     }
 

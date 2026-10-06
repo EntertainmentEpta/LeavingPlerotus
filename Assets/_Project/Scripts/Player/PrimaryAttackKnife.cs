@@ -8,6 +8,9 @@ public class PrimaryAttackKnife : MonoBehaviour
     public bool isHitboxActive { get; private set; } = false;
     public bool isAttacking { get; private set; }
 
+    [Header("Input de Ataque")]
+    public KeyCode attackKey = KeyCode.Q;
+
     [Header("Estado da Arma")]
     public bool hasWeapon = false;
 
@@ -41,10 +44,32 @@ public class PrimaryAttackKnife : MonoBehaviour
     public float axeRange = 7.5f; 
 
     [Header("VFX")]
-    [Tooltip("Arraste aqui suas variações de VFX (o original e o Slash). O script vai sortear um deles a cada hit!")]
+    [Tooltip("Arraste aqui suas variações de VFX para hits NORMAIS. O script vai sortear um deles a cada hit!")]
     public GameObject[] hitImpactVariations;
+
+    [Tooltip("VFX específico para ACERTO CRÍTICO. Se vazio, usa as variações normais mesmo em crits.")]
+    public GameObject criticalHitImpactPrefab;
+
     // (Mantive o antigo escondido só para não dar erro se alguma outra coisa puxar ele)
     [HideInInspector] public GameObject hitImpactPrefab;
+
+    [Header("Axe Hit SFX")]
+    [Tooltip("Sons de impacto do machado em inimigos. Índice 0 = Hit 1, 1 = Hit 2, etc.")]
+    public AudioClip[] axeHitSounds = new AudioClip[4];
+
+    [Tooltip("Volume dos sons de impacto do machado (0.0 a 1.0)")]
+    [Range(0f, 1f)]
+    public float axeHitVolume = 0.8f;
+
+    [Header("Axe Swing SFX (Animation Events)")]
+    public AudioClip axeSwing1;
+    [Range(0f, 1f)] public float swing1Volume = 0.6f;
+    public AudioClip axeSwing2;
+    [Range(0f, 1f)] public float swing2Volume = 0.6f;
+    public AudioClip axeSwing3;
+    [Range(0f, 1f)] public float swing3Volume = 0.6f;
+    public AudioClip axeSwing4;
+    [Range(0f, 1f)] public float swing4Volume = 0.6f;
 
     [Header("Trail Settings")]
     [Tooltip("Arraste aqui o TrailRenderer da arma (ou do objeto filho) para ativar automaticamente no momento do ataque.")]
@@ -114,6 +139,7 @@ public class PrimaryAttackKnife : MonoBehaviour
     private float lastAttackTime = 0f;
     private Coroutine comboResetCoroutine;
     private Coroutine backupAttackCoroutine;
+    private AudioSource axeSwingAudioSource; // AudioSource reutilizável para interromper o swing anterior
     private bool eventFiredEnableHitbox = false;
     private bool eventFiredDisableHitbox = false;
     private bool eventFiredOpenWindow = false;
@@ -205,7 +231,7 @@ public class PrimaryAttackKnife : MonoBehaviour
                 }
             }
 
-            if (Input.GetKeyDown(KeyCode.Q) || Input.GetMouseButtonDown(0))
+            if (Input.GetKeyDown(attackKey) || Input.GetMouseButtonDown(0))
             {
                 lastAttackInputTime = Time.time;
 
@@ -354,6 +380,7 @@ public class PrimaryAttackKnife : MonoBehaviour
             animator.ResetTrigger("Attack");
             animator.SetInteger("ComboStep", comboStep);
             animator.SetTrigger("Attack");
+
 
             // --- LUNGE FORWARD FOR ATTACKS (Apenas se enableLunge for ativado) ---
             if (enableLunge)
@@ -577,11 +604,23 @@ public class PrimaryAttackKnife : MonoBehaviour
                 }
             }
 
-            // Escolhe o VFX: tenta pegar do array de variações, se estiver vazio, usa o antigo
-            GameObject vfxToSpawn = hitImpactPrefab;
-            if (hitImpactVariations != null && hitImpactVariations.Length > 0)
+            // Escolhe o VFX: crítico usa prefab dedicado, normal sorteia das variações
+            GameObject vfxToSpawn = null;
+
+            if (isCritical && criticalHitImpactPrefab != null)
             {
+                // Hit crítico com VFX dedicado!
+                vfxToSpawn = criticalHitImpactPrefab;
+            }
+            else if (hitImpactVariations != null && hitImpactVariations.Length > 0)
+            {
+                // Hit normal: sorteia entre as variações
                 vfxToSpawn = hitImpactVariations[Random.Range(0, hitImpactVariations.Length)];
+            }
+            else
+            {
+                // Fallback: prefab legado
+                vfxToSpawn = hitImpactPrefab;
             }
 
             if (vfxToSpawn != null)
@@ -589,6 +628,24 @@ public class PrimaryAttackKnife : MonoBehaviour
                 Vector3 hitPoint = enemyCollider.ClosestPoint(transform.position + Vector3.up);
                 GameObject hitVFX = Instantiate(vfxToSpawn, hitPoint, Quaternion.identity);
                 Destroy(hitVFX, 2f);
+            }
+
+            // --- SFX de impacto do Machado (interrompe o swing no ar ao conectar) ---
+            if (axeHitSounds != null && comboStep > 0 && comboStep <= axeHitSounds.Length)
+            {
+                AudioClip hitClip = axeHitSounds[comboStep - 1];
+                if (hitClip != null)
+                {
+                    // Interrompe o som de swing (whoosh) para que não se misture com o impacto
+                    if (axeSwingAudioSource != null && axeSwingAudioSource.isPlaying)
+                    {
+                        axeSwingAudioSource.Stop();
+                    }
+
+                    float pitch = Random.Range(0.95f, 1.05f);
+                    Vector3 sfxPoint = enemyCollider.ClosestPoint(transform.position + Vector3.up);
+                    PlayClipAtPointWithPitch(hitClip, sfxPoint, pitch, axeHitVolume);
+                }
             }
         }
     }
@@ -844,5 +901,62 @@ public class PrimaryAttackKnife : MonoBehaviour
         hasWeapon = true;
 
         ApplyWeaponRangeScale();
+    }
+
+    // --- Métodos de SFX para Swing do Machado (Animation Events) ---
+    private bool IsAxeEquipped()
+    {
+        Player_WeaponManager wm = GetComponent<Player_WeaponManager>() ?? GetComponentInParent<Player_WeaponManager>();
+        if (wm != null && wm.currentWeapon != null && wm.isWeaponDrawn)
+        {
+            WeaponOffset offset = wm.currentWeapon.GetComponent<WeaponOffset>();
+            return (offset != null && offset.weaponType == WeaponType.Axe);
+        }
+        return false;
+    }
+
+    private void EnsureAxeSwingAudioSource()
+    {
+        if (axeSwingAudioSource == null)
+        {
+            GameObject audioObj = new GameObject("AxeSwingAudioSource");
+            audioObj.transform.SetParent(transform);
+            audioObj.transform.localPosition = Vector3.up;
+            axeSwingAudioSource = audioObj.AddComponent<AudioSource>();
+            axeSwingAudioSource.spatialBlend = 1f;
+            axeSwingAudioSource.minDistance = 3f;
+            axeSwingAudioSource.maxDistance = 30f;
+            axeSwingAudioSource.rolloffMode = AudioRolloffMode.Linear;
+        }
+    }
+
+    private void PlayAxeSwingClip(AudioClip clip, float volume)
+    {
+        EnsureAxeSwingAudioSource();
+        axeSwingAudioSource.pitch = Random.Range(0.93f, 1.07f);
+        axeSwingAudioSource.PlayOneShot(clip, volume);
+    }
+
+    public void PlaySwing1() { if (IsAxeEquipped() && axeSwing1 != null) PlayAxeSwingClip(axeSwing1, swing1Volume); }
+    public void PlaySwing2() { if (IsAxeEquipped() && axeSwing2 != null) PlayAxeSwingClip(axeSwing2, swing2Volume); }
+    public void PlaySwing3() { if (IsAxeEquipped() && axeSwing3 != null) PlayAxeSwingClip(axeSwing3, swing3Volume); }
+    public void PlaySwing4() { if (IsAxeEquipped() && axeSwing4 != null) PlayAxeSwingClip(axeSwing4, swing4Volume); }
+
+    // --- Método utilitário de áudio (mesmo padrão do projeto: GoblinMove, Golem_AI, Spider_AI, etc.) ---
+    private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
+    {
+        GameObject audioObj = new GameObject("TempAxeHitAudio");
+        audioObj.transform.position = position;
+        AudioSource aSource = audioObj.AddComponent<AudioSource>();
+        aSource.clip = clip;
+        aSource.pitch = pitch;
+        aSource.volume = volume;
+        aSource.spatialBlend = 1f;
+        aSource.minDistance = 3f;
+        aSource.maxDistance = 30f;
+        aSource.rolloffMode = AudioRolloffMode.Linear;
+        aSource.Play();
+        float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;
+        Destroy(audioObj, clip.length / safePitch);
     }
 }

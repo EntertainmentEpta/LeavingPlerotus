@@ -91,6 +91,7 @@ public class AcidPuddleSpawner : MonoBehaviour
     private void OnPhaseChanged(int newPhase)
     {
         if (activateOnPhase > 0 && newPhase == activateOnPhase) Activate();
+        else if (activateOnPhase > 0 && newPhase != activateOnPhase) Deactivate();
     }
 
     private void OnBossDefeated()
@@ -132,6 +133,18 @@ public class AcidPuddleSpawner : MonoBehaviour
             StopCoroutine(spawnCoroutine);
             spawnCoroutine = null;
         }
+    }
+
+    // Spawn-on-demand para o projétil ácido do boss — ignora o loop temporizado.
+    public void SpawnAtPosition(Vector3 worldPos)
+    {
+        if (acidPuddlePrefab == null) return;
+        if (AcidPuddle.ActiveCount >= maxSimultaneousPuddles) return;
+
+        Instantiate(acidPuddlePrefab, worldPos, Quaternion.identity);
+
+        if (showDebugLog)
+            Debug.Log($"[AcidPuddleSpawner] SpawnAtPosition em {worldPos} | Ativas: {AcidPuddle.ActiveCount + 1}/{maxSimultaneousPuddles}");
     }
 
     // ── Coroutine ─────────────────────────────────────────────────────────────

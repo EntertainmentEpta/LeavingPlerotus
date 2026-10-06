@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e945c12aade065d41a2c2c1589c2ab8a, type: 3}
+  m_Name: recipe_arma_projetil
+  m_EditorClassIdentifier: Assembly-CSharp::CraftingRecipe
+  recipeId: recipe_arma_projetil
+  recipeName: Prototipo: Arma de Fogo
+  description: Desenvolve o primeiro prototipo de arma de projeteis.
+  icon: {fileID: 0}
+  ingredients:
+  - itemId: resta_geobionte
+    quantity: 2
+  - itemId: cristal_explosivo
+    quantity: 5
+  resultType: 1
+  resultItemId: ''
+  resultEquipment: {fileID: 11400000, guid: 5960818ef8db46168d923cae174545ee, type: 2}

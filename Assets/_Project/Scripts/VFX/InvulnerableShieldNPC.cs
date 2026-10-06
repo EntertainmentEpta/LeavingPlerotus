@@ -46,10 +46,29 @@ public class InvulnerableShieldNPC : MonoBehaviour
     [Tooltip("Intensidade/Força do tremor de câmera (ex: 0.45 para tremor forte).")]
     public float cameraShakeIntensity = 0.35f;
 
-    [Header("Áudio & Repulsão Mística (Opcional)")]
+    [Header("🔊 Áudio do Escudo (3 sons aleatórios)")]
+    [Tooltip("AudioSource para tocar os sons do escudo. Se não atribuído, será criado automaticamente.")]
     public AudioSource audioSource;
-    public AudioClip deflectSound;
 
+    [Tooltip("Array de 3 AudioClips de deflexão do escudo. A cada hit, um será escolhido aleatoriamente.")]
+    public AudioClip[] deflectSounds = new AudioClip[3];
+
+    [Range(0f, 1f)]
+    [Tooltip("Volume dos sons de deflexão do escudo.")]
+    public float deflectVolume = 0.8f;
+
+    [Tooltip("Se verdadeiro, aplica leve variação de pitch a cada hit para soar mais natural.")]
+    public bool randomizePitch = true;
+
+    [Range(0.85f, 1.15f)]
+    [Tooltip("Pitch mínimo (variação para baixo).")]
+    public float pitchMin = 0.9f;
+
+    [Range(0.85f, 1.15f)]
+    [Tooltip("Pitch máximo (variação para cima).")]
+    public float pitchMax = 1.1f;
+
+    [Header("Repulsão Mística (Opcional)")]
     [Tooltip("Se verdadeiro, aplica um leve empurrão de repulsão no jogador ao atingir o escudo.")]
     public bool enableRepulsionKnockback = true;
 
@@ -63,6 +82,7 @@ public class InvulnerableShieldNPC : MonoBehaviour
     private Material shieldMaterial;
     private string colorProperty;
     private Color originalColor = Color.cyan;
+    private int lastDeflectIndex = -1; // Evita repetir o mesmo som duas vezes seguidas
 
     private void Awake()
     {
@@ -113,6 +133,18 @@ public class InvulnerableShieldNPC : MonoBehaviour
             }
 
             shieldVisualObject.SetActive(false);
+        }
+
+        // Auto-cria AudioSource se nenhum foi atribuído no Inspector
+        if (audioSource == null)
+        {
+            audioSource = GetComponent<AudioSource>();
+            if (audioSource == null)
+            {
+                audioSource = gameObject.AddComponent<AudioSource>();
+                audioSource.playOnAwake = false;
+                audioSource.spatialBlend = 0f;
+            }
         }
     }
 
@@ -184,10 +216,8 @@ public class InvulnerableShieldNPC : MonoBehaviour
             }
         }
 
-        if (audioSource != null && deflectSound != null)
-        {
-            audioSource.PlayOneShot(deflectSound);
-        }
+        // 🔊 Toca um som de deflexão aleatório (entre os 3 do array)
+        PlayRandomDeflectSound();
 
         if (enableRepulsionKnockback)
         {
@@ -196,6 +226,57 @@ public class InvulnerableShieldNPC : MonoBehaviour
 
         if (shieldCoroutine != null) StopCoroutine(shieldCoroutine);
         shieldCoroutine = StartCoroutine(ShieldFlashRoutine());
+    }
+
+    /// <summary>
+    /// Toca um som aleatório do array deflectSounds, evitando repetir o último tocado.
+    /// Aplica variação de pitch opcional para soar mais natural.
+    /// </summary>
+    private void PlayRandomDeflectSound()
+    {
+        if (deflectSounds == null || deflectSounds.Length == 0) return;
+        if (audioSource == null) return;
+
+        // Filtra apenas os clips não-nulos
+        int validCount = 0;
+        for (int i = 0; i < deflectSounds.Length; i++)
+        {
+            if (deflectSounds[i] != null) validCount++;
+        }
+        if (validCount == 0) return;
+
+        // Sorteia um índice diferente do último (se possível)
+        int index;
+        if (validCount > 1)
+        {
+            do
+            {
+                index = Random.Range(0, deflectSounds.Length);
+            } while (deflectSounds[index] == null || index == lastDeflectIndex);
+        }
+        else
+        {
+            // Só tem 1 clip válido, encontra ele
+            index = 0;
+            for (int i = 0; i < deflectSounds.Length; i++)
+            {
+                if (deflectSounds[i] != null) { index = i; break; }
+            }
+        }
+
+        lastDeflectIndex = index;
+
+        // Variação de pitch para naturalidade
+        if (randomizePitch)
+        {
+            audioSource.pitch = Random.Range(pitchMin, pitchMax);
+        }
+        else
+        {
+            audioSource.pitch = 1f;
+        }
+
+        audioSource.PlayOneShot(deflectSounds[index], deflectVolume);
     }
 
     private void ApplyPlayerRepulsion()

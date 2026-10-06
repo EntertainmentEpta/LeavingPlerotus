@@ -17,7 +17,7 @@ MonoBehaviour:
   description: "Larva petrificada que brilha como lapidada."
   icon: {fileID: 0}
   tier: 1
-  enemySource: "Fauna"
+  enemySource: ""
   returnsToBase: 1
   recycleEssenceValue: 15
   infusionEssenceCost: 60

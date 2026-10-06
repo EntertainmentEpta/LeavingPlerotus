@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f50c879d2315cfe4fa88c7211306d9c7, type: 3}
+  m_Name: cristal_explosivo
+  m_EditorClassIdentifier: Assembly-CSharp::ItemData
+  itemId: cristal_explosivo
+  itemName: "Cristal Explosivo"
+  description: "Minério altamente volátil com núcleo de energia inconstante."
+  icon: {fileID: 0}
+  tier: 2
+  enemySource: "Minerals"
+  returnsToBase: 1
+  recycleEssenceValue: 25
+  infusionEssenceCost: 80
+  itemAttributes: []

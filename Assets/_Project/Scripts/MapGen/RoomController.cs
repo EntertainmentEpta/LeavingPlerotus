@@ -54,6 +54,9 @@ public class RoomController : MonoBehaviour
     /// <summary>Disparado quando uma sala de combate é limpa e as portas destravam.</summary>
     public static event System.Action<RoomController> OnRoomCleared;
 
+    /// <summary>Modo Showcase: Força o spawn de 1 de cada tipo de mob na mesma sala toda vez.</summary>
+    public static bool forceAllMobsMode = false;
+
     [Header("Índice (definido pelo LevelGenerator)")]
     [Tooltip("Número desta sala na sequência da Run (1–32). Não editar manualmente.")]
     public int roomIndex = 1;
@@ -62,7 +65,11 @@ public class RoomController : MonoBehaviour
     // POOLS DE INIMIGOS POR CLASSE (GDD §1.2)
     // =====================================================
 
-    [Header("Mob Menor — 1 ponto | máx. 50% do budget da onda")]
+    [Header("Configuração Global de Inimigos (EnemyPoolConfig)")]
+    [Tooltip("Se preenchido, a sala usa este asset central para todas as categorias. Se nulo, carrega o DefaultEnemyPool de Resources.")]
+    public EnemyPoolConfig enemyPoolConfig;
+
+    [Header("Mob Menor — 1 ponto | máx. 50% do budget da onda (Fallback Local)")]
     [Tooltip("Todos os prefabs que podem aparecer como Mob Menor neste bioma.")]
     public List<GameObject> mobMenorPrefabs = new List<GameObject>();
 
@@ -81,6 +88,12 @@ public class RoomController : MonoBehaviour
     [Header("Suporte — 3 pontos | máx. 2 por onda")]
     [Tooltip("Todos os prefabs que podem aparecer como Suporte neste bioma.")]
     public List<GameObject> suportePrefabs = new List<GameObject>();
+
+    public List<GameObject> GetMobMenorPool() => (enemyPoolConfig != null && enemyPoolConfig.mobMenorPrefabs.Count > 0) ? enemyPoolConfig.mobMenorPrefabs : mobMenorPrefabs;
+    public List<GameObject> GetAtiradorPool() => (enemyPoolConfig != null && enemyPoolConfig.atiradorPrefabs.Count > 0) ? enemyPoolConfig.atiradorPrefabs : atiradorPrefabs;
+    public List<GameObject> GetTanquePool()   => (enemyPoolConfig != null && enemyPoolConfig.tanquePrefabs.Count > 0)   ? enemyPoolConfig.tanquePrefabs   : tanquePrefabs;
+    public List<GameObject> GetElitePool()    => (enemyPoolConfig != null && enemyPoolConfig.elitePrefabs.Count > 0)    ? enemyPoolConfig.elitePrefabs    : elitePrefabs;
+    public List<GameObject> GetSuportePool()  => (enemyPoolConfig != null && enemyPoolConfig.suportePrefabs.Count > 0)  ? enemyPoolConfig.suportePrefabs  : suportePrefabs;
 
     // =====================================================
     // CONFIGURAÇÃO DE ONDAS
@@ -109,6 +122,16 @@ public class RoomController : MonoBehaviour
     public float spawnDelay = 1.5f;
     [Tooltip("Altura acima do CHÃO da SpawnArea onde inimigos aparecem. 0.1 = rente ao chão.")]
     public float spawnHeightOffset = 0.1f;
+
+    [Header("Bolsa Sintética - Probabilidades Ponderadas no Inspector")]
+    [Tooltip("Lista de opções de Fauna terrestre/aérea com seus pesos de probabilidade no Inspector")]
+    public List<CollectibleSpawnEntry> faunaSpawnEntries = new List<CollectibleSpawnEntry>();
+    [Tooltip("Lista de opções de Flora com seus pesos de probabilidade no Inspector")]
+    public List<CollectibleSpawnEntry> floraSpawnEntries = new List<CollectibleSpawnEntry>();
+    [Tooltip("Lista de opções de Minérios com seus pesos de probabilidade no Inspector")]
+    public List<CollectibleSpawnEntry> mineralSpawnEntries = new List<CollectibleSpawnEntry>();
+    [Tooltip("Fauna aquática exclusiva para salas de lagoa (Peixe Lampião)")]
+    public CollectibleSpawnEntry waterFaunaEntry;
 
     // =====================================================
     // PORTAS E REFERÊNCIAS
@@ -159,6 +182,16 @@ public class RoomController : MonoBehaviour
     // =====================================================
     // UNITY LIFECYCLE
     // =====================================================
+
+    void Awake()
+    {
+        EnsureDefaultCollectibleEntries();
+
+        if (enemyPoolConfig == null)
+        {
+            enemyPoolConfig = Resources.Load<EnemyPoolConfig>("DefaultEnemyPool");
+        }
+    }
 
     void Start()
     {
@@ -266,21 +299,155 @@ public class RoomController : MonoBehaviour
     }
 
     /// <summary>
+    /// Retorna todos os prefabs únicos configurados nos pools desta sala.
+    /// </summary>
+    public List<GameObject> GetAllUniqueEnemyPrefabs()
+    {
+        if (enemyPoolConfig != null)
+        {
+            var unique = enemyPoolConfig.GetAllUniquePrefabs();
+            if (unique != null && unique.Count > 0) return unique;
+        }
+
+        List<GameObject> list = new List<GameObject>();
+        void AddList(List<GameObject> source)
+        {
+            if (source == null) return;
+            foreach (var p in source)
+            {
+                if (p != null && !list.Contains(p)) list.Add(p);
+            }
+        }
+
+        AddList(mobMenorPrefabs);
+        AddList(atiradorPrefabs);
+        AddList(tanquePrefabs);
+        AddList(elitePrefabs);
+        AddList(suportePrefabs);
+
+        return list;
+    }
+
+    /// <summary>
+    /// Spawna instantaneamente 1 de cada tipo de inimigo cadastrado ao redor do jogador.
+    /// </summary>
+    public static int SpawnAllMobsNow()
+    {
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        Vector3 centerPos = player != null ? player.transform.position : Vector3.zero;
+
+        RoomController targetRoom = null;
+        RoomController[] allRooms = Object.FindObjectsByType<RoomController>(FindObjectsSortMode.None);
+
+        float closestDist = float.MaxValue;
+        foreach (var room in allRooms)
+        {
+            if (room == null) continue;
+            float dist = Vector3.Distance(room.transform.position, centerPos);
+            if (dist < closestDist)
+            {
+                closestDist = dist;
+                targetRoom = room;
+            }
+        }
+
+        List<GameObject> prefabsToSpawn = new List<GameObject>();
+        if (targetRoom != null)
+        {
+            prefabsToSpawn.AddRange(targetRoom.GetAllUniqueEnemyPrefabs());
+        }
+
+        // Se a sala atual não tiver todos os tipos, busca em todas as salas da cena
+        foreach (var room in allRooms)
+        {
+            foreach (var p in room.GetAllUniqueEnemyPrefabs())
+            {
+                if (p != null && !prefabsToSpawn.Contains(p))
+                    prefabsToSpawn.Add(p);
+            }
+        }
+
+        if (prefabsToSpawn.Count == 0)
+        {
+            Debug.LogWarning("[ALL MOBS] Nenhum prefab de inimigo encontrado!");
+            return 0;
+        }
+
+        int count = 0;
+        float angleStep = 360f / prefabsToSpawn.Count;
+        float radius = Mathf.Clamp(3f + (prefabsToSpawn.Count * 0.4f), 4f, 10f);
+
+        for (int i = 0; i < prefabsToSpawn.Count; i++)
+        {
+            GameObject prefab = prefabsToSpawn[i];
+            if (prefab == null) continue;
+
+            float angle = i * angleStep * Mathf.Deg2Rad;
+            Vector3 offset = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * radius;
+            Vector3 spawnPos = centerPos + offset;
+
+            // Alinha com NavMesh ou chão
+            if (UnityEngine.AI.NavMesh.SamplePosition(spawnPos, out UnityEngine.AI.NavMeshHit hit, 5f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                spawnPos = hit.position;
+            }
+            else if (Physics.Raycast(spawnPos + Vector3.up * 3f, Vector3.down, out RaycastHit groundHit, 10f))
+            {
+                spawnPos = groundHit.point;
+            }
+
+            GameObject enemy = Object.Instantiate(prefab, spawnPos, Quaternion.LookRotation((centerPos - spawnPos).normalized));
+
+            if (enemy.GetComponent<NavMeshBoundaryConstraint>() == null)
+                enemy.AddComponent<NavMeshBoundaryConstraint>();
+
+            if (targetRoom != null)
+            {
+                targetRoom.activeEnemies.Add(enemy);
+                MagicStone_AI magicStone = enemy.GetComponent<MagicStone_AI>();
+                if (magicStone != null && targetRoom.spawnAreas.Count > 0)
+                    magicStone.SetRoomBounds(targetRoom.spawnAreas[0]);
+            }
+
+            count++;
+        }
+
+        Debug.Log($"[ALL MOBS] Spawnados {count} inimigos únicos com sucesso ao redor do jogador!");
+        return count;
+    }
+
+    /// <summary>
     /// Monta a lista de inimigos de uma onda usando o sistema de pontos do GDD.
     /// Respeita a progressão por salas e limites GLOBAIS.
     /// </summary>
     List<GameObject> BuildWaveFromPoints(int waveBudget, int minEnemies)
     {
+        if (forceAllMobsMode)
+        {
+            List<GameObject> allUnique = GetAllUniqueEnemyPrefabs();
+            if (allUnique != null && allUnique.Count > 0)
+            {
+                Debug.Log($"[ALL MOBS MODE] Spawnando todos os {allUnique.Count} tipos únicos de mobs nesta sala!");
+                return allUnique;
+            }
+        }
+
         int maxMobPoints = Mathf.FloorToInt(waveBudget * mobCapFraction);
         int remainingPts = waveBudget;
         int mobPointsUsed = 0;
 
+        List<GameObject> curMobMenor = GetMobMenorPool();
+        List<GameObject> curAtirador = GetAtiradorPool();
+        List<GameObject> curTanque   = GetTanquePool();
+        List<GameObject> curElite    = GetElitePool();
+        List<GameObject> curSuporte  = GetSuportePool();
+
         List<GameObject> result = new List<GameObject>();
 
         // Suporte / Base: Apenas da Sala 2 em diante (NUNCA na Sala 1!), no máximo 1 por sala
-        if (roomIndex >= 2 && currentWave == 1 && suportePrefabs.Count > 0 && suporteSpawnedTotal < 1)
+        if (roomIndex >= 2 && currentWave == 1 && curSuporte.Count > 0 && suporteSpawnedTotal < 1)
         {
-            result.Add(GetRandom(suportePrefabs));
+            result.Add(GetRandom(curSuporte));
             suporteSpawnedTotal++;
             remainingPts -= 3;
         }
@@ -291,20 +458,27 @@ public class RoomController : MonoBehaviour
             addedSomething = false;
             List<EnemyClass> validOptions = new List<EnemyClass>();
 
-            // Elite: máx. 1 POR SALA, apenas da Sala 5 em diante
-            if (roomIndex >= 5 && elitePrefabs.Count > 0 && remainingPts >= 10 && eliteSpawnedTotal < 1)
+            PlayerHealth player = Object.FindFirstObjectByType<PlayerHealth>();
+            bool chaosMode = player != null && player.hasChaosSymphony;
+            int eliteMax = chaosMode ? 3 : 1;
+            int tanqueMax = chaosMode ? 8 : 4;
+            int minRoomElite = chaosMode ? 2 : 5;
+            int minRoomTanque = chaosMode ? 1 : 3;
+
+            // Elite: máx. 1 POR SALA, apenas da Sala 5 em diante (No chaos mode, mais elites)
+            if (roomIndex >= minRoomElite && curElite.Count > 0 && remainingPts >= 10 && eliteSpawnedTotal < eliteMax)
                 validOptions.Add(EnemyClass.Elite);
 
-            // Tanque: máx. 4 POR SALA, apenas da Sala 3 em diante
-            if (roomIndex >= 3 && tanquePrefabs.Count > 0 && remainingPts >= 4 && tanqueSpawnedTotal < 4)
+            // Tanque: máx. 4 POR SALA, apenas da Sala 3 em diante (No chaos mode, mais tanques)
+            if (roomIndex >= minRoomTanque && curTanque.Count > 0 && remainingPts >= 4 && tanqueSpawnedTotal < tanqueMax)
                 validOptions.Add(EnemyClass.Tanque);
 
             // Atirador: par (4 pts), apenas da Sala 2 em diante
-            if (roomIndex >= 2 && atiradorPrefabs.Count > 0 && remainingPts >= 4)
+            if (roomIndex >= 2 && curAtirador.Count > 0 && remainingPts >= 4)
                 validOptions.Add(EnemyClass.Atirador);
 
             // Mob Menor: sempre permitido para preencher a onda
-            if (mobMenorPrefabs.Count > 0 && remainingPts >= 1)
+            if (curMobMenor.Count > 0 && remainingPts >= 1)
                 validOptions.Add(EnemyClass.MobMenor);
 
             if (validOptions.Count == 0) break;
@@ -327,42 +501,42 @@ public class RoomController : MonoBehaviour
             switch (chosen)
             {
                 case EnemyClass.Elite:
-                    result.Add(GetRandom(elitePrefabs));
+                    result.Add(GetRandom(curElite));
                     eliteSpawnedTotal++;
                     remainingPts -= 10;
                     break;
 
                 case EnemyClass.Tanque:
-                    result.Add(GetRandom(tanquePrefabs));
+                    result.Add(GetRandom(curTanque));
                     tanqueSpawnedTotal++;
                     remainingPts -= 4;
                     break;
 
                 case EnemyClass.Atirador:
                     // Par de atiradores (podem ser inimigos diferentes)
-                    result.Add(GetRandom(atiradorPrefabs));
-                    result.Add(GetRandom(atiradorPrefabs));
+                    result.Add(GetRandom(curAtirador));
+                    result.Add(GetRandom(curAtirador));
                     remainingPts -= 4;
                     break;
 
                 case EnemyClass.MobMenor:
-                    result.Add(GetRandom(mobMenorPrefabs));
+                    result.Add(GetRandom(curMobMenor));
                     mobPointsUsed++;
                     remainingPts -= 1;
                     break;
 
                 case EnemyClass.Suporte:
-                    result.Add(GetRandom(suportePrefabs));
+                    result.Add(GetRandom(curSuporte));
                     remainingPts -= 3;
                     break;
             }
         }
 
         // Garante mínimo de inimigos por onda preenchendo com Mob Menor
-        if (mobMenorPrefabs.Count > 0)
+        if (curMobMenor.Count > 0)
         {
             while (result.Count < minEnemies)
-                result.Add(GetRandom(mobMenorPrefabs));
+                result.Add(GetRandom(curMobMenor));
         }
 
         if (showSpawnLog)
@@ -617,31 +791,115 @@ public class RoomController : MonoBehaviour
         return new Vector3(x, y, z);
     }
 
+    private void EnsureDefaultCollectibleEntries()
+    {
+        // 1. FAUNA
+        if (faunaSpawnEntries == null || faunaSpawnEntries.Count == 0)
+        {
+            faunaSpawnEntries = new List<CollectibleSpawnEntry>()
+            {
+                new CollectibleSpawnEntry() { itemName = "Vagalume Cristalizado", prefab = Resources.Load<GameObject>("SpawnItems/Fly") ?? Resources.Load<GameObject>("Fly"), itemData = Resources.Load<ItemData>("ItemData/vagalume_cristalizado"), weight = 1.0f },
+                new CollectibleSpawnEntry() { itemName = "Caracol Geodo (Quebradiço)", prefab = Resources.Load<GameObject>("SpawnItems/Quebradiço") ?? Resources.Load<GameObject>("SpawnItems/CarangueijoQuebradisso"), itemData = Resources.Load<ItemData>("ItemData/caracol_geodo"), weight = 1.0f },
+                new CollectibleSpawnEntry() { itemName = "Ovos de Cristal Crawler", prefab = Resources.Load<GameObject>("SpawnItems/Ovocristal") ?? Resources.Load<GameObject>("SpawnItems/Ovocristal.prefab"), itemData = Resources.Load<ItemData>("ItemData/ovo_cristal_crawler"), weight = 1.0f }
+            };
+        }
+
+        // 2. FLORA
+        if (floraSpawnEntries == null || floraSpawnEntries.Count == 0)
+        {
+            floraSpawnEntries = new List<CollectibleSpawnEntry>()
+            {
+                new CollectibleSpawnEntry() { itemName = "Melocactus", prefab = Resources.Load<GameObject>("SpawnItems/Melacotus"), itemData = Resources.Load<ItemData>("ItemData/melocactus"), weight = 1.0f },
+                new CollectibleSpawnEntry() { itemName = "Lithos (Lotus)", prefab = Resources.Load<GameObject>("SpawnItems/Lotus"), itemData = Resources.Load<ItemData>("ItemData/lithos"), weight = 1.0f },
+                new CollectibleSpawnEntry() { itemName = "Árvore de Vagens (Lanternas)", prefab = Resources.Load<GameObject>("SpawnItems/Lanternas"), itemData = Resources.Load<ItemData>("ItemData/arvore_vagens"), weight = 1.0f }
+            };
+        }
+
+        // 3. MINÉRIOS
+        if (mineralSpawnEntries == null || mineralSpawnEntries.Count == 0)
+        {
+            mineralSpawnEntries = new List<CollectibleSpawnEntry>()
+            {
+                new CollectibleSpawnEntry() { itemName = "Cristal (Pó de Cristal)", prefab = Resources.Load<GameObject>("SpawnItems/Cristal"), itemData = Resources.Load<ItemData>("ItemData/po_de_cristal"), weight = 1.0f }
+            };
+        }
+
+        // 4. FAUNA AQUÁTICA EXCLUSIVA (PEIXE LAMPIÃO / LAKE ROOM)
+        if (waterFaunaEntry == null || waterFaunaEntry.itemData == null)
+        {
+            waterFaunaEntry = new CollectibleSpawnEntry()
+            {
+                itemName = "Peixe Lampião",
+                prefab = Resources.Load<GameObject>("SpawnItems/Fly") ?? Resources.Load<GameObject>("Fly"),
+                itemData = Resources.Load<ItemData>("ItemData/peixe_lagoa"),
+                weight = 1.0f
+            };
+        }
+    }
+
+    private CollectibleSpawnEntry GetWeightedRandomEntry(List<CollectibleSpawnEntry> entries)
+    {
+        if (entries == null || entries.Count == 0) return null;
+
+        float totalWeight = 0f;
+        foreach (var entry in entries)
+        {
+            if (entry != null && entry.weight > 0f)
+                totalWeight += entry.weight;
+        }
+
+        if (totalWeight <= 0f) return entries[0];
+
+        float randValue = Random.Range(0f, totalWeight);
+        float currentSum = 0f;
+
+        foreach (var entry in entries)
+        {
+            if (entry == null || entry.weight <= 0f) continue;
+            currentSum += entry.weight;
+            if (randValue <= currentSum)
+            {
+                return entry;
+            }
+        }
+
+        return entries[0];
+    }
+
     private void SpawnRoomCollectibles()
     {
         if (spawnAreas == null || spawnAreas.Count == 0) return;
 
-        // Choose a random spawn area BoxCollider
         BoxCollider area = spawnAreas[Random.Range(0, spawnAreas.Count)];
         if (area == null) return;
 
-        // Load the base prefabs from Resources/SpawnItems folder
-        GameObject crystalPrefab = Resources.Load<GameObject>("SpawnItems/Crystal");
-        GameObject plantPrefab = Resources.Load<GameObject>("SpawnItems/Planta");
-        GameObject faunaPrefab = Resources.Load<GameObject>("SpawnItems/little_frog");
+        EnsureDefaultCollectibleEntries();
 
-        // Fallbacks if not found
-        if (crystalPrefab == null) crystalPrefab = Resources.Load<GameObject>("SpawnItems/stone_low+");
-        if (faunaPrefab == null) faunaPrefab = Resources.Load<GameObject>("SpawnItems/tinker");
+        // Detecta se a sala é uma LakeRoom (ou contém corpo d'água)
+        bool isLakeRoom = gameObject.name.ToLower().Contains("lake") || 
+                          transform.Find("Water") != null || 
+                          GetComponentInChildren<Collider>()?.gameObject.name.ToLower().Contains("water") == true;
 
-        // 1. Spawn Minerals (Cube, on ground - targets for Geobionte fusion)
-        if (crystalPrefab != null)
+        // 1. Spawn Minerals (No chão)
+        CollectibleSpawnEntry mineralEntry = GetWeightedRandomEntry(mineralSpawnEntries);
+        if (mineralEntry != null && mineralEntry.prefab != null)
         {
             Vector3 pos = GetRandomPositionForCollectible(area, false, false);
-            GameObject obj = Instantiate(crystalPrefab, pos, Quaternion.identity);
+            GameObject obj = Instantiate(mineralEntry.prefab, pos, Quaternion.identity);
             
             ItemPickup pickup = obj.GetComponent<ItemPickup>();
-            if (pickup != null) pickup.InitializeItem("Minerals");
+            if (pickup == null) pickup = obj.AddComponent<ItemPickup>();
+
+            Interactable interactable = obj.GetComponent<Interactable>();
+            if (interactable == null) interactable = obj.AddComponent<Interactable>();
+
+            if (mineralEntry.itemData != null)
+            {
+                interactable.itemData = mineralEntry.itemData;
+                interactable.objetoNome = mineralEntry.itemData.itemName;
+            }
+            
+            pickup.InitializeItem("Minerals");
 
             if (obj.GetComponent<OreNode>() == null)
             {
@@ -649,24 +907,59 @@ public class RoomController : MonoBehaviour
             }
         }
 
-        // 2. Spawn Fauna (High/floating, glowing)
-        if (faunaPrefab != null)
+        // 2. Spawn Fauna (Peixe Lampião na água se LakeRoom; Fauna terrestre/aérea sorteada se sala comum)
+        CollectibleSpawnEntry faunaEntry = isLakeRoom && waterFaunaEntry != null && waterFaunaEntry.itemData != null ? 
+                                             waterFaunaEntry : GetWeightedRandomEntry(faunaSpawnEntries);
+
+        if (faunaEntry != null)
         {
-            Vector3 pos = GetRandomPositionForCollectible(area, true, false);
-            GameObject obj = Instantiate(faunaPrefab, pos, Quaternion.identity);
-            
-            ItemPickup pickup = obj.GetComponent<ItemPickup>();
-            if (pickup != null) pickup.InitializeItem("Fauna");
+            GameObject faunaPrefabToInstantiate = faunaEntry.prefab;
+            if (faunaPrefabToInstantiate == null)
+            {
+                faunaPrefabToInstantiate = Resources.Load<GameObject>("SpawnItems/Fly") ?? Resources.Load<GameObject>("Fly");
+            }
+
+            if (faunaPrefabToInstantiate != null)
+            {
+                Vector3 pos = GetRandomPositionForCollectible(area, false, false);
+                GameObject obj = Instantiate(faunaPrefabToInstantiate, pos, Quaternion.identity);
+                
+                ItemPickup pickup = obj.GetComponent<ItemPickup>();
+                if (pickup == null) pickup = obj.AddComponent<ItemPickup>();
+
+                Interactable interactable = obj.GetComponent<Interactable>();
+                if (interactable == null) interactable = obj.AddComponent<Interactable>();
+
+                if (faunaEntry.itemData != null)
+                {
+                    interactable.itemData = faunaEntry.itemData;
+                    interactable.objetoNome = faunaEntry.itemData.itemName;
+                }
+
+                pickup.InitializeItem("Fauna");
+            }
         }
 
-        // 3. Spawn Flora (Flat on ground, near walls, glowing)
-        if (plantPrefab != null)
+        // 3. Spawn Flora (No chão)
+        CollectibleSpawnEntry floraEntry = GetWeightedRandomEntry(floraSpawnEntries);
+        if (floraEntry != null && floraEntry.prefab != null)
         {
             Vector3 pos = GetRandomPositionForCollectible(area, false, true);
-            GameObject obj = Instantiate(plantPrefab, pos, Quaternion.identity);
+            GameObject obj = Instantiate(floraEntry.prefab, pos, Quaternion.identity);
             
             ItemPickup pickup = obj.GetComponent<ItemPickup>();
-            if (pickup != null) pickup.InitializeItem("Flora");
+            if (pickup == null) pickup = obj.AddComponent<ItemPickup>();
+
+            Interactable interactable = obj.GetComponent<Interactable>();
+            if (interactable == null) interactable = obj.AddComponent<Interactable>();
+
+            if (floraEntry.itemData != null)
+            {
+                interactable.itemData = floraEntry.itemData;
+                interactable.objetoNome = floraEntry.itemData.itemName;
+            }
+
+            pickup.InitializeItem("Flora");
         }
     }
 
@@ -675,4 +968,16 @@ public class RoomController : MonoBehaviour
         if (list == null || list.Count == 0) return null;
         return list[Random.Range(0, list.Count)];
     }
+}
+
+/// <summary>
+/// Estrutura para configurar probabilidades ponderadas de spawn de coletáveis da Bolsa Sintética.
+/// </summary>
+[System.Serializable]
+public class CollectibleSpawnEntry
+{
+    public string itemName;
+    public GameObject prefab;
+    public ItemData itemData;
+    [Range(0.1f, 100f)] public float weight = 1.0f;
 }

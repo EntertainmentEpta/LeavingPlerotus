@@ -12,7 +12,6 @@ public class RecipeSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
 {
     private Image backgroundImage;
     private Image borderImage;
-    private Image iconImage;
     private TextMeshProUGUI nameText;
     private TextMeshProUGUI statusText;
 
@@ -25,14 +24,14 @@ public class RecipeSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
     private System.Action<CraftingRecipe> onSelected;
 
     // Cores
-    private static readonly Color SLOT_BG = new Color(0.10f, 0.10f, 0.14f, 0.95f);
-    private static readonly Color SLOT_HOVER = new Color(0.16f, 0.16f, 0.22f, 0.95f);
-    private static readonly Color SLOT_SELECTED = new Color(0.20f, 0.18f, 0.30f, 0.95f);
-    private static readonly Color BORDER_DEFAULT = new Color(0.25f, 0.25f, 0.30f, 0.6f);
-    private static readonly Color BORDER_CAN_CRAFT = new Color(0.3f, 0.85f, 0.3f, 0.8f);
-    private static readonly Color BORDER_CANT_CRAFT = new Color(0.6f, 0.25f, 0.25f, 0.5f);
-    private static readonly Color TEXT_CAN_CRAFT = new Color(0.3f, 0.9f, 0.3f, 1f);
-    private static readonly Color TEXT_CANT_CRAFT = new Color(0.8f, 0.3f, 0.3f, 1f);
+    private static readonly Color SLOT_BG = new Color(0.10f, 0.14f, 0.17f, 1f);
+    private static readonly Color SLOT_HOVER = new Color(0.14f, 0.22f, 0.24f, 1f);
+    private static readonly Color SLOT_SELECTED = new Color(0.12f, 0.31f, 0.31f, 1f);
+    private static readonly Color BORDER_DEFAULT = new Color(0.35f, 0.43f, 0.45f, 0.45f);
+    private static readonly Color BORDER_CAN_CRAFT = new Color(0.32f, 0.82f, 0.75f, 0.9f);
+    private static readonly Color BORDER_CANT_CRAFT = new Color(0.72f, 0.36f, 0.34f, 0.65f);
+    private static readonly Color TEXT_CAN_CRAFT = new Color(0.42f, 0.88f, 0.75f, 1f);
+    private static readonly Color TEXT_CANT_CRAFT = new Color(0.92f, 0.48f, 0.45f, 1f);
 
     /// <summary>
     /// Inicializa o slot criando todos os elementos visuais.
@@ -65,36 +64,19 @@ public class RecipeSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
         borderImage.type = Image.Type.Sliced;
         borderImage.fillCenter = false;
 
-        // Ícone (lado esquerdo)
-        GameObject iconObj = new GameObject("Icon");
-        iconObj.transform.SetParent(transform, false);
-        iconObj.layer = layer;
-        RectTransform iconRect = iconObj.AddComponent<RectTransform>();
-        iconRect.anchorMin = new Vector2(0f, 0.1f);
-        iconRect.anchorMax = new Vector2(0f, 0.9f);
-        iconRect.pivot = new Vector2(0f, 0.5f);
-        float iconSize = slotHeight * 0.8f;
-        iconRect.sizeDelta = new Vector2(iconSize, 0f);
-        iconRect.anchoredPosition = new Vector2(8f, 0f);
-        iconObj.AddComponent<CanvasRenderer>();
-        iconImage = iconObj.AddComponent<Image>();
-        iconImage.preserveAspect = true;
-        iconImage.raycastTarget = false;
-        iconImage.enabled = false;
-
         // Nome da receita
         GameObject nameObj = new GameObject("Name");
         nameObj.transform.SetParent(transform, false);
         nameObj.layer = layer;
         RectTransform nameRect = nameObj.AddComponent<RectTransform>();
-        nameRect.anchorMin = new Vector2(0f, 0.35f);
-        nameRect.anchorMax = new Vector2(1f, 0.95f);
+        nameRect.anchorMin = new Vector2(0.04f, 0.35f);
+        nameRect.anchorMax = new Vector2(0.96f, 0.95f);
         nameRect.sizeDelta = Vector2.zero;
-        nameRect.offsetMin = new Vector2(iconSize + 16f, 0f);
-        nameRect.offsetMax = new Vector2(-8f, 0f);
+        nameRect.offsetMin = Vector2.zero;
+        nameRect.offsetMax = Vector2.zero;
         nameObj.AddComponent<CanvasRenderer>();
         nameText = nameObj.AddComponent<TextMeshProUGUI>();
-        nameText.fontSize = 16f; // Revertido para o padrão limpo e compacto
+        nameText.fontSize = 22f;
         nameText.fontStyle = FontStyles.Bold;
         nameText.color = new Color(0.9f, 0.88f, 0.95f, 1f);
         nameText.alignment = TextAlignmentOptions.MidlineLeft;
@@ -110,11 +92,11 @@ public class RecipeSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
         statusRect.anchorMin = new Vector2(0f, 0.05f);
         statusRect.anchorMax = new Vector2(1f, 0.40f);
         statusRect.sizeDelta = Vector2.zero;
-        statusRect.offsetMin = new Vector2(iconSize + 16f, 0f);
-        statusRect.offsetMax = new Vector2(-8f, 0f);
+        statusRect.offsetMin = new Vector2(16f, 0f);
+        statusRect.offsetMax = new Vector2(-16f, 0f);
         statusObj.AddComponent<CanvasRenderer>();
         statusText = statusObj.AddComponent<TextMeshProUGUI>();
-        statusText.fontSize = 12f; // Revertido para o padrão limpo e compacto
+        statusText.fontSize = 15f;
         statusText.alignment = TextAlignmentOptions.MidlineLeft;
         statusText.raycastTarget = false;
 
@@ -137,34 +119,23 @@ public class RecipeSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
 
         if (recipe == null)
         {
-            nameText.text = "";
+            nameText.text = "noname";
             statusText.text = "";
-            iconImage.enabled = false;
             borderImage.color = BORDER_DEFAULT;
             return;
         }
 
-        nameText.text = recipe.recipeName;
-
-        if (recipe.icon != null)
-        {
-            iconImage.sprite = recipe.icon;
-            iconImage.enabled = true;
-        }
-        else
-        {
-            iconImage.enabled = false;
-        }
+        nameText.text = string.IsNullOrWhiteSpace(recipe.recipeName) ? "noname" : recipe.recipeName;
 
         if (craftable)
         {
-            statusText.text = "✓ Materiais disponíveis";
+            statusText.text = "Materiais disponíveis";
             statusText.color = TEXT_CAN_CRAFT;
             borderImage.color = isSelected ? BORDER_CAN_CRAFT : BORDER_DEFAULT;
         }
         else
         {
-            statusText.text = "✗ Materiais insuficientes";
+            statusText.text = "Materiais insuficientes";
             statusText.color = TEXT_CANT_CRAFT;
             borderImage.color = isSelected ? BORDER_CANT_CRAFT : BORDER_DEFAULT;
         }

@@ -138,8 +138,8 @@ public class BossPhase2_Refraction : MonoBehaviour
             {
                 CheckRefractionThreshold();
 
-                // Enquanto visível na Fase 2, invoca magias e combos apenas quando estiver LIVRE (sem sobreposição)
-                if (bossController != null && bossController.CanInitiateAction)
+                // Enquanto visível na Fase 2, invoca magias e combos apenas quando estiver LIVRE (sem sobreposição) e sem IA congelada
+                if (bossController != null && bossController.CanInitiateAction && !bossController.OverrideMovement)
                 {
                     visiblePilarTimer -= Time.deltaTime;
                     if (visiblePilarTimer <= 0f)

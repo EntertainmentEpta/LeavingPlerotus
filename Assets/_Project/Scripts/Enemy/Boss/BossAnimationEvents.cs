@@ -132,6 +132,81 @@ public class BossAnimationEvents : MonoBehaviour
         if (boss != null) boss.SnapToGround();
     }
 
+    // =========================================================================
+    // 🪄 MAGIAS E BUFFS (SPELL CAST, WIDE SPELL, POWERUP)
+    // =========================================================================
+    public void AnimEvent_CastSpell()
+    {
+        var boss = GetBoss();
+        if (boss != null) boss.CastSpell();
+    }
+
+    public void AnimEvent_SpellCast()
+    {
+        var boss = GetBoss();
+        if (boss != null) boss.CastSpell();
+    }
+
+    public void AnimEvent_SpellGround()
+    {
+        var boss = GetBoss();
+        if (boss != null) boss.AnimEvent_GroundImpact();
+    }
+
+    public void AnimEvent_PowerUp()
+    {
+        var boss = GetBoss();
+        if (boss != null) boss.TriggerPowerUP(2.5f);
+    }
+
+    // =========================================================================
+    // 🌱 FASE 3 - HOOKS PARA O SERRALHA (CUSPE ÁCIDO & SALVA DE ESPINHOS)
+    // =========================================================================
+    public void AnimEvent_AcidSpit()
+    {
+        var boss = GetBoss();
+        if (boss != null) boss.TriggerAcidSpit();
+    }
+
+    public void AnimEvent_ThornVolley()
+    {
+        var boss = GetBoss();
+        if (boss != null) boss.TriggerThornVolley();
+    }
+
+    // =========================================================================
+    // 🌿 ESTIRAMENTO PROCEDURAL DE BRAÇOS (BOSS ARM STRETCH)
+    // =========================================================================
+    public void AnimEvent_StretchRightArm()
+    {
+        var boss = GetBoss();
+        if (boss != null)
+        {
+            var stretch = boss.GetComponent<BossArmStretch>() ?? boss.GetComponentInChildren<BossArmStretch>();
+            if (stretch != null) stretch.StretchRightArm();
+        }
+    }
+
+    public void AnimEvent_StretchLeftArm()
+    {
+        var boss = GetBoss();
+        if (boss != null)
+        {
+            var stretch = boss.GetComponent<BossArmStretch>() ?? boss.GetComponentInChildren<BossArmStretch>();
+            if (stretch != null) stretch.StretchLeftArm();
+        }
+    }
+
+    public void AnimEvent_StretchBothArms()
+    {
+        var boss = GetBoss();
+        if (boss != null)
+        {
+            var stretch = boss.GetComponent<BossArmStretch>() ?? boss.GetComponentInChildren<BossArmStretch>();
+            if (stretch != null) stretch.StretchBothArms();
+        }
+    }
+
     private void OnAnimatorMove()
     {
         var boss = GetBoss();

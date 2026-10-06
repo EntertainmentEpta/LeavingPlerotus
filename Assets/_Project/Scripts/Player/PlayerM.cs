@@ -7,6 +7,12 @@ public class PlayerM : MonoBehaviour
     public DashM dashScript;
     public PrimaryAttackKnife attackScript;
 
+    [Header("Controles de Movimento")]
+    public KeyCode keyUp = KeyCode.W;
+    public KeyCode keyDown = KeyCode.S;
+    public KeyCode keyLeft = KeyCode.A;
+    public KeyCode keyRight = KeyCode.D;
+
     [Header("Movement Settings")]
     public float walkSpeed = 5f;
     public float sprintSpeed = 10f;
@@ -21,7 +27,7 @@ public class PlayerM : MonoBehaviour
     public float hitboxRotationSpeed = 0f;
 
     [Tooltip("Velocidade da ANIMAÇÃO durante o impacto. 1 = Normal. 0.1 = Câmera Lenta (Matrix).")]
-    public float hitboxAnimSpeed = 1f; // <--- A NOVA VARIÁVEL QUE FALTAVA
+    public float hitboxAnimSpeed = 1f;
 
     [Header("Ground Check")]
     public Transform groundCheck;
@@ -41,6 +47,16 @@ public class PlayerM : MonoBehaviour
     [HideInInspector]
     public float debuffSpeedMultiplier = 1.0f;
 
+    [Header("Running Footstep SFX")]
+    [Tooltip("Som de passos ao correr. Arraste o AudioClip Running aqui.")]
+    public AudioClip runningFootstepClip;
+
+    [Tooltip("Volume dos passos (0.0 a 1.0)")]
+    [Range(0f, 1f)]
+    public float footstepVolume = 0.5f;
+
+    private AudioSource footstepSource;
+    private bool isFootstepPlaying = false;
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
@@ -63,6 +79,19 @@ public class PlayerM : MonoBehaviour
                 animator = GetComponentInChildren<Animator>(false) ?? GetComponentInParent<Animator>();
             }
         }
+        // Setup do AudioSource para passos (loop contínuo)
+        footstepSource = gameObject.AddComponent<AudioSource>();
+        footstepSource.clip = runningFootstepClip;
+        footstepSource.loop = true;
+        footstepSource.playOnAwake = false;
+        footstepSource.volume = footstepVolume;
+        footstepSource.spatialBlend = 0f; // Som 2D
+
+        // Garante que o KeybindApplier esteja presente para aplicar as teclas configuradas
+        if (GetComponent<KeybindApplier>() == null)
+        {
+            gameObject.AddComponent<KeybindApplier>();
+        }
     }
 
     private void Update()
@@ -84,6 +113,7 @@ public class PlayerM : MonoBehaviour
         MyInput();
         LookAtMoveDirection();
         UpdateAnimations();
+        UpdateFootstepSound();
     }
 
     private void FixedUpdate()
@@ -101,8 +131,15 @@ public class PlayerM : MonoBehaviour
 
     private void MyInput()
     {
-        float horizontal = Input.GetAxisRaw("Horizontal");
-        float vertical = Input.GetAxisRaw("Vertical");
+        // === LÓGICA MANUAL DE MOVIMENTO (Substitui o GetAxisRaw) ===
+        float horizontal = 0f;
+        if (Input.GetKey(keyRight)) horizontal += 1f;
+        if (Input.GetKey(keyLeft)) horizontal -= 1f;
+
+        float vertical = 0f;
+        if (Input.GetKey(keyUp)) vertical += 1f;
+        if (Input.GetKey(keyDown)) vertical -= 1f;
+
         moveDirection = new Vector3(horizontal, 0, vertical).normalized;
 
         bool inDamageWindow = attackScript != null && attackScript.isHitboxActive;
@@ -127,8 +164,6 @@ public class PlayerM : MonoBehaviour
         bool inDamageWindow = attackScript != null && attackScript.isHitboxActive;
         
         Vector3 targetVelocity = moveDirection * targetSpeed;
-        
-        // Se der erro no Unity antigo, troque linearVelocity por velocity
         Vector3 currentVelocity = rb.linearVelocity; 
 
         if (inDamageWindow)
@@ -163,7 +198,6 @@ public class PlayerM : MonoBehaviour
 
     private void UpdateAnimations()
     {
-        // Sempre sincroniza com o playerAnimator ativo do Player_WeaponManager se ele existir
         Player_WeaponManager wm = GetComponent<Player_WeaponManager>() ?? GetComponentInParent<Player_WeaponManager>();
         if (wm != null && wm.playerAnimator != null && wm.playerAnimator.isActiveAndEnabled)
         {
@@ -178,10 +212,8 @@ public class PlayerM : MonoBehaviour
         
         try
         {
-            // Se o colisor de dano estiver ativo (momento exato do golpe), o ataque controla as velocidades
             bool inDamageWindow = attackScript != null && attackScript.isHitboxActive;
 
-            // --- LÓGICA DE VELOCIDADE DA ANIMAÇÃO ---
             if (inDamageWindow)
             {
                 animator.speed = hitboxAnimSpeed; 
@@ -204,7 +236,35 @@ public class PlayerM : MonoBehaviour
         }
         catch (System.Exception)
         {
-            // Evita crashar o loop se referências estiverem se reestabelecendo
+            // Evita crashar
+        }
+    }
+
+    private void UpdateFootstepSound()
+    {
+        if (footstepSource == null || runningFootstepClip == null) return;
+
+        bool isMoving = moveDirection.sqrMagnitude > 0.01f;
+        bool isDashing = dashScript != null && dashScript.isDashing;
+        bool isAttacking = attackScript != null && attackScript.isHitboxActive;
+
+        // Verifica se o player está morto
+        PlayerHealth health = GetComponent<PlayerHealth>();
+        bool isDead = health != null && health.isDead;
+
+        bool shouldPlay = isMoving && !isDashing && !isAttacking && !isDead;
+
+        if (shouldPlay && !isFootstepPlaying)
+        {
+            footstepSource.clip = runningFootstepClip;
+            footstepSource.volume = footstepVolume;
+            footstepSource.Play();
+            isFootstepPlaying = true;
+        }
+        else if (!shouldPlay && isFootstepPlaying)
+        {
+            footstepSource.Stop();
+            isFootstepPlaying = false;
         }
     }
 }

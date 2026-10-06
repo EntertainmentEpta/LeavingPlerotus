@@ -6,6 +6,24 @@ using UnityEngine;
 /// </summary>
 public class PlayerAttributesOffensive : MonoBehaviour
 {
+    public static PlayerAttributesOffensive Instance { get; private set; }
+
+    private void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+        {
+            Instance = null;
+        }
+    }
+
     // ========== ATRIBUTOS OFENSIVOS (3.1) ==========
     [Header("Offensive Attributes")]
     [Tooltip("Multiplicador de dano base. 1.0 = normal, 1.5 = +50% dano base (afeta críticos)")]
@@ -58,6 +76,10 @@ public class PlayerAttributesOffensive : MonoBehaviour
         switch (attributeName.ToLower())
         {
             case "basedamagemultiplier":
+            case "forca":
+            case "strength":
+            case "dano":
+            case "damage":
                 baseDamageMultiplier = isMultiplier ? baseDamageMultiplier * value : baseDamageMultiplier + value;
                 break;
             case "attackspeedmelee":
@@ -111,7 +133,12 @@ public class PlayerAttributesOffensive : MonoBehaviour
     {
         switch (attributeName.ToLower())
         {
-            case "basedamagemultiplier": return baseDamageMultiplier;
+            case "basedamagemultiplier":
+            case "forca":
+            case "strength":
+            case "dano":
+            case "damage":
+                return baseDamageMultiplier;
             case "attackspeedmelee": return attackSpeedMelee;
             case "critchance": return critChance;
             case "critmultiplier": return critMultiplier;

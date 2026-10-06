@@ -52,6 +52,7 @@ public class PlayerHealth : MonoBehaviour
     [Header("Efeitos dos Pactos do Mercador")]
     [HideInInspector] public bool canHeal = true;
     [HideInInspector] public bool hasDoubleLoot = false;
+    [HideInInspector] public bool hasChaosSymphony = false;
     [HideInInspector] public bool hasVampirism = false;
     [HideInInspector] public bool hasNecrosis = false;
     [HideInInspector] public float lastKillTime = 0f;
@@ -73,6 +74,19 @@ public class PlayerHealth : MonoBehaviour
     private float armorRegenAccumulator = 0f;
     private float healthRegenAccumulator = 0f;
 
+    [Header("Heartbeat SFX (Sem Armadura)")]
+    [Tooltip("Som de coração batendo quando o player está sem armadura. Arraste o AudioClip HeartBeat aqui.")]
+    public AudioClip heartbeatClip;
+
+    [Tooltip("Volume do som de heartbeat (0.0 a 1.0)")]
+    [Range(0f, 1f)]
+    public float heartbeatVolume = 0.7f;
+
+    private AudioSource heartbeatSource;
+    private bool isHeartbeatPlaying = false;
+
+    public static bool shouldPlayWakeUpAnimation = false;
+
     void Start()
     {
         playerLayer = gameObject.layer;
@@ -87,6 +101,14 @@ public class PlayerHealth : MonoBehaviour
         {
             Debug.LogWarning("PlayerHealth: PlayerAttributesDefensive não encontrado! Atributos defensivos não funcionarão.");
         }
+
+        // Setup do AudioSource para heartbeat (loop contínuo)
+        heartbeatSource = gameObject.AddComponent<AudioSource>();
+        heartbeatSource.clip = heartbeatClip;
+        heartbeatSource.loop = true;
+        heartbeatSource.playOnAwake = false;
+        heartbeatSource.volume = heartbeatVolume;
+        heartbeatSource.spatialBlend = 0f; // Som 2D (direto nos ouvidos do player)
 
         if (SceneManager.GetActiveScene().name == "Base")
         {
@@ -106,18 +128,10 @@ public class PlayerHealth : MonoBehaviour
         // Reset rotação do pai para posição limpa e em pé
         transform.rotation = Quaternion.identity;
 
-        // Restaura o Animator para estado Idle em pé e sem animações de acordar
-        if (playerAnimator != null)
-        {
-            playerAnimator.ResetTrigger("Revive1");
-            playerAnimator.ResetTrigger("Revive2");
-            playerAnimator.ResetTrigger("DeathForward");
-            playerAnimator.ResetTrigger("DeathBackward");
-            playerAnimator.Rebind();
-            playerAnimator.Update(0f);
-        }
+        // Garante que o player esteja perfeitamente alinhado na superfície do chão
+        SnapToGround();
 
-        // Unequip weapon ao renascer na base (player em pé sem arma na mão)
+        // Unequip weapon ao renascer na base (player acorda sem arma na mão)
         Player_WeaponManager weaponManager = GetComponent<Player_WeaponManager>() ?? GetComponentInChildren<Player_WeaponManager>();
         if (weaponManager != null)
         {
@@ -128,6 +142,61 @@ public class PlayerHealth : MonoBehaviour
             playerAttack.hasWeapon = false;
         }
 
+        if (playerAnimator == null)
+        {
+            playerAnimator = GetComponentInChildren<Animator>();
+        }
+
+        // Restaura o Animator para estado Idle em pé e sem animações de acordar
+        if (playerAnimator != null)
+        {
+            playerAnimator.ResetTrigger("Revive1");
+            playerAnimator.ResetTrigger("Revive2");
+            playerAnimator.ResetTrigger("DeathForward");
+            playerAnimator.ResetTrigger("DeathBackward");
+            playerAnimator.Play("Idle Default State", 0, 0f);
+            playerAnimator.Update(0f);
+        }
+
+        if (shouldPlayWakeUpAnimation)
+        {
+            shouldPlayWakeUpAnimation = false;
+
+            // Bloqueia movimentação durante o acordar (piscar de olhos)
+            if (playerMovement != null) playerMovement.enabled = false;
+            if (playerAttack != null) playerAttack.enabled = false;
+
+            if (rb != null)
+            {
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+                rb.isKinematic = false;
+            }
+
+            // Inicia o efeito de abrir os olhos
+            PlayerWakeUpEffect.TriggerWakeUp(this, () =>
+            {
+                UnlockPlayer();
+            }, heartbeatClip);
+        }
+        else
+        {
+            UnlockPlayer();
+        }
+    }
+
+    private void SnapToGround()
+    {
+        if (Physics.Raycast(transform.position + Vector3.up * 1.5f, Vector3.down, out RaycastHit hit, 5f))
+        {
+            Vector3 pos = transform.position;
+            pos.y = hit.point.y;
+            transform.position = pos;
+        }
+    }
+
+    public void HandleReviveCompletion()
+    {
         UnlockPlayer();
     }
 
@@ -297,7 +366,6 @@ public class PlayerHealth : MonoBehaviour
         }
     }
 
-    public void HandleReviveCompletion() { UnlockPlayer(); }
 
     public void SetPactCorrupted(bool corrupted)
     {
@@ -531,6 +599,26 @@ public class PlayerHealth : MonoBehaviour
                 currentHealth -= necroseDamage;
                 if (currentHealth <= 0) Die();
                 UpdateHealthBar();
+            }
+        }
+        // === HEARTBEAT (Som de coração quando sem armadura) ===
+        if (heartbeatSource != null && heartbeatClip != null)
+        {
+            bool shouldPlay = !isDead && maxArmor > 0 && canRegenArmor && currentArmor <= 0;
+
+            if (shouldPlay && !isHeartbeatPlaying)
+            {
+                heartbeatSource.clip = heartbeatClip;
+                heartbeatSource.volume = heartbeatVolume;
+                heartbeatSource.Play();
+                isHeartbeatPlaying = true;
+                Debug.Log("💓 [HEARTBEAT] Coração batendo — armadura zerada!");
+            }
+            else if (!shouldPlay && isHeartbeatPlaying)
+            {
+                heartbeatSource.Stop();
+                isHeartbeatPlaying = false;
+                Debug.Log("💓 [HEARTBEAT] Coração parou — armadura regenerando.");
             }
         }
     }

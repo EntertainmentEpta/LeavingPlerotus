@@ -25,13 +25,25 @@ public class DashM : MonoBehaviour
     [Header("UI")]
     public TextMeshProUGUI dashCountText;
 
-    [Header("Input")]
+    [Header("Input de Ação")]
     public KeyCode dashKey = KeyCode.E;
+
+    [Header("Input de Movimento (Direção do Dash)")]
+    public KeyCode keyUp = KeyCode.W;
+    public KeyCode keyDown = KeyCode.S;
+    public KeyCode keyLeft = KeyCode.A;
+    public KeyCode keyRight = KeyCode.D;
 
     [Header("Input Buffer & Dash-Canceling (Estilo Hades)")]
     public float inputBufferWindow = 0.20f;
     private float lastDashInputTime = -999f;
     private PrimaryAttackKnife attackScript;
+
+    [Header("T4 Effect Override")]
+    [Tooltip("Multiplicador de duração do dash. Modificado pelo ExplosiveDashEffect (T4).\n" +
+             "1.0 = normal, valores maiores = dash mais longo.")]
+    [HideInInspector]
+    public float dashDurationMultiplier = 1.0f;
 
     private void Start()
     {
@@ -67,6 +79,10 @@ public class DashM : MonoBehaviour
     private void Update()
     {
         if (CheatConsole.IsOpen) return;
+
+        // Trava de segurança: Proíbe Dash durante o Ultimate para evitar exploits de voo/cancelamento indevido
+        PlayerUltimate playerUlt = GetComponent<PlayerUltimate>() ?? GetComponentInParent<PlayerUltimate>() ?? GetComponentInChildren<PlayerUltimate>();
+        if (playerUlt != null && playerUlt.IsUltimateActive()) return;
 
         if (Input.GetKeyDown(dashKey))
         {
@@ -118,13 +134,24 @@ public class DashM : MonoBehaviour
         isDashing = true;
         dashesLeft--; // Gasta um dash
         
-        Vector3 dashDirection = new Vector3(Input.GetAxisRaw("Horizontal"), 0f, Input.GetAxisRaw("Vertical")).normalized;
+        // === NOVA LÓGICA MANUAL DE DIREÇÃO DO DASH ===
+        float horizontal = 0f;
+        if (Input.GetKey(keyRight)) horizontal += 1f;
+        if (Input.GetKey(keyLeft)) horizontal -= 1f;
+
+        float vertical = 0f;
+        if (Input.GetKey(keyUp)) vertical += 1f;
+        if (Input.GetKey(keyDown)) vertical -= 1f;
+
+        Vector3 dashDirection = new Vector3(horizontal, 0f, vertical).normalized;
+
+        // Se o cara apertar dash parado, esquiva para frente
         if (dashDirection == Vector3.zero)
         {
             dashDirection = transform.forward;
         }
 
-        rb.linearVelocity = Vector3.zero; // Usar 'velocity' em vez de 'linearVelocity' e AddForce
+        rb.linearVelocity = Vector3.zero; 
         rb.linearVelocity = dashDirection * dashSpeed;
         
         // Ativar invulnerabilidade durante o dash
@@ -134,7 +161,7 @@ public class DashM : MonoBehaviour
             Debug.Log($"🛡️ Dash Invulnerability ativada por {playerAttributes.dashInvulnerability}s");
         }
 
-        yield return new WaitForSeconds(dashDuration);
+        yield return new WaitForSeconds(dashDuration * dashDurationMultiplier);
 
         rb.linearVelocity = Vector3.zero; // Para o movimento bruscamente no final do dash
         

@@ -41,8 +41,16 @@ PrefabInstance:
     m_TransformParent: {fileID: 465899803940048851}
     m_Modifications:
     - target: {fileID: 4016991302846197792, guid: c90955ac390ee05469841f819d5a7aeb, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0.0075
+      objectReference: {fileID: 0}
+    - target: {fileID: 4016991302846197792, guid: c90955ac390ee05469841f819d5a7aeb, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0.000111
+      value: 0.00021
+      objectReference: {fileID: 0}
+    - target: {fileID: 4988170045223285498, guid: c90955ac390ee05469841f819d5a7aeb, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -0.007457
       objectReference: {fileID: 0}
     - target: {fileID: 4988170045223285498, guid: c90955ac390ee05469841f819d5a7aeb, type: 3}
       propertyPath: m_LocalPosition.y
@@ -50,7 +58,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4988170045223285498, guid: c90955ac390ee05469841f819d5a7aeb, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0.0001
+      value: 0.000214
       objectReference: {fileID: 0}
     - target: {fileID: 7270324273856319527, guid: c90955ac390ee05469841f819d5a7aeb, type: 3}
       propertyPath: pointType

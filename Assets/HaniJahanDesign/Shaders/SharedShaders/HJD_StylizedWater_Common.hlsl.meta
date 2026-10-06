@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 160ce9b3e4f546c580e80a7fd309c709
+DefaultImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 390566
+  packageName: "Stylized Water Shader Pack \u2013 URP & Built-In"
+  packageVersion: 1.0.0
+  assetPath: Assets/HaniJahanDesign/Shaders/SharedShaders/HJD_StylizedWater_Common.hlsl
+  uploadId: 964854

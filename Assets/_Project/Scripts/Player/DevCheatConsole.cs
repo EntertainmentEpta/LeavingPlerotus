@@ -191,13 +191,61 @@ public class DevCheatConsole : MonoBehaviour
         {
             HealPlayer();
         }
+        else if (cmd == "allmobs" || cmd == "spawnall" || cmd == "mobs" || cmd == "mobsall" || cmd == "showcase" || cmd == "bichos" || cmd == "5")
+        {
+            RoomController.forceAllMobsMode = true;
+            int spawned = RoomController.SpawnAllMobsNow();
+            Log($"<color=#FF5555>[ALL MOBS]</color> Modo Todos os Mobs Ativado! ({spawned} inimigos spawnados)");
+            if (EptinhoPopupController.instancia != null)
+            {
+                EptinhoPopupController.instancia.MostrarPopupAviso($"MODO TODOS OS MOBS ATIVADO!\n{spawned} bichos spawnados!");
+            }
+        }
+        else if (cmd == "togglemobs" || cmd == "normalmobs")
+        {
+            RoomController.forceAllMobsMode = !RoomController.forceAllMobsMode;
+            string status = RoomController.forceAllMobsMode ? "ATIVADO" : "DESATIVADO";
+            Log($"<color=#FF5555>[ALL MOBS]</color> Modo Todos os Mobs: {status}");
+            if (EptinhoPopupController.instancia != null)
+            {
+                EptinhoPopupController.instancia.MostrarPopupAviso($"Modo Todos os Mobs: {status}");
+            }
+        }
+        else if (cmd == "unlockmap" || cmd == "unlockenemies" || cmd == "6")
+        {
+            if (SaveManager.instance != null)
+            {
+                SaveManager.instance.CachedData.inimigosDescobertos.Clear();
+                
+                // Unlock all enemies dynamically from Resources
+                EnemyData[] allEnemies = Resources.LoadAll<EnemyData>("Enemies");
+                if (allEnemies != null)
+                {
+                    foreach (var e in allEnemies)
+                    {
+                        SaveManager.instance.CachedData.inimigosDescobertos.Add(e.enemyName);
+                        // Also add T2, T3, T4 synonyms just in case the name differs
+                    }
+                }
+                
+                // Forca as sinergias principais do mapa
+                SaveManager.instance.CachedData.inimigosDescobertos.Add("Golem");
+                SaveManager.instance.CachedData.inimigosDescobertos.Add("Goblin");
+                SaveManager.instance.CachedData.inimigosDescobertos.Add("Aranha");
+
+                SaveManager.instance.SavePersistentData();
+                Log("> [CHEAT] Bestiario 100% desbloqueado e Mapa de Sinergias revelado!");
+            }
+        }
         else if (cmd == "help" || cmd == "?")
         {
             Log("Comandos disponíveis:");
+            Log(" • allmobs / spawnall   -> Spawnar 1 de cada bicho e ativar modo de todos os mobs");
             Log(" • allitems / recursos  -> Dar +999 de todos os materiais");
             Log(" • unlockall / equip    -> Destravar todas as melhorias");
             Log(" • orbs / money         -> Dar +99.999 Orbs");
             Log(" • heal / god           -> Curar o player ao máximo");
+            Log(" • togglemobs           -> Alternar modo Todos os Mobs ligado/desligado");
         }
         else
         {
@@ -350,3 +398,5 @@ public class DevCheatConsole : MonoBehaviour
         txt.color = Color.white; txt.alignment = TextAlignmentOptions.Center;
     }
 }
+
+

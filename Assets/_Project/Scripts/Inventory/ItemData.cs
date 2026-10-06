@@ -76,6 +76,10 @@ public class ItemData : ScriptableObject
     [Tooltip("Nome do inimigo de origem (ex: Spider, Golem)")]
     public string enemySource;
 
+    [Tooltip("ID do nó correspondente no catálogo de sinergias (SynergyNodeData.nodeID). " +
+             "Deixe vazio se o item não participa do sistema de sinergias.")]
+    public string synergyNodeID;
+
     [Header("Upgrades e Infusão")]
     [Tooltip("Se true, este item retorna à base ao morrer e é salvo na progressão permanente.\n" +
              "Use para recursos usados em upgrades permanentes da base.\n" +
@@ -92,6 +96,12 @@ public class ItemData : ScriptableObject
 
     [Tooltip("Use o '+' para adicionar quantos buffs o item der!")]
     public List<ItemAttributeParam> itemAttributes = new List<ItemAttributeParam>();
+
+    [Header("Tier 4 Special Effect")]
+    [Tooltip("Efeito especial concedido ao infundir este item T4.\n" +
+             "Só funciona em itens Legendary. Itens de outros tiers devem usar None.\n" +
+             "O efeito é ativado/desativado pelo Tier4EffectManager no Player.")]
+    public Tier4EffectType tier4Effect = Tier4EffectType.None;
 
     /// <summary>
     /// Retorna a cor associada ao Tier do item

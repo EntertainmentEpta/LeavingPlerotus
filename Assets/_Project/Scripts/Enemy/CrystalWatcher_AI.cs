@@ -111,6 +111,8 @@ public class CrystalWatcher_AI : MonoBehaviour
     private AudioSource firingAudioSource;
     private AudioSource impactAudioSource;
 
+    private AudioSource baseAudioSource;
+
     // BUFF (quando Crystal Tuner está conectado)
     
     [Header("Buff")]
@@ -148,6 +150,7 @@ public class CrystalWatcher_AI : MonoBehaviour
         }
 
         // Pega o componente de vida que está no mesmo GameObject
+   
         health = GetComponent<DummyHealth>();
 
         // Encontra o player na cena pela tag "Player"
@@ -173,7 +176,7 @@ public class CrystalWatcher_AI : MonoBehaviour
         {
             vfx = gameObject.AddComponent<CrystalWatcherVFX>();
         }
-
+        baseAudioSource = GetComponent<AudioSource>();
         // Configura AudioSources de hover, disparo e impacto
         SetupAudioSources();
 
@@ -481,9 +484,10 @@ public class CrystalWatcher_AI : MonoBehaviour
             hoverAudioSource.clip = hoverSound;
             hoverAudioSource.volume = hoverSoundVolume;
             hoverAudioSource.loop = true;
-            hoverAudioSource.spatialBlend = 0.5f; // Semi-3D
+            hoverAudioSource.spatialBlend = 1f; // 3D Audio
             hoverAudioSource.minDistance = 3f;
-            hoverAudioSource.maxDistance = 50f;
+            hoverAudioSource.maxDistance = 25f;
+            if (baseAudioSource != null) hoverAudioSource.outputAudioMixerGroup = baseAudioSource.outputAudioMixerGroup;
             hoverAudioSource.Play();
         }
 
@@ -496,9 +500,10 @@ public class CrystalWatcher_AI : MonoBehaviour
             firingAudioSource.clip = firingSound;
             firingAudioSource.volume = firingSoundVolume;
             firingAudioSource.loop = true;
-            firingAudioSource.spatialBlend = 0.5f;
+            firingAudioSource.spatialBlend = 1f;
             firingAudioSource.minDistance = 3f;
-            firingAudioSource.maxDistance = 50f;
+            firingAudioSource.maxDistance = 30f;
+            if (baseAudioSource != null) firingAudioSource.outputAudioMixerGroup = baseAudioSource.outputAudioMixerGroup;
         }
 
         // Impact AudioSource (Loop de impacto no player)
@@ -510,9 +515,10 @@ public class CrystalWatcher_AI : MonoBehaviour
             impactAudioSource.clip = impactSound;
             impactAudioSource.volume = impactSoundVolume;
             impactAudioSource.loop = true;
-            impactAudioSource.spatialBlend = 0.5f;
+            impactAudioSource.spatialBlend = 1f;
             impactAudioSource.minDistance = 3f;
-            impactAudioSource.maxDistance = 50f;
+            impactAudioSource.maxDistance = 30f;
+            if (baseAudioSource != null) impactAudioSource.outputAudioMixerGroup = baseAudioSource.outputAudioMixerGroup;
         }
     }
 
@@ -574,21 +580,16 @@ public class CrystalWatcher_AI : MonoBehaviour
 
     private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
     {
-        GameObject audioObj = new GameObject("TempWatcherAudio");
-        audioObj.transform.position = position;
-        AudioSource aSource = audioObj.AddComponent<AudioSource>();
-        aSource.clip = clip;
-        aSource.pitch = pitch;
-        aSource.volume = volume;
-        aSource.spatialBlend = 0.5f; // Semi-3D
-        aSource.minDistance = 3f;
-        aSource.maxDistance = 50f;
-        aSource.rolloffMode = AudioRolloffMode.Linear;
-        aSource.Play();
-        float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;
-        Destroy(audioObj, clip.length / safePitch);
+        if (baseAudioSource != null)
+        {
+            baseAudioSource.pitch = pitch;
+            baseAudioSource.PlayOneShot(clip, volume);
+        }
+        else
+        {
+            AudioSource.PlayClipAtPoint(clip, position, volume);
+        }
     }
-
     // VISUAL DO LASER (LineRenderer)
     
     // Duas camadas de laser: núcleo interno + brilho externo

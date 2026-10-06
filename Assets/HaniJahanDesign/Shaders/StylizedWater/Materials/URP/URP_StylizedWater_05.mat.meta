@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 253fa72a53f08d44fa7d79d0b8d61f52
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 390566
+  packageName: "Stylized Water Shader Pack \u2013 URP & Built-In"
+  packageVersion: 1.0.0
+  assetPath: Assets/HaniJahanDesign/Shaders/StylizedWater/Materials/URP/URP_StylizedWater_05.mat
+  uploadId: 964854

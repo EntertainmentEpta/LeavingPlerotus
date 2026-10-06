@@ -168,12 +168,23 @@ public class AutoDropGenerator : Editor
 
     static int ConfigureEnemyPrefabs(Dictionary<string, List<GameObject>> prefabsByEnemy)
     {
-        // Procura pelos prefabs de inimigos
+        // Procura pelos prefabs de inimigos em todas as pastas do projeto
         var enemyPrefabs = AssetDatabase.FindAssets("t:prefab", new[] { 
             "Assets/_Project/Enemies", 
             "Assets/_Project/Enemies Shortcut/Enemies", 
             "Assets/GameAssets/Prefabs-Gabriel/Enemies Prefabs" 
         });
+
+        // Carrega o prefab de Essência oficial para vincular
+        GameObject defaultEssencePrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Items_and_Crafting/Resources/SpawnItems/EssencePickup.prefab");
+        if (defaultEssencePrefab == null)
+        {
+            string[] essenceGuids = AssetDatabase.FindAssets("EssencePickup t:prefab");
+            if (essenceGuids.Length > 0)
+            {
+                defaultEssencePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GUIDToAssetPath(essenceGuids[0]));
+            }
+        }
 
         int configuredEnemies = 0;
         foreach (string guid in enemyPrefabs)
@@ -206,6 +217,11 @@ public class AutoDropGenerator : Editor
             var enemyDrops = enemyRoot.GetComponent<EnemyDrops>();
             if (enemyDrops == null)
                 enemyDrops = enemyRoot.AddComponent<EnemyDrops>();
+
+            if (enemyDrops.essencePrefab == null && defaultEssencePrefab != null)
+            {
+                enemyDrops.essencePrefab = defaultEssencePrefab;
+            }
 
             // Escolhe o item T1 como fallback e preenche a roleta de tiers.
             GameObject selectedItemPrefab = null;
@@ -254,8 +270,8 @@ public class AutoDropGenerator : Editor
         return tier switch
         {
             1 => Color.white,      // T1: Branco
-            2 => Color.green,      // T2: Verde
-            3 => Color.blue,       // T3: Azul
+            2 => new Color(0f, 0.6f, 1f), // T2: Azul
+            3 => new Color(0.67f, 0f, 1f), // T3: Roxo
             4 => new Color(1, 0.84f, 0),  // T4: Dourado
             _ => Color.gray
         };
@@ -267,12 +283,20 @@ public class AutoDropGenerator : Editor
 
         if (prefabNameLower.Contains(enemy)) return true;
 
-        // Alias para nomes reais dos prefabs no projeto
+        // Alias para nomes reais e variantes de prefabs no projeto
         return enemy switch
         {
             "crystal tuner" => prefabNameLower.Contains("crystaltuner") || prefabNameLower.Contains("tuner"),
             "magic crystal" => prefabNameLower.Contains("magicstone") || prefabNameLower.Contains("magic"),
-            "shard swarm" => prefabNameLower.Contains("shard"),
+            "shard swarm"   => prefabNameLower.Contains("shard") || prefabNameLower.Contains("star"),
+            "cristalus"     => prefabNameLower.Contains("cristal") || prefabNameLower.Contains("cristalus"),
+            "sharp blur"    => prefabNameLower.Contains("sharp") || prefabNameLower.Contains("blur") || prefabNameLower.Contains("sh"),
+            "bismutado"     => prefabNameLower.Contains("bismut") || prefabNameLower.Contains("bismuto"),
+            "golem"         => prefabNameLower.Contains("golem"),
+            "spider"        => prefabNameLower.Contains("spider") || prefabNameLower.Contains("aranha"),
+            "goblin"        => prefabNameLower.Contains("goblin"),
+            "dragon"        => prefabNameLower.Contains("dragon") || prefabNameLower.Contains("fish") || prefabNameLower.Contains("cristaldrag"),
+            "geobionte"     => prefabNameLower.Contains("geobionte") || prefabNameLower.Contains("boss"),
             _ => false
         };
     }
@@ -281,7 +305,6 @@ public class AutoDropGenerator : Editor
     {
         string lower = prefabName.ToLower();
 
-        // Pesos arbitrários para simulação de runs
         if (lower.EndsWith("_t1")) return 60f;
         if (lower.EndsWith("_t2")) return 25f;
         if (lower.EndsWith("_t3")) return 10f;

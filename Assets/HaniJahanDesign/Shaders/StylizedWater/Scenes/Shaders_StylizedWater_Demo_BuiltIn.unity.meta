@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: f3d1457de4b516b40844a9900129456b
+DefaultImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 390566
+  packageName: "Stylized Water Shader Pack \u2013 URP & Built-In"
+  packageVersion: 1.0.0
+  assetPath: Assets/HaniJahanDesign/Shaders/StylizedWater/Scenes/Shaders_StylizedWater_Demo_BuiltIn.unity
+  uploadId: 964854

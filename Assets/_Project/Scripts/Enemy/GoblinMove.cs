@@ -133,6 +133,7 @@ public class GoblinAI_Transform : MonoBehaviour
     // ── Private ─────────────────────────────────────────────────────    
     private Rigidbody rb;
     private Animator anim;
+    private AudioSource audioSource;
     private float lastThrowTime;
     private float strafeTimer;
     private int strafeDir = 1;
@@ -159,6 +160,8 @@ public class GoblinAI_Transform : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         anim = GetComponent<Animator>();
+        audioSource = GetComponent<AudioSource>();
+
         rb.freezeRotation = true;
 
         originalChaseSpeed = chaseSpeed;
@@ -275,21 +278,16 @@ public class GoblinAI_Transform : MonoBehaviour
 
     private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
     {
-        GameObject audioObj = new GameObject("TempGoblinAudio");
-        audioObj.transform.position = position;
-        AudioSource aSource = audioObj.AddComponent<AudioSource>();
-        aSource.clip = clip;
-        aSource.pitch = pitch;
-        aSource.volume = volume;
-        aSource.spatialBlend = 0.5f; // Semi-3D: audível mesmo quando câmera está a 15-20m
-        aSource.minDistance = 3f;
-        aSource.maxDistance = 50f;
-        aSource.rolloffMode = AudioRolloffMode.Linear;
-        aSource.Play();
-        float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;
-        Destroy(audioObj, clip.length / safePitch);
+        if (audioSource != null)
+        {
+            audioSource.pitch = pitch;
+            audioSource.PlayOneShot(clip, volume);
+        }
+        else
+        {
+            AudioSource.PlayClipAtPoint(clip, position, volume);
+        }
     }
-
     // ─────────────────────────────────────────────────────────────────
     void UpdateState(float dist)
     {

@@ -15,6 +15,7 @@ public class Spider_AI : MonoBehaviour
     private Rigidbody rb;
     private Collider spiderCollider;
     private SpiderDashVFX dashVFX;
+    private AudioSource audioSource;
 
     [Header("Ativação")]
     public float activationDistance = 35f;
@@ -100,6 +101,7 @@ public class Spider_AI : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody>();
+        audioSource = GetComponent<AudioSource>();
         health = GetComponent<DummyHealth>();
         spiderCollider = GetComponent<Collider>();
 
@@ -424,19 +426,15 @@ public class Spider_AI : MonoBehaviour
 
     private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
     {
-        GameObject audioObj = new GameObject("TempSpiderAudio");
-        audioObj.transform.position = position;
-        AudioSource aSource = audioObj.AddComponent<AudioSource>();
-        aSource.clip = clip;
-        aSource.pitch = pitch;
-        aSource.volume = volume;
-        aSource.spatialBlend = 0.85f; // Quase totalmente 3D — sons somem com a distância
-        aSource.minDistance = 3f;
-        aSource.maxDistance = 50f;
-        aSource.rolloffMode = AudioRolloffMode.Linear;
-        aSource.Play();
-        float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;
-        Destroy(audioObj, clip.length / safePitch);
+        if (audioSource != null)
+        {
+            audioSource.pitch = pitch;
+            audioSource.PlayOneShot(clip, volume);
+        }
+        else
+        {
+            AudioSource.PlayClipAtPoint(clip, position, volume);
+        }
     }
     // Visualização do range no Editor
     void OnDrawGizmosSelected()

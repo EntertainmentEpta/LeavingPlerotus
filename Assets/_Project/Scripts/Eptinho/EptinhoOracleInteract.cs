@@ -10,6 +10,14 @@ using TMPro;
 /// </summary>
 public class EptinhoOracleInteract : MonoBehaviour
 {
+    // ─── Som de Interação ────────────────────────────────────────────────────
+    [Header("🔊 Som de Interação (Latido)")]
+    [Tooltip("Arraste o AudioClip 'Bark_Eptinho' aqui (Audio/SoundFX/Eptinho).")]
+    [SerializeField] private AudioClip barkClip;
+    [Range(0f, 1f)]
+    [SerializeField] private float barkVolume = 0.8f;
+    private AudioSource audioSource;
+
     // ─── Estado ──────────────────────────────────────────────────────────────
     private bool playerNoPerto = false;
 
@@ -77,6 +85,9 @@ public class EptinhoOracleInteract : MonoBehaviour
 
     private void AbrirMenuOraculo()
     {
+        // Toca o latido ao interagir
+        PlayBark();
+
         if (EptinhoMenuController.instancia != null)
         {
             EptinhoMenuController.instancia.AbrirMenu();
@@ -86,6 +97,20 @@ public class EptinhoOracleInteract : MonoBehaviour
         {
             Debug.LogWarning("[EPTINHO ORACLE] EptinhoMenuController.instancia é nulo!");
         }
+    }
+
+    private void PlayBark()
+    {
+        if (barkClip == null) return;
+
+        if (audioSource == null)
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
+            audioSource.playOnAwake = false;
+            audioSource.spatialBlend = 0f; // 2D para garantir que o player sempre ouça
+        }
+
+        audioSource.PlayOneShot(barkClip, barkVolume);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

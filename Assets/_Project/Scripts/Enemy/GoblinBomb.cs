@@ -41,41 +41,37 @@ public class BombaExplosiva : MonoBehaviour
 
     private bool explodiu = false;
     private AudioSource tickAudioSource;
+    private AudioSource audioSource;
 
     // ─────────────────────────────────────────────────────────────────
     void Start()
-    {
-        // Ignora colisão com o Player (dano via OverlapSphere, não contato)
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
-        if (player != null)
         {
-            Collider cPlayer = player.GetComponent<Collider>();
-            Collider cBomba  = GetComponent<Collider>();
-            if (cPlayer != null && cBomba != null)
-                Physics.IgnoreCollision(cBomba, cPlayer);
+            audioSource = GetComponent<AudioSource>();
+
+            // Ignora colisão com o Player
+            GameObject player = GameObject.FindGameObjectWithTag("Player");
+            if (player != null)
+            {
+                Collider cPlayer = player.GetComponent<Collider>();
+                Collider cBomba  = GetComponent<Collider>();
+                if (cPlayer != null && cBomba != null)
+                    Physics.IgnoreCollision(cBomba, cPlayer);
+            }
+
+            // Toca o som em loop do tick usando o Audio Source oficial da bomba
+            if (tickSound != null && audioSource != null)
+            {
+                audioSource.clip = tickSound;
+                audioSource.volume = tickSoundVolume;
+                audioSource.loop = true;
+                audioSource.Play();
+            }
+
+            if (bombaRenderer != null)
+                StartCoroutine(CountdownVisual(bombaRenderer.material.color));
+
+            Invoke(nameof(Explodir), tempoParaExplodir);
         }
-
-        // Toca o som em loop do tick da bomba acesa
-        if (tickSound != null)
-        {
-            GameObject tickObj = new GameObject("Audio_Tick");
-            tickObj.transform.SetParent(transform, false);
-            tickAudioSource = tickObj.AddComponent<AudioSource>();
-            tickAudioSource.clip = tickSound;
-            tickAudioSource.volume = tickSoundVolume;
-            tickAudioSource.loop = true;
-            tickAudioSource.spatialBlend = 1f;
-            tickAudioSource.minDistance = 2f;
-            tickAudioSource.maxDistance = 25f;
-            tickAudioSource.Play();
-        }
-
-        if (bombaRenderer != null)
-            StartCoroutine(CountdownVisual(bombaRenderer.material.color));
-
-        Invoke(nameof(Explodir), tempoParaExplodir);
-    }
-
     void OnCollisionEnter(Collision col)
     {
         if (explodiu) return;
@@ -84,16 +80,16 @@ public class BombaExplosiva : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────────────────────────
-    void Explodir()
+void Explodir()
     {
         if (explodiu) return;
         explodiu = true;
         CancelInvoke();
 
         // Para o som de tick
-        if (tickAudioSource != null && tickAudioSource.isPlaying)
+        if (audioSource != null && audioSource.isPlaying)
         {
-            tickAudioSource.Stop();
+            audioSource.Stop();
         }
 
         // Toca o som de explosão no local
@@ -107,9 +103,20 @@ public class BombaExplosiva : MonoBehaviour
             aSource.spatialBlend = 1f; // Som 3D
             aSource.minDistance = 5f;
             aSource.maxDistance = 45f;
+
+            // === O PULO DO GATO ESTÁ AQUI ===
+            // Passa a rota da Mesa de Som (SFX) da bomba para o áudio fantasma!
+            if (audioSource != null)
+            {
+                aSource.outputAudioMixerGroup = audioSource.outputAudioMixerGroup;
+            }
+
             aSource.Play();
             Destroy(audioObj, explosionSound.length + 0.1f);
         }
+
+        // Para o movimento e esconde a bomba imediatamente
+        // ... (O restante da função Explodir continua igual daqui para baixo)
 
         // Para o movimento e esconde a bomba imediatamente
         Renderer rend = GetComponent<Renderer>();

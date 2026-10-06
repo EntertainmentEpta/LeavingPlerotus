@@ -1,0 +1,154 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &1542574116282849277
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8475448220478370550}
+  - component: {fileID: 7617729100016158041}
+  - component: {fileID: 7464841408297938883}
+  m_Layer: 0
+  m_Name: Acid Puddle
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8475448220478370550
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1542574116282849277}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 24.23278, y: 0.1, z: -2.72001}
+  m_LocalScale: {x: 7, y: 1, z: 7}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 610134188055717383}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &7617729100016158041
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1542574116282849277}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &7464841408297938883
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1542574116282849277}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1f89c6e442675a140a5c091591b9e771, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AcidPuddle
+  damageMin: 3
+  damageMax: 5
+  tickInterval: 0.8
+  slowPercent: 0.3
+  lifetime: 8
+  showDebugLog: 0
+--- !u!1001 &2062791805990211299
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 8475448220478370550}
+    m_Modifications:
+    - target: {fileID: -6164467709854209053, guid: ae0c23bf7354a5f45b55b132be0db1ac, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1362928536234513924, guid: ae0c23bf7354a5f45b55b132be0db1ac, type: 3}
+      propertyPath: m_IsTrigger
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1501708550182004964, guid: ae0c23bf7354a5f45b55b132be0db1ac, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1501708550182004964, guid: ae0c23bf7354a5f45b55b132be0db1ac, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1501708550182004964, guid: ae0c23bf7354a5f45b55b132be0db1ac, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1501708550182004964, guid: ae0c23bf7354a5f45b55b132be0db1ac, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1501708550182004964, guid: ae0c23bf7354a5f45b55b132be0db1ac, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1501708550182004964, guid: ae0c23bf7354a5f45b55b132be0db1ac, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1501708550182004964, guid: ae0c23bf7354a5f45b55b132be0db1ac, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1501708550182004964, guid: ae0c23bf7354a5f45b55b132be0db1ac, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1501708550182004964, guid: ae0c23bf7354a5f45b55b132be0db1ac, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1501708550182004964, guid: ae0c23bf7354a5f45b55b132be0db1ac, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1501708550182004964, guid: ae0c23bf7354a5f45b55b132be0db1ac, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7445730668720387329, guid: ae0c23bf7354a5f45b55b132be0db1ac, type: 3}
+      propertyPath: m_Name
+      value: Acid Puddle VFX
+      objectReference: {fileID: 0}
+    - target: {fileID: 8848418675759346873, guid: ae0c23bf7354a5f45b55b132be0db1ac, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 4c5dc3d75720fd240a48c92c6405f106, type: 2}
+    m_RemovedComponents: []
+    m_RemovedGameObjects:
+    - {fileID: 5969764006249337389, guid: ae0c23bf7354a5f45b55b132be0db1ac, type: 3}
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: ae0c23bf7354a5f45b55b132be0db1ac, type: 3}
+--- !u!4 &610134188055717383 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 1501708550182004964, guid: ae0c23bf7354a5f45b55b132be0db1ac, type: 3}
+  m_PrefabInstance: {fileID: 2062791805990211299}
+  m_PrefabAsset: {fileID: 0}

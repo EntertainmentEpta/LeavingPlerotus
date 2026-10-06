@@ -1,25 +1,24 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using UnityEngine.Audio; // <-- Adicionamos a biblioteca de Áudio da Unity!
 
-/// <summary>
-/// Sistema de Áudio para o Menu Principal:
-/// 1. Música/Ambiente de fundo em Loop.
-/// 2. SoundFX de Hover (passar o mouse) gerado proceduralmente com frequência cristalina alta.
-/// 3. SoundFX de Click (clicar no botão) gerado proceduralmente com impacto encorpado e grave.
-/// </summary>
 public class MenuAudioFX : MonoBehaviour
 {
     public static MenuAudioFX Instance { get; private set; }
 
+    [Header("Roteamento da Mesa de Som (Mixer)")]
+    public AudioMixerGroup bgmMixerGroup; // <-- Tomada para a Música
+    public AudioMixerGroup sfxMixerGroup; // <-- Tomada para os Efeitos
+
     [Header("Áudio de Fundo (BGM)")]
     public AudioClip backgroundMusic;
-    [Range(0f, 1f)] public float musicVolume = 0.55f;
+    [Range(0f, 1f)] public float musicVolume = 1f; // Recomendo deixar no 1 e controlar pelo Slider
 
     [Header("Efeitos de Interface (UI SFX)")]
     public AudioClip customHoverSound;
     public AudioClip customClickSound;
-    [Range(0f, 1f)] public float sfxVolume = 0.85f;
+    [Range(0f, 1f)] public float sfxVolume = 1f; // Recomendo deixar no 1 e controlar pelo Slider
 
     private AudioSource bgmSource;
     private AudioSource sfxSource;
@@ -47,15 +46,19 @@ public class MenuAudioFX : MonoBehaviour
 
     private void SetupAudioSources()
     {
+        // Cria a fonte de Música e PLUGA na mesa de som!
         bgmSource = gameObject.AddComponent<AudioSource>();
         bgmSource.loop = true;
         bgmSource.playOnAwake = false;
         bgmSource.volume = musicVolume;
+        if (bgmMixerGroup != null) bgmSource.outputAudioMixerGroup = bgmMixerGroup;
 
+        // Cria a fonte de SFX e PLUGA na mesa de som!
         sfxSource = gameObject.AddComponent<AudioSource>();
         sfxSource.loop = false;
         sfxSource.playOnAwake = false;
         sfxSource.volume = sfxVolume;
+        if (sfxMixerGroup != null) sfxSource.outputAudioMixerGroup = sfxMixerGroup;
     }
 
     private void GenerateProceduralClips()
@@ -97,6 +100,8 @@ public class MenuAudioFX : MonoBehaviour
 
     public void PlayBackgroundMusic()
     {
+        // AVISO: Se você estiver usando o MusicManager em vez deste script para tocar música, 
+        // a música não vai abaixar a menos que o MusicManager também esteja plugado na Mesa de Som!
         if (MusicManager.instance != null)
         {
             MusicManager.instance.PlayTrack(0);

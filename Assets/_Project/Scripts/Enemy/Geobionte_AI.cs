@@ -275,9 +275,11 @@ public class Geobionte_AI : MonoBehaviour
 
     [Tooltip("Vetor de áudios de ataque (Cruzado/Soco) do Bismutado selecionados aleatoriamente")]
     public AudioClip[] bismutadoAttackSounds;
+
     [Tooltip("Volume do som de ataque do Bismutado")]
     [Range(0f, 1f)]
     public float bismutadoAttackSoundVolume = 0.8f;
+    private AudioSource audioSource;
 
     [Header("Áudio — Bismutado (Dano Recebido / Hit)")]
     [Tooltip("Sons reproduzidos quando o Bismutado leva dano (golpe do player). NÃO colocar sons de socos/ataques do Bismutado aqui.")]
@@ -319,6 +321,7 @@ public class Geobionte_AI : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         health = GetComponent<DummyHealth>();
+        audioSource = GetComponent<AudioSource>();
 
         // Configurar Rigidbody
         rb.freezeRotation = true;
@@ -1208,19 +1211,15 @@ public class Geobionte_AI : MonoBehaviour
 
     private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
     {
-        GameObject audioObj = new GameObject("TempGeobionteAudio");
-        audioObj.transform.position = position;
-        AudioSource aSource = audioObj.AddComponent<AudioSource>();
-        aSource.clip = clip;
-        aSource.pitch = pitch;
-        aSource.volume = volume;
-        aSource.spatialBlend = 0.5f; // Semi-3D: audível mesmo quando câmera está a 15-20m
-        aSource.minDistance = 3f;
-        aSource.maxDistance = 50f;
-        aSource.rolloffMode = AudioRolloffMode.Linear;
-        aSource.Play();
-        float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;
-        Destroy(audioObj, clip.length / safePitch);
+        if (audioSource != null)
+        {
+            audioSource.pitch = pitch;
+            audioSource.PlayOneShot(clip, volume);
+        }
+        else
+        {
+            AudioSource.PlayClipAtPoint(clip, position, volume);
+        }
     }
 
     private void OnBismutadoHit(int damage, GameObject attacker)
@@ -1238,7 +1237,6 @@ public class Geobionte_AI : MonoBehaviour
         if (clip != null)
             PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), dieSoundVolume);
     }
-
     void HandleCombat()
     {
         if (playerTransform == null)

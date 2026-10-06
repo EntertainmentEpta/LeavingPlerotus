@@ -1,0 +1,265 @@
+\documentclass[a4paper,12pt]{report}
+
+% Pacotes essenciais
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+
+% Configuração de Margens e Layout
+\geometry{
+ a4paper,
+ total={170mm,257mm},
+ left=25mm,
+ top=25mm,
+}
+
+% Cores e Estilo
+\definecolor{primaryColor}{RGB}{50, 0, 90}
+\definecolor{secondaryColor}{RGB}{100, 100, 100}
+
+\titleformat{\chapter}{\normalfont\huge\bfseries\color{primaryColor}}{\thechapter}{1em}{}
+\titleformat{\section}{\normalfont\Large\bfseries\color{primaryColor}}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries\color{secondaryColor}}{\thesubsection}{1em}{}
+
+% Cabeçalho e Rodapé
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\textbf{LIVING PLEROTUS} - Game Design Document}
+\lhead{v7.0 --- Alchemy \& Synergies Update}
+\cfoot{\thepage}
+
+\title{\textbf{LIVING PLEROTUS}\\ \large Game Design Document (GDD)}
+\author{Equipe de Desenvolvimento}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+% =========================================================================
+% CAPÍTULO 1: VISÃO GERAL
+% =========================================================================
+\chapter{Visão Geral}
+
+\section{High Concept}
+Um \textit{Roguelite} de Ação e Sobrevivência focado na improvisação. O jogador controla um engenheiro civil comum, preso em um planeta vivo que tenta digeri-lo. Sem treinamento militar, ele deve adaptar suas ferramentas de trabalho em armas letais, utilizando a própria biologia do planeta para modificá-las, enquanto busca peças para reparar sua nave e escapar de um ciclo eterno de morte e reconstrução.
+
+\section{A Atmosfera}
+O jogo deve transmitir a sensação de \textbf{isolamento claustrofóbico} em um ambiente vasto. Não somos heróis; somos intrusos. O planeta é belo, mas hostil de uma forma biológica: o chão pulsa, as plantas observam e a morte é apenas um processo digestivo interrompido.
+
+% =========================================================================
+% CAPÍTULO 2: NARRATIVA E UNIVERSO
+% =========================================================================
+\chapter{Narrativa e Universo}
+
+\section{O Protagonista: O Engenheiro Catalogador}
+O jogador assume o papel de um funcionário de baixo escalão de uma corporação intergaláctica de logística e mapeamento. Seu trabalho não possui caráter militar ou de combate; ele é um engenheiro e pesquisador de campo encarregado de viagens de rotina entre colônias já catalogadas e seguras, prestando manutenção em maquinários de exploração e coletando amostras científicas.
+
+\begin{figure}[hbt!]
+    \centering
+    \begin{minipage}[c]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{AstronautaP.png}
+        \caption{Concept Art: Visual Final.}
+    \end{minipage}
+    \hfill
+    \begin{minipage}[c]{0.48\textwidth}
+        \centering
+        \includegraphics[width=0.65\linewidth]{AstronautaTB.png}
+        \caption{Vista Técnica: Frente.}
+        \vspace{0.5cm}
+        \includegraphics[width=0.65\linewidth]{AstronautaTf.png}
+        \caption{Vista Técnica: Costas.}
+    \end{minipage}
+    \label{fig:protagonista_completo}
+\end{figure}
+
+\subsection{Identidade Visual}
+\begin{itemize}
+    \item \textbf{O Traje (EPI Espacial):} Um macacão pressurizado de cor \textbf{branco gelo} com reforços em \textbf{cinza escuro} nas articulações, luvas e botas. O design prioriza a função sobre a estética, repleto de bolsos pequenos para ferramentas e conectores universais.
+    \item \textbf{O Capacete:} O visor possui uma película preta totalmente opaca. Isso serve a dois propósitos: proteger contra a radiação de solda e, narrativamente, permitir que qualquer jogador se projete no personagem (ele não tem rosto definido).
+    \item \textbf{Iluminação Diegética:} O traje possui luzes de serviço integradas (ombros e peito) que iluminam os ambientes escuros do jogo naturalmente, dispensando interfaces artificiais de visão noturna.
+    \item \textbf{Sem Treinamento de Combate:} Ele nunca segurou uma arma de fogo militar. Todo o seu arsenal é composto por ferramentas de coleta e uma adaga simples de corte.
+    \item \textbf{Personalidade:} Prático, curioso e focado em resolver problemas.
+\end{itemize}
+
+\section{O Incidente: A Rota Desviada}
+A nave de transporte seguia uma rota hiperespacial segura e tediosa. O único companheiro do engenheiro é \textbf{Eptinho}, um Corgi hiperativo que atua como copiloto e analista de dados.
+\begin{itemize}
+    \item \textbf{O Erro:} Durante um momento de distração mútua no cockpit, Eptinho perseguiu um reflexo nas telas do painel de controle, desengatando o piloto automático e alterando as coordenadas de salto hiperespacial para um setor proibido dos mapas estelares.
+    \item \textbf{O Cinturão de Asteroides:} A nave emergiu do hiperespaço diretamente dentro do campo gravitacional de um planeta hostil não catalogado, cercado por um cinturão de detritos caótico. Nenhuma nave jamais atravessou esse cinturão intacta. A colisão destruiu completamente a nave, espalhando seus destroços pela superfície.
+\end{itemize}
+
+\section{O Planeta Consciente: Parasitismo e Rejeição}
+Este mundo não é apenas um lugar; é um ecossistema inteligente, governado por uma força consciente que age como um parasita biológico. Utilizando a energia cristalina de seu núcleo, o planeta consegue submeter, mutar e controlar toda a matéria orgânica e mineral na sua superfície.
+\begin{itemize}
+    \item \textbf{A Lei da Assimilação:} Tudo o que cai no planeta é digerido e reintegrado à consciência planetária. É um ciclo perfeito de simbiose e reciclagem.
+    \item \textbf{O Ciclo de Rejeição (Indigestão):} Quando o Engenheiro morre, o solo o absorve. Porém, devido ao seu sangue e à sua biologia humana totalmente estranha àquele ecossistema, o planeta falha em digeri-lo. Incapaz de assimilá-lo, o sistema imunológico do planeta o reconstrói e o expele de volta no ponto de queda. O jogador renasce porque é \textbf{indigesto} para o planeta.
+    \item \textbf{A Zona Esterilizada (Base):} O local da queda da nave serve como base segura porque o combustível e os reatores vazados esterilizaram quimicamente o solo ao redor, criando um casulo neutro onde a biologia consciente do planeta não consegue se aproximar ou digerir os destroços.
+    \item \textbf{O Roubo de Peças (Objetivo da Run):} Criaturas nativas sob o controle do planeta invadiram os destroços da nave e roubaram peças vitais (como baterias térmicas, placas de reator e núcleos de energia), espalhando-as pelos biomas. O Engenheiro deve adentrar os setores perigosos para derrotar essas criaturas, recuperar as peças e consertar a nave para escapar.
+    \item \textbf{O Sequestro do Poder Planetário (Infusões e Alquimia):} Para aprimorar suas ferramentas comuns em armas letais, o Engenheiro **se apossa da própria característica de mutação do planeta**. Canalizando a energia de transmutação natural das pedras e cristais alienígenas colhidos do solo, ele força seu traje a fundir múltiplos fragmentos biológicos simultaneamente às suas ferramentas humanas, criando sinergias e infusões poderosas (as ``Partes do Corpo'').
+\end{itemize}
+
+\section{Os Chefes de Bioma: Guardiões da Estabilidade}
+Ao final de cada setor/bioma, o jogador deve enfrentar um Chefe. Narrativamente, estes chefes são **Avatares de Transição** criados pelo próprio planeta.
+\begin{itemize}
+    \item \textbf{Guardiões da Fronteira:} Eles concentram uma quantidade massiva da energia de infusão e transmutação do núcleo, atuando como verdadeiras barreiras físicas entre as diferentes regiões do planeta.
+    \item \textbf{Prevenção de Caos:} Sua função ecológica essencial é impedir o trânsito livre de fauna e flora entre biomas distintos. Sem estes guardiões guardando as fronteiras, os biomas se misturariam livremente, fundindo ecossistemas incompatíveis e gerando aberrações biológicas abissais e instáveis que ameaçariam a integridade da consciência do próprio planeta.
+\end{itemize}
+
+\section{A Mecânica do Inventário e o Fim da Reciclagem}\label{sec:inventario_sinergia}
+Como o planeta absorve tudo o que toca, qualquer equipamento deixado no chão é consumido em segundos.
+\begin{itemize}
+    \item \textbf{Por que perdemos o Loot:} Ao morrer (ser dissolvido), as armas e modificações externas são comidas pelo planeta.
+    \item \textbf{Inventário Não-Acumulativo (Run):} O inventário ativo durante a rodada possui exatos 10 slots. \textbf{As Partes do Corpo (itens) não estacam mais}. Cada item coletado ocupa um slot inteiro. O objetivo desta restrição é forçar o jogador a tomar decisões pesadas sobre gerenciamento de espaço: infundir agora ou guardar a peça para tentar uma \textbf{Sinergia Alquímica} mais tarde.
+    \item \textbf{O Fim da Reciclagem:} \textbf{A mecânica de reciclar itens por essência foi completamente removida.} O jogador não pode mais descartar peças que não quer em troca de dinheiro. Isso dá muito mais peso à escolha de pegar um item do chão.
+    \item \textbf{Bolsa Sintética (Recursos Base):} Os minérios e recursos puros (\textit{Base Resources}) continuam utilizando uma bolsa sintética separada, onde estacam normalmente e sobrevivem à morte para serem levados à Base.
+\end{itemize}
+
+\section{Eptinho: O Copiloto e Analista de Dados}
+Apesar de sua aparência canina, Eptinho é um ser de inteligência aguçada, atuando como o verdadeiro cérebro por trás dos sistemas de navegação e logística da nave. Ele permanece em segurança na base, mas acompanha o protagonista virtualmente a cada passo.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.60\textwidth]{EPTINHO.png}
+    \caption{Eptinho: O Copiloto Corgi em seu traje espacial.}
+    \label{fig:eptinho}
+\end{figure}
+
+\begin{itemize}
+    \item \textbf{O Guia da Interface (UI):} Eptinho funciona como o "Oráculo" e sistema operacional da jornada. Ele aparece visualmente como um \textit{pop-up} na lateral da tela (HUD) para notificar o jogador sempre que um novo recurso é catalogado ou quando há itens de coleta pendentes na fase.
+    \item \textbf{Tradutor Universal:} Ele é o responsável por compilar a \textit{Lore} do jogo no banco de dados. Além disso, é o único capaz de compreender a linguagem enigmática do Mercador, servindo como intérprete durante as trocas comerciais.
+\end{itemize}
+
+% =========================================================================
+% CAPÍTULO 3: SISTEMA DE ATRIBUTOS E ESTATÍSTICAS
+% =========================================================================
+\chapter{Sistema de Atributos e Estatísticas}
+
+Para permitir uma profundidade estratégica nas \textit{builds}, o jogo utiliza um conjunto extenso de variáveis que podem ser modificadas por Infusões (Partes do Corpo), Sinergias, Itens do Mercador e Upgrades da Base.
+
+\section{Atributos Base do Jogador (Balanceamento Oficial)}
+\begin{center}
+\begin{tabular}{|l|c|l|}
+    \hline
+    \textbf{Atributo} & \textbf{Valor Base} & \textbf{Descrição / Mecânica} \\
+    \hline
+    HP Máximo (Health) & \textbf{100 HP} & Barra de vida física do personagem. \\
+    Armadura Máxima (Armor) & \textbf{300 AP} & \textbf{Escudo regenerável.} Total de \textbf{400 EHP}. \\
+    Regeneração de Armadura & \textbf{5 AP / s} & Inicia após 4,0s sem receber dano. \\
+    Multiplicador de Dano Base & \textbf{1,0x} & Multiplicador inicial limpo. \\
+    Chance de Acerto Crítico & \textbf{5,0\%} & Chance padrão de dano crítico (1,5x). \\
+    Mitigação / Esquiva Base & \textbf{0,0\%} & Sem mitigação passiva inicial. \\
+    Velocidade de Movimento & \textbf{Padrão (Fixa)} & \textbf{Não modificável via Infusão} (apenas via ULT). \\
+    \hline
+\end{tabular}
+\end{center}
+
+\textit{Nota de Design: \textbf{Velocidade de Movimento (Movement Speed)} foi estritamente removida da pool de melhorias dropáveis. Ela não deve ser um atributo melhorável de forma passiva, pois um acúmulo excessivo quebra completamente a esquiva e o balanceamento do combate. A velocidade base do jogador é fixa.}
+
+\section{Core Loop: O Ciclo de Infusão e Alquimia}
+O núcleo da jogabilidade abandona o sistema tradicional de níveis (XP) por um sistema de \textbf{Economia e Crafting em Tempo Real}. O ciclo se define por quatro etapas constantes:
+
+\begin{enumerate}
+    \item \textbf{Combate:} O jogador enfrenta inimigos usando um dos \textbf{6 Arquétipos de Armas}.
+    \item \textbf{Coleta (Loot \& Currency):} Inimigos derrotados sempre soltam \textit{Essência da Vida} (moeda) e têm uma chance probabilística de soltar \textit{Partes do Corpo} (matéria-prima).
+    \item \textbf{Decisão Estratégica (A Alquimia):} Ao pegar uma Parte do Corpo, o jogador decide:
+    \begin{itemize}
+        \item \textbf{Infundir Sozinho:} Aplica o item instantaneamente na arma. Concede os status básicos, mas gera uma \textbf{alta inflação} no custo das próximas infusões.
+        \item \textbf{Guardar para Sinergia:} Armazena o item em um dos 10 preciosos slots da mochila. O objetivo é tentar encontrar peças complementares de outros inimigos e realizar uma \textbf{Infusão Combinada (Sinergia)}, que concede bônus multiplicativos e reduz drasticamente a inflação gerada.
+    \end{itemize}
+    \item \textbf{Adaptação:} A arma do jogador evolui organicamente durante a run, tornando-se uma quimera de tecnologias humanas e biologia alienígena.
+\end{enumerate}
+
+\section{Sistema de Sinergias Cruzadas (Alquimia)}\label{sec:sinergias}
+Ao invés de infundir itens um a um, o jogador pode selecionar múltiplos itens não-acumulados no inventário e infundi-los simultaneamente.
+
+\begin{itemize}
+    \item \textbf{Sinergias de 2 Itens:} Combinar itens específicos de inimigos diferentes (Ex: T1 do Goblin + T1 do SharpBlur gera a sinergia "Chuva de Lâminas"). Além de conceder os status base dos dois itens, a sinergia concede um bônus especial massivo e aplica um \textbf{desconto na inflação} gerada por aquela infusão.
+    \item \textbf{Sinergias de 4 Itens (Douradas):} Combos extremamente raros que exigem 4 itens específicos juntos no inventário, resultando em poderes lendários (Ex: "Berserker Imortal").
+    \item \textbf{A Ascensão (O Modo Deus):} Se o jogador conseguir o feito quase impossível de coletar e juntar os 13 itens de Tier 4 (Lendários) de todos os 13 inimigos do jogo no inventário ao mesmo tempo, ele destrava a Sinergia Divina, ganhando invencibilidade absoluta.
+    \item \textbf{Falha Alquímica:} Tentar infundir dois ou mais itens simultaneamente que \textbf{não} possuem sinergia resultará na concessão dos atributos básicos, mas o jogador sofrerá uma \textbf{penalidade severa de inflação (Inflation Penalty)}, encarecendo drasticamente as próximas compras da run.
+\end{itemize}
+
+\subsection{Tiers de Raridade}
+\begin{description}
+    \item[Tier 1, 2 e 3 (Construção Estatística):] \hfill \\
+    Peças numéricas que servem primordialmente como ingredientes para a Alquimia de Sinergias. T1 (Comum, Branco), T2 (Incomum, Verde), T3 (Raro, Roxo).
+    \item[Tier 4 --- Lendário (Modificador de Gameplay):] \hfill \\
+    Itens Amarelos/Dourados. Alterações drásticas de gameplay (ex: ``Sua arma não usa mais munição, mas consome vida para atirar''). São raros de aparecer e muito caros para infundir sozinhos.
+\end{description}
+
+
+% =========================================================================
+% CAPÍTULO 4: O MERCADOR
+% =========================================================================
+\chapter{O Mercador: A Válvula de Escape}\label{cap:mercador}
+
+Ocasionalmente, escondido em becos sem saída entre os biomas, o jogador \textbf{poderá} encontrar uma figura misteriosa conhecida apenas como ``O Mercador''.
+
+\section{Regra de Encontro: Um Serviço por Visita}
+\begin{quote}
+    \textbf{Regra Fundamental:} Em cada encontro com o Mercador, o jogador pode utilizar \textbf{apenas um} dos quatro serviços disponíveis. Após a transação, o Mercador encerra a negociação e desaparece.
+\end{quote}
+
+\section{Os Quatro Pilares de Troca}
+
+\subsection{1. Câmbio de Sangue (Recurso de Desespero)}
+Sacrifica Vida Máxima em troca de uma injeção massiva de \textbf{Essência da Vida}.
+
+\subsection{2. Cirurgia de Remoção (Otimização)}
+Remove cirurgicamente uma ``Parte do Corpo'' já acoplada à arma. O peso de inflação daquele item é \textbf{subtraído} do $P_{total}$, abaixando o custo de futuras infusões.
+
+\subsection{3. Artefatos Refinados \& Únicos}
+Compra direta de itens T3/T4 já identificados a custos altíssimos.
+
+\subsection{4. As Maldições (O Tarô Proibido)}
+Custa Vida Máxima para ganhar um poder passivo avassalador atrelado a uma penalidade severa.
+
+\subsubsection{Exemplos de Cartas de Maldição}
+\begin{itemize}
+    \item \textbf{A Ganância:} Inimigos têm chance dobrada de dropar loot. \textit{Maldição:} Inimigos causam 50\% mais dano.
+    \item \textbf{O Parasita:} Vampirismo. \textit{Maldição:} Vida decai se ficar 5 segundos sem matar.
+    \item \textbf{A Sinfonia do Caos (Pacto 9):} Multiplica por 2x a Essência e o Loot recebido em toda a run. \textit{Maldição:} Triplica o Budget de Spawn e o limite máximo de Elites e Tanques por sala, transformando o jogo em um \textit{bullet hell} absoluto de altíssima dificuldade.
+\end{itemize}
+
+% =========================================================================
+% CAPÍTULO 5: BESTIÁRIO DE INIMIGOS
+% =========================================================================
+\chapter{Bestiário de Inimigos}\label{cap:bestiario}
+
+As criaturas do bioma cristalino são manifestações físicas do sistema imunológico do planeta. Cada classe define o custo de spawn e as restrições táticas dentro das ondas de combate.
+
+\section{Tabela Resumo --- Os 13 Inimigos do Ecossistema}
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+    \hline
+    \textbf{Inimigo} & \textbf{Classe de Spawn} & \textbf{Características Base} \\
+    \hline
+    E1. Aranha            & Mob Menor (1 pt)         & Rápida, Leap Attack, Veneno \\
+    E2. SharpBlur         & Elite Ágil (10 pts)      & Dash de Luz, Ataque Corporal \\
+    E3. Dragão de Cristal & Elite Flutuante (10 pts) & Defesa Retaliadora (Baiacu), Espinhos \\
+    E4. Goblin            & Atirador (4 pts)         & Bombas Ranged, Multi-Tiro \\
+    E5. Watcher           & Elite Estático (10 pts)  & Laser Perseguidor, Range Absoluto \\
+    E6. Tuner (Sintoniz.) & Suporte (5 pts)          & Buffa aliados (Quicar, Furar) \\
+    E7. Cristalus         & Mob Menor (1 pt)         & Suporte de Armadura e Lentidão \\
+    E8. Golem             & Tanque (4 pts)           & Lento, Stun, Absorção de Dano \\
+    E9. Pedra Mágica      & Elite (10 pts)           & HP Massivo, Esquiva, Skybeam \\
+    E10. Shard Swarm      & Elite (10 pts)           & Enxame de I-Frames e Críticos \\
+    E11. Totem            & Estrutura (6 pts)        & Controle de Espaço e Empurrão \\
+    E12. Bismutado        & Elite de Fusão (10 pts)  & Dano Colossal, Cleave, Ofensivo \\
+    E13. Sentinela        & Elite Juggernaut (10 pts)& HP Colossal, Lifesteal, Intransponível \\
+    \hline
+\end{tabular}
+\end{center}
+
+\end{document}
