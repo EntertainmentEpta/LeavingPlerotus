@@ -13,8 +13,8 @@ public class CraftingTableInteraction : MonoBehaviour
     public static CraftingTableInteraction Instance { get; private set; }
 
     [Header("Áudio / Sons do Robozinho")]
-    [Tooltip("Som reproduzido ao interagir/falar com o robô de síntese.")]
-    public AudioClip talkSound;
+    [Tooltip("Sons reproduzidos ao interagir/falar com o robô. Um será escolhido aleatoriamente a cada interação.")]
+    public AudioClip[] talkSounds;
 
     [Tooltip("Som reproduzido ao sintetizar/craftar um item com sucesso.")]
     public AudioClip synthesizeSuccessSound;
@@ -191,7 +191,11 @@ public class CraftingTableInteraction : MonoBehaviour
 
     public void PlayTalkSound()
     {
-        PlayAudio(talkSound);
+        if (talkSounds != null && talkSounds.Length > 0)
+        {
+            AudioClip clip = talkSounds[Random.Range(0, talkSounds.Length)];
+            PlayAudio(clip);
+        }
     }
 
     public void PlaySynthesizeSuccessSound()

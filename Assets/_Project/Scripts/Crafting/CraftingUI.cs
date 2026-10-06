@@ -84,6 +84,7 @@ public class CraftingUI : MonoBehaviour
 
     private static readonly Color BTN_CRAFT_ENABLED = new Color(0.19f, 0.68f, 0.58f, 1f);
     private static readonly Color BTN_CRAFT_DISABLED = new Color(0.16f, 0.19f, 0.22f, 1f);
+    private static readonly Color BTN_CRAFT_NO_MATERIALS = new Color(0.78f, 0.18f, 0.18f, 1f);
     private static readonly Color BTN_EQUIP = new Color(0.22f, 0.52f, 0.66f, 1f);
     private static readonly Color BTN_UNEQUIP = new Color(0.68f, 0.28f, 0.27f, 1f);
 
@@ -185,6 +186,12 @@ public class CraftingUI : MonoBehaviour
                 if (CraftingManager.Instance.CanCraft(selectedRecipe))
                 {
                     OnCraftButtonClicked();
+                }
+                else
+                {
+                    // Sem materiais — toca som de falha
+                    if (CraftingTableInteraction.Instance != null)
+                        CraftingTableInteraction.Instance.PlaySynthesizeFailSound();
                 }
             }
         }
@@ -346,9 +353,9 @@ public class CraftingUI : MonoBehaviour
         }
 
         bool canCraft = CraftingManager.Instance.CanCraft(selectedRecipe);
-        craftButton.interactable = canCraft;
-        craftButton.GetComponent<Image>().color = canCraft ? BTN_CRAFT_ENABLED : BTN_CRAFT_DISABLED;
-        craftButtonText.text = canCraft ? "CRAFTAR [T]" : "MATERIAIS INSUFICIENTES";
+        craftButton.interactable = true; // Sempre clicável para permitir feedback sonoro
+        craftButton.GetComponent<Image>().color = canCraft ? BTN_CRAFT_ENABLED : BTN_CRAFT_NO_MATERIALS;
+        craftButtonText.text = canCraft ? "CRAFTAR [T]" : "MATERIAIS INSUFICIENTES [T]";
     }
 
     private void RefreshEquipmentSection()
@@ -404,6 +411,15 @@ public class CraftingUI : MonoBehaviour
     private void OnCraftButtonClicked()
     {
         if (selectedRecipe == null || CraftingManager.Instance == null) return;
+
+        // Se não pode craftar, toca som de falha e retorna
+        if (!CraftingManager.Instance.CanCraft(selectedRecipe))
+        {
+            Debug.LogWarning($"[CRAFTING UI] Materiais insuficientes para: {selectedRecipe.recipeName}");
+            if (CraftingTableInteraction.Instance != null)
+                CraftingTableInteraction.Instance.PlaySynthesizeFailSound();
+            return;
+        }
 
         if (CraftingManager.Instance.Craft(selectedRecipe))
         {
