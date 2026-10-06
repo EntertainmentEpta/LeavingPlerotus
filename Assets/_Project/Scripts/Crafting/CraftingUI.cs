@@ -425,6 +425,14 @@ public class CraftingUI : MonoBehaviour
         if (CraftingManager.Instance.Craft(selectedRecipe))
         {
             Debug.Log($"[CRAFTING UI] Craft realizado: {selectedRecipe.recipeName}");
+            if (CraftingTableInteraction.Instance != null)
+                CraftingTableInteraction.Instance.PlaySynthesizeSuccessSound();
+        }
+        else
+        {
+            Debug.LogWarning($"[CRAFTING UI] Falha ao sintetizar: {selectedRecipe.recipeName}");
+            if (CraftingTableInteraction.Instance != null)
+                CraftingTableInteraction.Instance.PlaySynthesizeFailSound();
         }
     }
 

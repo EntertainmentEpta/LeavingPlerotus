@@ -16,8 +16,24 @@ using UnityEngine;
 /// </summary>
 public class CraftingTableInteraction : MonoBehaviour
 {
+    public static CraftingTableInteraction Instance { get; private set; }
+
+    [Header("Áudio / Sons do Robozinho")]
+    [Tooltip("Som reproduzido ao interagir/falar com o robô de síntese (tecla F ou T).")]
+    public AudioClip talkSound;
+
+    [Tooltip("Som reproduzido ao sintetizar/craftar um item com sucesso.")]
+    public AudioClip synthesizeSuccessSound;
+
+    [Tooltip("Som reproduzido quando não for possível sintetizar (falta de materiais ou requisitos).")]
+    public AudioClip synthesizeFailSound;
+
+    [Range(0f, 1f)]
+    [Tooltip("Volume dos efeitos sonoros do robô.")]
+    public float soundVolume = 1f;
+
     [Header("UI References")]
-    [Tooltip("Prompt visual 'Pressione T' (world space, filho da crafting table)")]
+    [Tooltip("Prompt visual 'Pressione T/F' (world space, filho da crafting table)")]
     public GameObject pressTUI;
 
     [Header("Fallback")]
@@ -25,9 +41,20 @@ public class CraftingTableInteraction : MonoBehaviour
     public GameObject craftingTableUI;
 
     private bool playerPerto = false;
+    private AudioSource audioSource;
 
     void Awake()
     {
+        Instance = this;
+
+        audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
+            audioSource.playOnAwake = false;
+            audioSource.spatialBlend = 0f; // 2D som limpo de interface/NPC
+        }
+
         if (pressTUI != null)
             pressTUI.SetActive(false);
         if (craftingTableUI != null)
@@ -60,8 +87,11 @@ public class CraftingTableInteraction : MonoBehaviour
     {
         if (!playerPerto) return;
 
-        if (Input.GetKeyDown(KeyCode.T))
+        // Aceita tanto T quanto F para interagir com o robô
+        if (Input.GetKeyDown(KeyCode.T) || Input.GetKeyDown(KeyCode.F))
         {
+            PlayTalkSound();
+
             // Usa o novo CraftingUI se disponível
             if (CraftingUI.Instance != null)
             {
@@ -89,6 +119,37 @@ public class CraftingTableInteraction : MonoBehaviour
         if (pressTUI != null && pressTUI.activeSelf && Camera.main != null)
         {
             pressTUI.transform.forward = Camera.main.transform.forward;
+        }
+    }
+
+    // ─── Métodos de Áudio ────────────────────────────────────────────────────
+
+    public void PlayTalkSound()
+    {
+        PlayAudio(talkSound);
+    }
+
+    public void PlaySynthesizeSuccessSound()
+    {
+        PlayAudio(synthesizeSuccessSound);
+    }
+
+    public void PlaySynthesizeFailSound()
+    {
+        PlayAudio(synthesizeFailSound);
+    }
+
+    private void PlayAudio(AudioClip clip)
+    {
+        if (clip == null) return;
+
+        if (audioSource != null)
+        {
+            audioSource.PlayOneShot(clip, soundVolume);
+        }
+        else
+        {
+            AudioSource.PlayClipAtPoint(clip, Camera.main != null ? Camera.main.transform.position : transform.position, soundVolume);
         }
     }
 }

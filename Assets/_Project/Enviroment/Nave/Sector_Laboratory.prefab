@@ -4451,6 +4451,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b15a40d39467544491bd1170076b8f8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CraftingTableInteraction
+  talkSound: {fileID: 0}
+  synthesizeSuccessSound: {fileID: 8300000, guid: 48809fad0bc2bd24187038b881f81eab, type: 3}
+  synthesizeFailSound: {fileID: 8300000, guid: 92fd3c81bddfb8442b9cbf27db13c4c9, type: 3}
+  soundVolume: 1
   pressTUI: {fileID: 0}
   craftingTableUI: {fileID: 0}
 --- !u!65 &8196022402778388289
