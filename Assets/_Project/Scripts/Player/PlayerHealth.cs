@@ -65,6 +65,7 @@ public class PlayerHealth : MonoBehaviour
     public bool isStunned { get; private set; } = false;
     private float stunImmunityTimer = 0f;
     private float stunImmunityDuration = 2f; // Imunidade após stun
+    private StunVFX stunVFX;
 
     public bool isDead { get; private set; } = false;
     private int playerLayer;
@@ -283,6 +284,8 @@ public class PlayerHealth : MonoBehaviour
     void Die()
     {
         isDead = true;
+        isStunned = false;
+        if (stunVFX != null) stunVFX.HideStun();
         if (playerMovement != null) playerMovement.enabled = false;
         if (playerAttack != null) playerAttack.enabled = false;
         gameObject.layer = LayerMask.NameToLayer("DeadBody");
@@ -505,6 +508,11 @@ public class PlayerHealth : MonoBehaviour
         DashM dashScript = GetComponent<DashM>();
         if (dashScript != null && dashScript.isDashing) return;
 
+        // Busca o StunVFX (lazy — garante compatibilidade mesmo sem o componente)
+        if (stunVFX == null) stunVFX = GetComponent<StunVFX>();
+        if (stunVFX == null) stunVFX = gameObject.AddComponent<StunVFX>();
+        if (stunVFX != null) stunVFX.ShowStun(duration);
+
         StartCoroutine(StunCoroutine(duration));
     }
 
@@ -539,6 +547,9 @@ public class PlayerHealth : MonoBehaviour
 
         // Ativa imunidade temporária
         stunImmunityTimer = stunImmunityDuration;
+
+        // Encerra imediatamente os efeitos visuais de stun (ícone e barra)
+        if (stunVFX != null) stunVFX.HideStun();
 
         Debug.Log("Player recuperou do stun. Imunidade por " + stunImmunityDuration + "s");
     }
