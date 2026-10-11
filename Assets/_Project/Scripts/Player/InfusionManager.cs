@@ -585,6 +585,27 @@ public class InfusionManager : MonoBehaviour
     {
         return infusedItems;
     }
+
+    /// <summary>
+    /// Retorna o histórico de infusões como lista tipada de InfusedItem,
+    /// combinando ItemData com o multiplicador de stack (×1 Simples / ×2 Acumulado).
+    /// Usado pelo módulo visual de histórico na InventoryUI.
+    /// </summary>
+    public System.Collections.Generic.List<InfusedItem> GetInfusionHistory()
+    {
+        var history = new System.Collections.Generic.List<InfusedItem>();
+        for (int i = 0; i < infusedItems.Count; i++)
+        {
+            float mult = i < infusedStackMultipliers.Count ? infusedStackMultipliers[i] : 1f;
+            int stacks = Mathf.RoundToInt(mult); // ×1 → 1, ×2 → 2
+            history.Add(new InfusedItem
+            {
+                data = infusedItems[i],
+                stacks = stacks
+            });
+        }
+        return history;
+    }
 }
 
 /// <summary>Fluxo de infusão resolvido a partir da seleção.</summary>
@@ -616,5 +637,16 @@ public struct InfusionRequest
     public float stackMultiplier;
 
     public bool IsValid => data != null && mode != InfusionMode.Invalid;
+}
+
+/// <summary>
+/// Entrada no histórico de infusão: o ItemData infundido e a quantidade de stacks.
+/// stacks = 1 para infusão simples, 2 para fusão acumulada (×2).
+/// </summary>
+[System.Serializable]
+public struct InfusedItem
+{
+    public ItemData data;
+    public int stacks;
 }
 
