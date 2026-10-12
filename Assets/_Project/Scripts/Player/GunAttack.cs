@@ -5,6 +5,7 @@ public class GunAttack : MonoBehaviour
     [Header("Disparo")]
     public GunProjectile projectilePrefab;
     public Transform muzzle;
+    public ParticleSystem muzzleFlashVFX;
     public float fireCooldown = 0.35f;
     public int baseDamage = 25;
     public int maxExtraProjectiles = 5;
@@ -38,7 +39,31 @@ public class GunAttack : MonoBehaviour
         offensiveAttributes = ownerRoot.GetComponentInChildren<PlayerAttributesOffensive>();
         playerMovement = ownerRoot.GetComponent<PlayerM>();
         dashController = ownerRoot.GetComponent<DashM>();
+        playerAnimator = ownerRoot.GetComponentInChildren<Animator>();
         batteryCharge = Mathf.Max(1, batteryCapacity);
+
+        if (muzzleFlashVFX != null)
+        {
+            var main = muzzleFlashVFX.main;
+            main.playOnAwake = false;
+        }
+
+        SyncRechargeWithAnimation();
+    }
+
+    private void SyncRechargeWithAnimation()
+    {
+        if (playerAnimator == null || playerAnimator.runtimeAnimatorController == null) return;
+
+        foreach (AnimationClip clip in playerAnimator.runtimeAnimatorController.animationClips)
+        {
+            if (clip.name.Contains("Reload") || clip.name.Contains("Reloading"))
+            {
+                batteryRechargeDuration = clip.length;
+                Debug.Log($"[GunAttack] Tempo de recarga ajustado automaticamente para o tempo da animação: {clip.length}s");
+                break;
+            }
+        }
     }
 
     private void Update()
@@ -115,6 +140,19 @@ public class GunAttack : MonoBehaviour
     {
         if (projectilePrefab == null || !TryConsumeCharge(Mathf.Max(1, chargePerTrigger))) return false;
 
+        // Ao invés de instanciar a bala direto, apenas inicia a animação de tiro
+        SetAnimatorTrigger("Shoot");
+        SetAnimatorBool("IsReloading", IsRecharging);
+        return true;
+    }
+
+    /// <summary>
+    /// Chamado via Animation Event na Unity para sincronizar o tiro com a animação.
+    /// </summary>
+    public void SpawnProjectileEvent()
+    {
+        if (projectilePrefab == null) return;
+        
         PlayerAttributesOffensive attributes = offensiveAttributes != null
             ? offensiveAttributes
             : PlayerAttributesOffensive.Instance;
@@ -138,9 +176,12 @@ public class GunAttack : MonoBehaviour
                 piercing, bounceChance, bounceCount, slowOnHit);
         }
 
-        SetAnimatorTrigger("Shoot");
-        SetAnimatorBool("IsReloading", IsRecharging);
-        return true;
+        if (muzzleFlashVFX != null)
+        {
+            muzzleFlashVFX.gameObject.SetActive(true);
+            muzzleFlashVFX.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            muzzleFlashVFX.Play(true);
+        }
     }
 
     private int GetExtraProjectileCount(PlayerAttributesOffensive attributes)

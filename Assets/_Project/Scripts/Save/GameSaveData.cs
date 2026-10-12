@@ -33,5 +33,10 @@ public class PersistentSaveData
     public List<string> craftedEquipmentIds = new List<string>();
     public List<string> equippedEquipmentIds = new List<string>();
     public List<string> inimigosDescobertos = new List<string>();
+
+    // --- Sistema de Quests Nível AAA ---
+    public string activeQuestId = "";
+    public int activeQuestProgress = 0;
+    public List<string> completedQuestIds = new List<string>();
 }
 

@@ -213,4 +213,26 @@ public class PlayerAnimationEvents : MonoBehaviour
             ultManager.EndUltimateSequence();
         }
     }
+
+    /// <summary>
+    /// Evento de animação para a Arma de Fogo. A bala e o VFX só nascem quando esse evento é chamado.
+    /// </summary>
+    public void OnGunShootEvent()
+    {
+        GunAttack gun = GetComponentInParent<GunAttack>() ?? GetComponent<GunAttack>();
+        if (gun == null)
+        {
+            GameObject player = GameObject.FindGameObjectWithTag("Player");
+            if (player != null) gun = player.GetComponentInChildren<GunAttack>();
+        }
+
+        if (gun != null)
+        {
+            gun.SpawnProjectileEvent();
+        }
+        else
+        {
+            Debug.LogWarning("[PlayerAnimationEvents] Tentou atirar via evento, mas não encontrou a arma ativa!");
+        }
+    }
 }
