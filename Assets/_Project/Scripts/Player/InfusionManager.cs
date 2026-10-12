@@ -33,7 +33,11 @@ public class InfusionManager : MonoBehaviour
     // Fator mínimo de um buff multiplicativo escalado (evita fator ≤ 0 e divisão por zero na remoção)
     private const float MIN_MULTIPLIER_FACTOR = 0.05f;
 
-    // Peso total acumulado de todos os itens jÃ¡ infundidos (Ptotal)
+    [Header("Cirurgia de Remoção")]
+    [Tooltip("Custo fixo de Essência cobrado para realizar a cirurgia de remoção.")]
+    public int surgeryEssenceCost = 150;
+
+    // Peso total acumulado de todos os itens já infundidos (Ptotal)
     private float totalInfusionWeight = 0f;
     
     // HistÃ³rico de itens infundidos
@@ -437,38 +441,158 @@ public class InfusionManager : MonoBehaviour
 
         return s1 && s2;
     }
-    public bool RemoveInfusion(ItemData data)
+    /// <summary>
+    /// Retorna a lista de infusões ativas da arma e arsenal como uma lista de InfusedItem.
+    /// Atalho direto utilizado pela interface do Mercador (Aba Surgery) e pelo inventário.
+    /// </summary>
+    public System.Collections.Generic.List<InfusedItem> GetActiveInfusions()
     {
-        if (data == null || !infusedItems.Contains(data)) return false;
+        return GetInfusionHistory();
+    }
 
-        // Recupera o multiplicador usado nesta infusão (×1 Simples / ×M Acumulado)
-        int index = infusedItems.IndexOf(data);
-        float stackMultiplier = index < infusedStackMultipliers.Count ? infusedStackMultipliers[index] : 1f;
-
-        // Reverte todos os buffs (sinal negativo para somas, ou inversÃ£o para multiplicadores)
-        foreach (var buff in data.itemAttributes)
+    /// <summary>
+    /// Lógica da Cirurgia de Remoção:
+    /// 1. Validação: Checa se o jogador possui o custo da cirurgia (uma taxa fixa de Essência). Se não tiver, cancela.
+    /// 2. Cobrança: Deduza a taxa da cirurgia do jogador.
+    /// 3. Remoção sem Reembolso: Remove a peça/buff do arsenal da arma sem devolver Essência original gasta na infusão.
+    /// 4. Recálculo da Inflação: Subtrai o peso desse item da equação global de inflação (tornando futuras infusões mais baratas).
+    /// </summary>
+    public bool RequestSurgery(InfusedItem item)
+    {
+        if (item.data == null || !infusedItems.Contains(item.data))
         {
-            RemoveAttribute(ScaleBuff(buff, stackMultiplier));
+            Debug.LogWarning("[INFUSION MANAGER] Item inválido ou ausente no arsenal para cirurgia.");
+            return false;
         }
 
-        // Desativa efeito especial T4 (se houver)
-        if (data.tier4Effect != Tier4EffectType.None)
+        if (essenceWallet == null)
+            essenceWallet = GetComponent<PlayerEssence>();
+
+        // 1. Validação: Verifique se o jogador possui o custo da cirurgia
+        if (essenceWallet == null || essenceWallet.GetEssence() < surgeryEssenceCost)
         {
-            Tier4EffectManager t4Manager = GetComponent<Tier4EffectManager>();
-            if (t4Manager != null)
+            int current = essenceWallet != null ? essenceWallet.GetEssence() : 0;
+            Debug.LogWarning($"[CIRURGIA] Cancelado! Essência insuficiente para cirurgia. Custo: {surgeryEssenceCost}, Disponível: {current}");
+            return false;
+        }
+
+        // 2. Cobrança: Deduza a taxa da cirurgia do jogador
+        if (!essenceWallet.SpendEssence(surgeryEssenceCost))
+        {
+            return false;
+        }
+
+        // 3 & 4. Remoção sem Reembolso e Recálculo da Inflação
+        bool removed = RemoveInfusion(item);
+        if (removed)
+        {
+            Debug.Log($"[CIRURGIA] Peça {item.data.itemName} (x{item.stacks}) extraída com sucesso. Taxa: {surgeryEssenceCost} Essências. Novo Ptotal: {totalInfusionWeight:F2}");
+
+            // 5. Atualização: Notifica o Mercador se o painel estiver aberto
+            if (MerchantUIController.HasInstance && MerchantUIController.Instance.IsUiOpen())
             {
-                t4Manager.DeactivateEffect(data.tier4Effect);
+                MerchantUIController.Instance.PopulateSurgeryList();
             }
         }
 
-        // Subtrai o peso de inflaÃ§Ã£o
+        return removed;
+    }
+
+    /// <summary>
+    /// Remove a infusão especificada através da struct InfusedItem (respeitando o multiplicador exato de stack).
+    /// </summary>
+    public bool RemoveInfusion(InfusedItem item)
+    {
+        if (item.data == null || infusedItems.Count == 0) return false;
+
+        int targetIndex = -1;
+        for (int i = 0; i < infusedItems.Count; i++)
+        {
+            if (infusedItems[i] == item.data)
+            {
+                float mult = i < infusedStackMultipliers.Count ? infusedStackMultipliers[i] : 1f;
+                int stacks = Mathf.RoundToInt(mult);
+                if (stacks == item.stacks)
+                {
+                    targetIndex = i;
+                    break;
+                }
+            }
+        }
+
+        if (targetIndex == -1)
+        {
+            targetIndex = infusedItems.IndexOf(item.data);
+        }
+
+        if (targetIndex == -1) return false;
+
+        return RemoveInfusionAtIndex(targetIndex);
+    }
+
+    /// <summary>
+    /// Remove permanentemente os efeitos de um item e reduz o peso de inflação.
+    /// Mantido por compatibilidade.
+    /// </summary>
+    public bool RemoveInfusion(ItemData data)
+    {
+        if (data == null || !infusedItems.Contains(data)) return false;
+        int index = infusedItems.IndexOf(data);
+        return RemoveInfusionAtIndex(index);
+    }
+
+    /// <summary>
+    /// Remove a infusão no índice indicado, revertendo buffs escalados,
+    /// desativando efeito especial T4 (se não houver outra instância) e subtraindo o peso de inflação.
+    /// NÃO devolve a Essência original de infusão.
+    /// </summary>
+    private bool RemoveInfusionAtIndex(int index)
+    {
+        if (index < 0 || index >= infusedItems.Count) return false;
+
+        ItemData data = infusedItems[index];
+        float stackMultiplier = index < infusedStackMultipliers.Count ? infusedStackMultipliers[index] : 1f;
+
+        // Reverte todos os buffs escalados no arsenal da arma/player
+        if (data.itemAttributes != null)
+        {
+            foreach (var buff in data.itemAttributes)
+            {
+                RemoveAttribute(ScaleBuff(buff, stackMultiplier));
+            }
+        }
+
+        // Desativa efeito especial T4 (se houver e não houver outra cópia infundida)
+        if (data.tier4Effect != Tier4EffectType.None)
+        {
+            bool hasOtherInstance = false;
+            for (int i = 0; i < infusedItems.Count; i++)
+            {
+                if (i != index && infusedItems[i] != null && infusedItems[i].tier4Effect == data.tier4Effect)
+                {
+                    hasOtherInstance = true;
+                    break;
+                }
+            }
+
+            if (!hasOtherInstance)
+            {
+                Tier4EffectManager t4Manager = GetComponent<Tier4EffectManager>();
+                if (t4Manager != null)
+                {
+                    t4Manager.DeactivateEffect(data.tier4Effect);
+                }
+            }
+        }
+
+        // Subtrai o peso de inflação (ΔP = P_tier × M) da equação global
         float removedWeight = GetInflationContribution(data, stackMultiplier);
         totalInfusionWeight = Mathf.Max(0f, totalInfusionWeight - removedWeight);
 
         infusedItems.RemoveAt(index);
         if (index < infusedStackMultipliers.Count) infusedStackMultipliers.RemoveAt(index);
-        
-        Debug.Log($"[REMOÃ‡ÃƒO] Item extraÃ­do: {data.itemName}. Ptotal reduzido para {totalInfusionWeight:F2}");
+
+        Debug.Log($"[REMOÇÃO/CIRURGIA] Peça extraída: {data.itemName} (x{Mathf.RoundToInt(stackMultiplier)}). Peso subtraído: -{removedWeight:F2}. Novo Ptotal: {totalInfusionWeight:F2}");
         return true;
     }
 

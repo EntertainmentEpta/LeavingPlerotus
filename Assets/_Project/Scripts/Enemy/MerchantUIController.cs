@@ -47,6 +47,8 @@ public class MerchantUIController : MonoBehaviour
     public GameObject removalListPanel;
     public Transform removalListContent; 
     public GameObject removalItemButtonPrefab; 
+    [Tooltip("Taxa fixa de Essência cobrada na Cirurgia de Remoção.")]
+    public int surgeryCost = 150; 
     
     [Header("Geral")]
     public Button closeButton;
@@ -247,6 +249,80 @@ public class MerchantUIController : MonoBehaviour
         if (tarotCardsPanel != null) tarotCardsPanel.SetActive(false);
         
         SetupRightSideText();
+        SetupSurgeryLayout();
+    }
+
+    /// <summary>
+    /// Formata proceduralmente a UI da Cirurgia (sem depender do Prefab):
+    /// Content com GridLayoutGroup (células 80x80) + ContentSizeFitter vertical (scroll correto)
+    /// e janela do Scroll View com tamanho amplo e legível. Idempotente (seguro chamar várias vezes).
+    /// </summary>
+    private void SetupSurgeryLayout()
+    {
+        EnsurePanelReferences();
+        if (removalListContent == null) return;
+
+        RectTransform contentRt = removalListContent as RectTransform;
+        if (contentRt == null) return;
+
+        // Remove LayoutGroups conflitantes (ex: VerticalLayoutGroup do Prefab). LayoutGroup não permite duplicatas.
+        LayoutGroup[] existingGroups = removalListContent.GetComponents<LayoutGroup>();
+        foreach (LayoutGroup lg in existingGroups)
+        {
+            if (lg != null && !(lg is GridLayoutGroup))
+                DestroyImmediate(lg);
+        }
+
+        // Content ancorado no topo e esticado na horizontal, para crescer para baixo
+        contentRt.anchorMin = new Vector2(0f, 1f);
+        contentRt.anchorMax = new Vector2(1f, 1f);
+        contentRt.pivot = new Vector2(0.5f, 1f);
+        contentRt.anchoredPosition = Vector2.zero;
+
+        GridLayoutGroup grid = removalListContent.GetComponent<GridLayoutGroup>();
+        if (grid == null) grid = removalListContent.gameObject.AddComponent<GridLayoutGroup>();
+        if (grid != null)
+        {
+            grid.cellSize = new Vector2(80f, 80f);
+            grid.spacing = new Vector2(15f, 15f);
+            grid.childAlignment = TextAnchor.UpperLeft;
+            grid.startCorner = GridLayoutGroup.Corner.UpperLeft;
+            grid.startAxis = GridLayoutGroup.Axis.Horizontal;
+            grid.constraint = GridLayoutGroup.Constraint.Flexible;
+            grid.padding = new RectOffset(15, 15, 15, 15);
+        }
+
+        ContentSizeFitter fitter = removalListContent.GetComponent<ContentSizeFitter>();
+        if (fitter == null) fitter = removalListContent.gameObject.AddComponent<ContentSizeFitter>();
+        if (fitter != null)
+        {
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            fitter.verticalFit = ContentSizeFitter.FitMode.MinSize;
+        }
+
+        // Janela "mãe" (Scroll View): tamanho amplo e centralizado.
+        // Usa-se o RectTransform do ScrollRect (e não o painel RemovalList, que é full-screen com âncoras esticadas).
+        ScrollRect scrollRect = removalListPanel != null
+            ? removalListPanel.GetComponentInChildren<ScrollRect>(true)
+            : removalListContent.GetComponentInParent<ScrollRect>(true);
+        if (scrollRect != null)
+        {
+            RectTransform windowRt = scrollRect.GetComponent<RectTransform>();
+            if (windowRt != null)
+            {
+                windowRt.anchorMin = new Vector2(0.5f, 0.5f);
+                windowRt.anchorMax = new Vector2(0.5f, 0.5f);
+                windowRt.pivot = new Vector2(0.5f, 0.5f);
+                windowRt.anchoredPosition = Vector2.zero;
+                windowRt.sizeDelta = new Vector2(500f, 400f);
+            }
+
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
+            scrollRect.movementType = ScrollRect.MovementType.Clamped;
+            scrollRect.scrollSensitivity = 25f;
+            if (scrollRect.content != contentRt) scrollRect.content = contentRt;
+        }
     }
 
     private void EnsurePanelReferences()
@@ -304,6 +380,26 @@ public class MerchantUIController : MonoBehaviour
                 {
                     removalListPanel = t.gameObject;
                     break;
+                }
+            }
+        }
+
+        if (removalListContent == null && removalListPanel != null)
+        {
+            ScrollRect sr = removalListPanel.GetComponentInChildren<ScrollRect>(true);
+            if (sr != null && sr.content != null)
+            {
+                removalListContent = sr.content;
+            }
+            else
+            {
+                foreach (Transform t in removalListPanel.GetComponentsInChildren<Transform>(true))
+                {
+                    if (t.name.Equals("Content", System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        removalListContent = t;
+                        break;
+                    }
                 }
             }
         }
@@ -468,7 +564,7 @@ public class MerchantUIController : MonoBehaviour
     void SetupRightSideText()
     {
         if (txtCambioCost != null) txtCambioCost.text = "<color=#ff3344>-15% Vida Máxima</color>\n<color=#ffcc00>+300 Essências</color>";
-        if (txtRemocaoCost != null) txtRemocaoCost.text = "<color=#88ccff>Remove 1 Infusão</color>\n<color=#ffcc00>-150 Essências</color>";
+        if (txtRemocaoCost != null) txtRemocaoCost.text = $"<color=#88ccff>Remove 1 Infusão</color>\n<color=#ffcc00>-{surgeryCost} Essências</color>";
         if (txtArtefatoCost != null) txtArtefatoCost.text = "<color=#ffaa00>Artefato Tier Alto</color>\n<color=#ffcc00>-600 Essências</color>";
     }
 
@@ -510,6 +606,12 @@ public class MerchantUIController : MonoBehaviour
         if (isRevealingPactCard)
         {
             ConfirmRevealedPactAndClose();
+        }
+        else if (removalListPanel != null && removalListPanel.activeSelf)
+        {
+            removalListPanel.SetActive(false);
+            if (mainMenuPanel != null) mainMenuPanel.SetActive(true);
+            else ClosePanel();
         }
         else
         {
@@ -930,59 +1032,233 @@ public class MerchantUIController : MonoBehaviour
     public void ShowRemovalList()
     {
         if (mainMenuPanel != null) mainMenuPanel.SetActive(false);
+        if (tarotCardsPanel != null) tarotCardsPanel.SetActive(false);
         if (removalListPanel != null) removalListPanel.SetActive(true);
 
-        PopulateRemovalList();
+        PopulateSurgeryList();
     }
 
-    private void PopulateRemovalList()
+    public void ShowSurgeryList() => ShowRemovalList();
+    public void PopulateRemovalList() => PopulateSurgeryList();
+
+    /// <summary>
+    /// Popula a lista visual na aba Surgery do Mercador (Scroll View):
+    /// 1. Limpa os filhos do Content do Scroll View da Surgery.
+    /// 2. Obtém a lista de infusões ativas da arma (via InfusionManager).
+    /// 3. Instancia dinamicamente um botão/ícone para cada item infundido.
+    /// 4. Exibe o sprite do item e, se stacks >= 2, cria um texto (TextMeshProUGUI) no canto inferior com "x" + stacks.
+    /// 5. Adiciona o componente Button e o listener: button.onClick.AddListener(() => RequestSurgery(infusionItem));
+    /// </summary>
+    public void PopulateSurgeryList()
     {
-        if (removalListContent == null || infusionManager == null) return;
+        EnsurePanelReferences();
 
-        foreach (Transform child in removalListContent)
+        if (removalListContent == null)
         {
-            Destroy(child.gameObject);
-        }
-
-        List<ItemData> activeInfusions = infusionManager.infusedItems;
-        if (activeInfusions == null || activeInfusions.Count == 0)
-        {
-            Debug.Log("[Mercador] Player não possui infusões para remover.");
+            Debug.LogWarning("[MERCADOR] Content do Scroll View da Surgery não foi encontrado.");
             return;
         }
 
-        foreach (ItemData inf in activeInfusions)
+        // 1. Limpa os filhos do Content do Scroll View da Surgery
+        for (int i = removalListContent.childCount - 1; i >= 0; i--)
         {
-            if (removalItemButtonPrefab == null) break;
-
-            GameObject btnObj = Instantiate(removalItemButtonPrefab, removalListContent);
-            Button btn = btnObj.GetComponent<Button>();
-            TextMeshProUGUI txt = btnObj.GetComponentInChildren<TextMeshProUGUI>();
-
-            if (txt != null) txt.text = $"Remover {inf.itemName} (150 Essências)";
-
-            ItemData targetInf = inf;
-            if (btn != null)
-            {
-                btn.onClick.AddListener(() => OnRemoveInfusionClicked(targetInf));
-            }
+            Transform child = removalListContent.GetChild(i);
+            child.SetParent(null);
+            Destroy(child.gameObject);
         }
+
+        // Garante referências do Player
+        if (infusionManager == null)
+        {
+            if (playerHealth != null)
+                infusionManager = playerHealth.GetComponent<InfusionManager>() ?? playerHealth.GetComponentInChildren<InfusionManager>();
+            if (infusionManager == null)
+                infusionManager = FindFirstObjectByType<InfusionManager>();
+        }
+
+        if (playerEssence == null)
+        {
+            if (playerHealth != null)
+                playerEssence = playerHealth.GetComponent<PlayerEssence>() ?? playerHealth.GetComponentInChildren<PlayerEssence>();
+            if (playerEssence == null)
+                playerEssence = FindFirstObjectByType<PlayerEssence>();
+        }
+
+        if (infusionManager == null)
+        {
+            Debug.LogWarning("[MERCADOR] InfusionManager não encontrado para popular a lista da Surgery.");
+            return;
+        }
+
+        // 2. Obtém a lista de infusões ativas da arma (via InfusionManager)
+        List<InfusedItem> activeInfusions = infusionManager.GetActiveInfusions();
+        if (activeInfusions == null || activeInfusions.Count == 0)
+        {
+            Debug.Log("[MERCADOR] Nenhuma infusão ativa para Cirurgia de Remoção.");
+            return;
+        }
+
+        // Garante o layout em grade (idempotente) antes de instanciar os ícones
+        SetupSurgeryLayout();
+
+        // 3. Para cada item infundido, instancia dinamicamente um botão/ícone no Scroll View
+        foreach (InfusedItem infusion in activeInfusions)
+        {
+            if (infusion.data == null) continue;
+
+            GameObject iconObj = null;
+            if (removalItemButtonPrefab != null)
+            {
+                iconObj = Instantiate(removalItemButtonPrefab, removalListContent);
+            }
+            else
+            {
+                iconObj = new GameObject("SurgeryItem_" + infusion.data.itemId);
+                iconObj.transform.SetParent(removalListContent, false);
+                iconObj.layer = removalListContent.gameObject.layer;
+            }
+
+            if (iconObj == null) continue;
+
+            // Instantiate em Canvas pode alterar a escala; o GridLayoutGroup controla o tamanho (80x80)
+            iconObj.transform.localScale = Vector3.one;
+            iconObj.name = $"SurgeryItem_{infusion.data.itemId}";
+
+            if (iconObj.GetComponent<RectTransform>() == null) iconObj.AddComponent<RectTransform>();
+
+            // Mostre o sprite do item
+            Image iconImg = null;
+            Transform iconChild = iconObj.transform.Find("Icon");
+            if (iconChild != null) iconImg = iconChild.GetComponent<Image>();
+            if (iconImg == null) iconImg = iconObj.GetComponent<Image>();
+            if (iconImg == null) iconImg = iconObj.AddComponent<Image>();
+
+            if (iconImg != null)
+            {
+                if (infusion.data.icon != null)
+                {
+                    iconImg.sprite = infusion.data.icon;
+                    iconImg.preserveAspect = true;
+                }
+                iconImg.color = Color.white;
+            }
+
+            // Outline elegante colorido pelo tier
+            Outline outline = iconObj.GetComponent<Outline>();
+            if (outline == null) outline = iconObj.AddComponent<Outline>();
+            Color tierColor = infusion.data.GetTierColor();
+            outline.effectColor = new Color(tierColor.r, tierColor.g, tierColor.b, 0.85f);
+            outline.effectDistance = new Vector2(2f, -2f);
+
+            // Se stacks >= 2, crie um texto (TextMeshProUGUI) no canto inferior do ícone mostrando "x" + stacks
+            TextMeshProUGUI badgeText = iconObj.GetComponentInChildren<TextMeshProUGUI>(true);
+            if (infusion.stacks >= 2)
+            {
+                if (badgeText == null)
+                {
+                    GameObject badgeObj = new GameObject("StackBadge");
+                    badgeObj.transform.SetParent(iconObj.transform, false);
+                    badgeObj.layer = iconObj.layer;
+                    badgeText = badgeObj.AddComponent<TextMeshProUGUI>();
+                }
+
+                RectTransform badgeRt = badgeText.rectTransform;
+                badgeRt.anchorMin = new Vector2(1f, 0f); // Canto inferior direito
+                badgeRt.anchorMax = new Vector2(1f, 0f);
+                badgeRt.pivot = new Vector2(1f, 0f);
+                badgeRt.anchoredPosition = new Vector2(-6f, 4f);
+                badgeRt.sizeDelta = new Vector2(40f, 22f);
+
+                badgeText.text = "x" + infusion.stacks;
+                badgeText.fontSize = 16f;
+                badgeText.fontStyle = FontStyles.Bold;
+                badgeText.color = new Color(1f, 0.92f, 0f, 1f); // Amarelo vibrante
+                badgeText.alignment = TextAlignmentOptions.BottomRight;
+                badgeText.raycastTarget = false;
+                badgeText.outlineWidth = 0.25f;
+                badgeText.outlineColor = new Color32(0, 0, 0, 240);
+                badgeText.gameObject.SetActive(true);
+                badgeText.transform.SetAsLastSibling();
+            }
+            else
+            {
+                if (badgeText != null)
+                {
+                    badgeText.text = "";
+                    badgeText.gameObject.SetActive(false);
+                }
+            }
+
+            // Adicione o componente Button a esse ícone e um listener: button.onClick.AddListener(() => RequestSurgery(infusionItem));
+            Button button = iconObj.GetComponent<Button>();
+            if (button == null)
+            {
+                button = iconObj.AddComponent<Button>();
+            }
+            button.onClick.RemoveAllListeners();
+            InfusedItem infusionItem = infusion;
+            button.onClick.AddListener(() => RequestSurgery(infusionItem));
+        }
+
+        // Atualiza o tamanho do Content imediatamente (scroll correto com a nova quantidade de itens)
+        RectTransform contentRect = removalListContent as RectTransform;
+        if (contentRect != null) LayoutRebuilder.ForceRebuildLayoutImmediate(contentRect);
     }
 
-    private void OnRemoveInfusionClicked(ItemData inf)
+    /// <summary>
+    /// Executa a Cirurgia de Remoção:
+    /// 1. Validação: Verifique se o jogador possui o custo da cirurgia (uma taxa fixa de Essência). Se não tiver, cancele.
+    /// 2. Cobrança: Deduza a taxa da cirurgia do jogador.
+    /// 3. Remoção sem Reembolso: Remova o item/buff do arsenal da arma sem devolver Essência original da infusão.
+    /// 4. Recálculo da Inflação: Subtraia o "peso" desse item removido da equação global de inflação do jogo.
+    /// 5. Atualização: Chame o PopulateSurgeryList() novamente para a UI atualizar na mesma hora, fazendo o botão sumir.
+    /// </summary>
+    public void RequestSurgery(InfusedItem item)
     {
-        if (playerEssence == null || infusionManager == null) return;
+        if (item.data == null) return;
 
-        if (playerEssence.currentEssence >= 150)
+        if (infusionManager == null && playerHealth != null)
+            infusionManager = playerHealth.GetComponent<InfusionManager>() ?? playerHealth.GetComponentInChildren<InfusionManager>();
+        if (infusionManager == null)
+            infusionManager = FindFirstObjectByType<InfusionManager>();
+
+        if (playerEssence == null && playerHealth != null)
+            playerEssence = playerHealth.GetComponent<PlayerEssence>() ?? playerHealth.GetComponentInChildren<PlayerEssence>();
+        if (playerEssence == null)
+            playerEssence = FindFirstObjectByType<PlayerEssence>();
+
+        if (infusionManager == null || playerEssence == null)
         {
-            playerEssence.SpendEssence(150);
-            infusionManager.RemoveInfusion(inf);
-            OnPactCompleted();
+            Debug.LogWarning("[MERCADOR] InfusionManager ou PlayerEssence não encontrados para realizar cirurgia.");
+            return;
         }
-        else
+
+        // Validação: Verifique se o jogador possui o custo da cirurgia
+        if (playerEssence.GetEssence() < surgeryCost)
         {
-            Debug.LogWarning("[Mercador] Essência insuficiente para remover infusão!");
+            Debug.LogWarning($"[MERCADOR] Cancelado! Essência insuficiente para cirurgia. Custo: {surgeryCost}, Possui: {playerEssence.GetEssence()}");
+            return;
         }
+
+        // Cobrança, Remoção sem Reembolso e Recálculo da Inflação via InfusionManager
+        infusionManager.surgeryEssenceCost = surgeryCost;
+        bool success = infusionManager.RequestSurgery(item);
+        if (!success)
+        {
+            Debug.LogWarning("[MERCADOR] Falha ao processar a cirurgia no InfusionManager.");
+            return;
+        }
+
+        Debug.Log($"[MERCADOR] Cirurgia concluída para {item.data.itemName}! Atualizando painel.");
+
+        // Atualização: Chame o PopulateSurgeryList() novamente para a UI atualizar na mesma hora
+        PopulateSurgeryList();
+    }
+
+    public void OnRemoveInfusionClicked(ItemData inf)
+    {
+        if (inf == null) return;
+        RequestSurgery(new InfusedItem { data = inf, stacks = 1 });
     }
 
     // ============================================

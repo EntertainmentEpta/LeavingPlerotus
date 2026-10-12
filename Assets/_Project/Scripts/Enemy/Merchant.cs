@@ -577,6 +577,15 @@ public class Merchant : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Atalho para solicitar Cirurgia de Remoção através do Mercador.
+    /// </summary>
+    public void RequestSurgery(InfusedItem item)
+    {
+        if (uiController == null) uiController = MerchantUIController.Instance;
+        if (uiController != null) uiController.RequestSurgery(item);
+    }
+
     void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.red;
