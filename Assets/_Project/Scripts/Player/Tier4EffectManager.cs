@@ -22,6 +22,12 @@ public class Tier4EffectManager : MonoBehaviour
     [Tooltip("Referência ao ExplosiveDashEffect (pode estar no mesmo GameObject ou em filho).")]
     public ExplosiveDashEffect explosiveDashEffect;
 
+    [Header("Tiro Teleguiado")]
+    [Min(0.1f)] public float homingDetectionRadius = 30f;
+    [Min(1f)] public float homingTurnSpeed = 360f;
+    [Min(0.02f)] public float homingTargetRefreshInterval = 0.1f;
+    public Color homingBatteryOrbTint = new Color(126f / 255f, 61f / 255f, 202f / 255f, 1f);
+
     // Registro de efeitos ativos para consulta rápida
     private HashSet<Tier4EffectType> activeEffects = new HashSet<Tier4EffectType>();
 
@@ -62,6 +68,11 @@ public class Tier4EffectManager : MonoBehaviour
                 }
                 break;
 
+            case Tier4EffectType.HomingProjectiles:
+                activeEffects.Add(effectType);
+                Debug.Log($"[Tier4EffectManager] Efeito {effectType} ATIVADO!");
+                break;
+
             default:
                 Debug.LogWarning($"[Tier4EffectManager] Efeito T4 '{effectType}' não possui handler implementado.");
                 break;
@@ -89,6 +100,11 @@ public class Tier4EffectManager : MonoBehaviour
                     activeEffects.Remove(effectType);
                     Debug.Log($"💎 [T4 EFFECT] {effectType} DESATIVADO!");
                 }
+                break;
+
+            case Tier4EffectType.HomingProjectiles:
+                activeEffects.Remove(effectType);
+                Debug.Log($"[Tier4EffectManager] Efeito {effectType} DESATIVADO!");
                 break;
         }
     }

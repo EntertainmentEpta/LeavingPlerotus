@@ -7,7 +7,8 @@
 public enum Tier4EffectType
 {
     None,           // Sem efeito especial (padrão para itens que não são T4)
-    ExplosiveDash   // SharpItem4: dash mais longo + explosão AoE no final com dano e knockback
+    ExplosiveDash,  // SharpItem4: dash mais longo + explosão AoE no final com dano e knockback
+    HomingProjectiles // Olho do Vigia: projéteis perseguem inimigos próximos
     // Futuros efeitos:
     // VampiricStrike, ChainLightning, FrostNova, etc.
 }

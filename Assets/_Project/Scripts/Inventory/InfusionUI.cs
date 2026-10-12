@@ -495,9 +495,18 @@ public class InfusionUI : MonoBehaviour
 
         public void SelectMultipleItems(System.Collections.Generic.List<string> itemIds)
     {
-        selectedItemIds = itemIds;
+            selectedItemId = string.Empty;
+            selectedItemIds = itemIds ?? new System.Collections.Generic.List<string>();
         
-        if (ItemDatabase.Instance == null) return;
+            if (ItemDatabase.Instance == null || selectedItemIds.Count == 0)
+            {
+                if (btnInfundir != null)
+                {
+                    btnInfundir.interactable = false;
+                    UpdateButtonVisuals(btnInfundir);
+                }
+                return;
+            }
         
         // Limpar icones antigos
         foreach (var obj in spawnedIcons)
@@ -565,6 +574,22 @@ public class InfusionUI : MonoBehaviour
         }
 
         UpdateDynamicTexts(itemIds);
+
+        bool hasValidItem = false;
+        foreach (string itemId in selectedItemIds)
+        {
+            if (ItemDatabase.Instance.GetItemData(itemId) != null)
+            {
+                hasValidItem = true;
+                break;
+            }
+        }
+
+        if (btnInfundir != null)
+        {
+            btnInfundir.interactable = hasValidItem;
+            UpdateButtonVisuals(btnInfundir);
+        }
     }
 
     private void UpdateDynamicTexts(System.Collections.Generic.List<string> ids)
@@ -625,6 +650,7 @@ public class InfusionUI : MonoBehaviour
     public void SelectItem(string itemId)
     {
         selectedItemId = itemId;
+        selectedItemIds.Clear();
         
         if (ItemDatabase.Instance == null)
         {
@@ -778,6 +804,7 @@ public class InfusionUI : MonoBehaviour
     private void ClearSelection()
     {
         selectedItemId = "";
+        selectedItemIds.Clear();
         currentTierColor = Color.white;
         
         if (itemIcon != null)

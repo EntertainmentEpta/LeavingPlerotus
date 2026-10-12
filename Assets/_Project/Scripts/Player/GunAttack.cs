@@ -12,9 +12,17 @@ public class GunAttack : MonoBehaviour
     public int baseDamage = 25;
     public int maxExtraProjectiles = 5;
 
+    [Header("Alcance do Projétil")]
+    [Min(1f)] public float minimumProjectileRange = 200f;
+    [Min(0f)] public float mapRangePadding = 5f;
+
     [Header("Bateria de Plasma")]
     [Min(1)] public int batteryCapacity = 6;
-    [Min(0.1f)] public float batteryRechargeDuration = 1.5f;
+    [Tooltip("Tempo para recuperar uma carga enquanto a bateria ainda não está vazia.")]
+    [Min(0.05f)] public float passiveChargeRegenInterval = 0.5f;
+    [Tooltip("Tempo da recarga manual punitiva após a bateria zerar.")]
+    [Min(0.1f)] public float batteryRechargeDuration = 2.5f;
+    public KeyCode reloadKey = KeyCode.R;
     [Min(1)] public int chargePerTrigger = 1;
 
     [Header("HUD de Carga")]
@@ -28,6 +36,7 @@ public class GunAttack : MonoBehaviour
     [Header("Mira")]
     public bool useMuzzleForward = true;
     public Transform aimTransform;
+    [Min(0.1f)] public float minimumAimDistance = 1.25f;
 
     [Header("Indicador de Alcance")]
     public Color aimConeColor = new Color(0.05f, 0.75f, 1f, 0.2f);
@@ -38,18 +47,24 @@ public class GunAttack : MonoBehaviour
 
     private float nextFireTime;
     private float batteryRechargeElapsed;
+    private float passiveChargeRegenElapsed;
     private int batteryCharge;
     private Transform ownerRoot;
     private Transform cachedLookupRoot;
     private PlayerAttributesOffensive offensiveAttributes;
     private PlayerM playerMovement;
     private DashM dashController;
+    private Player_WeaponManager weaponManager;
+    private Tier4EffectManager tier4EffectManager;
     private Animator playerAnimator;
     private Camera aimCamera;
     private Vector3 currentAimPoint;
     private Vector3 currentAimDirection;
     private bool hasCurrentAimPoint;
     private bool isAimSessionActive;
+    private bool aimCursorOverrideActive;
+    private bool previousCursorVisible;
+    private CursorLockMode previousCursorLockState;
     private GameObject aimConeObject;
     private Transform aimConeTransform;
     private Mesh aimConeMesh;
@@ -73,6 +88,8 @@ public class GunAttack : MonoBehaviour
         offensiveAttributes = ownerRoot.GetComponentInChildren<PlayerAttributesOffensive>();
         playerMovement = ownerRoot.GetComponent<PlayerM>();
         dashController = ownerRoot.GetComponent<DashM>();
+        weaponManager = ownerRoot.GetComponent<Player_WeaponManager>();
+        tier4EffectManager = ownerRoot.GetComponent<Tier4EffectManager>();
         batteryCharge = Mathf.Max(1, batteryCapacity);
         currentAimDirection = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
         CreateAimCone();
@@ -81,13 +98,26 @@ public class GunAttack : MonoBehaviour
     private void Update()
     {
         RefreshOwnerReferences();
+        if (!IsEquippedInPlayerHand())
+        {
+            RestoreAimCursor();
+            if (playerMovement != null) playerMovement.SetPlasmaFiring(false);
+            if (aimConeObject != null) aimConeObject.SetActive(false);
+            if (batteryHUDCanvas != null) batteryHUDCanvas.gameObject.SetActive(false);
+            isAimSessionActive = false;
+            return;
+        }
+
         EnsureBatteryHUD();
+        if (batteryCharge <= 0 && !IsRecharging && Input.GetKeyDown(reloadKey))
+            BeginManualReload();
         UpdateBattery();
         RefreshBatteryHUD();
         SetAnimatorBool("IsReloading", IsRecharging);
 
         bool firingInput = projectilePrefab != null && Input.GetMouseButton(0);
         bool dashing = dashController != null && dashController.isDashing;
+        UpdateAimCursor(firingInput && !IsRecharging && !dashing);
         if (firingInput && !IsRecharging && !isAimSessionActive) BeginAimSession();
 
         hasCurrentAimPoint = firingInput && !IsRecharging && TryGetAimPoint(out currentAimPoint);
@@ -118,6 +148,7 @@ public class GunAttack : MonoBehaviour
 
     private void OnDisable()
     {
+        RestoreAimCursor();
         if (playerMovement != null) playerMovement.SetPlasmaFiring(false);
         if (aimConeObject != null) aimConeObject.SetActive(false);
         if (batteryHUDCanvas != null) batteryHUDCanvas.gameObject.SetActive(false);
@@ -140,7 +171,48 @@ public class GunAttack : MonoBehaviour
         offensiveAttributes = currentRoot.GetComponentInChildren<PlayerAttributesOffensive>();
         playerMovement = currentRoot.GetComponentInChildren<PlayerM>();
         dashController = currentRoot.GetComponentInChildren<DashM>();
+        weaponManager = currentRoot.GetComponentInChildren<Player_WeaponManager>();
+        tier4EffectManager = currentRoot.GetComponentInChildren<Tier4EffectManager>();
         playerAnimator = currentRoot.GetComponentInChildren<Animator>();
+    }
+
+    private bool IsEquippedInPlayerHand()
+    {
+        if (!gameObject.activeInHierarchy || playerMovement == null || weaponManager == null)
+            return false;
+
+        if (!weaponManager.isWeaponDrawn || weaponManager.currentWeapon != gameObject)
+            return false;
+
+        return weaponManager.rightHand != null && transform.IsChildOf(weaponManager.rightHand);
+    }
+
+    private void UpdateAimCursor(bool showCursor)
+    {
+        if (showCursor)
+        {
+            if (!aimCursorOverrideActive)
+            {
+                previousCursorVisible = Cursor.visible;
+                previousCursorLockState = Cursor.lockState;
+                aimCursorOverrideActive = true;
+            }
+
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            return;
+        }
+
+        RestoreAimCursor();
+    }
+
+    private void RestoreAimCursor()
+    {
+        if (!aimCursorOverrideActive) return;
+
+        Cursor.lockState = previousCursorLockState;
+        Cursor.visible = previousCursorVisible;
+        aimCursorOverrideActive = false;
     }
 
     private void EnsureBatteryHUD()
@@ -196,7 +268,11 @@ public class GunAttack : MonoBehaviour
 
         int capacity = Mathf.Max(1, batteryCapacity);
         batteryCharge = Mathf.Clamp(batteryCharge, 0, capacity);
-        if (capacity == lastHUDCapacity && batteryCharge == lastHUDCharge && batteryOrbTint == lastHUDTint) return;
+        Color displayTint = tier4EffectManager != null
+            && tier4EffectManager.HasEffect(Tier4EffectType.HomingProjectiles)
+                ? tier4EffectManager.homingBatteryOrbTint
+                : batteryOrbTint;
+        if (capacity == lastHUDCapacity && batteryCharge == lastHUDCharge && displayTint == lastHUDTint) return;
 
         int orbCount = Mathf.CeilToInt(capacity / 4f);
         while (batteryOrbImages.Count < orbCount)
@@ -238,7 +314,7 @@ public class GunAttack : MonoBehaviour
             int orbCapacity = Mathf.Min(4, capacity - index * 4);
             int orbCharge = Mathf.Clamp(batteryCharge - index * 4, 0, orbCapacity);
             batteryOrbImages[index].sprite = batteryOrbSprites[orbCharge];
-            batteryOrbImages[index].color = batteryOrbTint;
+            batteryOrbImages[index].color = displayTint;
         }
 
         batteryHUDRoot.anchoredPosition = batteryHUDOffset;
@@ -247,7 +323,7 @@ public class GunAttack : MonoBehaviour
             rows * stride - spacing);
         lastHUDCapacity = capacity;
         lastHUDCharge = batteryCharge;
-        lastHUDTint = batteryOrbTint;
+        lastHUDTint = displayTint;
     }
 
     private bool TryGetAimPoint(out Vector3 aimPoint)
@@ -277,10 +353,12 @@ public class GunAttack : MonoBehaviour
     {
         if (!isAimSessionActive || !hasCurrentAimPoint) return;
 
-        Transform aimSource = muzzle != null ? muzzle : playerMovement != null ? playerMovement.transform : ownerRoot;
-        Vector3 origin = aimSource.position;
-        Vector3 desiredDirection = Vector3.ProjectOnPlane(currentAimPoint - origin, Vector3.up);
-        if (desiredDirection.sqrMagnitude <= 0.0001f) return;
+        Transform aimOrigin = playerMovement != null ? playerMovement.transform : ownerRoot;
+        if (aimOrigin == null) return;
+
+        Vector3 desiredDirection = Vector3.ProjectOnPlane(currentAimPoint - aimOrigin.position, Vector3.up);
+        float minimumDistance = Mathf.Max(0.1f, minimumAimDistance);
+        if (desiredDirection.sqrMagnitude < minimumDistance * minimumDistance) return;
 
         currentAimDirection = desiredDirection.normalized;
     }
@@ -296,6 +374,22 @@ public class GunAttack : MonoBehaviour
             ? Mathf.Abs(GetSpreadAngle(extraProjectiles, extraProjectiles, spread))
             : 0f;
         return Mathf.Min(180f, Mathf.Max(minimumAimConeHalfAngle, maximumShotAngle));
+    }
+
+    private float GetEffectiveProjectileRange(PlayerAttributesOffensive attributes)
+    {
+        float attributeRange = attributes != null
+            ? Mathf.Max(0.1f, attributes.weaponRangeProjectile)
+            : 10f;
+        float configuredRange = Mathf.Max(1f, minimumProjectileRange);
+
+        if (playerMovement != null && LevelGenerator.Instance != null)
+        {
+            float mapRange = LevelGenerator.Instance.GetFarthestRoomDistance(playerMovement.transform.position);
+            configuredRange = Mathf.Max(configuredRange, mapRange + Mathf.Max(0f, mapRangePadding));
+        }
+
+        return Mathf.Max(attributeRange, configuredRange);
     }
 
     private Vector3 GetFallbackAimDirection()
@@ -347,7 +441,7 @@ public class GunAttack : MonoBehaviour
         PlayerAttributesOffensive attributes = offensiveAttributes != null
             ? offensiveAttributes
             : PlayerAttributesOffensive.Instance;
-        float range = attributes != null ? Mathf.Max(0.1f, attributes.weaponRangeProjectile) : 10f;
+        float range = GetEffectiveProjectileRange(attributes);
         float halfAngle = GetAimConeHalfAngle();
 
         Vector3 playerPosition = playerMovement != null ? playerMovement.transform.position : ownerRoot.position;
@@ -394,14 +488,10 @@ public class GunAttack : MonoBehaviour
     public bool TryConsumeCharge(int amount = 1)
     {
         if (amount <= 0) return true;
-        if (IsRecharging || batteryCharge < amount)
-        {
-            if (!IsRecharging) BeginRecharge();
-            return false;
-        }
+        if (IsRecharging || batteryCharge <= 0 || batteryCharge < amount) return false;
 
         batteryCharge -= amount;
-        if (batteryCharge == 0) BeginRecharge();
+        if (batteryCharge == 0) passiveChargeRegenElapsed = 0f;
         BatteryChanged?.Invoke(batteryCharge, Mathf.Max(1, batteryCapacity));
         return true;
     }
@@ -416,6 +506,7 @@ public class GunAttack : MonoBehaviour
         {
             IsRecharging = false;
             batteryRechargeElapsed = 0f;
+            passiveChargeRegenElapsed = 0f;
         }
 
         if (batteryCharge != previousCharge)
@@ -496,36 +587,61 @@ public class GunAttack : MonoBehaviour
             spawnPoint.position,
             Quaternion.LookRotation(direction, Vector3.up));
 
-        float range = attributes != null ? attributes.weaponRangeProjectile : 10f;
+        float range = GetEffectiveProjectileRange(attributes);
+        bool homingEnabled = tier4EffectManager != null
+            && tier4EffectManager.HasEffect(Tier4EffectType.HomingProjectiles);
         projectile.Initialize(damage, range, piercing, ownerRoot, critChance, critMultiplier,
-            knockback, bounceChance, bounceCount, slowOnHit);
+            knockback, bounceChance, bounceCount, slowOnHit,
+            homingEnabled,
+            homingEnabled ? tier4EffectManager.homingDetectionRadius : 0f,
+            homingEnabled ? tier4EffectManager.homingTurnSpeed : 0f,
+            homingEnabled ? tier4EffectManager.homingTargetRefreshInterval : 0f);
     }
 
-    private void BeginRecharge()
+    private void BeginManualReload()
     {
+        if (batteryCharge > 0 || IsRecharging) return;
+
         IsRecharging = true;
         batteryRechargeElapsed = 0f;
+        passiveChargeRegenElapsed = 0f;
     }
 
     private void UpdateBattery()
     {
-        if (!IsRecharging) return;
-
-        batteryRechargeElapsed += Time.deltaTime;
-        float duration = Mathf.Max(0.1f, batteryRechargeDuration);
-        int rechargedAmount = Mathf.FloorToInt(batteryRechargeElapsed / duration * Mathf.Max(1, batteryCapacity));
-        int nextCharge = Mathf.Min(Mathf.Max(1, batteryCapacity), rechargedAmount);
-        if (nextCharge != batteryCharge)
+        int capacity = Mathf.Max(1, batteryCapacity);
+        if (IsRecharging)
         {
-            batteryCharge = nextCharge;
-            BatteryChanged?.Invoke(batteryCharge, Mathf.Max(1, batteryCapacity));
-        }
+            batteryRechargeElapsed += Time.deltaTime;
+            if (batteryRechargeElapsed < Mathf.Max(0.1f, batteryRechargeDuration)) return;
 
-        if (batteryCharge >= Mathf.Max(1, batteryCapacity))
-        {
+            int previousCharge = batteryCharge;
+            batteryCharge = capacity;
             IsRecharging = false;
             batteryRechargeElapsed = 0f;
+            passiveChargeRegenElapsed = 0f;
+            BatteryChanged?.Invoke(batteryCharge, Mathf.Max(1, batteryCapacity));
+            return;
         }
+
+        batteryCharge = Mathf.Clamp(batteryCharge, 0, capacity);
+        if (batteryCharge <= 0) return;
+        if (batteryCharge >= capacity)
+        {
+            passiveChargeRegenElapsed = 0f;
+            return;
+        }
+
+        passiveChargeRegenElapsed += Time.deltaTime;
+        float interval = Mathf.Max(0.05f, passiveChargeRegenInterval);
+        int chargesToRestore = Mathf.FloorToInt(passiveChargeRegenElapsed / interval);
+        if (chargesToRestore <= 0) return;
+
+        int oldCharge = batteryCharge;
+        batteryCharge = Mathf.Min(capacity, batteryCharge + chargesToRestore);
+        passiveChargeRegenElapsed -= chargesToRestore * interval;
+        if (batteryCharge != oldCharge)
+            BatteryChanged?.Invoke(batteryCharge, capacity);
     }
 
     private void SetAnimatorTrigger(string parameterName)
