@@ -105,6 +105,10 @@ public class InventoryUI : MonoBehaviour
     private GameObject previewPanelObject;
     private GameObject statsPanelObject;
 
+    // Módulo Visual do Histórico de Infusões
+    private GameObject infusionHistoryPanelObj;
+    private RectTransform infusionHistoryContent;
+
     private Vector3 lastInventoryPanelPosition;
     private Vector3 lastPreviewPanelPosition;
     private Vector2 lastPreviewPanelSize;
@@ -230,6 +234,7 @@ public class InventoryUI : MonoBehaviour
         if (screenOverlayObject != null) screenOverlayObject.SetActive(false);
         if (previewPanelObject != null) previewPanelObject.SetActive(false);
         if (statsPanelObject != null) statsPanelObject.SetActive(false);
+        if (infusionHistoryPanelObj != null) infusionHistoryPanelObj.SetActive(false);
         if (PlayerPreviewManager.Instance != null) PlayerPreviewManager.Instance.Deactivate();
         if (tooltip != null) tooltip.Hide();
         Cursor.lockState = CursorLockMode.Locked;
@@ -425,6 +430,7 @@ public class InventoryUI : MonoBehaviour
         if (screenOverlayObject != null) screenOverlayObject.SetActive(true);
         if (showPlayerPreview && previewPanelObject != null) previewPanelObject.SetActive(true);
         if (showPlayerPreview && statsPanelObject != null) statsPanelObject.SetActive(true);
+        if (infusionHistoryPanelObj != null) infusionHistoryPanelObj.SetActive(true);
 
         // Ativa o preview 3D do player
         if (showPlayerPreview && PlayerPreviewManager.Instance != null)
@@ -437,6 +443,7 @@ public class InventoryUI : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
 
         RefreshUI();
+        RefreshInfusionHistory();
 
         // Sincroniza com a Bolsa Sintética
         if (SyntheticBagUI.Instance != null && !SyntheticBagUI.Instance.IsOpen())
@@ -474,6 +481,7 @@ public class InventoryUI : MonoBehaviour
         if (screenOverlayObject != null) screenOverlayObject.SetActive(false);
         if (previewPanelObject != null) previewPanelObject.SetActive(false);
         if (statsPanelObject != null) statsPanelObject.SetActive(false);
+        if (infusionHistoryPanelObj != null) infusionHistoryPanelObj.SetActive(false);
 
         // Desativa o preview 3D do player
         if (showPlayerPreview && PlayerPreviewManager.Instance != null)
@@ -578,6 +586,9 @@ public class InventoryUI : MonoBehaviour
         {
             slots[i].SetLocked(true);
         }
+
+        // Atualiza o painel lateral de histórico de infusões
+        RefreshInfusionHistory();
     }
 
     // ============================================================
@@ -1108,6 +1119,215 @@ public class InventoryUI : MonoBehaviour
         lastPreviewScale = previewScale;
 
         Debug.Log("[INVENTORY UI] UI criada com " + absoluteMaxSlots + " slots (" + columns + "x" + rows + ")");
+
+        // === Painel Lateral do Histórico de Infusões ===
+        CreateInfusionHistoryPanel(panelObject.transform);
+    }
+
+    // ============================================================
+    //  MÓDULO VISUAL DO HISTÓRICO DE INFUSÕES
+    // ============================================================
+
+    /// <summary>
+    /// Cria um painel lateral dinâmico ancorado à direita do painel principal do inventário.
+    /// O painel exibe o histórico de itens infundidos na arma do jogador.
+    /// Posicionado do lado de fora do painel para não sobrepor outras UIs.
+    /// </summary>
+    void CreateInfusionHistoryPanel(Transform parentCanvas)
+    {
+        int uiLayer = gameObject.layer;
+
+        // === Container principal do painel lateral ===
+        infusionHistoryPanelObj = new GameObject("InfusionHistoryPanel");
+        infusionHistoryPanelObj.transform.SetParent(parentCanvas, false);
+        infusionHistoryPanelObj.layer = uiLayer;
+
+        RectTransform panelRt = infusionHistoryPanelObj.AddComponent<RectTransform>();
+        // Ancorado à borda direita do painel-pai, expandindo de cima a baixo
+        panelRt.anchorMin = new Vector2(1f, 0f);
+        panelRt.anchorMax = new Vector2(1f, 1f);
+        panelRt.pivot = new Vector2(0f, 0.5f); // Pivot na esquerda → cresce para a direita
+        panelRt.anchoredPosition = new Vector2(8f, 0f); // 8px de gap do painel principal
+        panelRt.sizeDelta = new Vector2(80f, 0f); // Largura fixa de 80px, altura preenche o pai
+
+        // Fundo escuro e legível
+        infusionHistoryPanelObj.AddComponent<CanvasRenderer>();
+        Image panelBg = infusionHistoryPanelObj.AddComponent<Image>();
+        panelBg.color = new Color(0.1f, 0.1f, 0.15f, 0.95f);
+        panelBg.raycastTarget = true;
+
+        // Sombra para profundidade
+        Shadow panelShadow = infusionHistoryPanelObj.AddComponent<Shadow>();
+        panelShadow.effectColor = new Color(0f, 0f, 0f, 0.5f);
+        panelShadow.effectDistance = new Vector2(4f, -4f);
+
+        // Borda sutil estilo Sci-Fi
+        Outline panelOutline = infusionHistoryPanelObj.AddComponent<Outline>();
+        panelOutline.effectColor = new Color(0.3f, 0.5f, 0.9f, 0.25f);
+        panelOutline.effectDistance = new Vector2(2f, -2f);
+
+        // === Cabeçalho "INFUSÕES" ===
+        GameObject headerObj = new GameObject("HistoryHeader");
+        headerObj.transform.SetParent(infusionHistoryPanelObj.transform, false);
+        headerObj.layer = uiLayer;
+
+        RectTransform headerRt = headerObj.AddComponent<RectTransform>();
+        headerRt.anchorMin = new Vector2(0f, 1f);
+        headerRt.anchorMax = new Vector2(1f, 1f);
+        headerRt.pivot = new Vector2(0.5f, 1f);
+        headerRt.anchoredPosition = new Vector2(0f, -4f);
+        headerRt.sizeDelta = new Vector2(0f, 20f);
+
+        headerObj.AddComponent<CanvasRenderer>();
+        TextMeshProUGUI headerTmp = headerObj.AddComponent<TextMeshProUGUI>();
+        if (customFont != null) headerTmp.font = customFont;
+        headerTmp.text = "INFUSÕES";
+        headerTmp.fontSize = 10f;
+        headerTmp.fontStyle = FontStyles.Bold;
+        headerTmp.color = new Color(0.5f, 0.75f, 1f, 0.85f);
+        headerTmp.alignment = TextAlignmentOptions.Center;
+        headerTmp.raycastTarget = false;
+        headerTmp.enableAutoSizing = false;
+        headerTmp.overflowMode = TextOverflowModes.Ellipsis;
+
+        // === Área de Conteúdo com VerticalLayoutGroup ===
+        GameObject contentObj = new GameObject("HistoryContent");
+        contentObj.transform.SetParent(infusionHistoryPanelObj.transform, false);
+        contentObj.layer = uiLayer;
+
+        infusionHistoryContent = contentObj.AddComponent<RectTransform>();
+        infusionHistoryContent.anchorMin = new Vector2(0f, 0f);
+        infusionHistoryContent.anchorMax = new Vector2(1f, 1f);
+        infusionHistoryContent.pivot = new Vector2(0.5f, 1f);
+        infusionHistoryContent.anchoredPosition = new Vector2(0f, -26f); // Abaixo do header
+        infusionHistoryContent.sizeDelta = new Vector2(-8f, -30f); // Padding interno de 4px laterais, 26px topo + 4px base
+
+        VerticalLayoutGroup vlg = contentObj.AddComponent<VerticalLayoutGroup>();
+        vlg.spacing = 10f;
+        vlg.padding = new RectOffset(4, 4, 4, 4);
+        vlg.childAlignment = TextAnchor.UpperCenter;
+        vlg.childControlWidth = false;
+        vlg.childControlHeight = false;
+        vlg.childForceExpandWidth = false;
+        vlg.childForceExpandHeight = false;
+
+        // Inicia oculto (ativado junto com o inventário)
+        infusionHistoryPanelObj.SetActive(false);
+    }
+
+    /// <summary>
+    /// Atualiza o conteúdo visual do painel de histórico de infusões.
+    /// Limpa os filhos atuais e recria os ícones a partir da lista fornecida.
+    /// Ícones com stacks >= 2 exibem um badge "x2" amarelo com outline no canto inferior direito.
+    /// </summary>
+    void UpdateInfusionHistory(List<InfusedItem> infusions)
+    {
+        if (infusionHistoryContent == null) return;
+
+        int uiLayer = gameObject.layer;
+
+        // Limpa filhos atuais do conteúdo
+        for (int i = infusionHistoryContent.childCount - 1; i >= 0; i--)
+        {
+            Destroy(infusionHistoryContent.GetChild(i).gameObject);
+        }
+
+        if (infusions == null || infusions.Count == 0) return;
+
+        foreach (var infusion in infusions)
+        {
+            if (infusion.data == null) continue;
+
+            // === Container do ícone (50x50) ===
+            GameObject iconContainer = new GameObject("InfusionIcon_" + infusion.data.itemId);
+            iconContainer.transform.SetParent(infusionHistoryContent, false);
+            iconContainer.layer = uiLayer;
+
+            RectTransform containerRt = iconContainer.AddComponent<RectTransform>();
+            containerRt.sizeDelta = new Vector2(50f, 50f);
+
+            // Fundo escuro do slot com cor do tier
+            iconContainer.AddComponent<CanvasRenderer>();
+            Image slotBg = iconContainer.AddComponent<Image>();
+            Color tierColor = infusion.data.GetTierColor();
+            slotBg.color = new Color(tierColor.r * 0.25f + 0.04f, tierColor.g * 0.25f + 0.04f, tierColor.b * 0.25f + 0.06f, 0.9f);
+            slotBg.raycastTarget = false;
+
+            // Outline colorido pelo tier
+            Outline slotOutline = iconContainer.AddComponent<Outline>();
+            slotOutline.effectColor = new Color(tierColor.r, tierColor.g, tierColor.b, 0.6f);
+            slotOutline.effectDistance = new Vector2(2f, -2f);
+
+            // === Ícone do item ===
+            GameObject iconObj = new GameObject("Icon");
+            iconObj.transform.SetParent(iconContainer.transform, false);
+            iconObj.layer = uiLayer;
+
+            RectTransform iconRt = iconObj.AddComponent<RectTransform>();
+            iconRt.anchorMin = Vector2.zero;
+            iconRt.anchorMax = Vector2.one;
+            iconRt.sizeDelta = new Vector2(-6f, -6f); // 3px de margem interna
+            iconRt.anchoredPosition = Vector2.zero;
+
+            iconObj.AddComponent<CanvasRenderer>();
+            Image iconImg = iconObj.AddComponent<Image>();
+            iconImg.sprite = infusion.data.icon;
+            iconImg.color = Color.white;
+            iconImg.raycastTarget = false;
+            iconImg.preserveAspect = true;
+
+            // === Badge de Stacks (só se stacks >= 2) ===
+            if (infusion.stacks >= 2)
+            {
+                GameObject badgeObj = new GameObject("StackBadge");
+                badgeObj.transform.SetParent(iconContainer.transform, false);
+                badgeObj.layer = uiLayer;
+
+                RectTransform badgeRt = badgeObj.AddComponent<RectTransform>();
+                // Canto inferior direito
+                badgeRt.anchorMin = new Vector2(1f, 0f);
+                badgeRt.anchorMax = new Vector2(1f, 0f);
+                badgeRt.pivot = new Vector2(1f, 0f);
+                badgeRt.anchoredPosition = new Vector2(-2f, 2f);
+                badgeRt.sizeDelta = new Vector2(28f, 18f);
+
+                badgeObj.AddComponent<CanvasRenderer>();
+                TextMeshProUGUI stackText = badgeObj.AddComponent<TextMeshProUGUI>();
+                if (customFont != null) stackText.font = customFont;
+                stackText.text = "x" + infusion.stacks;
+                stackText.fontSize = 14f;
+                stackText.fontStyle = FontStyles.Bold;
+                stackText.color = new Color(1f, 0.92f, 0f, 1f); // Amarelo vibrante
+                stackText.alignment = TextAlignmentOptions.BottomRight;
+                stackText.raycastTarget = false;
+                stackText.enableAutoSizing = false;
+                stackText.overflowMode = TextOverflowModes.Overflow;
+
+                // Outline para legibilidade sobre qualquer fundo
+                stackText.outlineWidth = 0.25f;
+                stackText.outlineColor = new Color32(0, 0, 0, 200);
+
+                // Garante que o badge fique na frente do ícone
+                badgeObj.transform.SetAsLastSibling();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Busca os dados do InfusionManager e atualiza o painel visual.
+    /// Seguro para chamar mesmo sem InfusionManager na cena.
+    /// </summary>
+    void RefreshInfusionHistory()
+    {
+        InfusionManager infMgr = Object.FindFirstObjectByType<InfusionManager>();
+        if (infMgr != null)
+        {
+            UpdateInfusionHistory(infMgr.GetInfusionHistory());
+        }
+        else
+        {
+            UpdateInfusionHistory(null);
+        }
     }
 
     void BuildSlots(Transform gridParent, int count)

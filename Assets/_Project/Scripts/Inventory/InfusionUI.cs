@@ -69,7 +69,7 @@ public class InfusionUI : MonoBehaviour
     void Start()
     {
         if (btnFechar != null) btnFechar.onClick.AddListener(ClosePanel);
-        if (btnInfundir != null) btnInfundir.onClick.AddListener(OnBtnInfundirClicked);
+        if (btnInfundir != null) btnInfundir.onClick.AddListener(OnInfuseButtonClicked);
         if (btnReciclar != null) btnReciclar.onClick.AddListener(OnBtnReciclarClicked);
 
         // Prepara botÃƒÂµes com animaÃƒÂ§ÃƒÂ£o de hover e presenÃƒÂ§a visual
@@ -495,7 +495,10 @@ public class InfusionUI : MonoBehaviour
 
         public void SelectMultipleItems(System.Collections.Generic.List<string> itemIds)
     {
-        selectedItemIds = itemIds;
+        // Cópia defensiva: antes a UI guardava a MESMA referência da lista do InventoryUI
+        selectedItemIds = itemIds != null ? new System.Collections.Generic.List<string>(itemIds) : new System.Collections.Generic.List<string>();
+        itemIds = selectedItemIds;
+        selectedItemId = itemIds.Count == 1 ? itemIds[0] : ""; // Habilita Reciclar para seleção única
         
         if (ItemDatabase.Instance == null) return;
         
@@ -556,27 +559,54 @@ public class InfusionUI : MonoBehaviour
             }
         }
 
+        if (infusionManager == null) infusionManager = Object.FindFirstObjectByType<InfusionManager>();
+        InfusionRequest request = infusionManager != null ? infusionManager.BuildInfusionRequest(itemIds) : default;
+
         if (itemTitle != null)
         {
-            if (count == 1) itemTitle.text = "INFUSÃO: " + firstData.itemName.ToUpper();
-            else itemTitle.text = "FUSÃO MÚLTIPLA (" + count + " ITENS)";
+            if (request.IsValid && request.mode == InfusionMode.Fused)
+                itemTitle.text = $"FUSÃO ×{request.stackMultiplier:0.##}: " + request.data.itemName.ToUpper();
+            else if (count == 1 && firstData != null)
+                itemTitle.text = "INFUSÃO: " + firstData.itemName.ToUpper();
+            else
+                itemTitle.text = "FUSÃO MÚLTIPLA (" + count + " ITENS)";
             
             itemTitle.color = HEADER_ACCENT;
         }
 
         UpdateDynamicTexts(itemIds);
+
+        // FIX: OpenPanel() → ClearSelection() desativa os botões. Sem reativar aqui,
+        // o botão INFUNDIR ficava travado (interactable = false) e nunca disparava o clique.
+        if (btnInfundir != null) { btnInfundir.interactable = true; UpdateButtonVisuals(btnInfundir); }
+        if (btnReciclar != null) { btnReciclar.interactable = count == 1; UpdateButtonVisuals(btnReciclar); }
     }
 
     private void UpdateDynamicTexts(System.Collections.Generic.List<string> ids)
     {
         if (ItemDatabase.Instance == null) return;
-        
+        if (infusionManager == null) infusionManager = Object.FindFirstObjectByType<InfusionManager>();
+
+        // -- FLUXO PADRÃO (1 item / 2 iguais): preview exato do que TryInfuse vai executar --
+        if (infusionManager != null)
+        {
+            InfusionRequest request = infusionManager.BuildInfusionRequest(ids);
+            if (request.IsValid)
+            {
+                if (itemRarity != null)
+                    itemRarity.text = request.data.GetTierName() + (request.mode == InfusionMode.Fused ? $"  •  FUSÃO ×{request.stackMultiplier:0.##}" : "");
+                if (recycleValueText != null) recycleValueText.text = "+" + request.data.recycleEssenceValue;
+
+                UpdateStandardInfusionTexts(request);
+                return;
+            }
+        }
+
+        // -- FLUXO DE SINERGIA (itens diferentes) --
         int totalCost = 0;
         int totalRecycle = 0;
         string rarityString = "";
         string descString = "";
-
-        if (infusionManager == null) infusionManager = Object.FindFirstObjectByType<InfusionManager>();
         
         float currentWeight = (infusionManager != null) ? infusionManager.GetTotalWeight() : 0f;
         
@@ -625,6 +655,7 @@ public class InfusionUI : MonoBehaviour
     public void SelectItem(string itemId)
     {
         selectedItemId = itemId;
+        selectedItemIds = new System.Collections.Generic.List<string> { itemId };
         
         if (ItemDatabase.Instance == null)
         {
@@ -724,29 +755,21 @@ public class InfusionUI : MonoBehaviour
         if (btnInfundir != null) 
         {
             btnInfundir.interactable = true;
-            int realCost = infusionManager != null ? infusionManager.GetInflatedCost(data) : data.infusionEssenceCost;
 
-            // -- SINERGIA PREVIEW --
-            System.Collections.Generic.List<string> singleIDList = new System.Collections.Generic.List<string> { data.itemId };
-            SynergyResult previewResult = SynergyInfusionCalculator.Instance.EvaluateInfusion(singleIDList);
-            int discountedCost = UnityEngine.Mathf.RoundToInt(realCost * (1f - previewResult.totalEssenceDiscount));
+            // Preview do fluxo padrão (Simples / Acumulado): sobrescreve descrição e texto do botão
+            InfusionRequest request = infusionManager != null
+                ? infusionManager.BuildInfusionRequest(selectedItemIds)
+                : default;
 
-            TextMeshProUGUI btnTxt = btnInfundir.GetComponentInChildren<TextMeshProUGUI>();
-            if (btnTxt != null)
+            if (request.IsValid)
             {
-                bool isInflated = realCost > data.infusionEssenceCost;
-                string inflaTag = isInflated 
-                    ? $" <size=60%><color=#FF6666>({data.infusionEssenceCost} base)</color></size>" 
-                    : "";
-                
-                if (previewResult.totalEssenceDiscount > 0f)
-                {
-                    btnTxt.text = $"<b>INFUNDIR</b>\n<color=#00FFAA><size=88%>-{discountedCost} ESSÊNCIAS (COMBO!)</size></color>{inflaTag}";
-                }
-                else
-                {
-                    btnTxt.text = $"<b>INFUNDIR</b>\n<color=#FFD700><size=88%>-{realCost} ESSÊNCIAS</size></color>{inflaTag}";
-                }
+                UpdateStandardInfusionTexts(request);
+            }
+            else
+            {
+                TextMeshProUGUI btnTxt = btnInfundir.GetComponentInChildren<TextMeshProUGUI>();
+                if (btnTxt != null)
+                    btnTxt.text = $"<b>INFUNDIR</b>\n<color=#FFD700><size=88%>-{data.infusionEssenceCost} ESSÊNCIAS</size></color>";
             }
 
             UpdateButtonVisuals(btnInfundir);
@@ -778,7 +801,14 @@ public class InfusionUI : MonoBehaviour
     private void ClearSelection()
     {
         selectedItemId = "";
+        selectedItemIds.Clear(); // Evita que uma seleção múltipla antiga "vaze" para o próximo clique
         currentTierColor = Color.white;
+
+        foreach (var obj in spawnedIcons)
+        {
+            if (obj != null) Destroy(obj);
+        }
+        spawnedIcons.Clear();
         
         if (itemIcon != null)
         {
@@ -816,45 +846,125 @@ public class InfusionUI : MonoBehaviour
         if (btnReciclar != null) { btnReciclar.interactable = false; UpdateButtonVisuals(btnReciclar); }
     }
 
-    private void OnBtnInfundirClicked()
+    /// <summary>
+    /// Handler do botão INFUNDIR (público: também pode ser ligado pelo OnClick no Inspector).
+    ///   • 1 item com 1 unidade        → Fluxo Simples   (buffs ×1)
+    ///   • 1 item com 2+ unidades      → Fluxo Acumulado (consome 2, buffs ×2)
+    ///   • Itens diferentes            → Fluxo de Sinergia (InfuseMultipleItems)
+    /// Toda a regra (Essence, buffs, inflação, consumo) vive no InfusionManager.TryInfuse.
+    /// </summary>
+    public void OnBtnInfundirClicked() => OnInfuseButtonClicked();
+
+    public void OnInfuseButtonClicked()
     {
-        if (selectedItemIds != null && selectedItemIds.Count > 0)
+        if (selectedItemIds == null || selectedItemIds.Count == 0)
         {
-            if (infusionManager == null) infusionManager = Object.FindFirstObjectByType<InfusionManager>();
-            if (infusionManager == null) return;
-            
-            bool suc = infusionManager.InfuseMultipleItems(selectedItemIds);
-            if (suc)
-            {
-                StartCoroutine(ScreenFlash(new UnityEngine.Color(1.0f, 0.85f, 0f, 0.45f))); 
-                StartCoroutine(ShockwaveRingFX(new UnityEngine.Color(1f, 0.85f, 0f, 0.8f)));
-                ClearSelection(); 
-                if (QuestManager.Instance != null)
-                {
-                    QuestManager.Instance.AdvanceQuest(QuestType.Interact, "infusion_completed", 1);
-                }
-            }
+            ShowInfusionFeedback("Selecione um item para infundir.");
             return;
         }
 
-        if (string.IsNullOrEmpty(selectedItemId)) return;
-
+        if (infusionManager == null) infusionManager = Object.FindFirstObjectByType<InfusionManager>();
         if (infusionManager == null)
-            infusionManager = Object.FindFirstObjectByType<InfusionManager>();
-
-        if (infusionManager == null) return;
-
-        bool success = infusionManager.InfuseItem(selectedItemId);
-        if (success)
         {
-            StartCoroutine(ScreenFlash(new UnityEngine.Color(1.0f, 0.85f, 0f, 0.45f))); 
-            StartCoroutine(ShockwaveRingFX(new UnityEngine.Color(1f, 0.85f, 0f, 0.8f)));
-            ClearSelection(); 
-            if (QuestManager.Instance != null)
-            {
-                QuestManager.Instance.AdvanceQuest(QuestType.Interact, "infusion_completed", 1);
-            }
+            Debug.LogWarning("[INFUSION UI] InfusionManager não encontrado! Botão Infundir ignorado.");
+            return;
         }
+
+        // Fluxo padrão: Simples / Acumulado
+        if (infusionManager.IsStandardInfusion(selectedItemIds))
+        {
+            int cost = infusionManager.GetInfusionCost(selectedItemIds); // capturado antes, para a mensagem de erro
+            InfusionResult result = infusionManager.TryInfuse(selectedItemIds);
+            HandleInfusionResult(result, cost);
+            return;
+        }
+
+        // Fluxo de Sinergia (combinação de itens diferentes)
+        if (infusionManager.InfuseMultipleItems(selectedItemIds))
+            PlayInfusionSuccessFX(false);
+        else
+            ShowInfusionFeedback("Infusão bloqueada! Essência insuficiente.");
+    }
+
+    private void HandleInfusionResult(InfusionResult result, int cost)
+    {
+        switch (result)
+        {
+            case InfusionResult.Success:          PlayInfusionSuccessFX(false); break;
+            case InfusionResult.Fused:            PlayInfusionSuccessFX(true);  break;
+            case InfusionResult.NotEnoughEssence: ShowInfusionFeedback($"Essência insuficiente! Precisa de {cost}."); break;
+            case InfusionResult.LegendaryLimit:   ShowInfusionFeedback("Lendário já infundido nesta run!"); break;
+            case InfusionResult.MissingItems:     ShowInfusionFeedback("Você não tem itens suficientes."); break;
+            default:                              ShowInfusionFeedback("Não foi possível infundir."); break;
+        }
+    }
+
+    private void PlayInfusionSuccessFX(bool fused)
+    {
+        // Dourado = Simples | Ciano = Acumulado (×2)
+        Color fx = fused ? new Color(0f, 0.9f, 1f, 0.45f) : new Color(1f, 0.85f, 0f, 0.45f);
+        StartCoroutine(ScreenFlash(fx));
+        StartCoroutine(ShockwaveRingFX(new Color(fx.r, fx.g, fx.b, 0.8f)));
+        ClearSelection();
+        if (QuestManager.Instance != null)
+        {
+            QuestManager.Instance.AdvanceQuest(QuestType.Interact, "infusion_completed", 1);
+        }
+    }
+
+    /// <summary>Feedback visual (popup do Eptinho + flash vermelho) e log de debug.</summary>
+    private void ShowInfusionFeedback(string message)
+    {
+        Debug.Log("[INFUSION UI] " + message);
+        if (EptinhoPopupController.instancia != null)
+            EptinhoPopupController.instancia.MostrarPopupAviso(message);
+
+        if (painelUpgrades != null && painelUpgrades.activeInHierarchy)
+            StartCoroutine(ScreenFlash(new Color(1f, 0.2f, 0.25f, 0.30f)));
+    }
+
+    /// <summary>Atualiza descrição e botão com o preview exato do fluxo (custo, ×M, buffs escalados).</summary>
+    private void UpdateStandardInfusionTexts(InfusionRequest request)
+    {
+        bool fused = request.mode == InfusionMode.Fused;
+        int cost = infusionManager != null ? infusionManager.GetInfusionCost(request) : request.data.infusionEssenceCost;
+
+        if (itemStatsDescription != null)
+            itemStatsDescription.text = BuildBuffPreview(request.data, request.stackMultiplier);
+
+        if (btnInfundir == null) return;
+        TextMeshProUGUI txt = btnInfundir.GetComponentInChildren<TextMeshProUGUI>();
+        if (txt == null) return;
+
+        string label = fused ? $"FUNDIR ×{request.stackMultiplier:0.##}" : "INFUNDIR";
+        string units = fused ? $" <size=60%>(-{request.itemCount} un.)</size>" : "";
+        string inflaTag = cost > request.data.infusionEssenceCost
+            ? $" <size=60%><color=#FF6666>({request.data.infusionEssenceCost} base)</color></size>"
+            : "";
+
+        txt.text = $"<b>{label}</b>\n<color=#FFD700><size=88%>-{cost} ESSÊNCIAS</size></color>{units}{inflaTag}";
+    }
+
+    /// <summary>Lista os buffs já escalados pelo mesmo ScaleBuff usado na aplicação real.</summary>
+    private string BuildBuffPreview(ItemData data, float stackMultiplier)
+    {
+        if (data.itemAttributes == null || data.itemAttributes.Count == 0)
+            return "\n<color=#8888AA><i>Este item é um recurso de síntese.\nNão possui propriedades extraíveis para o traje.</i></color>";
+
+        string header = stackMultiplier > 1f ? $"PROPRIEDADES FUNDIDAS (×{stackMultiplier:0.##})" : "PROPRIEDADES EXTRAÍVEIS";
+        System.Text.StringBuilder sb = new System.Text.StringBuilder($"<color=#80C0FF><b>{header}</b></color>\n\n");
+
+        foreach (var baseBuff in data.itemAttributes)
+        {
+            ItemAttributeParam buff = InfusionManager.ScaleBuff(baseBuff, stackMultiplier);
+            // Multiplicadores são fatores (1.10 = +10%)
+            float displayVal = buff.isMultiplier ? (buff.value - 1f) * 100f : buff.value;
+            string signal = displayVal > 0 ? "+" : "";
+            string suffix = buff.isMultiplier ? "%" : "";
+            sb.Append($"<color=#00FFAA><b>• {signal}{displayVal:0.##}{suffix}</b></color>  <color=#EEEEEE>{FormatterName(buff.attributeType.ToString())}</color>\n");
+        }
+
+        return sb.ToString();
     }
     private void OnBtnReciclarClicked()
     {

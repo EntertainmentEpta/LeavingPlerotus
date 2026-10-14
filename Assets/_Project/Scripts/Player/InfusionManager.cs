@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -22,12 +23,30 @@ public class InfusionManager : MonoBehaviour
     [Tooltip("Î± = coeficiente de inflaÃ§Ã£o. GDD usa 0,1 conforme os exemplos da tabela.")]
     public float inflationAlpha = 0.1f;
 
-    // Peso total acumulado de todos os itens jÃ¡ infundidos (Ptotal)
+    [Header("Fluxo Acumulado (2 itens iguais)")]
+    [Tooltip("Multiplicador progressivo (M) aplicado aos buffs ao fundir 2 itens iguais. Padrão: ×2.")]
+    public float fusionStackMultiplier = 2f;
+
+    // Quantidade de unidades consumidas no Fluxo Acumulado
+    private const int FUSION_ITEM_COUNT = 2;
+
+    // Fator mínimo de um buff multiplicativo escalado (evita fator ≤ 0 e divisão por zero na remoção)
+    private const float MIN_MULTIPLIER_FACTOR = 0.05f;
+
+    [Header("Cirurgia de Remoção")]
+    [Tooltip("Custo fixo de Essência cobrado para realizar a cirurgia de remoção.")]
+    public int surgeryEssenceCost = 150;
+
+    // Peso total acumulado de todos os itens já infundidos (Ptotal)
     private float totalInfusionWeight = 0f;
     
     // HistÃ³rico de itens infundidos
     [HideInInspector]
     public System.Collections.Generic.List<ItemData> infusedItems = new System.Collections.Generic.List<ItemData>();
+
+    // Multiplicador M usado em cada infusão (alinhado por índice com infusedItems).
+    // Permite que a Cirurgia de Remoção reverta exatamente o que foi aplicado (×1 ou ×2).
+    private readonly List<float> infusedStackMultipliers = new List<float>();
 
     void Start()
     {
@@ -103,77 +122,210 @@ public class InfusionManager : MonoBehaviour
     {
         totalInfusionWeight = 0f;
         if (infusedItems != null) infusedItems.Clear();
+        infusedStackMultipliers.Clear();
         Debug.Log("[INFUSION MANAGER] Peso de inflaÃ§Ã£o e histÃ³rico de infusÃµes resetados para nova Run.");
     }
 
+    // =====================================================
+    // FLUXO DE INFUSÃO: SIMPLES (1 item) / ACUMULADO (2 iguais)
+    // =====================================================
+
     /// <summary>
-    /// Infunde o item no corpo, ganhando TODOS os atributos permanentemente e consumindo o item do inventÃ¡rio.
-    /// O custo Ã© calculado com inflaÃ§Ã£o: C = B Ã— (1 + Î± Ã— Ptotal).
+    /// Ponto de entrada da infusão padrão. Segue o fluxo:
+    ///   1. Resolve o fluxo (Simples ×1 / Acumulado ×M) a partir da seleção.
+    ///   2. Verifica a Essence. Sem saldo → aborta (nada é consumido).
+    ///   3. Deduz a Essence.
+    ///   4. Aplica os buffs escalados por M.
+    ///   5. Soma a contribuição de inflação (P_tier × M) ao Ptotal.
+    ///   6. Remove do inventário as unidades consumidas.
+    /// </summary>
+    /// <param name="itemIds">[id] (funde automaticamente se houver 2+ unidades) ou [id, id] (fusão explícita).</param>
+    public InfusionResult TryInfuse(IReadOnlyList<string> itemIds)
+    {
+        if (inventory == null || essenceWallet == null)
+        {
+            Debug.LogWarning("[INFUSÃO] Abortado: PlayerInventory ou PlayerEssence ausente no Player.");
+            return InfusionResult.MissingComponents;
+        }
+
+        InfusionRequest request = BuildInfusionRequest(itemIds);
+        if (!request.IsValid)
+        {
+            Debug.LogWarning("[INFUSÃO] Abortado: seleção inválida (use 1 item ou 2 itens iguais).");
+            return InfusionResult.InvalidSelection;
+        }
+
+        ItemData data = request.data;
+
+        // Regra de Balanceamento (Brotato x Hades): Itens Lendários (T4) têm limite de 1 infusão por run (Max Stacks = 1)
+        if (data.tier == ItemTier.Legendary && infusedItems.Contains(data))
+        {
+            Debug.LogWarning($"[INFUSÃO] {data.itemName} é Lendário (T4) e já foi infundido nesta run! (Limite = 1)");
+            return InfusionResult.LegendaryLimit;
+        }
+
+        if (!inventory.HasItem(data.itemId, request.itemCount))
+        {
+            Debug.LogWarning($"[INFUSÃO] Abortado: precisa de {request.itemCount}x {data.itemName}, tem {inventory.GetItemCount(data.itemId)}.");
+            return InfusionResult.MissingItems;
+        }
+
+        // --- 1. Verificação de Essence ---
+        int cost = GetInfusionCost(request);
+        if (essenceWallet.GetEssence() < cost)
+        {
+            Debug.Log($"[INFUSÃO] Bloqueado! Custo: {cost} Essence (base {data.infusionEssenceCost} × inflação {GetInflationFactor():F2}). Você tem: {essenceWallet.GetEssence()}");
+            return InfusionResult.NotEnoughEssence;
+        }
+
+        // --- 2. Dedução ---
+        if (!essenceWallet.SpendEssence(cost)) return InfusionResult.NotEnoughEssence;
+
+        // --- 3. Aplicação dos buffs (×1 no Simples, ×M no Acumulado) ---
+        ApplyScaledBuffs(data, request.stackMultiplier);
+
+        // --- 4. Equação de inflação: Ptotal += P_tier × M ---
+        float inflationDelta = GetInflationContribution(data, request.stackMultiplier);
+        totalInfusionWeight += inflationDelta;
+
+        RegisterInfusion(data, request.stackMultiplier);
+        ActivateTier4Effect(data);
+
+        // --- 5. Consumo dos itens ---
+        inventory.RemoveItem(data.itemId, request.itemCount);
+
+        string flow = request.mode == InfusionMode.Fused ? $"ACUMULADO ×{request.stackMultiplier:0.##}" : "SIMPLES";
+        Debug.Log($"[INFUSÃO] {flow} | {data.itemName} (-{request.itemCount} un.) | Custo: {cost} | ΔPtotal: +{inflationDelta:F2} → {totalInfusionWeight:F2}");
+
+        return request.mode == InfusionMode.Fused ? InfusionResult.Fused : InfusionResult.Success;
+    }
+
+    /// <summary>
+    /// Resolve QUAL fluxo será executado, sem alterar estado (seguro para preview na UI).
+    ///   • [id] com 1 unidade no inventário  → Simples   (consome 1, M = 1)
+    ///   • [id] com 2+ unidades no inventário → Acumulado (consome 2, M = fusionStackMultiplier)
+    ///   • [id, id]                           → Acumulado (fusão explícita)
+    ///   • Qualquer outra combinação          → Inválido (sinergias usam InfuseMultipleItems)
+    /// Lendários (T4) nunca fundem: Max Stacks = 1.
+    /// </summary>
+    public InfusionRequest BuildInfusionRequest(IReadOnlyList<string> itemIds)
+    {
+        InfusionRequest request = new InfusionRequest { mode = InfusionMode.Invalid, itemCount = 0, stackMultiplier = 1f };
+
+        if (itemIds == null || itemIds.Count == 0 || itemIds.Count > FUSION_ITEM_COUNT) return request;
+        if (ItemDatabase.Instance == null || inventory == null) return request;
+
+        string itemId = itemIds[0];
+        bool explicitFusion = itemIds.Count == FUSION_ITEM_COUNT;
+        if (explicitFusion && itemIds[1] != itemId) return request; // 2 itens diferentes → não é fluxo padrão
+
+        ItemData data = ItemDatabase.Instance.GetItemData(itemId);
+        if (data == null) return request;
+
+        bool hasStack = inventory.GetItemCount(itemId) >= FUSION_ITEM_COUNT;
+        bool canFuse = data.tier != ItemTier.Legendary;
+
+        request.data = data;
+        if ((explicitFusion || hasStack) && canFuse)
+        {
+            request.mode = InfusionMode.Fused;
+            request.itemCount = FUSION_ITEM_COUNT;
+            request.stackMultiplier = fusionStackMultiplier;
+        }
+        else
+        {
+            request.mode = InfusionMode.Simple;
+            request.itemCount = 1;
+            request.stackMultiplier = 1f;
+        }
+
+        return request;
+    }
+
+    /// <summary>Atalho para a UI decidir entre o fluxo padrão e o fluxo de sinergia.</summary>
+    public bool IsStandardInfusion(IReadOnlyList<string> itemIds) => BuildInfusionRequest(itemIds).IsValid;
+
+    /// <summary>
+    /// Custo do pedido. Ambos os fluxos custam 1× o custo inflacionado do item
+    /// (a fusão é recompensada: 2 unidades pelo preço de 1 infusão).
+    /// </summary>
+    public int GetInfusionCost(InfusionRequest request) => request.IsValid ? GetInflatedCost(request.data) : 0;
+
+    public int GetInfusionCost(IReadOnlyList<string> itemIds) => GetInfusionCost(BuildInfusionRequest(itemIds));
+
+    /// <summary>Fator atual da equação de inflação: (1 + α × Ptotal).</summary>
+    public float GetInflationFactor() => 1f + inflationAlpha * totalInfusionWeight;
+
+    // ---------- Matemática modular do acúmulo ----------
+
+    /// <summary>
+    /// Escala UM buff pelo multiplicador do fluxo (M).
+    ///   Aditivo:        v' = v × M             (+50 HP → +100 HP)
+    ///   Multiplicativo: f' = 1 + (f − 1) × M   (×1.10 → ×1.20 | ×0.80 → ×0.60)
+    /// No multiplicativo só o BÔNUS (f − 1) é escalado: dobrar o fator inteiro
+    /// (1.1 × 2 = 2.2) daria +120% em vez de +20%.
+    /// </summary>
+    public static ItemAttributeParam ScaleBuff(ItemAttributeParam buff, float stackMultiplier)
+    {
+        float scaledValue = buff.isMultiplier
+            ? Mathf.Max(MIN_MULTIPLIER_FACTOR, 1f + (buff.value - 1f) * stackMultiplier)
+            : buff.value * stackMultiplier;
+
+        return new ItemAttributeParam
+        {
+            attributeType = buff.attributeType,
+            value = scaledValue,
+            isMultiplier = buff.isMultiplier
+        };
+    }
+
+    /// <summary>
+    /// Quanto esta infusão soma ao Ptotal: ΔP = P_tier × M.
+    /// Simples (M = 1) → peso normal do tier. Acumulado (M = 2) → peso de 2 itens.
+    /// </summary>
+    public static float GetInflationContribution(ItemData data, float stackMultiplier)
+    {
+        return data != null ? data.GetTierWeight() * stackMultiplier : 0f;
+    }
+
+    private void ApplyScaledBuffs(ItemData data, float stackMultiplier)
+    {
+        if (data.itemAttributes == null) return;
+        foreach (var buff in data.itemAttributes)
+        {
+            ApplyAttribute(ScaleBuff(buff, stackMultiplier));
+        }
+    }
+
+    private void RegisterInfusion(ItemData data, float stackMultiplier)
+    {
+        // Re-sincroniza caso infusedItems tenha sido limpo externamente (ex: PlayerHealth no respawn)
+        while (infusedStackMultipliers.Count > infusedItems.Count) infusedStackMultipliers.RemoveAt(infusedStackMultipliers.Count - 1);
+        while (infusedStackMultipliers.Count < infusedItems.Count) infusedStackMultipliers.Add(1f);
+
+        infusedItems.Add(data);
+        infusedStackMultipliers.Add(stackMultiplier);
+    }
+
+    private void ActivateTier4Effect(ItemData data)
+    {
+        if (data.tier4Effect == Tier4EffectType.None) return;
+
+        Tier4EffectManager t4Manager = GetComponent<Tier4EffectManager>();
+        if (t4Manager != null)
+            t4Manager.ActivateEffect(data.tier4Effect);
+        else
+            Debug.LogWarning("[INFUSÃO] Item T4 com efeito especial, mas Tier4EffectManager não encontrado no Player!");
+    }
+
+    /// <summary>
+    /// Infunde o item no corpo, ganhando TODOS os atributos permanentemente e consumindo o item do inventário.
+    /// Mantido por compatibilidade: delega para o fluxo padrão (TryInfuse).
     /// </summary>
     public bool InfuseItem(string itemId)
     {
-        if (ItemDatabase.Instance == null) return false;
-        
-        ItemData data = ItemDatabase.Instance.GetItemData(itemId);
-        if (data == null) return false;
-
-        // Regra de Balanceamento (Brotato x Hades): Itens LendÃ¡rios (T4) tÃªm limite de 1 infusÃ£o por run (Max Stacks = 1)
-        if (data.tier == ItemTier.Legendary && infusedItems.Contains(data))
-        {
-            Debug.LogWarning($"[INFUSÃƒO] {data.itemName} Ã© um item LendÃ¡rio (T4) e jÃ¡ foi infundido nesta run! (Limite = 1)");
-            return false;
-        }
-
-        if (inventory.HasItem(itemId, 1))
-        {
-            // Calcula custo com inflaÃ§Ã£o acumulada
-            int actualCost = GetInflatedCost(data);
-
-            // TENTA PAGAR O CUSTO PRIMEIRO!
-            if (essenceWallet != null)
-            {
-                if (!essenceWallet.SpendEssence(actualCost))
-                {
-                    Debug.Log($"[INFUSÃƒO] Bloqueado! Custo atual: {actualCost} EssÃªncias (base:{data.infusionEssenceCost} Ã— inflaÃ§Ã£o:{(1f + inflationAlpha * totalInfusionWeight):F2}). VocÃª tem: {essenceWallet.GetEssence()}");
-                    return false;
-                }
-            }
-
-            // Roda o loop em todos os buffs
-            foreach (var buff in data.itemAttributes)
-            {
-                ApplyAttribute(buff);
-            }
-
-            // Acumula o peso desta infusÃ£o no Ptotal
-            float addedWeight = data.GetTierWeight();
-            totalInfusionWeight += addedWeight;
-            
-            // Registra a infusÃ£o para possÃ­vel cirurgia de remoÃ§Ã£o
-            infusedItems.Add(data);
-
-            // Ativa efeito especial T4 (se houver)
-            if (data.tier4Effect != Tier4EffectType.None)
-            {
-                Tier4EffectManager t4Manager = GetComponent<Tier4EffectManager>();
-                if (t4Manager != null)
-                {
-                    t4Manager.ActivateEffect(data.tier4Effect);
-                }
-                else
-                {
-                    Debug.LogWarning("[INFUSÃƒO] Item T4 com efeito especial, mas Tier4EffectManager nÃ£o encontrado no Player!");
-                }
-            }
-
-            // Consome 1 item do inventÃ¡rio
-            inventory.RemoveItem(itemId, 1);
-
-            Debug.Log($"[INFUSÃƒO] Sucesso! {data.itemName} | Custo pago: {actualCost} | Ptotal agora: {totalInfusionWeight:F2}");
-            return true;
-        }
-        
-        return false;
+        InfusionResult result = TryInfuse(new[] { itemId });
+        return result == InfusionResult.Success || result == InfusionResult.Fused;
     }
 
     /// <summary>
@@ -233,13 +385,8 @@ public class InfusionManager : MonoBehaviour
             
             float addedWeight = data.GetTierWeight();
             totalInfusionWeight += addedWeight;
-            infusedItems.Add(data);
-            
-            if (data.tier4Effect != Tier4EffectType.None)
-            {
-                Tier4EffectManager t4Manager = GetComponent<Tier4EffectManager>();
-                if (t4Manager != null) t4Manager.ActivateEffect(data.tier4Effect);
-            }
+            RegisterInfusion(data, 1f);
+            ActivateTier4Effect(data);
             
             inventory.RemoveItem(data.itemId, 1);
             success = true;
@@ -294,33 +441,158 @@ public class InfusionManager : MonoBehaviour
 
         return s1 && s2;
     }
-    public bool RemoveInfusion(ItemData data)
+    /// <summary>
+    /// Retorna a lista de infusões ativas da arma e arsenal como uma lista de InfusedItem.
+    /// Atalho direto utilizado pela interface do Mercador (Aba Surgery) e pelo inventário.
+    /// </summary>
+    public System.Collections.Generic.List<InfusedItem> GetActiveInfusions()
     {
-        if (data == null || !infusedItems.Contains(data)) return false;
+        return GetInfusionHistory();
+    }
 
-        // Reverte todos os buffs (sinal negativo para somas, ou inversÃ£o para multiplicadores)
-        foreach (var buff in data.itemAttributes)
+    /// <summary>
+    /// Lógica da Cirurgia de Remoção:
+    /// 1. Validação: Checa se o jogador possui o custo da cirurgia (uma taxa fixa de Essência). Se não tiver, cancela.
+    /// 2. Cobrança: Deduza a taxa da cirurgia do jogador.
+    /// 3. Remoção sem Reembolso: Remove a peça/buff do arsenal da arma sem devolver Essência original gasta na infusão.
+    /// 4. Recálculo da Inflação: Subtrai o peso desse item da equação global de inflação (tornando futuras infusões mais baratas).
+    /// </summary>
+    public bool RequestSurgery(InfusedItem item)
+    {
+        if (item.data == null || !infusedItems.Contains(item.data))
         {
-            RemoveAttribute(buff);
+            Debug.LogWarning("[INFUSION MANAGER] Item inválido ou ausente no arsenal para cirurgia.");
+            return false;
         }
 
-        // Desativa efeito especial T4 (se houver)
-        if (data.tier4Effect != Tier4EffectType.None)
+        if (essenceWallet == null)
+            essenceWallet = GetComponent<PlayerEssence>();
+
+        // 1. Validação: Verifique se o jogador possui o custo da cirurgia
+        if (essenceWallet == null || essenceWallet.GetEssence() < surgeryEssenceCost)
         {
-            Tier4EffectManager t4Manager = GetComponent<Tier4EffectManager>();
-            if (t4Manager != null)
+            int current = essenceWallet != null ? essenceWallet.GetEssence() : 0;
+            Debug.LogWarning($"[CIRURGIA] Cancelado! Essência insuficiente para cirurgia. Custo: {surgeryEssenceCost}, Disponível: {current}");
+            return false;
+        }
+
+        // 2. Cobrança: Deduza a taxa da cirurgia do jogador
+        if (!essenceWallet.SpendEssence(surgeryEssenceCost))
+        {
+            return false;
+        }
+
+        // 3 & 4. Remoção sem Reembolso e Recálculo da Inflação
+        bool removed = RemoveInfusion(item);
+        if (removed)
+        {
+            Debug.Log($"[CIRURGIA] Peça {item.data.itemName} (x{item.stacks}) extraída com sucesso. Taxa: {surgeryEssenceCost} Essências. Novo Ptotal: {totalInfusionWeight:F2}");
+
+            // 5. Atualização: Notifica o Mercador se o painel estiver aberto
+            if (MerchantUIController.HasInstance && MerchantUIController.Instance.IsUiOpen())
             {
-                t4Manager.DeactivateEffect(data.tier4Effect);
+                MerchantUIController.Instance.PopulateSurgeryList();
             }
         }
 
-        // Subtrai o peso de inflaÃ§Ã£o
-        float removedWeight = data.GetTierWeight();
+        return removed;
+    }
+
+    /// <summary>
+    /// Remove a infusão especificada através da struct InfusedItem (respeitando o multiplicador exato de stack).
+    /// </summary>
+    public bool RemoveInfusion(InfusedItem item)
+    {
+        if (item.data == null || infusedItems.Count == 0) return false;
+
+        int targetIndex = -1;
+        for (int i = 0; i < infusedItems.Count; i++)
+        {
+            if (infusedItems[i] == item.data)
+            {
+                float mult = i < infusedStackMultipliers.Count ? infusedStackMultipliers[i] : 1f;
+                int stacks = Mathf.RoundToInt(mult);
+                if (stacks == item.stacks)
+                {
+                    targetIndex = i;
+                    break;
+                }
+            }
+        }
+
+        if (targetIndex == -1)
+        {
+            targetIndex = infusedItems.IndexOf(item.data);
+        }
+
+        if (targetIndex == -1) return false;
+
+        return RemoveInfusionAtIndex(targetIndex);
+    }
+
+    /// <summary>
+    /// Remove permanentemente os efeitos de um item e reduz o peso de inflação.
+    /// Mantido por compatibilidade.
+    /// </summary>
+    public bool RemoveInfusion(ItemData data)
+    {
+        if (data == null || !infusedItems.Contains(data)) return false;
+        int index = infusedItems.IndexOf(data);
+        return RemoveInfusionAtIndex(index);
+    }
+
+    /// <summary>
+    /// Remove a infusão no índice indicado, revertendo buffs escalados,
+    /// desativando efeito especial T4 (se não houver outra instância) e subtraindo o peso de inflação.
+    /// NÃO devolve a Essência original de infusão.
+    /// </summary>
+    private bool RemoveInfusionAtIndex(int index)
+    {
+        if (index < 0 || index >= infusedItems.Count) return false;
+
+        ItemData data = infusedItems[index];
+        float stackMultiplier = index < infusedStackMultipliers.Count ? infusedStackMultipliers[index] : 1f;
+
+        // Reverte todos os buffs escalados no arsenal da arma/player
+        if (data.itemAttributes != null)
+        {
+            foreach (var buff in data.itemAttributes)
+            {
+                RemoveAttribute(ScaleBuff(buff, stackMultiplier));
+            }
+        }
+
+        // Desativa efeito especial T4 (se houver e não houver outra cópia infundida)
+        if (data.tier4Effect != Tier4EffectType.None)
+        {
+            bool hasOtherInstance = false;
+            for (int i = 0; i < infusedItems.Count; i++)
+            {
+                if (i != index && infusedItems[i] != null && infusedItems[i].tier4Effect == data.tier4Effect)
+                {
+                    hasOtherInstance = true;
+                    break;
+                }
+            }
+
+            if (!hasOtherInstance)
+            {
+                Tier4EffectManager t4Manager = GetComponent<Tier4EffectManager>();
+                if (t4Manager != null)
+                {
+                    t4Manager.DeactivateEffect(data.tier4Effect);
+                }
+            }
+        }
+
+        // Subtrai o peso de inflação (ΔP = P_tier × M) da equação global
+        float removedWeight = GetInflationContribution(data, stackMultiplier);
         totalInfusionWeight = Mathf.Max(0f, totalInfusionWeight - removedWeight);
 
-        infusedItems.Remove(data);
-        
-        Debug.Log($"[REMOÃ‡ÃƒO] Item extraÃ­do: {data.itemName}. Ptotal reduzido para {totalInfusionWeight:F2}");
+        infusedItems.RemoveAt(index);
+        if (index < infusedStackMultipliers.Count) infusedStackMultipliers.RemoveAt(index);
+
+        Debug.Log($"[REMOÇÃO/CIRURGIA] Peça extraída: {data.itemName} (x{Mathf.RoundToInt(stackMultiplier)}). Peso subtraído: -{removedWeight:F2}. Novo Ptotal: {totalInfusionWeight:F2}");
         return true;
     }
 
@@ -437,5 +709,68 @@ public class InfusionManager : MonoBehaviour
     {
         return infusedItems;
     }
+
+    /// <summary>
+    /// Retorna o histórico de infusões como lista tipada de InfusedItem,
+    /// combinando ItemData com o multiplicador de stack (×1 Simples / ×2 Acumulado).
+    /// Usado pelo módulo visual de histórico na InventoryUI.
+    /// </summary>
+    public System.Collections.Generic.List<InfusedItem> GetInfusionHistory()
+    {
+        var history = new System.Collections.Generic.List<InfusedItem>();
+        for (int i = 0; i < infusedItems.Count; i++)
+        {
+            float mult = i < infusedStackMultipliers.Count ? infusedStackMultipliers[i] : 1f;
+            int stacks = Mathf.RoundToInt(mult); // ×1 → 1, ×2 → 2
+            history.Add(new InfusedItem
+            {
+                data = infusedItems[i],
+                stacks = stacks
+            });
+        }
+        return history;
+    }
+}
+
+/// <summary>Fluxo de infusão resolvido a partir da seleção.</summary>
+public enum InfusionMode
+{
+    Invalid,
+    Simple, // 1 item  → buffs base (×1)
+    Fused   // 2 iguais → buffs ×M (fusionStackMultiplier)
+}
+
+/// <summary>Resultado de TryInfuse, usado pela UI para feedback visual.</summary>
+public enum InfusionResult
+{
+    Success,
+    Fused,
+    InvalidSelection,
+    MissingItems,
+    NotEnoughEssence,
+    LegendaryLimit,
+    MissingComponents
+}
+
+/// <summary>Pedido de infusão já resolvido (item, fluxo, unidades consumidas e multiplicador).</summary>
+public struct InfusionRequest
+{
+    public ItemData data;
+    public InfusionMode mode;
+    public int itemCount;
+    public float stackMultiplier;
+
+    public bool IsValid => data != null && mode != InfusionMode.Invalid;
+}
+
+/// <summary>
+/// Entrada no histórico de infusão: o ItemData infundido e a quantidade de stacks.
+/// stacks = 1 para infusão simples, 2 para fusão acumulada (×2).
+/// </summary>
+[System.Serializable]
+public struct InfusedItem
+{
+    public ItemData data;
+    public int stacks;
 }
 
