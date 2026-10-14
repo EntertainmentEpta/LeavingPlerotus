@@ -15118,6 +15118,8 @@ MonoBehaviour:
   returnShotReverbPreset: 9
   zapSound: {fileID: 8300000, guid: b42e55eda9c9a8d4f84f078642069000, type: 3}
   zapSoundVolume: 0.9
+  hitSounds: []
+  hitSoundVolume: 0.7
 --- !u!114 &6288799467431216096
 MonoBehaviour:
   m_ObjectHideFlags: 0

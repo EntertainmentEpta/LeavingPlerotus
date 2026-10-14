@@ -6,9 +6,26 @@ using TMPro;
 /// - Detecta proximidade e abre a UI de Crafting.
 /// - Fade Suave (CanvasGroup) no texto de interação.
 /// - Conectado ao KeybindManager (Lê "KeyInteract" do PlayerPrefs automaticamente).
+/// - Suporte a efeitos sonoros de fala, síntese bem-sucedida e falha.
 /// </summary>
 public class CraftingTableInteraction : MonoBehaviour
 {
+    public static CraftingTableInteraction Instance { get; private set; }
+
+    [Header("Áudio / Sons do Robozinho")]
+    [Tooltip("Sons reproduzidos ao interagir/falar com o robô. Um será escolhido aleatoriamente a cada interação.")]
+    public AudioClip[] talkSounds;
+
+    [Tooltip("Som reproduzido ao sintetizar/craftar um item com sucesso.")]
+    public AudioClip synthesizeSuccessSound;
+
+    [Tooltip("Som reproduzido quando não for possível sintetizar (falta de materiais ou requisitos).")]
+    public AudioClip synthesizeFailSound;
+
+    [Range(0f, 1f)]
+    [Tooltip("Volume dos efeitos sonoros do robô.")]
+    public float soundVolume = 1f;
+
     [Header("Configuração de Interação")]
     [Tooltip("Texto da ação (ex: Interagir, Craftar, Falar).")]
     public string actionText = "Interagir";
@@ -18,8 +35,7 @@ public class CraftingTableInteraction : MonoBehaviour
     public TextMeshProUGUI promptTextMesh;
     public float fadeSpeed = 6f;
 
-    [Header("Som e Modelos")]
-    public AudioClip roboSound;
+    [Header("Modelos")]
     public Transform robotModelTransform;
 
     [Header("Depuração e Objetivos")]
@@ -28,7 +44,21 @@ public class CraftingTableInteraction : MonoBehaviour
 
     private ObjectiveMarker roboMarker;
     private bool playerPerto = false;
+    private AudioSource audioSource;
     private CanvasGroup promptCanvasGroup;
+
+    void Awake()
+    {
+        Instance = this;
+
+        audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
+            audioSource.playOnAwake = false;
+            audioSource.spatialBlend = 0f; // 2D som limpo de interface/NPC
+        }
+    }
 
     void Start()
     {
@@ -101,7 +131,6 @@ public class CraftingTableInteraction : MonoBehaviour
     /// </summary>
     private KeyCode GetCurrentInteractKey()
     {
-        // Lê a mesma chave que o seu KeybindManager usa! Fallback é "F".
         string savedKey = PlayerPrefs.GetString("KeyInteract", "F");
         try 
         {
@@ -109,7 +138,7 @@ public class CraftingTableInteraction : MonoBehaviour
         }
         catch 
         {
-            return KeyCode.F; // Proteção caso ocorra algum erro na conversão
+            return KeyCode.F;
         }
     }
 
@@ -129,8 +158,6 @@ public class CraftingTableInteraction : MonoBehaviour
     {
         if (!other.CompareTag("Player")) return;
         playerPerto = true;
-        
-        // Atualiza o texto sempre que o jogador chegar perto (caso ele tenha mudado a tecla no menu há pouco)
         UpdatePromptText();
     }
 
@@ -177,17 +204,12 @@ public class CraftingTableInteraction : MonoBehaviour
         if (!playerPerto) return;
         if (DialogManager.BlocksGameplayInput) return;
 
-        // === 2. LÓGICA DE INTERAÇÃO (USANDO A TECLA DINÂMICA) ===
+        // === 2. LÓGICA DE INTERAÇÃO (USANDO A TECLA DINÂMICA OU T) ===
         KeyCode interactKey = GetCurrentInteractKey();
 
-        if (Input.GetKeyDown(interactKey))
+        if (Input.GetKeyDown(interactKey) || Input.GetKeyDown(KeyCode.T))
         {
-            if (roboSound != null)
-            {
-                AudioSource src = GetComponent<AudioSource>();
-                if (src == null) src = gameObject.AddComponent<AudioSource>();
-                src.PlayOneShot(roboSound);
-            }
+            PlayTalkSound();
 
             if (CraftingUI.Instance != null)
             {
@@ -216,6 +238,41 @@ public class CraftingTableInteraction : MonoBehaviour
                 CraftingUI.Instance.CloseCrafting();
                 if (RobotPreviewManager.Instance != null) RobotPreviewManager.Instance.Deactivate();
             }
+        }
+    }
+
+    // ─── Métodos de Áudio ────────────────────────────────────────────────────
+
+    public void PlayTalkSound()
+    {
+        if (talkSounds != null && talkSounds.Length > 0)
+        {
+            AudioClip clip = talkSounds[Random.Range(0, talkSounds.Length)];
+            PlayAudio(clip);
+        }
+    }
+
+    public void PlaySynthesizeSuccessSound()
+    {
+        PlayAudio(synthesizeSuccessSound);
+    }
+
+    public void PlaySynthesizeFailSound()
+    {
+        PlayAudio(synthesizeFailSound);
+    }
+
+    private void PlayAudio(AudioClip clip)
+    {
+        if (clip == null) return;
+
+        if (audioSource != null)
+        {
+            audioSource.PlayOneShot(clip, soundVolume);
+        }
+        else
+        {
+            AudioSource.PlayClipAtPoint(clip, Camera.main != null ? Camera.main.transform.position : transform.position, soundVolume);
         }
     }
 }

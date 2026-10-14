@@ -203,6 +203,8 @@ MonoBehaviour:
   teleportSoundVolume: 0.8
   meleeAttackSound: {fileID: 8300000, guid: f75792465661afe42acaebbfc98f757e, type: 3}
   meleeAttackSoundVolume: 0.8
+  hitSounds: []
+  hitSoundVolume: 0.7
 --- !u!65 &3588484501910454750
 BoxCollider:
   m_ObjectHideFlags: 0

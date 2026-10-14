@@ -553,6 +553,24 @@ public class RoomController : MonoBehaviour
             yield break;
         }
 
+        // ── INTERCEPTAÇÃO DE SPAWN DUPLO (Variante Elite / Shiny) ───────────
+        // Após o sistema normal decidir qual prefab spawnar (pagando os pontos),
+        // verificamos se existe uma variante configurada e rolamos a mutationChance.
+        // O custo em pontos NAO muda — a variante é gratuita em termos de budget.
+        GameObject prefabToSpawn = prefab;
+        if (enemyPoolConfig != null)
+        {
+            EnemySpawnSetup setup = enemyPoolConfig.GetMutationSetup(prefab);
+            if (setup != null && setup.variantPrefab != null &&
+                UnityEngine.Random.value <= setup.mutationChance)
+            {
+                prefabToSpawn = setup.variantPrefab;
+                if (showSpawnLog)
+                    Debug.Log($"[ROOM {roomIndex}] MUTACAO! {prefab.name} → {setup.variantPrefab.name} ({setup.mutationChance * 100:F0}% de chance)");
+            }
+        }
+        // ────────────────────────────────────────────────────────────────────
+
         // Escolhe uma área aleatória da lista para este inimigo
         BoxCollider chosenArea = spawnAreas[Random.Range(0, spawnAreas.Count)];
         Vector3 spawnPos = GetRandomPositionInArea(chosenArea);
@@ -569,7 +587,7 @@ public class RoomController : MonoBehaviour
 
         if (indicator != null) Destroy(indicator);
 
-        GameObject newEnemy = Instantiate(prefab, spawnPos, prefab.transform.rotation);
+        GameObject newEnemy = Instantiate(prefabToSpawn, spawnPos, prefabToSpawn.transform.rotation);
 
         // Garante que o inimigo não caia do mapa (contenção pelo NavMesh global)
         if (newEnemy.GetComponent<NavMeshBoundaryConstraint>() == null)
@@ -583,6 +601,7 @@ public class RoomController : MonoBehaviour
         activeEnemies.Add(newEnemy);
         enemiesPendingSpawn--;
     }
+
 
     public void NotifyEnemyDefeated(GameObject enemy)
     {

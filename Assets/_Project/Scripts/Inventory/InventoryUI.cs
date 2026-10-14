@@ -70,6 +70,19 @@ public class InventoryUI : MonoBehaviour
     [Tooltip("Tooltip customizado flutuante.")]
     public InventoryTooltip customTooltip;
 
+    [Header("Áudio")]
+    [Tooltip("Som reproduzido ao abrir o inventário")]
+    public AudioClip openSound;
+    [Tooltip("Volume do som de abrir")]
+    [Range(0f, 1f)]
+    public float openSoundVolume = 0.8f;
+
+    [Tooltip("Som reproduzido ao fechar o inventário")]
+    public AudioClip closeSound;
+    [Tooltip("Volume do som de fechar")]
+    [Range(0f, 1f)]
+    public float closeSoundVolume = 0.8f;
+
     // Referências internas
     public static Canvas CanvasInstance;
     private PlayerInventory playerInventory;
@@ -431,6 +444,12 @@ public class InventoryUI : MonoBehaviour
             SyntheticBagUI.Instance.OpenBag();
         }
 
+        // Toca o som de abertura do inventário
+        if (openSound != null)
+            PlayAudio(openSound, openSoundVolume);
+        else if (playerInventory != null)
+            playerInventory.PlayOpenInventorySound();
+
         Debug.Log("[INVENTORY UI] Inventário aberto");
     }
 
@@ -439,6 +458,15 @@ public class InventoryUI : MonoBehaviour
     /// </summary>
     public void CloseInventory()
     {
+        if (isOpen)
+        {
+            // Toca o som de fechamento do inventário
+            if (closeSound != null)
+                PlayAudio(closeSound, closeSoundVolume);
+            else if (playerInventory != null)
+                playerInventory.PlayCloseInventorySound();
+        }
+
         ClearSelection();
         isOpen = false;
         if (panelObject != null) panelObject.SetActive(false);
@@ -1322,6 +1350,19 @@ public class InventoryUI : MonoBehaviour
             string val = essence != null ? $"{essence.currentEssence}" : "0";
             statsOrbsText.text = $"<size=10><color={dimWhite}>ORBS</color></size>\n<color={goldHex}>{val}</color>";
         }
+    }
+
+    private void PlayAudio(AudioClip clip, float volume)
+    {
+        if (clip == null) return;
+        GameObject audioObj = new GameObject("TempInventoryUIAudio");
+        audioObj.transform.position = transform.position;
+        AudioSource aSource = audioObj.AddComponent<AudioSource>();
+        aSource.clip = clip;
+        aSource.volume = volume;
+        aSource.spatialBlend = 0f; // 2D som de UI
+        aSource.Play();
+        Destroy(audioObj, clip.length + 0.1f);
     }
 
     // ==========================================

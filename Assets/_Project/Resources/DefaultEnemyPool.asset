@@ -28,3 +28,13 @@ MonoBehaviour:
   suportePrefabs:
   - {fileID: 626950691794527064, guid: 7a104b6634733f34b98f0afa73d3eba7, type: 3}
   - {fileID: 5661634700527789902, guid: f9613e6db495cb64b8bf4f44589c7230, type: 3}
+  mutationSetups:
+  - basePrefab: {fileID: 3359006950562635497, guid: 5e5b6987e167aa04eb10ca7764b6880b, type: 3}
+    variantPrefab: {fileID: 457551472477644953, guid: b57e980fac8373c48bad21d5fc8544a0, type: 3}
+    mutationChance: 0.15
+  - basePrefab: {fileID: 4138484601771036003, guid: ab85fa72aae18184ea4dcf33ea87c8ff, type: 3}
+    variantPrefab: {fileID: 415085470474204466, guid: beadd9448d05d3f4cab0bbc02757b366, type: 3}
+    mutationChance: 0.15
+  - basePrefab: {fileID: 8934992465927708091, guid: 56182097e246d7b4b895b2c1feb0d2ba, type: 3}
+    variantPrefab: {fileID: 6572492768676148447, guid: ba7351485af12344c95ef4f19b02caa8, type: 3}
+    mutationChance: 0.15

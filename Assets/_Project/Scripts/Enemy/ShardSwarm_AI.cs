@@ -126,7 +126,7 @@ public class ShardSwarm_AI : MonoBehaviour
     [Tooltip("Duração do brilho/pulsar do holograma do escudo ao receber dano no modo protegido.")]
     public float shieldFlashDuration = 0.35f;
 
-    [Header("--- Áudio ---")]
+    [Header("--- Áudio — Ataque (Disparos & Choque) ---")]
     [Tooltip("Som do disparo das pontas/espinhos da Estrela")]
     public AudioClip shotSound;
     [Tooltip("Volume do som de disparo")]
@@ -151,6 +151,20 @@ public class ShardSwarm_AI : MonoBehaviour
     [Tooltip("Volume do som do choque (zap)")]
     [Range(0f, 1f)]
     public float zapSoundVolume = 0.9f;
+
+    [Header("--- Áudio — Dano Recebido (Hit) ---")]
+    [Tooltip("Sons reproduzidos quando a Estrela leva dano (golpe do player). NÃO colocar sons de ataque aqui.")]
+    public AudioClip[] hitSounds;
+    [Tooltip("Volume dos sons de dano recebido (hit)")]
+    [Range(0f, 1f)]
+    public float hitSoundVolume = 0.7f;
+
+    [Header("--- Áudio — Morte (Die) ---")]
+    [Tooltip("Sons reproduzidos quando a Estrela morre.")]
+    public AudioClip[] dieSounds;
+    [Tooltip("Volume dos sons de morte")]
+    [Range(0f, 1f)]
+    public float dieSoundVolume = 0.8f;
 
     // Privados internos
     private Transform playerTransform;
@@ -284,6 +298,32 @@ public class ShardSwarm_AI : MonoBehaviour
         rb.freezeRotation = true;
 
         SetState(SwarmState.FormaUnida);
+
+        // Registra callbacks de áudio de hit e morte
+        if (health != null)
+        {
+            if (hitSounds != null && hitSounds.Length > 0)
+                health.onDamageTaken += (damage, attacker) => PlayHitSound();
+
+            if (dieSounds != null && dieSounds.Length > 0)
+                health.onDeath += PlayDieSound;
+        }
+    }
+
+    private void PlayHitSound()
+    {
+        if (hitSounds == null || hitSounds.Length == 0) return;
+        AudioClip clip = hitSounds[Random.Range(0, hitSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), hitSoundVolume);
+    }
+
+    private void PlayDieSound()
+    {
+        if (dieSounds == null || dieSounds.Length == 0) return;
+        AudioClip clip = dieSounds[Random.Range(0, dieSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), dieSoundVolume);
     }
 
     private Coroutine shieldFlashCoroutine;
