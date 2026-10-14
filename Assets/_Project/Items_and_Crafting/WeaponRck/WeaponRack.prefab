@@ -1,0 +1,270 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &1058586473741242242
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7400591795558832837}
+  m_Layer: 0
+  m_Name: Slot_1_Adaga
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7400591795558832837
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1058586473741242242}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 44.2, y: 36.7, z: 7.72}
+  m_LocalScale: {x: 19.99999, y: 19.999994, z: 19.999994}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2293627188777967936}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2077148746275906005
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 377503502269859621}
+  m_Layer: 0
+  m_Name: Slot_3_Pistola
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &377503502269859621
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2077148746275906005}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -17.6, y: 36.6, z: 7.72}
+  m_LocalScale: {x: 19.99999, y: 19.999994, z: 19.999994}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2293627188777967936}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2673646397534168389
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7173436877601531411}
+  m_Layer: 0
+  m_Name: Slot_2_Machado
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7173436877601531411
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2673646397534168389}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 14.24, y: 36.6, z: 7.72}
+  m_LocalScale: {x: 19.99999, y: 19.999994, z: 19.999994}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2293627188777967936}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &4131097675608323760
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -6689036041284674117, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      propertyPath: m_Name
+      value: WeaponRack
+      objectReference: {fileID: 0}
+    - target: {fileID: 2774220344278030320, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.05
+      objectReference: {fileID: 0}
+    - target: {fileID: 2774220344278030320, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.05
+      objectReference: {fileID: 0}
+    - target: {fileID: 2774220344278030320, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 0.05
+      objectReference: {fileID: 0}
+    - target: {fileID: 2774220344278030320, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -4.29
+      objectReference: {fileID: 0}
+    - target: {fileID: 2774220344278030320, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 2774220344278030320, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 6.66
+      objectReference: {fileID: 0}
+    - target: {fileID: 2774220344278030320, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2774220344278030320, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2774220344278030320, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2774220344278030320, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2774220344278030320, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2774220344278030320, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 180
+      objectReference: {fileID: 0}
+    - target: {fileID: 2774220344278030320, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2774220344278030320, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      propertyPath: m_ConstrainProportionsScale
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3255011021839372183, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 1.25
+      objectReference: {fileID: 0}
+    - target: {fileID: 3255011021839372183, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3255011021839372183, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3255011021839372183, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3255011021839372183, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 2774220344278030320, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7400591795558832837}
+    - targetCorrespondingSourceObject: {fileID: 2774220344278030320, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7173436877601531411}
+    - targetCorrespondingSourceObject: {fileID: 2774220344278030320, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 377503502269859621}
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: -6689036041284674117, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4897059520462476022}
+  m_SourcePrefab: {fileID: -5645937942226959685, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+--- !u!1 &1909348515627297547 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: -6689036041284674117, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+  m_PrefabInstance: {fileID: 4131097675608323760}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &4897059520462476022
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1909348515627297547}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 07cd9e9ee73b05f42ab7b82d0492315b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponRack
+  modoVisualizarTodas: 1
+  slot1_AdagaAnchor: {fileID: 7400591795558832837}
+  slot2_MachadoAnchor: {fileID: 7173436877601531411}
+  slot3_PistolaAnchor: {fileID: 377503502269859621}
+  slots:
+  - weaponId: dagger
+    displayName: ADAGA DE PLASMA
+    description: "Golpes velozes de curto alcance com ac\xFAmulo de combo \xE1gil."
+    weaponType: 0
+    weaponPrefab: {fileID: 3009730094244481465, guid: 6af7465e1a5886941bf82a5a9ff07e6e, type: 3}
+    displayPoint: {fileID: 7400591795558832837}
+    unlockedByDefault: 1
+    requiredCraftId: 
+    displayInstance: {fileID: 0}
+    pedestalPad: {fileID: 0}
+  - weaponId: crystal_axe
+    displayName: MACHADO DE CRISTAL
+    description: "Golpes pesados devastadores em \xE1rea com alto impacto."
+    weaponType: 2
+    weaponPrefab: {fileID: 6809705995638202345, guid: 4bada7310c92e2646b3371a61727fdc9, type: 3}
+    displayPoint: {fileID: 7173436877601531411}
+    unlockedByDefault: 0
+    requiredCraftId: eq_crystal_axe
+    displayInstance: {fileID: 0}
+    pedestalPad: {fileID: 0}
+  - weaponId: gunfake
+    displayName: PISTOLA DE PLASMA
+    description: "Disparos de plasma de m\xE9dio alcance com recarga r\xE1pida."
+    weaponType: 3
+    weaponPrefab: {fileID: 1739126729591517968, guid: 5ca4c19883cf1e644b0a425838467a46, type: 3}
+    displayPoint: {fileID: 377503502269859621}
+    unlockedByDefault: 0
+    requiredCraftId: eq_arma_projetil
+    displayInstance: {fileID: 0}
+    pedestalPad: {fileID: 0}
+  adagaRotationOffset: {x: 0, y: 0, z: 0}
+  machadoRotationOffset: {x: 0, y: 0, z: 0}
+  pistolaRotationOffset: {x: 0, y: 0, z: 0}
+  girarArmas: 0
+  exibirBasesNoChao: 0
+  floatAmplitude: 0.08
+  floatFrequency: 2
+  rotateSpeed: 30
+  interactionDistance: 2.5
+  fadeSpeed: 6
+  fallbackKey: 102
+  equipSound: {fileID: 0}
+  lockedSound: {fileID: 0}
+--- !u!4 &2293627188777967936 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 2774220344278030320, guid: be4946f5ea5000e4082ce7ec70660ff2, type: 3}
+  m_PrefabInstance: {fileID: 4131097675608323760}
+  m_PrefabAsset: {fileID: 0}

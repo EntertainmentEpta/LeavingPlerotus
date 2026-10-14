@@ -323,6 +323,7 @@ public class PrimaryAttackKnife : MonoBehaviour
 
     private bool IsAnyUIOpen()
     {
+        if (DialogManager.BlocksGameplayInput || GamePause.IsPaused) return true;
         if (CheatConsole.IsOpen) return true;
         if (InventoryUI.Instance != null && InventoryUI.Instance.IsOpen()) return true;
         if (SyntheticBagUI.Instance != null && SyntheticBagUI.Instance.IsOpen()) return true;
@@ -907,10 +908,12 @@ public class PrimaryAttackKnife : MonoBehaviour
     private bool IsAxeEquipped()
     {
         Player_WeaponManager wm = GetComponent<Player_WeaponManager>() ?? GetComponentInParent<Player_WeaponManager>();
-        if (wm != null && wm.currentWeapon != null && wm.isWeaponDrawn)
+        if (wm != null && wm.currentWeapon != null)
         {
             WeaponOffset offset = wm.currentWeapon.GetComponent<WeaponOffset>();
-            return (offset != null && offset.weaponType == WeaponType.Axe);
+            if (offset != null && offset.weaponType == WeaponType.Axe) return true;
+            string wName = wm.currentWeapon.name.ToLower();
+            return wName.Contains("axe") || wName.Contains("machado");
         }
         return false;
     }
@@ -923,10 +926,8 @@ public class PrimaryAttackKnife : MonoBehaviour
             audioObj.transform.SetParent(transform);
             audioObj.transform.localPosition = Vector3.up;
             axeSwingAudioSource = audioObj.AddComponent<AudioSource>();
-            axeSwingAudioSource.spatialBlend = 1f;
-            axeSwingAudioSource.minDistance = 3f;
-            axeSwingAudioSource.maxDistance = 30f;
-            axeSwingAudioSource.rolloffMode = AudioRolloffMode.Linear;
+            axeSwingAudioSource.spatialBlend = 0f; // 2D para que os swings do jogador sejam ouvidos com máxima clareza
+            axeSwingAudioSource.playOnAwake = false;
         }
     }
 

@@ -12,10 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bb12d84630a0668428eacdd58e4325e8, type: 3}
   m_Name: quest_consertar_porta
   m_EditorClassIdentifier: Assembly-CSharp::QuestData
-  questId: 
-  questTitle: 
-  questDescription: 
-  questType: 0
-  targetId: 
+  questId: quest_consertar_porta
+  questTitle: Consertar a Porta da Run
+  questDescription: "Explore a base e use a Bancada de Crafting para fabricar a peca de reparo da porta (Consertar a Porta do Lab). Restaure a energia para liberar a camara da Run."
+  questType: 2
+  targetId: eq_consertar_porta
   requiredAmount: 1
-  nextQuest: {fileID: 0}
+  nextQuest: {fileID: 11400000, guid: e1a00000000000000000000000000002, type: 2}

@@ -829,6 +829,10 @@ public class InfusionUI : MonoBehaviour
                 StartCoroutine(ScreenFlash(new UnityEngine.Color(1.0f, 0.85f, 0f, 0.45f))); 
                 StartCoroutine(ShockwaveRingFX(new UnityEngine.Color(1f, 0.85f, 0f, 0.8f)));
                 ClearSelection(); 
+                if (QuestManager.Instance != null)
+                {
+                    QuestManager.Instance.AdvanceQuest(QuestType.Interact, "infusion_completed", 1);
+                }
             }
             return;
         }
@@ -846,6 +850,10 @@ public class InfusionUI : MonoBehaviour
             StartCoroutine(ScreenFlash(new UnityEngine.Color(1.0f, 0.85f, 0f, 0.45f))); 
             StartCoroutine(ShockwaveRingFX(new UnityEngine.Color(1f, 0.85f, 0f, 0.8f)));
             ClearSelection(); 
+            if (QuestManager.Instance != null)
+            {
+                QuestManager.Instance.AdvanceQuest(QuestType.Interact, "infusion_completed", 1);
+            }
         }
     }
     private void OnBtnReciclarClicked()

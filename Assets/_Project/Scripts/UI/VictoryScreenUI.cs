@@ -105,6 +105,7 @@ public class VictoryScreenUI : MonoBehaviour
     // Chamado pelo botão "Voltar à Base"
     public void OnReturnBaseClicked()
     {
+        PlayerHealth.shouldPlayWakeUpAnimation = true;
         Time.timeScale = 1f;
         if (RunStatsManager.Instance != null)
         {

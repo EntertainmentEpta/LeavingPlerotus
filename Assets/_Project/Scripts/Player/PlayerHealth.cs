@@ -85,7 +85,7 @@ public class PlayerHealth : MonoBehaviour
     private AudioSource heartbeatSource;
     private bool isHeartbeatPlaying = false;
 
-    public static bool shouldPlayWakeUpAnimation = false;
+    public static bool shouldPlayWakeUpAnimation = true;
 
     void Start()
     {
@@ -359,6 +359,8 @@ public class PlayerHealth : MonoBehaviour
             RunStatsManager.Instance.deathStage = stageStr;
             RunStatsManager.Instance.StopRunTracking();
         }
+
+        shouldPlayWakeUpAnimation = true;
 
         if (DeathScreenUI.Instance != null)
         {

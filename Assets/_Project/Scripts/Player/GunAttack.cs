@@ -72,7 +72,7 @@ public class GunAttack : MonoBehaviour
         UpdateBattery();
         SetAnimatorBool("IsReloading", IsRecharging);
 
-        bool firingInput = projectilePrefab != null && Input.GetMouseButton(0);
+        bool firingInput = projectilePrefab != null && Input.GetMouseButton(0) && !DialogManager.BlocksGameplayInput && !GamePause.IsPaused;
         bool dashing = dashController != null && dashController.isDashing;
         if (playerMovement != null) playerMovement.SetPlasmaFiring(firingInput && !dashing);
 

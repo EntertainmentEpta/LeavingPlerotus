@@ -11,11 +11,28 @@ using UnityEngine.Rendering.Universal;
 /// </summary>
 public class PlayerWakeUpEffect : MonoBehaviour
 {
+    public static bool IsRunning { get; private set; }
+    public static float CurrentEyeOpenProgress { get; private set; }
+    public static event Action OnWakeUpCompleted;
+
+    /// <summary>
+    /// Verdadeiro se a animação estiver rodando ou se ela estiver prestes a ser iniciada no carregamento da Base.
+    /// </summary>
+    public static bool IsWakingUp =>
+        IsRunning || (PlayerHealth.shouldPlayWakeUpAnimation && UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Base");
+
     public static void TriggerWakeUp(MonoBehaviour runner, Action onComplete, AudioClip optionalAudio = null)
     {
+        IsRunning = true;
+        CurrentEyeOpenProgress = 0f;
         GameObject effectObj = new GameObject("WakeUpEffect_Controller");
         PlayerWakeUpEffect effect = effectObj.AddComponent<PlayerWakeUpEffect>();
         effect.StartCoroutine(effect.AnimateWakeUp(onComplete, optionalAudio));
+    }
+
+    private void OnDestroy()
+    {
+        IsRunning = false;
     }
 
     private IEnumerator AnimateWakeUp(Action onComplete, AudioClip optionalAudio)
@@ -119,20 +136,21 @@ public class PlayerWakeUpEffect : MonoBehaviour
         void SetEyeOpenAmount(float amount)
         {
             amount = Mathf.Clamp01(amount);
+            CurrentEyeOpenProgress = amount;
             topRect.anchorMin = new Vector2(0f, Mathf.Lerp(0.5f, 1f, amount));
             bottomRect.anchorMax = new Vector2(1f, Mathf.Lerp(0.5f, 0f, amount));
         }
 
         // Início: Olhos 100% fechados (tela preta)
         SetEyeOpenAmount(0f);
-        yield return new WaitForSeconds(0.4f);
+        yield return new WaitForSecondsRealtime(0.4f);
 
         // --- FASE 1: Primeiro piscar (abre ~35% com visão borrada e fecha rápido) ---
         float elapsed = 0f;
         float dur = 0.45f;
         while (elapsed < dur)
         {
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             float t = Mathf.SmoothStep(0f, 0.35f, elapsed / dur);
             SetEyeOpenAmount(t);
             yield return null;
@@ -143,20 +161,20 @@ public class PlayerWakeUpEffect : MonoBehaviour
         dur = 0.25f;
         while (elapsed < dur)
         {
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             float t = Mathf.SmoothStep(0.35f, 0.05f, elapsed / dur);
             SetEyeOpenAmount(t);
             yield return null;
         }
 
-        yield return new WaitForSeconds(0.15f);
+        yield return new WaitForSecondsRealtime(0.15f);
 
         // --- FASE 2: Abertura definitiva + o foco clareia e o blur desaparece ---
         elapsed = 0f;
         dur = 1.2f;
         while (elapsed < dur)
         {
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             float progress = Mathf.Clamp01(elapsed / dur);
             float eyeOpen = Mathf.SmoothStep(0.05f, 1f, progress);
             SetEyeOpenAmount(eyeOpen);
@@ -172,15 +190,20 @@ public class PlayerWakeUpEffect : MonoBehaviour
         SetEyeOpenAmount(1f);
         if (blurVolume != null) blurVolume.weight = 0f;
 
+        IsRunning = false;
+        OnWakeUpCompleted?.Invoke();
+
         // Libera os controles do jogador com a visão 100% nítida!
         onComplete?.Invoke();
+
+        canvasGroup.blocksRaycasts = false;
 
         // Fade out final do Canvas
         elapsed = 0f;
         dur = 0.3f;
         while (elapsed < dur)
         {
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             canvasGroup.alpha = 1f - (elapsed / dur);
             yield return null;
         }

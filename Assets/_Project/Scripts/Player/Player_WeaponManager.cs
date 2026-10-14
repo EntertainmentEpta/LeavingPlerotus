@@ -222,21 +222,87 @@ public class Player_WeaponManager : MonoBehaviour
         }
     }
 
-    public void EquipDagger(GameObject weapon)
+    public void EquipDagger(GameObject weapon) => EquipWeapon(weapon);
+
+    public GameObject EquipWeaponPrefab(GameObject weaponPrefab)
     {
-        Debug.Log($"[Player_WeaponManager] EquipDagger chamado para o objeto: {weapon.name}");
+        if (weaponPrefab == null) return null;
+        if (currentWeapon != null)
+        {
+            Destroy(currentWeapon);
+            currentWeapon = null;
+        }
+
+        GameObject spawned = Instantiate(weaponPrefab);
+        spawned.name = weaponPrefab.name;
+        EquipWeapon(spawned);
+        return spawned;
+    }
+
+    public void EquipWeapon(GameObject weapon)
+    {
+        if (weapon == null) return;
+        Debug.Log($"[Player_WeaponManager] EquipWeapon chamado para o objeto: {weapon.name}");
+
+        // Se já havia uma arma diferente equipada, desacopla e destrói para evitar acúmulo na mão
+        if (currentWeapon != null && currentWeapon != weapon)
+        {
+            currentWeapon.SetActive(false);
+            currentWeapon.transform.SetParent(null);
+            Destroy(currentWeapon);
+            currentWeapon = null;
+        }
+
         currentWeapon = weapon;
         isWeaponDrawn = true;
         weapon.SetActive(true); // Garante que a arma fique ativa no momento do equip
         WeaponOffset offsetData = weapon.GetComponent<WeaponOffset>();
+        string lowerName = weapon.name.ToLower();
         
         if (offsetData == null)
         {
-            Debug.LogWarning($"[Player_WeaponManager] WeaponOffset ausente em '{weapon.name}'! Criando um componente temporário com valores padrão para possibilitar o equip.");
+            Debug.LogWarning($"[Player_WeaponManager] WeaponOffset ausente em '{weapon.name}'! Criando dinamicamente...");
             offsetData = weapon.AddComponent<WeaponOffset>();
-            offsetData.weaponType = WeaponType.Dagger;
+
+            if (lowerName.Contains("axe") || lowerName.Contains("machado"))
+            {
+                offsetData.weaponType = WeaponType.Axe;
+                offsetData.weaponAnimatorOverride = Resources.Load<RuntimeAnimatorController>("AxeAnimation")
+                    ?? Resources.Load<RuntimeAnimatorController>("Animations/Weapons/AxeAnimation");
+            }
+            else if (lowerName.Contains("gun") || lowerName.Contains("pistol") || lowerName.Contains("fake"))
+            {
+                offsetData.weaponType = WeaponType.Gun;
+                offsetData.weaponAnimatorOverride = Resources.Load<RuntimeAnimatorController>("GunAnimation")
+                    ?? Resources.Load<RuntimeAnimatorController>("Animations/Weapons/GunAnimation");
+            }
+            else
+            {
+                offsetData.weaponType = WeaponType.Dagger;
+                offsetData.weaponAnimatorOverride = Resources.Load<RuntimeAnimatorController>("DaggerAnimation")
+                    ?? Resources.Load<RuntimeAnimatorController>("Animations/Weapons/DaggerAnimation");
+            }
+
             offsetData.equipPosition = Vector3.zero;
             offsetData.equipRotation = Vector3.zero;
+        }
+        else if (offsetData.weaponAnimatorOverride == null)
+        {
+            if (offsetData.weaponType == WeaponType.Axe || lowerName.Contains("axe") || lowerName.Contains("machado"))
+            {
+                offsetData.weaponAnimatorOverride = Resources.Load<RuntimeAnimatorController>("AxeAnimation")
+                    ?? Resources.Load<RuntimeAnimatorController>("Animations/Weapons/AxeAnimation");
+            }
+            else if (offsetData.weaponType == WeaponType.Gun || lowerName.Contains("gun") || lowerName.Contains("pistol"))
+            {
+                offsetData.weaponAnimatorOverride = Resources.Load<RuntimeAnimatorController>("GunAnimation")
+                    ?? Resources.Load<RuntimeAnimatorController>("Animations/Weapons/GunAnimation");
+            }
+            else if (offsetData.weaponType == WeaponType.Dagger)
+            {
+                offsetData.weaponAnimatorOverride = Resources.Load<RuntimeAnimatorController>("DaggerAnimation")
+                    ?? Resources.Load<RuntimeAnimatorController>("Animations/Weapons/DaggerAnimation");
+            }
         }
 
         if (rightHand == null)
@@ -308,12 +374,50 @@ public class Player_WeaponManager : MonoBehaviour
         Dagger_Pickup daggerPickup = weapon.GetComponent<Dagger_Pickup>();
         if (daggerPickup != null) daggerPickup.enabled = false;
 
-        if (attackScript != null && weaponCollider != null)
+        if (attackScript != null)
         {
-            if (offsetData.weaponType == WeaponType.Dagger)
+            if (offsetData.weaponType == WeaponType.Dagger && weaponCollider != null)
+            {
                 attackScript.EquipDaggerWeapon(weaponCollider);
-            else if (offsetData.weaponType == WeaponType.Axe)
+                attackScript.hasWeapon = true;
+            }
+            else if (offsetData.weaponType == WeaponType.Axe && weaponCollider != null)
+            {
                 attackScript.EquipAxeWeapon(weaponCollider);
+                attackScript.hasWeapon = true;
+            }
+            else if (offsetData.weaponType == WeaponType.Gun)
+            {
+                attackScript.hasWeapon = false; // Ataque balístico gerenciado pelo GunAttack
+            }
         }
+    }
+
+    /// <summary>
+    /// Desequipa a arma atualmente empunhada, destruindo-a da mão e restaurando o estado desarmado do player.
+    /// </summary>
+    public void UnequipCurrentWeapon()
+    {
+        if (currentWeapon != null)
+        {
+            Destroy(currentWeapon);
+            currentWeapon = null;
+        }
+
+        isWeaponDrawn = false;
+
+        if (attackScript != null)
+        {
+            attackScript.hasWeapon = false;
+        }
+
+        if (playerAnimator != null && defaultAnimatorController != null)
+        {
+            playerAnimator.runtimeAnimatorController = defaultAnimatorController;
+            playerAnimator.Rebind();
+            playerAnimator.Update(0f);
+        }
+
+        Debug.Log("[Player_WeaponManager] Arma desequipada com sucesso. O jogador está com as mãos livres.");
     }
 }

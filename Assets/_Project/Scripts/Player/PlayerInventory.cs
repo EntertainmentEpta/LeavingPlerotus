@@ -107,6 +107,12 @@ public class PlayerInventory : MonoBehaviour
         Debug.Log("[INVENTORY] +" + amount + " " + itemId + " | Total: " + items[itemId] + " | Slots: " + items.Count + "/" + maxSlots);
         onItemAdded?.Invoke(itemId, items[itemId]);
         onInventoryChanged?.Invoke();
+
+        if (QuestManager.Instance != null)
+        {
+            QuestManager.Instance.AdvanceQuest(QuestType.CollectItem, itemId, amount);
+        }
+
         return true;
     }
 

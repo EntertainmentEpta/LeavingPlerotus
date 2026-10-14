@@ -56,7 +56,13 @@ public class LabDoorManager : MonoBehaviour
             if (recipe.resultEquipment.equipmentId == "eq_consertar_porta")
             {
                 UpdateDoorState();
+                if (QuestManager.Instance != null)
+                {
+                    QuestManager.Instance.AdvanceQuest(QuestType.CraftItem, "eq_consertar_porta", 1);
+                    QuestManager.Instance.AdvanceQuest(QuestType.Interact, "porta_run", 1);
+                }
                 Debug.Log("[LabDoor] A Porta foi consertada COM SUCESSO via Evento de Craft!");
+                EptinhoStoryDialogs.TriggerPortaConsertada();
             }
         }
     }

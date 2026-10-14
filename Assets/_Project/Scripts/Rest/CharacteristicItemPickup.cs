@@ -234,6 +234,9 @@ public class CharacteristicItemPickup : MonoBehaviour
             SynergyCatalogManager.Instance.DiscoverNode(itemId);
         }
 
+        // Diálogo explicativo da mecânica de Sinergia e fusão de monstros
+        EptinhoStoryDialogs.TriggerFirstMonsterLoot();
+
         // VFX/SFX de coleta aqui se quiser
 
         Destroy(gameObject);

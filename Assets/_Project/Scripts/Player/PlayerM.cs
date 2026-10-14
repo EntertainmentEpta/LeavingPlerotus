@@ -97,6 +97,16 @@ public class PlayerM : MonoBehaviour
 
     private void Update()
     {
+        if (DialogManager.BlocksGameplayInput || GamePause.IsPaused)
+        {
+            if (footstepSource != null && footstepSource.isPlaying)
+            {
+                footstepSource.Stop();
+                isFootstepPlaying = false;
+            }
+            return;
+        }
+
         // Pressione K para imprimir diagnósticos de movimentação no console do Unity
         if (Input.GetKeyDown(KeyCode.K))
         {

@@ -158,6 +158,7 @@ public class GameManager : MonoBehaviour
 
     public void ReturnToBase()
     {
+        PlayerHealth.shouldPlayWakeUpAnimation = true;
         FindLoadingReferences();
         if (loadingScreenCanvas != null) loadingScreenCanvas.SetActive(true);
         SceneManager.LoadScene("Base");

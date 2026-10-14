@@ -98,6 +98,12 @@ public class MerchantUIController : MonoBehaviour
         HasMadePactInRun = true;
         hasMadePact = true;
 
+        if (QuestManager.Instance != null)
+        {
+            QuestManager.Instance.AdvanceQuest(QuestType.Interact, "merchant_pact", 1);
+            QuestManager.Instance.AdvanceQuest(QuestType.Interact, "merchant_interact", 1);
+        }
+
         if (playerHealth != null)
         {
             playerHealth.SetPactCorrupted(true);
@@ -563,6 +569,11 @@ public class MerchantUIController : MonoBehaviour
         merchantTransform = merchantPos;
 
         gameObject.SetActive(true);
+
+        if (QuestManager.Instance != null)
+        {
+            QuestManager.Instance.AdvanceQuest(QuestType.Interact, "merchant_interact", 1);
+        }
 
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;

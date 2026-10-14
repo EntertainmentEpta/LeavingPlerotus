@@ -631,7 +631,10 @@ public class ItemPickup : MonoBehaviour
         {
             // Recurso permanente — vai direto para a Bolsa Sintética
             if (SaveManager.instance != null)
+            {
                 SaveManager.instance.AddResourceToBase(interactable.itemData.itemId, 1);
+                EptinhoStoryDialogs.TriggerFirstResourceMined();
+            }
             else
             {
                 Debug.LogWarning("[ITEM] SaveManager não encontrado! Recurso perdido: " + interactable.NomeDisplay);

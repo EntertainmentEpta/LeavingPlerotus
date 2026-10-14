@@ -22,6 +22,11 @@ public class CraftingTableInteraction : MonoBehaviour
     public AudioClip roboSound;
     public Transform robotModelTransform;
 
+    [Header("Depuração e Objetivos")]
+    [Tooltip("Marque para forçar a exibição da exclamação no Robozinho para testes rápidos.")]
+    public bool testForceExclamation = false;
+
+    private ObjectiveMarker roboMarker;
     private bool playerPerto = false;
     private CanvasGroup promptCanvasGroup;
 
@@ -37,11 +42,58 @@ public class CraftingTableInteraction : MonoBehaviour
             
             promptCanvasGroup.alpha = 0f;
             promptUI.SetActive(false);
+
+            // Remove bordas ciano e ajusta fundo para cinza sutil transparente
+            foreach (var img in promptUI.GetComponentsInChildren<UnityEngine.UI.Image>(true))
+            {
+                if (img.gameObject.name.ToLower().Contains("border"))
+                {
+                    img.gameObject.SetActive(false);
+                }
+                else if (img.gameObject.name.ToLower().Contains("bg") || img.gameObject.name.ToLower().Contains("background"))
+                {
+                    img.color = new Color(0.06f, 0.06f, 0.07f, 0.35f);
+                }
+            }
+        }
+
+        if (promptTextMesh != null)
+        {
+            promptTextMesh.outlineWidth = 0.22f;
+            promptTextMesh.outlineColor = new Color32(0, 0, 0, 220);
         }
 
         if (robotModelTransform == null) robotModelTransform = transform;
         
         UpdatePromptText();
+
+        // Configura marcador de objetivo automático no Robozinho
+        roboMarker = GetComponent<ObjectiveMarker>();
+        if (roboMarker == null) roboMarker = gameObject.AddComponent<ObjectiveMarker>();
+
+        roboMarker.condition = ObjectiveMarker.TriggerCondition.Custom;
+        roboMarker.heightOffset = 1.8f;
+        roboMarker.markerSize = new Vector2(48f, 48f);
+        roboMarker.customVisibilityCondition = () =>
+        {
+            if (testForceExclamation) return true;
+
+            // 1. Passo do Tutorial: Falar com Robozinho
+            if (TutorialManager.Instance != null && TutorialManager.Instance.currentStep == TutorialStep.FalarComRobozinho)
+                return true;
+
+            // 2. Quest da Porta: se a missão ativa for consertar a porta e ela ainda não foi consertada
+            if (QuestManager.Instance != null && QuestManager.Instance.currentQuest != null)
+            {
+                if (QuestManager.Instance.currentQuest.questId == "quest_consertar_porta")
+                {
+                    bool portaJaConsertada = SaveManager.instance != null && SaveManager.instance.GetAllCraftedEquipmentIds().Contains("eq_consertar_porta");
+                    if (!portaJaConsertada) return true;
+                }
+            }
+
+            return false;
+        };
     }
 
     /// <summary>
@@ -69,7 +121,7 @@ public class CraftingTableInteraction : MonoBehaviour
         if (promptTextMesh != null)
         {
             KeyCode currentKey = GetCurrentInteractKey();
-            promptTextMesh.text = $"[ {currentKey.ToString()} ] {actionText}";
+            promptTextMesh.text = $"[ <color=#FFE500>{currentKey}</color> ]  <color=#FFE500><b>{actionText}</b></color>";
         }
     }
 
@@ -109,7 +161,7 @@ public class CraftingTableInteraction : MonoBehaviour
                 promptUI.SetActive(true);
             }
 
-            promptCanvasGroup.alpha = Mathf.MoveTowards(promptCanvasGroup.alpha, targetAlpha, Time.deltaTime * fadeSpeed);
+            promptCanvasGroup.alpha = Mathf.MoveTowards(promptCanvasGroup.alpha, targetAlpha, Time.unscaledDeltaTime * fadeSpeed);
 
             if (!shouldShowPrompt && promptCanvasGroup.alpha <= 0.01f && promptUI.activeSelf)
             {
@@ -123,6 +175,7 @@ public class CraftingTableInteraction : MonoBehaviour
         }
 
         if (!playerPerto) return;
+        if (DialogManager.BlocksGameplayInput) return;
 
         // === 2. LÓGICA DE INTERAÇÃO (USANDO A TECLA DINÂMICA) ===
         KeyCode interactKey = GetCurrentInteractKey();
@@ -146,6 +199,7 @@ public class CraftingTableInteraction : MonoBehaviour
                 else
                 {
                     CraftingUI.Instance.OpenCrafting();
+                    TutorialManager.Instance?.CompleteStep(TutorialStep.FalarComRobozinho);
                     
                     if (RobotPreviewManager.Instance != null) 
                     {

@@ -78,6 +78,7 @@ public class DashM : MonoBehaviour
 
     private void Update()
     {
+        if (DialogManager.BlocksGameplayInput || GamePause.IsPaused) return;
         if (CheatConsole.IsOpen) return;
 
         // Trava de segurança: Proíbe Dash durante o Ultimate para evitar exploits de voo/cancelamento indevido

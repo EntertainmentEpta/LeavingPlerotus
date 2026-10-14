@@ -21,8 +21,7 @@ public class PauseMenuController : MonoBehaviour
     void Start()
     {
         if (pausePanel != null) pausePanel.SetActive(false);
-        if (optionsPanel != null) optionsPanel.SetActive(false);
-        Time.timeScale = 1f; 
+        if (optionsPanel != null) optionsPanel.SetActive(false); 
 
         // === CORREÇÃO VISUAL DOS SLIDERS ===
         if (sliderBGM != null) sliderBGM.value = PlayerPrefs.GetFloat("SavedBGM", 0.75f);
@@ -129,8 +128,8 @@ public class PauseMenuController : MonoBehaviour
 
     public void PauseGame()
     {
-        pausePanel.SetActive(true);
-        Time.timeScale = 0f; 
+        if (pausePanel != null) pausePanel.SetActive(true);
+        GamePause.Acquire(this);
         isPaused = true;
         
         Cursor.visible = true;
@@ -139,10 +138,10 @@ public class PauseMenuController : MonoBehaviour
 
     public void ResumeGame()
     {
-        pausePanel.SetActive(false);
+        if (pausePanel != null) pausePanel.SetActive(false);
         if (optionsPanel != null) optionsPanel.SetActive(false);
         
-        Time.timeScale = 1f; 
+        GamePause.Release(this);
         isPaused = false;
     }
 
@@ -160,9 +159,11 @@ public class PauseMenuController : MonoBehaviour
 
     public void ReturnToMainMenu()
     {
-        Time.timeScale = 1f; 
+        GamePause.ResetAll();
         SceneManager.LoadScene(mainMenuSceneName);
     }
+
+    private void OnDestroy() => GamePause.Release(this);
 
     // ==========================================
     // CONTROLES DE ÁUDIO (COM HARD MUTE)

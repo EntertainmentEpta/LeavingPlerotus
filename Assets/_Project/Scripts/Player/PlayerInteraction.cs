@@ -37,6 +37,8 @@ public class PlayerInteraction : MonoBehaviour
 
     void Update()
     {
+        if (DialogManager.BlocksGameplayInput || GamePause.IsPaused) return;
+
         if (itemAtual != null && Input.GetKeyDown(interactKey))
         {
             if (itemAtual.gameObject.name.Contains("Eptinho") || itemAtual.gameObject.name.Contains("Eptin"))

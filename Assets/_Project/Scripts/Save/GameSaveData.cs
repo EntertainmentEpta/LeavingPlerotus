@@ -38,5 +38,12 @@ public class PersistentSaveData
     public string activeQuestId = "";
     public int activeQuestProgress = 0;
     public List<string> completedQuestIds = new List<string>();
+
+    // --- Meta Suprema do Jogo (Núcleos da Nave) ---
+    public int shipPartsRecovered = 0;
+
+    // --- Onboarding & Tutoriais ---
+    public int tutorialStep = 0;
+    public List<string> seenDialogIds = new List<string>();
 }
 

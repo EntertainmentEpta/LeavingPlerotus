@@ -283,8 +283,19 @@ public class Merchant : MonoBehaviour
             // 3. Exibe escrituras vermelhas na tela
             StartOccultEffects();
 
-            // 4. Dispara popup do Eptinho com o retrato tenso de forma protegida
-            if (!eptinhoWarnedThisApproach && EptinhoPopupController.instancia != null)
+            // 4. Dispara diálogo explicativo na 1ª vez ou popup tenso nas seguintes
+            if (!EptinhoStoryDialogs.HasSeenDialog(EptinhoStoryDialogs.ID_MERCHANT_ENCOUNTER))
+            {
+                eptinhoWarnedThisApproach = true;
+                EptinhoStoryDialogs.TriggerMerchantEncounter(() =>
+                {
+                    if (QuestManager.Instance != null)
+                    {
+                        QuestManager.Instance.AdvanceQuest(QuestType.Interact, "merchant_interact", 1);
+                    }
+                });
+            }
+            else if (!eptinhoWarnedThisApproach && EptinhoPopupController.instancia != null)
             {
                 eptinhoWarnedThisApproach = true;
                 EptinhoPopupController.instancia.MostrarPopupMercador(eptinhoWarningMessage);

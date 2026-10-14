@@ -28,6 +28,12 @@ public class StartRunDoor : MonoBehaviour
                 }
             }
 
+            if (!EptinhoStoryDialogs.HasSeenDialog(EptinhoStoryDialogs.ID_PORTA_CONSERTADA))
+            {
+                EptinhoStoryDialogs.TriggerPortaConsertada();
+                return; // Aguarda o jogador ler a orientação do Eptinho
+            }
+
             isLoading = true;
             Debug.Log("Jogador tocou a porta! Iniciando transição da run com fade...");
 

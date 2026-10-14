@@ -149,16 +149,23 @@ public class CrystalTuner : MonoBehaviour
             if (p != null) playerTransform = p.transform;
         }
 
-        // Registro no bestiário por proximidade
-        if (!registradoNoBestiario && playerTransform != null)
+        // Registro no bestiário por proximidade e diálogo do Eptinho
+        if (playerTransform != null)
         {
-            if (Vector3.Distance(transform.position, playerTransform.position) < fleeDistFromPlayer * 2f)
+            float distToPlayer = Vector3.Distance(transform.position, playerTransform.position);
+            if (distToPlayer < fleeDistFromPlayer * 2f)
             {
-                registradoNoBestiario = true;
-                EnemyIdentity id = GetComponent<EnemyIdentity>() ?? GetComponentInChildren<EnemyIdentity>() ?? GetComponentInParent<EnemyIdentity>();
-                Debug.Log("[CRYSTAL] EnemyIdentity: " + (id != null ? id.nomeInimigo : "NULL") + " | BestiarioManager: " + (BestiarioManager.instancia != null));
-                if (id != null && BestiarioManager.instancia != null)
-                    BestiarioManager.instancia.Registrar(id);
+                if (!registradoNoBestiario)
+                {
+                    registradoNoBestiario = true;
+                    EnemyIdentity id = GetComponent<EnemyIdentity>() ?? GetComponentInChildren<EnemyIdentity>() ?? GetComponentInParent<EnemyIdentity>();
+                    Debug.Log("[CRYSTAL] EnemyIdentity: " + (id != null ? id.nomeInimigo : "NULL") + " | BestiarioManager: " + (BestiarioManager.instancia != null));
+                    if (id != null && BestiarioManager.instancia != null)
+                        BestiarioManager.instancia.Registrar(id);
+                }
+
+                // Dispara o diálogo explicativo do Eptinho sobre o Sintonizador
+                EptinhoStoryDialogs.TriggerSintonizadorEncounter();
             }
         }
     }

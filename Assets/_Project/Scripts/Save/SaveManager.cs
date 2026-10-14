@@ -85,6 +85,9 @@ public class SaveManager : MonoBehaviour
                 if (_cachedData.craftedEquipmentIds == null) _cachedData.craftedEquipmentIds = new List<string>();
                 if (_cachedData.equippedEquipmentIds == null) _cachedData.equippedEquipmentIds = new List<string>();
                 if (_cachedData.inimigosDescobertos == null) _cachedData.inimigosDescobertos = new List<string>();
+                if (_cachedData.completedQuestIds == null) _cachedData.completedQuestIds = new List<string>();
+                if (_cachedData.seenDialogIds == null) _cachedData.seenDialogIds = new List<string>();
+                if (_cachedData.activeQuestId == null) _cachedData.activeQuestId = "";
             }
             return _cachedData;
         }
@@ -184,22 +187,21 @@ public class SaveManager : MonoBehaviour
     /// </summary>
     public void LoadPersistentData(GameObject player)
     {
-        if (!File.Exists(SaveFilePath))
+        PersistentSaveData data;
+        if (_cachedData != null)
         {
-            Debug.Log("[SAVE] Arquivo de save não encontrado. Jogador inicia do zero.");
-            return;
+            // O cache já foi carregado e pode conter alterações feitas em memória antes do registro do player
+            data = _cachedData;
         }
-
-        string json = File.ReadAllText(SaveFilePath);
-        PersistentSaveData data = JsonUtility.FromJson<PersistentSaveData>(json);
-        if (data == null)
+        else
         {
-            Debug.LogWarning("[SAVE] Falha ao desserializar o save. Arquivo pode estar corrompido.");
-            return;
+            if (!File.Exists(SaveFilePath))
+            {
+                Debug.Log("[SAVE] Arquivo de save não encontrado. Jogador inicia do zero.");
+                return;
+            }
+            data = CachedData;
         }
-
-        // Carrega dados no cache para acesso direto pelo CraftingManager/EquipmentManager
-        _cachedData = data;
 
         PlayerInventory inventory = player.GetComponent<PlayerInventory>();
         if (inventory != null)
@@ -404,6 +406,27 @@ public class SaveManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Retorna quantos Núcleos Vitais da Nave foram recuperados pelo jogador (0 a 4).
+    /// </summary>
+    public int GetShipPartsRecovered()
+    {
+        return CachedData != null ? CachedData.shipPartsRecovered : 0;
+    }
+
+    /// <summary>
+    /// Adiciona 1 Núcleo Vital recuperado da nave e salva o progresso permanentemente.
+    /// </summary>
+    public void AddShipPart()
+    {
+        if (CachedData != null)
+        {
+            CachedData.shipPartsRecovered = Mathf.Clamp(CachedData.shipPartsRecovered + 1, 0, 4);
+            SavePersistentData();
+            Debug.Log($"[SAVE] Núcleo da Nave recuperado! Total: {CachedData.shipPartsRecovered}/4");
+        }
+    }
+
+    /// <summary>
     /// Reseta toda a progressão em disco e memória (deleta o arquivo JSON e re-inicializa cache).
     /// </summary>
     public static void ResetProfile()
@@ -485,6 +508,12 @@ public class SaveManager : MonoBehaviour
         OnBaseResourcesChanged?.Invoke();
         OnEquipmentChanged?.Invoke();
 
+        if (QuestManager.Instance != null)
+        {
+            QuestManager.Instance.Reinitialize();
+        }
+
+        PlayerHealth.shouldPlayWakeUpAnimation = true;
         Debug.Log("[SAVE] Progresso limpo da memória.");
     }
 
@@ -498,6 +527,8 @@ public class SaveManager : MonoBehaviour
         {
             Debug.Log("[DEBUG] Shift+R pressionado! Resetando progresso e recarregando cena...");
             ResetProfile();
+            PlayerHealth.shouldPlayWakeUpAnimation = true;
+            GamePause.ResetAll();
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         }
     }

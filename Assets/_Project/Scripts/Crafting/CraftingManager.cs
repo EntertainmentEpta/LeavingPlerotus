@@ -78,6 +78,24 @@ public class CraftingManager : MonoBehaviour
             allRecipes.Add(barrierRecipe);
         }
 
+        // Garante que a receita do Machado de Cristal esteja disponível no Crafting
+        if (!allRecipes.Exists(r => r != null && (r.recipeId == "recipe_crystal_axe" || r.recipeId == "recipe_machado_cristal")))
+        {
+            CraftingRecipe axeRecipe = ScriptableObject.CreateInstance<CraftingRecipe>();
+            axeRecipe.recipeId     = "recipe_crystal_axe";
+            axeRecipe.recipeName   = "Machado de Cristal";
+            axeRecipe.description  = "Armamento pesado de corte cristalino. Causa alto impacto, golpes em área e estilhaços.";
+            axeRecipe.ingredients  = new List<CraftingIngredient>
+            {
+                new CraftingIngredient { itemId = "shard_splinter_t1", quantity = 3 },
+                new CraftingIngredient { itemId = "cristal_explosivo", quantity = 2 }
+            };
+            axeRecipe.resultType   = CraftingResultType.Equipment;
+            axeRecipe.resultEquipment = EquipmentManager.Instance != null ? EquipmentManager.Instance.GetEquipmentData("eq_crystal_axe") : null;
+
+            allRecipes.Add(axeRecipe);
+        }
+
         Debug.Log($"[CRAFTING] CraftingManager inicializado com {allRecipes.Count} receitas.");
     }
 
@@ -191,7 +209,8 @@ public class CraftingManager : MonoBehaviour
                 EquipmentData equipData = recipe.resultEquipment;
                 if (equipData == null && EquipmentManager.Instance != null)
                 {
-                    string targetEquipId = recipe.recipeId.StartsWith("recipe_") ? recipe.recipeId.Replace("recipe_", "equip_") : recipe.recipeId;
+                    string targetEquipId = recipe.recipeId == "recipe_crystal_axe" ? "eq_crystal_axe" :
+                        (recipe.recipeId.StartsWith("recipe_") ? recipe.recipeId.Replace("recipe_", "equip_") : recipe.recipeId);
                     equipData = EquipmentManager.Instance.GetEquipmentData(targetEquipId);
                     recipe.resultEquipment = equipData;
                 }
@@ -204,8 +223,9 @@ public class CraftingManager : MonoBehaviour
                 }
                 else
                 {
-                    Debug.LogWarning($"[CRAFTING] AVISO: resultEquipment era nulo para a receita '{recipe.recipeName}'. Usando ID genérico.");
-                    SaveManager.instance.AddCraftedEquipment(recipe.recipeId.Replace("recipe_", "equip_"));
+                    string fallbackId = recipe.recipeId == "recipe_crystal_axe" ? "eq_crystal_axe" : recipe.recipeId.Replace("recipe_", "equip_");
+                    Debug.LogWarning($"[CRAFTING] AVISO: resultEquipment era nulo para a receita '{recipe.recipeName}'. Usando ID '{fallbackId}'.");
+                    SaveManager.instance.AddCraftedEquipment(fallbackId);
                 }
                 break;
         }

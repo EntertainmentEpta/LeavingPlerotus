@@ -134,19 +134,28 @@ public class EptinhoController : MonoBehaviour
 
             Debug.Log("[EPTINHO] 'Trigger Menu' nao encontrado - EptinhoOracleInteract adicionado no root com SphereCollider.");
         }
+
+        // 5. Garante que animações do Eptinho continuem ativas mesmo com Time.timeScale = 0 (diálogos e pauses)
+        foreach (Animator anim in eptinho.GetComponentsInChildren<Animator>(true))
+        {
+            anim.updateMode = AnimatorUpdateMode.UnscaledTime;
+        }
     }
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.C))
-        {
-            MenuCanvas.SetActive(!MenuCanvas.activeSelf);
-            HUDCanvas.SetActive(!HUDCanvas.activeSelf);
-        }
+        if (!Input.GetKeyDown(KeyCode.C)) return;
+        if (DialogManager.IsOpen || GamePause.IsPaused) return;
+        if (MenuCanvas == null || HUDCanvas == null) return;
+
+        bool open = !MenuCanvas.activeSelf;
+        MenuCanvas.SetActive(open);
+        HUDCanvas.SetActive(!open);
     }
 
     public void AbrirMenuDoObjeto(Interactable obj)
     {
+        if (obj == null) return;
         objetoAtual = obj;
 
         if (EptinhoMenuController.instancia != null)
