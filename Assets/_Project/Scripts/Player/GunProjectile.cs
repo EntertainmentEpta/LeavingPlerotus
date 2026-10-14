@@ -15,6 +15,12 @@ public class GunProjectile : MonoBehaviour
     private float knockback;
     private float bounceChance;
     private float slowOnHit;
+    private bool homingEnabled;
+    private float homingDetectionRadius;
+    private float homingTurnSpeed;
+    private float homingTargetRefreshInterval;
+    private float nextHomingTargetScanTime;
+    private DummyHealth homingTarget;
     private float elapsedTime;
     private Transform ownerRoot;
     private readonly HashSet<DummyHealth> hitTargets = new HashSet<DummyHealth>();
@@ -22,6 +28,16 @@ public class GunProjectile : MonoBehaviour
     public void Initialize(int projectileDamage, float range, int piercing, Transform owner,
         float critChance, float critMultiplier, float projectileKnockback,
         float projectileBounceChance, int projectileBounceCount, float projectileSlowOnHit)
+    {
+        Initialize(projectileDamage, range, piercing, owner, critChance, critMultiplier,
+            projectileKnockback, projectileBounceChance, projectileBounceCount, projectileSlowOnHit,
+            false, 0f, 0f, 0f);
+    }
+
+    public void Initialize(int projectileDamage, float range, int piercing, Transform owner,
+        float critChance, float critMultiplier, float projectileKnockback,
+        float projectileBounceChance, int projectileBounceCount, float projectileSlowOnHit,
+        bool enableHoming, float detectionRadius, float turnSpeed, float targetRefreshInterval)
     {
         damage = Mathf.Max(1, projectileDamage);
         lifetime = speed > 0f ? Mathf.Max(0.1f, range / speed) : lifetime;
@@ -32,12 +48,18 @@ public class GunProjectile : MonoBehaviour
         bounceChance = Mathf.Clamp01(projectileBounceChance / 100f);
         bouncesRemaining = Mathf.Max(0, projectileBounceCount);
         slowOnHit = Mathf.Clamp01(projectileSlowOnHit);
+        homingEnabled = enableHoming;
+        homingDetectionRadius = Mathf.Max(0f, detectionRadius);
+        homingTurnSpeed = Mathf.Max(0f, turnSpeed);
+        homingTargetRefreshInterval = Mathf.Max(0.02f, targetRefreshInterval);
+        nextHomingTargetScanTime = Time.time;
         ownerRoot = owner != null ? owner.root : null;
         elapsedTime = 0f;
     }
 
     private void Update()
     {
+        UpdateHoming();
         transform.position += transform.forward * speed * Time.deltaTime;
         elapsedTime += Time.deltaTime;
 
@@ -45,6 +67,54 @@ public class GunProjectile : MonoBehaviour
         {
             Destroy(gameObject);
         }
+    }
+
+    private void UpdateHoming()
+    {
+        if (!homingEnabled || homingDetectionRadius <= 0f || homingTurnSpeed <= 0f) return;
+
+        if (Time.time >= nextHomingTargetScanTime)
+        {
+            FindNearestHomingTarget();
+            nextHomingTargetScanTime = Time.time + homingTargetRefreshInterval;
+        }
+
+        if (!IsValidHomingTarget(homingTarget)) return;
+
+        Vector3 directionToTarget = homingTarget.transform.position - transform.position;
+        if (directionToTarget.sqrMagnitude <= 0.0001f) return;
+
+        Vector3 steeredDirection = Vector3.RotateTowards(
+            transform.forward,
+            directionToTarget.normalized,
+            homingTurnSpeed * Mathf.Deg2Rad * Time.deltaTime,
+            0f);
+        if (steeredDirection.sqrMagnitude > 0.0001f)
+            transform.rotation = Quaternion.LookRotation(steeredDirection, Vector3.up);
+    }
+
+    private void FindNearestHomingTarget()
+    {
+        homingTarget = null;
+        float nearestDistanceSquared = homingDetectionRadius * homingDetectionRadius;
+        DummyHealth[] candidates = FindObjectsByType<DummyHealth>(FindObjectsSortMode.None);
+
+        foreach (DummyHealth candidate in candidates)
+        {
+            if (!IsValidHomingTarget(candidate)) continue;
+
+            float distanceSquared = (candidate.transform.position - transform.position).sqrMagnitude;
+            if (distanceSquared >= nearestDistanceSquared) continue;
+
+            nearestDistanceSquared = distanceSquared;
+            homingTarget = candidate;
+        }
+    }
+
+    private bool IsValidHomingTarget(DummyHealth candidate)
+    {
+        if (candidate == null || candidate.CurrentHealth <= 0 || hitTargets.Contains(candidate)) return false;
+        return ownerRoot == null || candidate.transform.root != ownerRoot;
     }
 
     private void OnTriggerEnter(Collider other)

@@ -958,6 +958,30 @@ public class LevelGenerator : MonoBehaviour
             placedRoomBounds.Add((room, b));
     }
 
+    public float GetFarthestRoomDistance(Vector3 origin)
+    {
+        float farthestDistance = 0f;
+        Vector2 originXZ = new Vector2(origin.x, origin.z);
+
+        foreach (var entry in placedRoomBounds)
+        {
+            if (entry.room == null) continue;
+
+            Vector3 minimum = entry.bounds.min;
+            Vector3 maximum = entry.bounds.max;
+            for (int cornerIndex = 0; cornerIndex < 4; cornerIndex++)
+            {
+                float x = (cornerIndex & 1) == 0 ? minimum.x : maximum.x;
+                float z = (cornerIndex & 2) == 0 ? minimum.z : maximum.z;
+                farthestDistance = Mathf.Max(
+                    farthestDistance,
+                    Vector2.Distance(originXZ, new Vector2(x, z)));
+            }
+        }
+
+        return farthestDistance;
+    }
+
     /// <summary>
     /// Retorna true se os bounds da sala se sobrepõem com alguma sala já confirmada.
     /// O overlapTolerance encolhe o bounds antes de testar, permitindo que paredes

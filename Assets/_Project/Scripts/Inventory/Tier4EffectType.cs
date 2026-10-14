@@ -6,9 +6,10 @@
 /// </summary>
 public enum Tier4EffectType
 {
-    None,           // Sem efeito especial (padrão para itens que não são T4)
-    ExplosiveDash,  // SharpItem4: dash mais longo + explosão AoE no final com dano e knockback
-    Poison          // Peixe T4: ataques do player aplicam Poison (DoT) nos inimigos atingidos
+    None = 0,               // Sem efeito especial (padrão para itens que não são T4)
+    ExplosiveDash = 1,      // SharpItem4: dash mais longo + explosão AoE no final com dano e knockback
+    Poison = 2,             // Peixe T4: ataques do player aplicam Poison (DoT) nos inimigos atingidos
+    HomingProjectiles = 3   // Olho do Vigia: projéteis perseguem inimigos próximos
     // Futuros efeitos:
     // VampiricStrike, ChainLightning, FrostNova, etc.
 }
