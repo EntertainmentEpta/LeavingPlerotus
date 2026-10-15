@@ -120,6 +120,11 @@ public class GunAttack : MonoBehaviour
         }
     }
 
+    private void OnEnable()
+    {
+        AimSettings.OnAimModeChanged += HandleAimModeChanged;
+    }
+
     private void Update()
     {
         RefreshOwnerReferences();
@@ -140,17 +145,40 @@ public class GunAttack : MonoBehaviour
         RefreshBatteryHUD();
         SetAnimatorBool("IsReloading", IsRecharging);
 
-        bool firingInput = projectilePrefab != null && Input.GetMouseButton(0) && !DialogManager.BlocksGameplayInput && !GamePause.IsPaused;
+        UpdateAimCursor();
+
+        bool isUiOpen = IsAnyUIOpen();
+        bool attackKeyPressed = false;
+        if (weaponManager != null && weaponManager.attackScript != null)
+        {
+            attackKeyPressed = Input.GetKey(weaponManager.attackScript.attackKey);
+        }
+
+        bool firingInput = projectilePrefab != null && (Input.GetMouseButton(0) || attackKeyPressed) && !isUiOpen;
         bool dashing = dashController != null && dashController.isDashing;
-        UpdateAimCursor(firingInput && !IsRecharging && !dashing);
+
         if (firingInput && !IsRecharging && !isAimSessionActive) BeginAimSession();
 
-        hasCurrentAimPoint = firingInput && !IsRecharging && TryGetAimPoint(out currentAimPoint);
-        if (firingInput && !IsRecharging && !dashing) UpdateCurrentAimDirection();
+        if (AimSettings.IsMouseAim)
+        {
+            hasCurrentAimPoint = TryGetAimPoint(out currentAimPoint);
+            if (firingInput && !IsRecharging && !dashing) UpdateCurrentAimDirection();
+        }
+        else
+        {
+            hasCurrentAimPoint = true;
+            if (firingInput && !IsRecharging && !dashing)
+            {
+                currentAimDirection = GetPlayerDirectionAim();
+            }
+        }
+
         if (!firingInput && !IsRecharging) isAimSessionActive = false;
+
         Vector3 aimDirection = currentAimDirection.sqrMagnitude > 0.0001f
             ? currentAimDirection
             : GetFallbackAimDirection();
+
         bool plasmaActionLocked = IsRecharging || (firingInput && !dashing);
         if (playerMovement != null)
         {
@@ -158,7 +186,8 @@ public class GunAttack : MonoBehaviour
             if (plasmaActionLocked) playerMovement.SetPlasmaAimDirection(aimDirection);
         }
 
-        UpdateAimCone(firingInput && !IsRecharging && !dashing && hasCurrentAimPoint, aimDirection);
+        bool showCone = firingInput && !IsRecharging && !dashing && hasCurrentAimPoint;
+        UpdateAimCone(showCone, aimDirection);
 
         if (!firingInput || dashing || Time.time < nextFireTime) return;
 
@@ -173,10 +202,20 @@ public class GunAttack : MonoBehaviour
 
     private void OnDisable()
     {
+        AimSettings.OnAimModeChanged -= HandleAimModeChanged;
         RestoreAimCursor();
         if (playerMovement != null) playerMovement.SetPlasmaFiring(false);
         if (aimConeObject != null) aimConeObject.SetActive(false);
         if (batteryHUDCanvas != null) batteryHUDCanvas.gameObject.SetActive(false);
+        isAimSessionActive = false;
+    }
+
+    private void HandleAimModeChanged(AimMode newMode)
+    {
+        if (IsEquippedInPlayerHand())
+        {
+            UpdateAimCursor();
+        }
     }
 
     private void OnDestroy()
@@ -212,9 +251,14 @@ public class GunAttack : MonoBehaviour
         return weaponManager.rightHand != null && transform.IsChildOf(weaponManager.rightHand);
     }
 
-    private void UpdateAimCursor(bool showCursor)
+    private void UpdateAimCursor()
     {
-        if (showCursor)
+        if (IsAnyUIOpen())
+        {
+            return;
+        }
+
+        if (AimSettings.IsMouseAim)
         {
             if (!aimCursorOverrideActive)
             {
@@ -225,19 +269,71 @@ public class GunAttack : MonoBehaviour
 
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
-            return;
         }
-
-        RestoreAimCursor();
+        else
+        {
+            RestoreAimCursor();
+        }
     }
 
     private void RestoreAimCursor()
     {
         if (!aimCursorOverrideActive) return;
 
-        Cursor.lockState = previousCursorLockState;
-        Cursor.visible = previousCursorVisible;
+        if (!IsAnyUIOpen())
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
         aimCursorOverrideActive = false;
+    }
+
+    private bool IsAnyUIOpen()
+    {
+        if (DialogManager.BlocksGameplayInput || GamePause.IsPaused) return true;
+        if (CheatConsole.IsOpen) return true;
+        if (InventoryUI.Instance != null && InventoryUI.Instance.IsOpen()) return true;
+        if (SyntheticBagUI.Instance != null && SyntheticBagUI.Instance.IsOpen()) return true;
+        if (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen()) return true;
+        if (EptinhoMenuController.instancia != null && EptinhoMenuController.instancia.IsOpen()) return true;
+        if (MerchantUIController.HasInstance && MerchantUIController.Instance.IsUiOpen()) return true;
+        if (DeathScreenUI.Instance != null && DeathScreenUI.Instance.deathPanel != null && DeathScreenUI.Instance.deathPanel.activeSelf) return true;
+        if (VictoryScreenUI.Instance != null && VictoryScreenUI.Instance.victoryPanel != null && VictoryScreenUI.Instance.victoryPanel.activeSelf) return true;
+        return false;
+    }
+
+    private Vector3 GetPlayerDirectionAim()
+    {
+        float h = 0f;
+        float v = 0f;
+        if (playerMovement != null)
+        {
+            if (Input.GetKey(playerMovement.keyRight)) h += 1f;
+            if (Input.GetKey(playerMovement.keyLeft)) h -= 1f;
+            if (Input.GetKey(playerMovement.keyUp)) v += 1f;
+            if (Input.GetKey(playerMovement.keyDown)) v -= 1f;
+        }
+
+        float joyH = Input.GetAxisRaw("Horizontal");
+        float joyV = Input.GetAxisRaw("Vertical");
+        if (Mathf.Abs(joyH) > 0.2f) h = joyH;
+        if (Mathf.Abs(joyV) > 0.2f) v = joyV;
+
+        Vector3 inputDir = new Vector3(h, 0f, v);
+        if (inputDir.sqrMagnitude > 0.05f)
+        {
+            return inputDir.normalized;
+        }
+
+        Transform origin = playerMovement != null ? playerMovement.transform : ownerRoot;
+        if (origin != null)
+        {
+            Vector3 forward = Vector3.ProjectOnPlane(origin.forward, Vector3.up);
+            if (forward.sqrMagnitude > 0.001f)
+                return forward.normalized;
+        }
+
+        return GetFallbackAimDirection();
     }
 
     private void EnsureBatteryHUD()
@@ -370,13 +466,41 @@ public class GunAttack : MonoBehaviour
 
     private void BeginAimSession()
     {
-        currentAimDirection = GetFallbackAimDirection();
+        if (AimSettings.IsPlayerDirectionAim)
+        {
+            currentAimDirection = GetPlayerDirectionAim();
+        }
+        else if (TryGetAimPoint(out Vector3 aimPoint))
+        {
+            Transform aimOrigin = playerMovement != null ? playerMovement.transform : ownerRoot;
+            if (aimOrigin != null)
+            {
+                Vector3 desired = Vector3.ProjectOnPlane(aimPoint - aimOrigin.position, Vector3.up);
+                currentAimDirection = desired.sqrMagnitude > 0.01f ? desired.normalized : GetFallbackAimDirection();
+            }
+            else
+            {
+                currentAimDirection = GetFallbackAimDirection();
+            }
+        }
+        else
+        {
+            currentAimDirection = GetFallbackAimDirection();
+        }
         isAimSessionActive = true;
     }
 
     private void UpdateCurrentAimDirection()
     {
-        if (!isAimSessionActive || !hasCurrentAimPoint) return;
+        if (!isAimSessionActive) return;
+
+        if (AimSettings.IsPlayerDirectionAim)
+        {
+            currentAimDirection = GetPlayerDirectionAim();
+            return;
+        }
+
+        if (!hasCurrentAimPoint) return;
 
         Transform aimOrigin = playerMovement != null ? playerMovement.transform : ownerRoot;
         if (aimOrigin == null) return;
@@ -543,8 +667,16 @@ public class GunAttack : MonoBehaviour
         if (!isAimSessionActive)
         {
             BeginAimSession();
-            hasCurrentAimPoint = TryGetAimPoint(out currentAimPoint);
-            UpdateCurrentAimDirection();
+            if (AimSettings.IsMouseAim)
+            {
+                hasCurrentAimPoint = TryGetAimPoint(out currentAimPoint);
+                UpdateCurrentAimDirection();
+            }
+            else
+            {
+                currentAimDirection = GetPlayerDirectionAim();
+                hasCurrentAimPoint = true;
+            }
         }
 
         if (projectilePrefab == null || !TryConsumeCharge(Mathf.Max(1, chargePerTrigger))) return false;

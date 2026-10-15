@@ -402,7 +402,7 @@ public class Merchant : MonoBehaviour
                     audioSource.pitch = basePitch;
                 }
 
-                if (uiController == null) uiController = MerchantUIController.Instance;
+                if (uiController == null || uiController.gameObject == null) uiController = MerchantUIController.Instance;
                 if (uiController != null)
                 {
                     uiController.OpenPanel(this.transform);
@@ -593,7 +593,7 @@ public class Merchant : MonoBehaviour
     /// </summary>
     public void RequestSurgery(InfusedItem item)
     {
-        if (uiController == null) uiController = MerchantUIController.Instance;
+        if (uiController == null || uiController.gameObject == null) uiController = MerchantUIController.Instance;
         if (uiController != null) uiController.RequestSurgery(item);
     }
 

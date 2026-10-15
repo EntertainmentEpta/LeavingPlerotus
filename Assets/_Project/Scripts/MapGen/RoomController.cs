@@ -885,12 +885,50 @@ public class RoomController : MonoBehaviour
         return entries[0];
     }
 
+    private Vector3 GetSeparatedRandomPositionForCollectible(List<Vector3> existingPositions, bool isNearWall, bool isHigh, float minDistance = 7f)
+    {
+        if (spawnAreas == null || spawnAreas.Count == 0) return transform.position;
+
+        Vector3 bestCandidate = Vector3.zero;
+        float maxMinDist = -1f;
+
+        for (int i = 0; i < 20; i++)
+        {
+            BoxCollider area = spawnAreas[Random.Range(0, spawnAreas.Count)];
+            if (area == null) continue;
+
+            Vector3 candidate = GetRandomPositionForCollectible(area, isNearWall, isHigh);
+
+            if (existingPositions == null || existingPositions.Count == 0)
+            {
+                return candidate;
+            }
+
+            float closest = float.MaxValue;
+            foreach (var existing in existingPositions)
+            {
+                float d = Vector3.Distance(candidate, existing);
+                if (d < closest) closest = d;
+            }
+
+            if (closest >= minDistance)
+            {
+                return candidate;
+            }
+
+            if (closest > maxMinDist)
+            {
+                maxMinDist = closest;
+                bestCandidate = candidate;
+            }
+        }
+
+        return bestCandidate != Vector3.zero ? bestCandidate : GetRandomPositionForCollectible(spawnAreas[0], isNearWall, isHigh);
+    }
+
     private void SpawnRoomCollectibles()
     {
         if (spawnAreas == null || spawnAreas.Count == 0) return;
-
-        BoxCollider area = spawnAreas[Random.Range(0, spawnAreas.Count)];
-        if (area == null) return;
 
         EnsureDefaultCollectibleEntries();
 
@@ -899,11 +937,14 @@ public class RoomController : MonoBehaviour
                           transform.Find("Water") != null || 
                           GetComponentInChildren<Collider>()?.gameObject.name.ToLower().Contains("water") == true;
 
+        List<Vector3> spawnedPositions = new List<Vector3>();
+
         // 1. Spawn Minerals (No chão)
         CollectibleSpawnEntry mineralEntry = GetWeightedRandomEntry(mineralSpawnEntries);
         if (mineralEntry != null && mineralEntry.prefab != null)
         {
-            Vector3 pos = GetRandomPositionForCollectible(area, false, false);
+            Vector3 pos = GetSeparatedRandomPositionForCollectible(spawnedPositions, false, false, 7f);
+            spawnedPositions.Add(pos);
             GameObject obj = Instantiate(mineralEntry.prefab, pos, Quaternion.identity);
             
             ItemPickup pickup = obj.GetComponent<ItemPickup>();
@@ -940,7 +981,9 @@ public class RoomController : MonoBehaviour
 
             if (faunaPrefabToInstantiate != null)
             {
-                Vector3 pos = GetRandomPositionForCollectible(area, false, false);
+                bool isFly = faunaEntry.itemName.ToLower().Contains("vagalume") || faunaPrefabToInstantiate.name.ToLower().Contains("fly");
+                Vector3 pos = GetSeparatedRandomPositionForCollectible(spawnedPositions, false, isFly, 7f);
+                spawnedPositions.Add(pos);
                 GameObject obj = Instantiate(faunaPrefabToInstantiate, pos, Quaternion.identity);
                 
                 ItemPickup pickup = obj.GetComponent<ItemPickup>();
@@ -963,7 +1006,8 @@ public class RoomController : MonoBehaviour
         CollectibleSpawnEntry floraEntry = GetWeightedRandomEntry(floraSpawnEntries);
         if (floraEntry != null && floraEntry.prefab != null)
         {
-            Vector3 pos = GetRandomPositionForCollectible(area, false, true);
+            Vector3 pos = GetSeparatedRandomPositionForCollectible(spawnedPositions, false, false, 7f);
+            spawnedPositions.Add(pos);
             GameObject obj = Instantiate(floraEntry.prefab, pos, Quaternion.identity);
             
             ItemPickup pickup = obj.GetComponent<ItemPickup>();

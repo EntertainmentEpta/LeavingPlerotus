@@ -403,9 +403,71 @@ public class CheatConsole : MonoBehaviour
                 UnityEngine.SceneManagement.SceneManager.LoadScene("Geobionte");
             }
         }
+        else if (string.Equals(command, "poison", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "veneno", System.StringComparison.OrdinalIgnoreCase))
+        {
+            Tier4EffectManager t4 = Object.FindFirstObjectByType<Tier4EffectManager>();
+            if (t4 != null)
+            {
+                t4.ActivateEffect(Tier4EffectType.Poison);
+                string msg = "EFEITO T4 POISON ATIVADO!\nAtaques aplicam veneno com números verdes!";
+                Debug.Log($"💻 CHEAT: {msg}");
+                if (EptinhoPopupController.instancia != null)
+                {
+                    EptinhoPopupController.instancia.MostrarPopupAviso(msg);
+                }
+            }
+            else
+            {
+                Debug.LogWarning("💻 CHEAT: Tier4EffectManager não encontrado na cena!");
+            }
+        }
+        else if (string.Equals(command, "thorns", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "espinhos", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "espinho", System.StringComparison.OrdinalIgnoreCase))
+        {
+            PlayerAttributesDefensive def = Object.FindFirstObjectByType<PlayerAttributesDefensive>();
+            if (def != null)
+            {
+                def.thorns += 20;
+                string msg = $"THORNS AUMENTADO!\nRefletindo {def.thorns} de dano a atacantes!";
+                Debug.Log($"💻 CHEAT: {msg}");
+                if (EptinhoPopupController.instancia != null)
+                {
+                    EptinhoPopupController.instancia.MostrarPopupAviso(msg);
+                }
+            }
+        }
+        else if (string.Equals(command, "pact", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "mercador", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "pacto", System.StringComparison.OrdinalIgnoreCase))
+        {
+            PlayerHealth ph = Object.FindFirstObjectByType<PlayerHealth>();
+            if (ph != null)
+            {
+                ph.SetPactCorrupted(!ph.hasPactCorrupted);
+                string msg = ph.hasPactCorrupted ? "PACTO DO MERCADOR ATIVADO!\nAnimação de garras e sangue corrompido!" : "PACTO DO MERCADOR REMOVIDO!";
+                Debug.Log($"💻 CHEAT: {msg}");
+                if (EptinhoPopupController.instancia != null)
+                {
+                    EptinhoPopupController.instancia.MostrarPopupAviso(msg);
+                }
+            }
+        }
+        else if (string.Equals(command, "aim", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "mira", System.StringComparison.OrdinalIgnoreCase))
+        {
+            AimSettings.ToggleMode();
+            string msg = $"MODO DE MIRA ALTERADO: {(AimSettings.IsMouseAim ? "MOUSE (PADRÃO)" : "DIREÇÃO DO PERSONAGEM (WASD)")}";
+            Debug.Log($"💻 CHEAT: {msg}");
+            if (EptinhoPopupController.instancia != null)
+            {
+                EptinhoPopupController.instancia.MostrarPopupAviso(msg);
+            }
+        }
         else
         {
-            Debug.LogWarning($"💻 CHEAT RECUSADO: A palavra '{command}' não é reconhecida. Tente: EPTA, killall, endless, recursos, unlockall, orbs, boss ou bosssolo.");
+            Debug.LogWarning($"💻 CHEAT RECUSADO: A palavra '{command}' não é reconhecida. Tente: aim, pact, poison, thorns, EPTA, killall, endless, recursos, unlockall, orbs, boss.");
         }
 
         // Depois de tentar o cheat, fecha o console pro jogo voltar ao normal

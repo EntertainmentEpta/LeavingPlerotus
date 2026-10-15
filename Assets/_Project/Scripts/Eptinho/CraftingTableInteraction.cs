@@ -42,6 +42,8 @@ public class CraftingTableInteraction : MonoBehaviour
     [Tooltip("Marque para forçar a exibição da exclamação no Robozinho para testes rápidos.")]
     public bool testForceExclamation = false;
 
+    public static bool hasInteractedWithRobot = false;
+
     private ObjectiveMarker roboMarker;
     private bool playerPerto = false;
     private AudioSource audioSource;
@@ -57,6 +59,24 @@ public class CraftingTableInteraction : MonoBehaviour
             audioSource = gameObject.AddComponent<AudioSource>();
             audioSource.playOnAwake = false;
             audioSource.spatialBlend = 0f; // 2D som limpo de interface/NPC
+        }
+
+        // Checa se o progresso salvo já passou do ponto inicial do Robozinho
+        if (SaveManager.instance != null && SaveManager.instance.CachedData != null)
+        {
+            if (SaveManager.instance.CachedData.craftedEquipmentIds.Contains("eq_consertar_porta") ||
+                SaveManager.instance.CachedData.tutorialStep >= (int)TutorialStep.AbrirAbaArmas)
+            {
+                hasInteractedWithRobot = true;
+            }
+            else
+            {
+                hasInteractedWithRobot = false;
+            }
+        }
+        else
+        {
+            hasInteractedWithRobot = false;
         }
     }
 
@@ -102,28 +122,33 @@ public class CraftingTableInteraction : MonoBehaviour
         if (roboMarker == null) roboMarker = gameObject.AddComponent<ObjectiveMarker>();
 
         roboMarker.condition = ObjectiveMarker.TriggerCondition.Custom;
-        roboMarker.heightOffset = 1.8f;
+        roboMarker.heightOffset = 2.85f; // Acima da cabeça/antena do Robozin (mesh de 2.5m de altura)
         roboMarker.markerSize = new Vector2(48f, 48f);
         roboMarker.customVisibilityCondition = () =>
         {
             if (testForceExclamation) return true;
 
-            // 1. Passo do Tutorial: Falar com Robozinho
-            if (TutorialManager.Instance != null && TutorialManager.Instance.currentStep == TutorialStep.FalarComRobozinho)
-                return true;
+            // Se a mesa estiver aberta, não polui a tela com a exclamação flutuante
+            bool isMesaOpen = (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen());
+            if (isMesaOpen) return false;
 
-            // 2. Quest da Porta: se a missão ativa for consertar a porta e ela ainda não foi consertada
-            if (QuestManager.Instance != null && QuestManager.Instance.currentQuest != null)
+            // Se o jogador já interagiu com o Robozinho nesta sessão, a exclamação desaparece permanentemente
+            if (hasInteractedWithRobot) return false;
+
+            // Se o save já avançou além do passo de falar com o robozinho ou já consertou a porta da ala
+            if (TutorialManager.Instance != null && TutorialManager.Instance.currentStep >= TutorialStep.AbrirAbaArmas)
+                return false;
+
+            if (SaveManager.instance != null && SaveManager.instance.CachedData != null)
             {
-                if (QuestManager.Instance.currentQuest.questId == "quest_consertar_porta")
-                {
-                    bool portaJaConsertada = SaveManager.instance != null && SaveManager.instance.GetAllCraftedEquipmentIds().Contains("eq_consertar_porta");
-                    if (!portaJaConsertada) return true;
-                }
+                if (SaveManager.instance.CachedData.craftedEquipmentIds.Contains("eq_consertar_porta"))
+                    return false;
             }
 
-            return false;
+            // Caso contrário, a exclamação permanece visível para guiar o jogador até ele!
+            return true;
         };
+        roboMarker.CheckVisibility();
     }
 
     /// <summary>
@@ -217,11 +242,14 @@ public class CraftingTableInteraction : MonoBehaviour
                 {
                     CraftingUI.Instance.CloseCrafting();
                     if (RobotPreviewManager.Instance != null) RobotPreviewManager.Instance.Deactivate();
+                    roboMarker?.CheckVisibility();
                 }
                 else
                 {
+                    hasInteractedWithRobot = true;
                     CraftingUI.Instance.OpenCrafting();
                     TutorialManager.Instance?.CompleteStep(TutorialStep.FalarComRobozinho);
+                    roboMarker?.CheckVisibility();
                     
                     if (RobotPreviewManager.Instance != null) 
                     {
@@ -237,6 +265,7 @@ public class CraftingTableInteraction : MonoBehaviour
             {
                 CraftingUI.Instance.CloseCrafting();
                 if (RobotPreviewManager.Instance != null) RobotPreviewManager.Instance.Deactivate();
+                roboMarker?.CheckVisibility();
             }
         }
     }

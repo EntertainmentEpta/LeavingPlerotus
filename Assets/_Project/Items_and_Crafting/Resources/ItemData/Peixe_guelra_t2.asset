@@ -24,9 +24,9 @@ MonoBehaviour:
   infusionEssenceCost: 180
   itemAttributes:
   - attributeType: 14
-    value: 1.1
+    value: 1.15
     isMultiplier: 1
-  - attributeType: 19
-    value: 1.05
-    isMultiplier: 1
+  - attributeType: 18
+    value: 10
+    isMultiplier: 0
   tier4Effect: 0

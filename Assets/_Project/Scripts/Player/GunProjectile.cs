@@ -142,6 +142,13 @@ public class GunProjectile : MonoBehaviour
         ApplyKnockback(target);
         if (slowOnHit > 0f) target.ApplySlow(slowOnHit, 2f);
 
+        // Efeitos T4 on-hit (ex: Poison do Espinho Venenoso T4)
+        if (target.CurrentHealth > 0)
+        {
+            Tier4EffectManager t4 = FindFirstObjectByType<Tier4EffectManager>();
+            if (t4 != null) t4.ApplyOnHitEffects(target.gameObject);
+        }
+
         if (TryBounce()) return;
 
         if (hitTargets.Count >= maxTargets)

@@ -46,8 +46,50 @@ public class SaveManager : MonoBehaviour
         }
         private set { _instance = value; }
     }
-    private const string SaveFileName = "player_progress.json";
-    private string SaveFilePath => Path.Combine(Application.persistentDataPath, SaveFileName);
+    public const int MaxSlots = 3;
+    private const string LegacySaveFileName = "player_progress.json";
+    private static int _activeSlot = -1;
+
+    public static int ActiveSlot
+    {
+        get
+        {
+            if (_activeSlot <= 0)
+            {
+                _activeSlot = PlayerPrefs.GetInt("SelectedSaveSlot", 1);
+                if (_activeSlot < 1 || _activeSlot > MaxSlots) _activeSlot = 1;
+            }
+            return _activeSlot;
+        }
+        set
+        {
+            _activeSlot = Mathf.Clamp(value, 1, MaxSlots);
+            PlayerPrefs.SetInt("SelectedSaveSlot", _activeSlot);
+            PlayerPrefs.Save();
+        }
+    }
+
+    public static string GetSlotFileName(int slot) => $"player_progress_slot_{slot}.json";
+    public static string GetSlotFilePath(int slot) => Path.Combine(Application.persistentDataPath, GetSlotFileName(slot));
+    public string SaveFilePath => GetSlotFilePath(ActiveSlot);
+
+    public static void CheckLegacyMigration()
+    {
+        try
+        {
+            string legacyPath = Path.Combine(Application.persistentDataPath, LegacySaveFileName);
+            string slot1Path = GetSlotFilePath(1);
+            if (File.Exists(legacyPath) && !File.Exists(slot1Path))
+            {
+                File.Copy(legacyPath, slot1Path);
+                Debug.Log("[SAVE] Save legado migrado com sucesso para o Slot 1!");
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"[SAVE] Falha ao migrar save legado: {e.Message}");
+        }
+    }
 
     // ─── CACHE DE DADOS PERSISTENTES (acessível pelo CraftingManager) ────────
     private PersistentSaveData _cachedData;
@@ -105,6 +147,7 @@ public class SaveManager : MonoBehaviour
 
     void Awake()
     {
+        CheckLegacyMigration();
         if (_instance == null)
         {
             _instance = this;
@@ -114,6 +157,13 @@ public class SaveManager : MonoBehaviour
         {
             Destroy(gameObject);
         }
+    }
+
+    private float _sessionStartTime;
+
+    void Start()
+    {
+        _sessionStartTime = Time.realtimeSinceStartup;
     }
 
     /// <summary>
@@ -163,6 +213,24 @@ public class SaveManager : MonoBehaviour
             {
                 CachedData.selectedSkinID = skinManager.ActiveSkinID;
             }
+        }
+
+        // Atualiza metadados do perfil antes de serializar
+        CachedData.profileName = $"Slot {ActiveSlot}";
+        CachedData.lastPlayedTimestamp = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
+
+        if (_sessionStartTime > 0f)
+        {
+            float elapsed = Time.realtimeSinceStartup - _sessionStartTime;
+            if (elapsed > 0f)
+            {
+                CachedData.playTimeSeconds += Mathf.RoundToInt(elapsed);
+                _sessionStartTime = Time.realtimeSinceStartup;
+            }
+        }
+        else
+        {
+            _sessionStartTime = Time.realtimeSinceStartup;
         }
 
         // Serializa e grava o CachedData
@@ -431,13 +499,13 @@ public class SaveManager : MonoBehaviour
     /// </summary>
     public static void ResetProfile()
     {
-        string path = Path.Combine(Application.persistentDataPath, SaveFileName);
+        string path = GetSlotFilePath(ActiveSlot);
         if (File.Exists(path))
         {
             try
             {
                 File.Delete(path);
-                Debug.Log("[SAVE] Arquivo de save deletado do disco.");
+                Debug.Log($"[SAVE] Arquivo de save do Slot {ActiveSlot} deletado do disco.");
             }
             catch (Exception e)
             {
@@ -513,23 +581,261 @@ public class SaveManager : MonoBehaviour
             QuestManager.Instance.Reinitialize();
         }
 
+        CraftingTableInteraction.hasInteractedWithRobot = false;
         PlayerHealth.shouldPlayWakeUpAnimation = true;
         Debug.Log("[SAVE] Progresso limpo da memória.");
     }
 
     /// <summary>
-    /// Atalho de depuração para testes de jogabilidade rápidos.
+    /// Verifica se existe algum save em qualquer um dos slots.
+    /// </summary>
+    public static bool HasSaveFile()
+    {
+        CheckLegacyMigration();
+        for (int i = 1; i <= MaxSlots; i++)
+        {
+            if (File.Exists(GetSlotFilePath(i))) return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Verifica se um slot específico possui save gravado.
+    /// </summary>
+    public static bool SlotExists(int slot)
+    {
+        CheckLegacyMigration();
+        return File.Exists(GetSlotFilePath(slot));
+    }
+
+    /// <summary>
+    /// Lê e retorna os dados de um slot sem alterar o slot ativo na sessão.
+    /// </summary>
+    public static PersistentSaveData GetSlotData(int slot)
+    {
+        CheckLegacyMigration();
+        string path = GetSlotFilePath(slot);
+        if (!File.Exists(path)) return null;
+
+        try
+        {
+            string json = File.ReadAllText(path);
+            PersistentSaveData data = JsonUtility.FromJson<PersistentSaveData>(json);
+            if (data != null && string.IsNullOrEmpty(data.profileName))
+            {
+                data.profileName = $"Slot {slot}";
+            }
+            return data;
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[SAVE] Erro ao ler dados do Slot {slot}: {e.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Converte os segundos totais de jogo em formato legível (ex: "1h 24m" ou "18m 42s").
+    /// </summary>
+    public static string FormatPlayTime(int totalSeconds)
+    {
+        if (totalSeconds <= 0) return "Início da jornada";
+        TimeSpan t = TimeSpan.FromSeconds(totalSeconds);
+        if (t.TotalHours >= 1)
+        {
+            return $"{(int)t.TotalHours}h {t.Minutes:D2}m";
+        }
+        return $"{t.Minutes}m {t.Seconds:D2}s";
+    }
+
+    /// <summary>
+    /// Retorna o número do slot que foi jogado mais recentemente.
+    /// </summary>
+    public static int GetMostRecentSlot()
+    {
+        CheckLegacyMigration();
+        int bestSlot = ActiveSlot;
+        DateTime bestTime = DateTime.MinValue;
+
+        for (int i = 1; i <= MaxSlots; i++)
+        {
+            string path = GetSlotFilePath(i);
+            if (File.Exists(path))
+            {
+                DateTime t = File.GetLastWriteTimeUtc(path);
+                if (t > bestTime)
+                {
+                    bestTime = t;
+                    bestSlot = i;
+                }
+            }
+        }
+
+        return bestSlot;
+    }
+
+    /// <summary>
+    /// Define o slot ativo e recarrega o cache correspondente.
+    /// </summary>
+    public static void SelectSlot(int slot)
+    {
+        ActiveSlot = slot;
+        if (instance != null)
+        {
+            instance._cachedData = null; // Força recarregar os dados do novo slot
+        }
+    }
+
+    /// <summary>
+    /// Apaga o arquivo de save de um slot específico.
+    /// </summary>
+    public static void DeleteSlot(int slot)
+    {
+        string path = GetSlotFilePath(slot);
+        if (File.Exists(path))
+        {
+            try
+            {
+                File.Delete(path);
+                Debug.Log($"[SAVE] Slot {slot} deletado do disco.");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[SAVE] Erro ao deletar Slot {slot}: {e.Message}");
+            }
+        }
+
+        if (slot == ActiveSlot && instance != null)
+        {
+            instance.ResetAllProgress();
+        }
+    }
+
+    /// <summary>
+    /// Inicia uma jornada nova do zero em um slot específico.
+    /// </summary>
+    public static void StartNewGameInSlot(int slot)
+    {
+        SelectSlot(slot);
+        RestartGameFromZero();
+    }
+
+    /// <summary>
+    /// Carrega e continua a jornada de um slot específico.
+    /// </summary>
+    public static void LoadGameFromSlot(int slot)
+    {
+        SelectSlot(slot);
+
+        // 1. Fecha qualquer diálogo ativo
+        if (DialogManager.Instance != null)
+        {
+            DialogManager.Instance.ForceClose();
+        }
+
+        // 2. Limpa qualquer efeito de olhos/visão rodando
+        PlayerWakeUpEffect.CleanUpAllActiveEffects();
+
+        // 3. Destrói o Player persistente antigo para respawnar no dormitório
+        if (PlayerPersistence.instance != null)
+        {
+            Destroy(PlayerPersistence.instance.gameObject);
+            PlayerPersistence.instance = null;
+        }
+        if (GameManager.instance != null)
+        {
+            GameManager.instance.currentPlayer = null;
+        }
+
+        // 4. Reseta RunManager para round 1
+        if (RunManager.instance != null)
+        {
+            RunManager.instance.StartNewRun();
+        }
+
+        // 5. Destrava pausas e timescale
+        GamePause.ResetAll();
+        Time.timeScale = 1f;
+
+        // 6. Garante que a animação de acordar execute na Base
+        PlayerHealth.shouldPlayWakeUpAnimation = true;
+
+        // 7. Para música do menu se estiver tocando
+        if (GlobalAudioManager.Instance != null)
+        {
+            GlobalAudioManager.Instance.StopMusic();
+        }
+
+        // 8. Carrega Base com os dados do slot selecionado
+        SceneManager.LoadScene("Base");
+    }
+
+    /// <summary>
+    /// Reinicia toda a progressão do jogo do zero no slot ativo e carrega a Base com animação de acordar.
+    /// Limpa diálogos, áudio de menu, pausas, save em disco e cache de memória.
+    /// </summary>
+    public static void RestartGameFromZero()
+    {
+        Debug.Log($"[SAVE] 🔄 Reiniciando jogo 100% do zero no Slot {ActiveSlot}...");
+
+        // 1. Fecha qualquer diálogo ativo e cancela rotinas de digitação
+        if (DialogManager.Instance != null)
+        {
+            DialogManager.Instance.ForceClose();
+        }
+
+        // 2. Limpa qualquer efeito de olhos/visão rodando
+        PlayerWakeUpEffect.CleanUpAllActiveEffects();
+
+        // 3. Destrói o Player persistente antigo para instanciar o Player limpo na cama do dormitório da Base
+        if (PlayerPersistence.instance != null)
+        {
+            Destroy(PlayerPersistence.instance.gameObject);
+            PlayerPersistence.instance = null;
+        }
+        if (GameManager.instance != null)
+        {
+            GameManager.instance.currentPlayer = null;
+        }
+
+        // 4. Reseta estado de run
+        if (RunManager.instance != null)
+        {
+            RunManager.instance.StartNewRun();
+        }
+
+        // 5. Destrava pausas e timescale
+        GamePause.ResetAll();
+        Time.timeScale = 1f;
+
+        // 6. Deleta arquivo de save do slot ativo e limpa cache em memória
+        ResetProfile();
+
+        // 7. Garante que a animação de acordar execute na Base
+        PlayerHealth.shouldPlayWakeUpAnimation = true;
+
+        // 8. Para música do menu se estiver tocando
+        if (GlobalAudioManager.Instance != null)
+        {
+            GlobalAudioManager.Instance.StopMusic();
+        }
+
+        // 9. Carrega cena Base limpa
+        SceneManager.LoadScene("Base");
+    }
+
+    /// <summary>
+    /// Atalhos de reinício rápido (Shift+R ou F5) para reiniciar o slot atual do zero a qualquer momento.
     /// </summary>
     void Update()
     {
-        // Atalho: Shift + R para resetar progresso e reiniciar a cena na hora
-        if ((Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && Input.GetKeyDown(KeyCode.R))
+        bool shiftR = (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && Input.GetKeyDown(KeyCode.R);
+        bool f5 = Input.GetKeyDown(KeyCode.F5);
+
+        if (shiftR || f5)
         {
-            Debug.Log("[DEBUG] Shift+R pressionado! Resetando progresso e recarregando cena...");
-            ResetProfile();
-            PlayerHealth.shouldPlayWakeUpAnimation = true;
-            GamePause.ResetAll();
-            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+            Debug.Log($"[DEBUG] Atalho de reinício acionado (Shift+R / F5) no Slot {ActiveSlot}!");
+            RestartGameFromZero();
         }
     }
 }

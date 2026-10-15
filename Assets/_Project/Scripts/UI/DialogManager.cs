@@ -71,9 +71,12 @@ public class DialogManager : MonoBehaviour
             return;
         }
         _instance = this;
-        DontDestroyOnLoad(transform.root.gameObject);
         EnsureCanvasGroup();
-        if (dialogPanel != null) dialogPanel.SetActive(false);
+        if (dialogPanel != null)
+        {
+            dialogPanel.SetActive(false);
+            if (panelCanvasGroup != null) panelCanvasGroup.alpha = 0f;
+        }
     }
 
     public void EnsureUI()
@@ -242,6 +245,19 @@ public class DialogManager : MonoBehaviour
 
         if (isOpen)
         {
+            // Proteção contra duplicação: ignora se o mesmo diálogo já estiver rodando ou na fila
+            if (sentences.Count > 0 && sentences[0] == lines[0])
+            {
+                return;
+            }
+            foreach (var req in pending)
+            {
+                if (req.lines != null && req.lines.Length > 0 && req.lines[0] == lines[0])
+                {
+                    return;
+                }
+            }
+
             pending.Enqueue(new DialogRequest { lines = lines, onComplete = onComplete });
             return;
         }
@@ -251,8 +267,9 @@ public class DialogManager : MonoBehaviour
 
     public void ForceClose(bool invokeCallbacks = false)
     {
-        if (!isOpen) return;
         StopWakeUpWaiting();
+        StopTyping();
+        if (!isOpen) return;
         Action cb = onCompleteCallback;
         onCompleteCallback = null;
         DialogRequest[] queued = pending.ToArray();
@@ -274,15 +291,18 @@ public class DialogManager : MonoBehaviour
 
         GamePause.Acquire(this);
         EnsureCanvasGroup();
-        dialogPanel.SetActive(true);
 
         if (PlayerWakeUpEffect.IsWakingUp)
         {
+            if (dialogPanel != null) dialogPanel.SetActive(false);
+            if (panelCanvasGroup != null) panelCanvasGroup.alpha = 0f;
+            if (dialogText != null) dialogText.text = "";
             StopWakeUpWaiting();
             wakeUpWaitRoutine = StartCoroutine(WaitForWakeUpAndDisplay());
         }
         else
         {
+            if (dialogPanel != null) dialogPanel.SetActive(true);
             if (panelCanvasGroup != null) panelCanvasGroup.alpha = 1f;
             DisplaySentence();
         }
@@ -303,39 +323,28 @@ public class DialogManager : MonoBehaviour
     {
         isWaitingForWakeUp = true;
         StopTyping();
+        if (dialogPanel != null) dialogPanel.SetActive(false);
+        if (panelCanvasGroup != null) panelCanvasGroup.alpha = 0f;
         if (dialogText != null) dialogText.text = "";
 
-        if (panelCanvasGroup != null)
-        {
-            panelCanvasGroup.alpha = 0f;
-        }
-
-        // Enquanto o efeito de abrir os olhos estiver rodando, o display aparece bem devagarinho no fundo
+        // Enquanto o efeito de abrir os olhos estiver rodando, o painel fica 100% oculto
         float safetyTimer = 0f;
         while (PlayerWakeUpEffect.IsWakingUp && safetyTimer < 10f)
         {
             safetyTimer += Time.unscaledDeltaTime;
-
-            if (panelCanvasGroup != null)
-            {
-                panelCanvasGroup.alpha = Mathf.MoveTowards(panelCanvasGroup.alpha, 1f, Time.unscaledDeltaTime * 0.75f);
-            }
-
             yield return null;
-        }
-
-        if (panelCanvasGroup != null)
-        {
-            panelCanvasGroup.alpha = 1f;
         }
 
         isWaitingForWakeUp = false;
         wakeUpWaitRoutine = null;
 
-        // Pausa dramática suave com a visão 100% nítida antes de começar a digitação da primeira fala
-        yield return new WaitForSecondsRealtime(0.25f);
+        // Pausa dramática com a visão 100% nítida e os olhos abertos antes de surgir a caixa e começar a fala
+        yield return new WaitForSecondsRealtime(0.4f);
 
         if (!isOpen) yield break;
+
+        if (dialogPanel != null) dialogPanel.SetActive(true);
+        if (panelCanvasGroup != null) panelCanvasGroup.alpha = 1f;
 
         DisplaySentence();
     }

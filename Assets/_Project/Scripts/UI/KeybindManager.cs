@@ -17,6 +17,10 @@ public class KeybindManager : MonoBehaviour
     public TextMeshProUGUI txtAttack; public TextMeshProUGUI txtDash; public TextMeshProUGUI txtUlt; 
     public TextMeshProUGUI txtInteract; public TextMeshProUGUI txtInventory;
 
+    [Header("Modo de Mira")]
+    public Button btnAimMode;
+    public TextMeshProUGUI txtAimMode;
+
     private string keyToRebind = "";
     private bool isWaitingForKey = false;
 
@@ -26,12 +30,31 @@ public class KeybindManager : MonoBehaviour
         "KeyAttack", "KeyDash", "KeyUlt", "KeyInteract", "KeyInventory" 
     };
 
+    private void OnEnable()
+    {
+        AimSettings.OnAimModeChanged += HandleAimModeChanged;
+        UpdateAllButtonTexts();
+    }
+
+    private void OnDisable()
+    {
+        AimSettings.OnAimModeChanged -= HandleAimModeChanged;
+    }
+
+    private void HandleAimModeChanged(AimMode mode)
+    {
+        UpdateAllButtonTexts();
+    }
+
     void Start()
     {
-        // 1. Carrega todas as teclas ao iniciar
+        // 1. Garante que o botão de Modo de Mira existe e está configurado
+        EnsureAimModeButton();
+
+        // 2. Carrega todas as teclas ao iniciar
         UpdateAllButtonTexts();
 
-        // 2. Avisa aos botões o que devem fazer
+        // 3. Avisa aos botões o que devem fazer
         if (btnUp != null) btnUp.onClick.AddListener(() => StartRebind("KeyUp", txtUp));
         if (btnDown != null) btnDown.onClick.AddListener(() => StartRebind("KeyDown", txtDown));
         if (btnLeft != null) btnLeft.onClick.AddListener(() => StartRebind("KeyLeft", txtLeft));
@@ -42,6 +65,8 @@ public class KeybindManager : MonoBehaviour
         if (btnUlt != null) btnUlt.onClick.AddListener(() => StartRebind("KeyUlt", txtUlt));
         if (btnInteract != null) btnInteract.onClick.AddListener(() => StartRebind("KeyInteract", txtInteract));
         if (btnInventory != null) btnInventory.onClick.AddListener(() => StartRebind("KeyInventory", txtInventory));
+
+        if (btnAimMode != null) btnAimMode.onClick.AddListener(OnAimModeButtonClicked);
     }
 
     // Centralizamos a atualização visual para rodar toda vez que uma tecla mudar
@@ -57,6 +82,50 @@ public class KeybindManager : MonoBehaviour
         if (txtUlt != null) txtUlt.text = "Ultimate: " + PlayerPrefs.GetString("KeyUlt", "U");
         if (txtInteract != null) txtInteract.text = "Interagir: " + PlayerPrefs.GetString("KeyInteract", "F");
         if (txtInventory != null) txtInventory.text = "Inventário: " + PlayerPrefs.GetString("KeyInventory", "Tab");
+
+        if (txtAimMode != null) txtAimMode.text = AimSettings.GetModeDisplayName();
+    }
+
+    public void OnAimModeButtonClicked()
+    {
+        AimSettings.ToggleMode();
+        UpdateAllButtonTexts();
+        Debug.Log($"[KeybindManager] Modo de mira alternado para: {AimSettings.CurrentMode}");
+    }
+
+    private void EnsureAimModeButton()
+    {
+        if (btnAimMode != null) return;
+
+        Transform found = transform.Find("Btn_AimMode") ?? transform.Find("Btn_Mira");
+        if (found != null)
+        {
+            btnAimMode = found.GetComponent<Button>();
+            txtAimMode = found.GetComponentInChildren<TextMeshProUGUI>();
+            RectTransform foundRect = found.GetComponent<RectTransform>();
+            if (foundRect != null)
+            {
+                foundRect.anchoredPosition = new Vector2(240f, 33f);
+            }
+            return;
+        }
+
+        Button template = btnAttack != null ? btnAttack : (btnDash != null ? btnDash : GetComponentInChildren<Button>());
+        if (template != null)
+        {
+            GameObject cloned = Instantiate(template.gameObject, template.transform.parent);
+            cloned.name = "Btn_AimMode";
+            btnAimMode = cloned.GetComponent<Button>();
+            txtAimMode = cloned.GetComponentInChildren<TextMeshProUGUI>();
+
+            btnAimMode.onClick.RemoveAllListeners();
+
+            RectTransform rect = cloned.GetComponent<RectTransform>();
+            if (rect != null)
+            {
+                rect.anchoredPosition = new Vector2(240f, 33f);
+            }
+        }
     }
 
     public void StartRebind(string prefsKey, TextMeshProUGUI buttonText)

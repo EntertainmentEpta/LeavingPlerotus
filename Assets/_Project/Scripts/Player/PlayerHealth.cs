@@ -36,6 +36,14 @@ public class PlayerHealth : MonoBehaviour
     public TextMeshProUGUI armorText;
     public TextMeshProUGUI percentageText; // O texto de %
 
+    [Header("Mercador UI (Overlay & Sangue Escuro)")]
+    public Image mercadorHealthFillImage; // Mercador_HealthFill (Filled)
+    public GameObject mercadorBarObj;      // MercadorBar (Moldura com chapéu/sombras)
+    private Coroutine mercadorAnimationCoroutine;
+    private Vector3 mercadorBarOriginalScale = Vector3.one;
+    private Vector3 healthBarOriginalPos = Vector3.zero;
+    private Transform healthBarContainerTransform;
+
     /// <summary>
     /// Evento estático desacoplado disparado quando o jogador recebe dano.
     /// Parâmetros: (int danoRecebido, GameObject atacante)
@@ -236,6 +244,30 @@ public class PlayerHealth : MonoBehaviour
             GameObject textPercent = GameObject.Find("Text_Percentage");
             if (textPercent != null) percentageText = textPercent.GetComponent<TextMeshProUGUI>();
 
+            // Busca os elementos do Mercador mesmo se estiverem inativos no HealthBar_Container
+            GameObject healthContainer = GameObject.Find("HealthBar_Container");
+            if (healthContainer != null)
+            {
+                healthBarContainerTransform = healthContainer.transform;
+                healthBarOriginalPos = healthBarContainerTransform.localPosition;
+
+                Transform mFill = null;
+                Transform mBar = null;
+                foreach (Transform t in healthContainer.GetComponentsInChildren<Transform>(true))
+                {
+                    if (t.name == "Mercador_HealthFill") mFill = t;
+                    else if (t.name == "MercadorBar") mBar = t;
+                }
+
+                if (mFill != null) mercadorHealthFillImage = mFill.GetComponent<Image>();
+                if (mBar != null)
+                {
+                    mercadorBarObj = mBar.gameObject;
+                    mercadorBarOriginalScale = mBar.localScale;
+                    if (mercadorBarOriginalScale == Vector3.zero) mercadorBarOriginalScale = Vector3.one;
+                }
+            }
+
             if (playerMovement == null) playerMovement = GetComponent<PlayerM>();
             if (playerAnimator == null) playerAnimator = GetComponentInChildren<Animator>();
             if (playerAttack == null) playerAttack = GetComponent<PrimaryAttackKnife>();
@@ -375,8 +407,185 @@ public class PlayerHealth : MonoBehaviour
     public void SetPactCorrupted(bool corrupted)
     {
         hasPactCorrupted = corrupted;
+        if (corrupted)
+        {
+            TriggerMercadorPactAnimation();
+        }
+        else
+        {
+            ResetMercadorPactUI();
+        }
         UpdateHealthBar();
         Debug.Log($"🩸 [BLOOD PACT] Barra de Vida alterada para Sangue Escuro Corrompido: {corrupted}");
+    }
+
+    /// <summary>
+    /// Dispara a animação dramática das garras sombrias e sangue corrompido do Mercador na barra de vida.
+    /// </summary>
+    public void TriggerMercadorPactAnimation()
+    {
+        hasPactCorrupted = true;
+        if (mercadorAnimationCoroutine != null) StopCoroutine(mercadorAnimationCoroutine);
+        mercadorAnimationCoroutine = StartCoroutine(AnimateMercadorAppearance());
+    }
+
+    /// <summary>
+    /// Reseta o visual do Mercador ao renascer ou curar.
+    /// </summary>
+    public void ResetMercadorPactUI()
+    {
+        if (mercadorAnimationCoroutine != null)
+        {
+            StopCoroutine(mercadorAnimationCoroutine);
+            mercadorAnimationCoroutine = null;
+        }
+
+        if (mercadorBarObj != null)
+        {
+            mercadorBarObj.transform.localScale = mercadorBarOriginalScale;
+            mercadorBarObj.SetActive(false);
+        }
+
+        if (mercadorHealthFillImage != null)
+        {
+            mercadorHealthFillImage.gameObject.SetActive(false);
+        }
+
+        if (healthBarContainerTransform != null && healthBarOriginalPos != Vector3.zero)
+        {
+            healthBarContainerTransform.localPosition = healthBarOriginalPos;
+        }
+
+        hasPactCorrupted = false;
+        UpdateHealthBar();
+    }
+
+    private IEnumerator AnimateMercadorAppearance()
+    {
+        if (mercadorBarObj == null || mercadorHealthFillImage == null || healthBarContainerTransform == null)
+        {
+            FindUIReferences();
+        }
+
+        if (mercadorHealthFillImage != null)
+        {
+            mercadorHealthFillImage.gameObject.SetActive(true);
+            mercadorHealthFillImage.fillAmount = (float)currentHealth / maxHealth;
+        }
+
+        if (mercadorBarObj != null)
+        {
+            mercadorBarObj.SetActive(true);
+        }
+
+        Image mercadorBarImg = mercadorBarObj != null ? mercadorBarObj.GetComponent<Image>() : null;
+        CanvasGroup mercadorBarGroup = mercadorBarObj != null ? mercadorBarObj.GetComponent<CanvasGroup>() : null;
+
+        // Efeito de "Garras se Fechando" / "Abocanhar":
+        // Começa ligeiramente maior (1.30x) e translúcido, e fecha rápido com snap seco
+        float duration = 0.35f;
+        float elapsed = 0f;
+        Vector3 punchStartScale = mercadorBarOriginalScale * 1.30f;
+
+        if (mercadorHealthFillImage != null)
+        {
+            Color c = mercadorHealthFillImage.color;
+            c.a = 0f;
+            mercadorHealthFillImage.color = c;
+        }
+
+        if (mercadorBarObj != null)
+        {
+            mercadorBarObj.transform.localScale = punchStartScale;
+            if (mercadorBarImg != null)
+            {
+                Color c = mercadorBarImg.color;
+                c.a = 0f;
+                mercadorBarImg.color = c;
+            }
+            else if (mercadorBarGroup != null)
+            {
+                mercadorBarGroup.alpha = 0f;
+            }
+        }
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+
+            // Ease Out Back suave (sensação elástica de garras estalando)
+            float tScale = 1f - Mathf.Pow(1f - t, 3f);
+
+            if (mercadorHealthFillImage != null)
+            {
+                Color c = mercadorHealthFillImage.color;
+                c.a = Mathf.Lerp(0f, 1f, t * 1.5f);
+                mercadorHealthFillImage.color = c;
+                mercadorHealthFillImage.fillAmount = (float)currentHealth / maxHealth;
+            }
+
+            if (mercadorBarObj != null)
+            {
+                mercadorBarObj.transform.localScale = Vector3.LerpUnclamped(punchStartScale, mercadorBarOriginalScale, tScale);
+
+                if (mercadorBarImg != null)
+                {
+                    Color c = mercadorBarImg.color;
+                    c.a = Mathf.Lerp(0f, 1f, t * 2f);
+                    mercadorBarImg.color = c;
+                }
+                else if (mercadorBarGroup != null)
+                {
+                    mercadorBarGroup.alpha = Mathf.Lerp(0f, 1f, t * 2f);
+                }
+            }
+
+            yield return null;
+        }
+
+        // Garante valores finais
+        if (mercadorBarObj != null)
+        {
+            mercadorBarObj.transform.localScale = mercadorBarOriginalScale;
+            if (mercadorBarImg != null)
+            {
+                Color c = mercadorBarImg.color; c.a = 1f; mercadorBarImg.color = c;
+            }
+            else if (mercadorBarGroup != null)
+            {
+                mercadorBarGroup.alpha = 1f;
+            }
+        }
+        if (mercadorHealthFillImage != null)
+        {
+            Color c = mercadorHealthFillImage.color; c.a = 1f; mercadorHealthFillImage.color = c;
+        }
+
+        // Micro-trepidação na barra (Screen Shake sutil na HealthBar para sentir o impacto)
+        if (healthBarContainerTransform != null)
+        {
+            float shakeDuration = 0.18f;
+            float shakeElapsed = 0f;
+            float shakeMagnitude = 3.5f;
+
+            while (shakeElapsed < shakeDuration)
+            {
+                shakeElapsed += Time.unscaledDeltaTime;
+                float damping = 1f - (shakeElapsed / shakeDuration);
+                Vector3 offset = new Vector3(
+                    Random.Range(-1f, 1f) * shakeMagnitude * damping,
+                    Random.Range(-1f, 1f) * shakeMagnitude * damping,
+                    0f
+                );
+                healthBarContainerTransform.localPosition = healthBarOriginalPos + offset;
+                yield return null;
+            }
+            healthBarContainerTransform.localPosition = healthBarOriginalPos;
+        }
+
+        mercadorAnimationCoroutine = null;
+        Debug.Log("🩸 [PACTO MERCADOR] Animação de garras e sangue corrompido concluída com sucesso!");
     }
 
     void FullHeal()
@@ -386,6 +595,7 @@ public class PlayerHealth : MonoBehaviour
         cursedHealthLost = 0;
         currentHealth = maxHealth;
         currentArmor = maxArmor;
+        ResetMercadorPactUI();
         UpdateHealthBar();
         UpdateArmorBar();
     }
@@ -410,6 +620,11 @@ public class PlayerHealth : MonoBehaviour
 
             healthFillImage.fillAmount = (float)currentHealth / maxHealth;
             healthFillImage.color = hasPactCorrupted ? darkPactHealthColor : originalHealthFillColor;
+        }
+
+        if (mercadorHealthFillImage != null && mercadorHealthFillImage.gameObject.activeSelf)
+        {
+            mercadorHealthFillImage.fillAmount = (float)currentHealth / maxHealth;
         }
 
         if (percentageText != null)

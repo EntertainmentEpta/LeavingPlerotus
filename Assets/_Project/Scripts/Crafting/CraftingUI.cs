@@ -1012,7 +1012,7 @@ public class CraftingUI : MonoBehaviour
         tabMarker.condition = ObjectiveMarker.TriggerCondition.ByTutorialStep;
         tabMarker.activeOnStep = TutorialStep.AbrirAbaArmas;
         tabMarker.mode = ObjectiveMarker.MarkerMode.CanvasUI;
-        tabMarker.markerSize = new Vector2(24f, 24f);
+        tabMarker.markerSize = new Vector2(40f, 40f);
         
         GameObject txtWeapons = new GameObject("Text");
         txtWeapons.transform.SetParent(tabWeapons.transform, false);

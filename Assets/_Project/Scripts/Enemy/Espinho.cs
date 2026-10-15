@@ -29,6 +29,10 @@ public class Espinho : MonoBehaviour
     [Tooltip("Duração do envenenamento em segundos.")]
     public float poisonDuration = 4f;
 
+    [Header("Orientação")]
+    [Tooltip("Garante que o projétil viaje deitado horizontalmente alinhado à trajetória.")]
+    public bool orientHorizontally = true;
+
     /// <summary>
     /// Referência ao GameObject dono (Peixe que disparou).
     /// Atribuída pelo PeixeAI no momento do Instantiate.
@@ -36,6 +40,44 @@ public class Espinho : MonoBehaviour
     [HideInInspector] public GameObject owner;
 
     // ─────────────────────────────────────────────────────────────────
+    void Awake()
+    {
+        if (orientHorizontally)
+        {
+            // Alinha o CapsuleCollider ao eixo Z (horizontal na direção do voo)
+            CapsuleCollider capsule = GetComponent<CapsuleCollider>();
+            if (capsule != null && capsule.direction != 2)
+            {
+                capsule.direction = 2; // 2 = Z-Axis
+            }
+
+            // Se o MeshFilter estiver no root do projétil, move-o para um filho Visual
+            // rotacionado 90° em X para que meshes de cilindro/cápsula fiquem horizontais
+            MeshFilter mf = GetComponent<MeshFilter>();
+            if (mf != null && transform.childCount == 0)
+            {
+                GameObject visual = new GameObject("Visual");
+                visual.transform.SetParent(transform, false);
+                visual.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+
+                MeshFilter childMf = visual.AddComponent<MeshFilter>();
+                childMf.sharedMesh = mf.sharedMesh;
+
+                MeshRenderer mr = GetComponent<MeshRenderer>();
+                if (mr != null)
+                {
+                    MeshRenderer childMr = visual.AddComponent<MeshRenderer>();
+                    childMr.sharedMaterials = mr.sharedMaterials;
+                    childMr.shadowCastingMode = mr.shadowCastingMode;
+                    childMr.receiveShadows = mr.receiveShadows;
+                    Destroy(mr);
+                }
+
+                Destroy(mf);
+            }
+        }
+    }
+
     void Start()
     {
         // Agenda a destruição pelo tempo de vida máximo

@@ -51,6 +51,7 @@ public class CrystalTuner : MonoBehaviour
     private float roamRadiusTarget = 6f; // raio-alvo para transicao suave
     private float roamChangeTimer = 0f;  // tempo para trocar comportamento
     private bool roamInitialized = false;
+    private bool sintonizadorDialogTriggered = false;
 
     // Lista de alvos ativos
     private List<TargetData> targets = new List<TargetData>();
@@ -164,8 +165,12 @@ public class CrystalTuner : MonoBehaviour
                         BestiarioManager.instancia.Registrar(id);
                 }
 
-                // Dispara o diálogo explicativo do Eptinho sobre o Sintonizador
-                EptinhoStoryDialogs.TriggerSintonizadorEncounter();
+                if (!sintonizadorDialogTriggered)
+                {
+                    sintonizadorDialogTriggered = true;
+                    // Dispara o diálogo explicativo do Eptinho sobre o Sintonizador
+                    EptinhoStoryDialogs.TriggerSintonizadorEncounter();
+                }
             }
         }
     }

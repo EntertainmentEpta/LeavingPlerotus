@@ -138,7 +138,7 @@ public class ShardSwarmHealth : MonoBehaviour
         }
     }
 
-    public void TakeDamage(int damage, bool isCritical = false)
+    public void TakeDamage(int damage, bool isCritical = false, bool isPoison = false)
     {
         if (isInvulnerable) return;
         if (CurrentHealth <= 0) return;
@@ -173,13 +173,26 @@ public class ShardSwarmHealth : MonoBehaviour
         UpdateHealthBar();
         ShowHealthBar();
 
+        if (floatingDamageTextPrefab == null)
+        {
+            DummyHealth[] others = FindObjectsByType<DummyHealth>(FindObjectsSortMode.None);
+            foreach (var other in others)
+            {
+                if (other.floatingDamageTextPrefab != null)
+                {
+                    floatingDamageTextPrefab = other.floatingDamageTextPrefab;
+                    break;
+                }
+            }
+        }
+
         if (floatingDamageTextPrefab != null)
         {
             GameObject textObject = Instantiate(floatingDamageTextPrefab, transform.position + textOffset, Quaternion.identity);
             FloatingDamageText dmgScript = textObject.GetComponent<FloatingDamageText>();
             if (dmgScript != null)
             {
-                dmgScript.SetDamage(damage, isCritical);
+                dmgScript.SetDamage(damage, isCritical, isPoison);
             }
         }
 

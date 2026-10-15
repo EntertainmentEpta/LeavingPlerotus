@@ -22,31 +22,33 @@ public class PoisonedEnemyStatus : MonoBehaviour
     private float tickTimer = 0f;
 
     private DummyHealth enemyHealth;
+    private ShardSwarmHealth swarmHealth;
 
     // ── API Estática ────────────────────────────────────────────────
     /// <summary>
     /// Aplica (ou restaura) o veneno em um inimigo.
     /// </summary>
-    /// <param name="enemyObj">GameObject do inimigo (ou filho/pai dele que contenha DummyHealth).</param>
-    /// <param name="damage">Dano por tick.</param>
-    /// <param name="statusDuration">Duração total em segundos.</param>
-    /// <param name="interval">Intervalo entre ticks em segundos (padrão 1s).</param>
     public static void ApplyPoison(GameObject enemyObj, int damage, float statusDuration, float interval = 1f)
     {
         if (enemyObj == null) return;
 
         DummyHealth health = enemyObj.GetComponent<DummyHealth>()
                           ?? enemyObj.GetComponentInParent<DummyHealth>();
-        if (health == null || health.CurrentHealth <= 0) return;
+        ShardSwarmHealth swarm = enemyObj.GetComponent<ShardSwarmHealth>()
+                              ?? enemyObj.GetComponentInParent<ShardSwarmHealth>();
 
-        // O status vive no mesmo GameObject do DummyHealth
-        PoisonedEnemyStatus status = health.GetComponent<PoisonedEnemyStatus>();
+        if ((health == null || health.CurrentHealth <= 0) && (swarm == null || swarm.CurrentHealth <= 0)) return;
+
+        GameObject targetObj = health != null ? health.gameObject : swarm.gameObject;
+
+        PoisonedEnemyStatus status = targetObj.GetComponent<PoisonedEnemyStatus>();
         if (status == null)
         {
-            status = health.gameObject.AddComponent<PoisonedEnemyStatus>();
+            status = targetObj.AddComponent<PoisonedEnemyStatus>();
         }
 
         status.enemyHealth = health;
+        status.swarmHealth = swarm;
         status.Refresh(damage, statusDuration, interval);
     }
 
@@ -57,12 +59,21 @@ public class PoisonedEnemyStatus : MonoBehaviour
         duration = Mathf.Max(0.1f, statusDuration);
         tickInterval = Mathf.Max(0.1f, interval);
         remainingTime = duration;
+        
+        // Pequeno adiantamento para que o primeiro tick de veneno apareça rápido
+        if (tickTimer <= 0f)
+        {
+            tickTimer = tickInterval * 0.4f;
+        }
     }
 
     // ── Loop de Dano por Tempo ──────────────────────────────────────
     private void Update()
     {
-        if (enemyHealth == null || enemyHealth.CurrentHealth <= 0)
+        bool isAlive = (enemyHealth != null && enemyHealth.CurrentHealth > 0)
+                    || (swarmHealth != null && swarmHealth.CurrentHealth > 0);
+
+        if (!isAlive)
         {
             Destroy(this);
             return;
@@ -74,7 +85,15 @@ public class PoisonedEnemyStatus : MonoBehaviour
         if (tickTimer >= tickInterval)
         {
             tickTimer -= tickInterval;
-            enemyHealth.TakeDamage(damagePerTick, false);
+            
+            if (enemyHealth != null && enemyHealth.CurrentHealth > 0)
+            {
+                enemyHealth.TakeDamage(damagePerTick, isCritical: false, isPoison: true);
+            }
+            else if (swarmHealth != null && swarmHealth.CurrentHealth > 0)
+            {
+                swarmHealth.TakeDamage(damagePerTick, isCritical: false, isPoison: true);
+            }
         }
 
         if (remainingTime <= 0f)

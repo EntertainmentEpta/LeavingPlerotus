@@ -26,6 +26,11 @@ public class ItemSaveEntry
 [Serializable]
 public class PersistentSaveData
 {
+    // --- Metadados do Slot ---
+    public string profileName = "Slot 1";
+    public string lastPlayedTimestamp = "";
+    public int playTimeSeconds = 0;
+
     public int inventoryMaxSlots = 10;
     public List<ItemSaveEntry> baseResources = new List<ItemSaveEntry>();
     public List<int> purchasedUpgradeIndices = new List<int>();

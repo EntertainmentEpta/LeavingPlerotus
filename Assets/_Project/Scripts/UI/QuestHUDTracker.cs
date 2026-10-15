@@ -131,19 +131,28 @@ public class QuestHUDTracker : MonoBehaviour
 
     private void Update()
     {
-        // Oculta no HUD se o menu do Eptinho ou Diálogo estiver aberto
+        string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        bool inMainMenu = currentScene == "MainMenu" || currentScene == "Menu";
         bool inDialog = DialogManager.IsOpen;
         bool inMenu = EptinhoMenuController.instancia != null && EptinhoMenuController.instancia.IsOpen();
+        bool isWakingUp = PlayerWakeUpEffect.IsWakingUp;
+
+        // O widget de missões só surge na tela após o diálogo inicial do Eptinho ter sido concluído
+        bool introCompleted = EptinhoStoryDialogs.HasSeenDialog(EptinhoStoryDialogs.ID_INTRO_EPTINHO);
 
         if (canvasGroup != null)
         {
-            float targetAlpha = (inDialog || inMenu) ? 0f : 1f;
+            float targetAlpha = (inMainMenu || inDialog || inMenu || isWakingUp || !introCompleted) ? 0f : 1f;
             canvasGroup.alpha = Mathf.MoveTowards(canvasGroup.alpha, targetAlpha, Time.unscaledDeltaTime * 6f);
         }
     }
 
     private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
     {
+        if (scene.name == "MainMenu" || scene.name == "Menu")
+        {
+            if (canvasGroup != null) canvasGroup.alpha = 0f;
+        }
         RefreshDisplay();
     }
 

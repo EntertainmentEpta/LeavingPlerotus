@@ -23,13 +23,13 @@ MonoBehaviour:
   recycleEssenceValue: 120
   infusionEssenceCost: 300
   itemAttributes:
-  - attributeType: 4
-    value: 1.25
+  - attributeType: 14
+    value: 1.2
     isMultiplier: 1
-  - attributeType: 19
-    value: 1.05
-    isMultiplier: 1
-  - attributeType: 21
-    value: 1
+  - attributeType: 18
+    value: 15
+    isMultiplier: 0
+  - attributeType: 11
+    value: 10
     isMultiplier: 0
   tier4Effect: 0

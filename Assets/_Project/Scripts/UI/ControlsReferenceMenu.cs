@@ -153,7 +153,10 @@ public class ControlsReferenceMenu : MonoBehaviour
         // ══ COMBATE ══
         y = AddSection(parent, "⚔  COMBATE", y);
         y = AddKeybind(parent, "Q / LMB", "Ataque Primário (combo)", y);
+        y = AddKeybind(parent, "LMB", "Disparar Arma / Pistola", y);
+        y = AddKeybind(parent, "R", "Recarregar Bateria da Arma", y);
         y = AddKeybind(parent, "U", "Ativar Ultimate", y, C_GOLD);
+        y = AddKeybind(parent, "Mira", AimSettings.IsMouseAim ? "Modo: Mouse (Cursor visível)" : "Modo: Direção (WASD)", y, C_CYAN);
 
         y -= 6f;
 

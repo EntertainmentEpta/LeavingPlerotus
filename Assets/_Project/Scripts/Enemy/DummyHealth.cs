@@ -170,7 +170,7 @@ public class DummyHealth : MonoBehaviour
         UpdateHealthBar();
     }
 
-    public void TakeDamage(int damage, bool isCritical = false)
+    public void TakeDamage(int damage, bool isCritical = false, bool isPoison = false)
     {
         // Peixe: respeita invulnerabilidade do estado Defend
         if (TryGetComponent<PeixeAI>(out PeixeAI peixeAI) && peixeAI.isInvulnerable) return;
@@ -195,19 +195,32 @@ public class DummyHealth : MonoBehaviour
         UpdateHealthBar();
         ShowHealthBar();
 
+        if (floatingDamageTextPrefab == null)
+        {
+            DummyHealth[] others = FindObjectsByType<DummyHealth>(FindObjectsSortMode.None);
+            foreach (var other in others)
+            {
+                if (other != this && other.floatingDamageTextPrefab != null)
+                {
+                    floatingDamageTextPrefab = other.floatingDamageTextPrefab;
+                    break;
+                }
+            }
+        }
+
         if (floatingDamageTextPrefab != null)
         {
             GameObject textObject = Instantiate(floatingDamageTextPrefab, transform.position + textOffset, Quaternion.identity);
             FloatingDamageText dmgScript = textObject.GetComponent<FloatingDamageText>();
             if (dmgScript != null)
             {
-                dmgScript.SetDamage(damage, isCritical);
+                dmgScript.SetDamage(damage, isCritical, isPoison);
             }
         }
 
         if (dummyRenderer != null)
         {
-            StartCoroutine(FlashRed());
+            StartCoroutine(isPoison ? FlashPoisonGreen() : FlashRed());
         }
 
         if (CurrentHealth <= 0)
@@ -243,6 +256,16 @@ public class DummyHealth : MonoBehaviour
     {
         dummyRenderer.material.color = hitColor;
         if (hasBaseColor) dummyRenderer.material.SetColor("_BaseColor", hitColor);
+        yield return new WaitForSeconds(hitFlashTime);
+        dummyRenderer.material.color = originalRenderColor;
+        if (hasBaseColor) dummyRenderer.material.SetColor("_BaseColor", originalBaseColor);
+    }
+
+    IEnumerator FlashPoisonGreen()
+    {
+        Color poisonFlash = new Color(0.18f, 0.95f, 0.22f, 1f);
+        dummyRenderer.material.color = poisonFlash;
+        if (hasBaseColor) dummyRenderer.material.SetColor("_BaseColor", poisonFlash);
         yield return new WaitForSeconds(hitFlashTime);
         dummyRenderer.material.color = originalRenderColor;
         if (hasBaseColor) dummyRenderer.material.SetColor("_BaseColor", originalBaseColor);
@@ -297,32 +320,7 @@ public class DummyHealth : MonoBehaviour
             Debug.LogWarning("[DROPS] EnemyDrops NÃO encontrado em " + gameObject.name + "! Adicione o componente EnemyDrops.");
         }
 
-        // --- DROP ESPECÍFICO DO PEIXE: Espinhos ---
-        if (TryGetComponent<PeixeAI>(out PeixeAI _))
-        {
-            ItemData espinhosData = Resources.Load<ItemData>("ItemData/CristalusDrop2");
-            if (espinhosData != null)
-            {
-                GameObject dropObj = new GameObject("Drop_Espinhos");
-                dropObj.transform.position = transform.position + Vector3.up * 0.5f;
 
-                CharacteristicItemPickup pickup = dropObj.AddComponent<CharacteristicItemPickup>();
-                pickup.itemId = espinhosData.itemId;
-                pickup.itemName = espinhosData.itemName;
-                pickup.itemDescription = espinhosData.description;
-
-                SphereCollider col = dropObj.AddComponent<SphereCollider>();
-                col.isTrigger = true;
-                col.radius = 1f;
-
-                Debug.Log("[DROPS] Peixe dropou item específico: " + espinhosData.itemName);
-            }
-            else
-            {
-                Debug.LogWarning("[DROPS] ItemData 'CristalusDrop2' (Espinhos) não encontrado em Resources/ItemData!");
-            }
-        }
-        // ------------------------------------------
 
         Destroy(gameObject);
     }

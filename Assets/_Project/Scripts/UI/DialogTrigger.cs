@@ -139,6 +139,11 @@ public class DialogTrigger : MonoBehaviour
         {
             TutorialManager.Instance.CompleteStep(tutorialStepToComplete);
         }
+
+        if (QuestHUDTracker.Instance != null)
+        {
+            QuestHUDTracker.Instance.RefreshDisplay();
+        }
     }
 
     private bool IsSeenPersistently() =>

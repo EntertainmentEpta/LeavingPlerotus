@@ -240,7 +240,7 @@ public class ObjectiveMarker : MonoBehaviour
             rect.anchorMin = new Vector2(1f, 1f);
             rect.anchorMax = new Vector2(1f, 1f);
             rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = new Vector2(-4f, -4f);
+            rect.anchoredPosition = new Vector2(0f, 0f);
             rect.sizeDelta = markerSize;
 
             Image img = uiMarker.AddComponent<Image>();
@@ -262,12 +262,18 @@ public class ObjectiveMarker : MonoBehaviour
         {
             // 1. Posição no MUNDO: sempre diretamente acima da posição mundial do objeto (imune à rotação do objeto caído no chão!)
             float yOffset = Mathf.Sin(Time.time * floatFrequency) * floatAmplitude;
-            indicatorVisual.transform.position = transform.position + Vector3.up * (heightOffset + yOffset);
+            Vector3 baseWorldPos = transform.position + Vector3.up * (heightOffset + yOffset);
 
-            // 2. Billboard para a câmera principal
+            // 2. Billboard e leve aproximação para a câmera para garantir renderização frontal
             if (Camera.main != null)
             {
+                Vector3 toCam = (Camera.main.transform.position - baseWorldPos).normalized;
+                indicatorVisual.transform.position = baseWorldPos + toCam * 0.25f;
                 indicatorVisual.transform.forward = Camera.main.transform.forward;
+            }
+            else
+            {
+                indicatorVisual.transform.position = baseWorldPos;
             }
 
             // 3. Escala no MUNDO: compensa a escala local do pai para que a exclamação mantenha tamanho uniforme
@@ -347,6 +353,11 @@ public class ObjectiveMarker : MonoBehaviour
 
     private void SetVisual(bool on)
     {
+        if (indicatorVisual == null && on)
+        {
+            BuildVisualIfNeeded();
+        }
+
         if (indicatorVisual != null && indicatorVisual.activeSelf != on)
         {
             indicatorVisual.SetActive(on);

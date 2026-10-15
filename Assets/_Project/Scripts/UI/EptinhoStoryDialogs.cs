@@ -37,16 +37,21 @@ public static class EptinhoStoryDialogs
         }
     }
 
+    private static readonly System.Collections.Generic.HashSet<string> queuedOrActiveDialogs = new System.Collections.Generic.HashSet<string>();
+
     public static bool TryTriggerDialog(string oneShotId, string[] lines, Action onComplete = null)
     {
-        if (HasSeenDialog(oneShotId)) return false;
+        if (HasSeenDialog(oneShotId) || queuedOrActiveDialogs.Contains(oneShotId)) return false;
 
         DialogManager dm = DialogManager.Instance;
         if (dm == null) return false;
 
+        queuedOrActiveDialogs.Add(oneShotId);
+        MarkSeen(oneShotId); // Bloqueia imediatamente chamadas em frames seguintes
+
         dm.StartDialog(lines, () =>
         {
-            MarkSeen(oneShotId);
+            queuedOrActiveDialogs.Remove(oneShotId);
             onComplete?.Invoke();
         });
         return true;

@@ -189,14 +189,7 @@ public class PlayerWakeUpEffect : MonoBehaviour
 
         SetEyeOpenAmount(1f);
         if (blurVolume != null) blurVolume.weight = 0f;
-
-        IsRunning = false;
-        OnWakeUpCompleted?.Invoke();
-
-        // Libera os controles do jogador com a visão 100% nítida!
-        onComplete?.Invoke();
-
-        canvasGroup.blocksRaycasts = false;
+        if (canvasGroup != null) canvasGroup.blocksRaycasts = false;
 
         // Fade out final do Canvas
         elapsed = 0f;
@@ -204,9 +197,15 @@ public class PlayerWakeUpEffect : MonoBehaviour
         while (elapsed < dur)
         {
             elapsed += Time.unscaledDeltaTime;
-            canvasGroup.alpha = 1f - (elapsed / dur);
+            if (canvasGroup != null) canvasGroup.alpha = 1f - (elapsed / dur);
             yield return null;
         }
+
+        IsRunning = false;
+        OnWakeUpCompleted?.Invoke();
+
+        // Libera os controles do jogador com a visão 100% nítida!
+        onComplete?.Invoke();
 
         // Limpeza dos objetos temporários
         if (blurVolume != null)
@@ -217,7 +216,31 @@ public class PlayerWakeUpEffect : MonoBehaviour
         {
             Destroy(blurProfile);
         }
-        Destroy(canvasObj);
+        if (canvasObj != null)
+        {
+            Destroy(canvasObj);
+        }
         Destroy(gameObject);
+    }
+
+    /// <summary>
+    /// Força a interrupção e destruição imediata de quaisquer efeitos de acordar ativos (usado em reset / novo jogo).
+    /// </summary>
+    public static void CleanUpAllActiveEffects()
+    {
+        IsRunning = false;
+        CurrentEyeOpenProgress = 1f;
+
+        PlayerWakeUpEffect[] active = FindObjectsByType<PlayerWakeUpEffect>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        foreach (var eff in active)
+        {
+            if (eff != null) Destroy(eff.gameObject);
+        }
+
+        GameObject canvasObj = GameObject.Find("WakeUp_Canvas");
+        if (canvasObj != null) Destroy(canvasObj);
+
+        GameObject blurObj = GameObject.Find("WakeUp_BlurVolume");
+        if (blurObj != null) Destroy(blurObj);
     }
 }

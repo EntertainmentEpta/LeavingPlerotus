@@ -143,6 +143,27 @@ public class WeaponRack : MonoBehaviour
         }
     }
 
+    private void OnEnable()
+    {
+        if (TutorialManager.Instance != null)
+        {
+            TutorialManager.Instance.stepChangedEvent += OnTutorialStepChanged;
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (TutorialManager.Instance != null)
+        {
+            TutorialManager.Instance.stepChangedEvent -= OnTutorialStepChanged;
+        }
+    }
+
+    private void OnTutorialStepChanged(TutorialStep step)
+    {
+        UpdateFloatingAnimations();
+    }
+
     private void OnDestroy()
     {
         if (visualsContainer != null) DestroyImmediate(visualsContainer);
@@ -528,9 +549,9 @@ public class WeaponRack : MonoBehaviour
             bool isUnlocked = IsSlotUnlocked(slot);
             bool isEquipped = IsWeaponCurrentlyEquipped(slot);
 
-            // A arma física só desaparece do suporte (slot vazio) se estiver atualmente empunhada pelo jogador!
-            // Se estiver no expositor (seja liberada ou bloqueada), ela fica VISÍVEL!
-            bool shouldDisplayWeapon = !isEquipped;
+            // A Adaga fica 100% invisível no expositor se ainda estiver caída no chão do dormitório
+            bool isDaggerStillOnFloor = (slot.weaponType == WeaponType.Dagger && !isUnlocked);
+            bool shouldDisplayWeapon = !isEquipped && !isDaggerStillOnFloor;
 
             slot.displayInstance.SetActive(shouldDisplayWeapon);
 
@@ -642,7 +663,14 @@ public class WeaponRack : MonoBehaviour
             }
             else
             {
-                promptTMP.text = $"<color=#FFE500><b>{activeHoverSlot.displayName}</b></color>\n<size=75%><color=#E0E0E0>Forje no Robozinho para liberar</color></size>";
+                if (activeHoverSlot.weaponType == WeaponType.Dagger)
+                {
+                    promptTMP.text = $"<color=#FFE500><b>{activeHoverSlot.displayName}</b></color>\n<size=75%><color=#E0E0E0>Colete no dormitório primeiro</color></size>";
+                }
+                else
+                {
+                    promptTMP.text = $"<color=#FFE500><b>{activeHoverSlot.displayName}</b></color>\n<size=75%><color=#E0E0E0>Forje no Robozinho para liberar</color></size>";
+                }
             }
         }
 
@@ -698,6 +726,20 @@ public class WeaponRack : MonoBehaviour
 
     private bool IsSlotUnlocked(WeaponRackSlot slot)
     {
+        if (slot.weaponType == WeaponType.Dagger)
+        {
+            // A Adaga de Plasma só fica disponível no expositor após ser coletada no chão do dormitório
+            if (TutorialManager.Instance != null && TutorialManager.Instance.currentStep == TutorialStep.PegarAdaga)
+            {
+                return false;
+            }
+            if (SaveManager.instance != null && SaveManager.instance.CachedData != null && SaveManager.instance.CachedData.tutorialStep == (int)TutorialStep.PegarAdaga)
+            {
+                return false;
+            }
+            return true;
+        }
+
         if (slot.unlockedByDefault) return true;
         if (string.IsNullOrEmpty(slot.requiredCraftId)) return true;
 

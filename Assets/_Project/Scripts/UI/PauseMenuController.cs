@@ -16,6 +16,10 @@ public class PauseMenuController : MonoBehaviour
     public Slider sliderSFX;
     public Slider sliderMaster;
 
+    [Header("Modo de Mira")]
+    public Button btnAimMode;
+    public TMPro.TextMeshProUGUI txtAimMode;
+
     private bool isPaused = false;
 
     void Start()
@@ -27,6 +31,9 @@ public class PauseMenuController : MonoBehaviour
         if (sliderBGM != null) sliderBGM.value = PlayerPrefs.GetFloat("SavedBGM", 0.75f);
         if (sliderSFX != null) sliderSFX.value = PlayerPrefs.GetFloat("SavedSFX", 0.75f);
         if (sliderMaster != null) sliderMaster.value = PlayerPrefs.GetFloat("SavedMaster", 1f);
+
+        if (btnAimMode != null) btnAimMode.onClick.AddListener(ToggleAimMode);
+        UpdateAimModeUI();
     }
 
     void Update()
@@ -198,6 +205,35 @@ public class PauseMenuController : MonoBehaviour
             GlobalAudioManager.Instance.mainMixer.SetFloat("MasterVolume", volume);
             PlayerPrefs.SetFloat("SavedMaster", value);
             PlayerPrefs.Save();
+        }
+    }
+
+    // ==========================================
+    // CONTROLES DE MIRA (MOUSE VS WASD)
+    // ==========================================
+    public void ToggleAimMode()
+    {
+        AimSettings.ToggleMode();
+        UpdateAimModeUI();
+    }
+
+    public void SetAimModeMouse()
+    {
+        AimSettings.CurrentMode = AimMode.MouseCursor;
+        UpdateAimModeUI();
+    }
+
+    public void SetAimModePlayerDirection()
+    {
+        AimSettings.CurrentMode = AimMode.PlayerDirection;
+        UpdateAimModeUI();
+    }
+
+    private void UpdateAimModeUI()
+    {
+        if (txtAimMode != null)
+        {
+            txtAimMode.text = AimSettings.GetModeDisplayName();
         }
     }
 }

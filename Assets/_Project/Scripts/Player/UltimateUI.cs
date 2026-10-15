@@ -76,6 +76,22 @@ public class UltimateUI : MonoBehaviour
 
     void Update()
     {
+        string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        bool inMainMenu = currentScene == "MainMenu" || currentScene == "Menu";
+        bool isWakingUp = PlayerWakeUpEffect.IsWakingUp;
+        bool waitingForIntro = !EptinhoStoryDialogs.HasSeenDialog(EptinhoStoryDialogs.ID_INTRO_EPTINHO);
+
+        if (inMainMenu || isWakingUp || waitingForIntro)
+        {
+            if (autoCanvasObj != null && autoCanvasObj.activeSelf) autoCanvasObj.SetActive(false);
+            return;
+        }
+
+        if (autoCanvasObj != null && !autoCanvasObj.activeSelf)
+        {
+            autoCanvasObj.SetActive(true);
+        }
+
         if (ultimateScript == null)
         {
             ultimateScript = GetComponentInParent<PlayerUltimate>() ?? GetComponent<PlayerUltimate>();

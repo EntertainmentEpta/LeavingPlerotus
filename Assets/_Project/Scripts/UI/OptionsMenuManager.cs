@@ -21,12 +21,18 @@ public class OptionsMenuManager : MonoBehaviour
     public ToggleSwitch fullscreenToggle;
     public ToggleSwitch vsyncToggle; 
 
+    [Header("Mira / Disparo")]
+    public ToggleSwitch aimModeToggle;
+    public Button btnAimMode;
+    public TextMeshProUGUI txtAimMode;
+
     private Resolution[] resolutions;
 
     void Start()
     {
         ConfigurarAudio();
         ConfigurarVideo();
+        ConfigurarModoDeMira();
         
         // Garante que o menu sempre comece mostrando a aba Geral
         MostrarAbaGeral(); 
@@ -159,5 +165,55 @@ public class OptionsMenuManager : MonoBehaviour
         if (isometricCameraObj != null) isometricCameraObj.SetActive(false);
         if (mainCameraObj != null) mainCameraObj.SetActive(true);
         Debug.Log("Comando enviado: CÂMERA NORMAL LIGADA");
+    }
+
+    // ==========================================
+    // FUNÇÕES PARA O MODO DE MIRA (MOUSE VS WASD)
+    // ==========================================
+    void ConfigurarModoDeMira()
+    {
+        if (aimModeToggle != null)
+        {
+            aimModeToggle.ToggleByGroupManager(AimSettings.IsMouseAim);
+        }
+
+        if (btnAimMode != null)
+        {
+            btnAimMode.onClick.AddListener(AlternarModoMira);
+        }
+
+        AtualizarTextoMira();
+    }
+
+    public void AtivarMiraMouse()
+    {
+        AimSettings.CurrentMode = AimMode.MouseCursor;
+        AtualizarTextoMira();
+        Debug.Log("Comando enviado: MIRA NO MOUSE ATIVADA");
+    }
+
+    public void AtivarMiraDirecaoPlayer()
+    {
+        AimSettings.CurrentMode = AimMode.PlayerDirection;
+        AtualizarTextoMira();
+        Debug.Log("Comando enviado: MIRA NA DIREÇÃO DO PLAYER ATIVADA");
+    }
+
+    public void AlternarModoMira()
+    {
+        AimSettings.ToggleMode();
+        if (aimModeToggle != null)
+        {
+            aimModeToggle.ToggleByGroupManager(AimSettings.IsMouseAim);
+        }
+        AtualizarTextoMira();
+    }
+
+    private void AtualizarTextoMira()
+    {
+        if (txtAimMode != null)
+        {
+            txtAimMode.text = AimSettings.GetModeDisplayName();
+        }
     }
 }

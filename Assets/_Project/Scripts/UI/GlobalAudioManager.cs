@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Audio;
+using UnityEngine.SceneManagement;
 
 public class GlobalAudioManager : MonoBehaviour
 {
@@ -29,11 +30,37 @@ public class GlobalAudioManager : MonoBehaviour
         LoadSavedVolume();
     }
 
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
     private void Start()
     {
-        if (defaultMusic != null)
+        if (SceneManager.GetActiveScene().name == "MainMenu" && defaultMusic != null)
         {
             PlayMusic(defaultMusic);
+        }
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name == "MainMenu")
+        {
+            if (defaultMusic != null && (bgmSource == null || !bgmSource.isPlaying))
+            {
+                PlayMusic(defaultMusic);
+            }
+        }
+        else
+        {
+            // Saiu do menu principal: para imediatamente a música para não vazar nas outras cenas (Base, GameScene)
+            StopMusic();
         }
     }
 
@@ -46,15 +73,16 @@ public class GlobalAudioManager : MonoBehaviour
         }
         bgmSource.loop = true;
         bgmSource.playOnAwake = false;
+        bgmSource.volume = 0.35f; // Volume padrão moderado
 
         if (bgmGroup != null) bgmSource.outputAudioMixerGroup = bgmGroup;
     }
 
     private void LoadSavedVolume()
     {
-        // Carrega todos os volumes salvos (incluindo o Master)
-        float masterVal = PlayerPrefs.GetFloat("SavedMaster", 1f);
-        float bgmVal = PlayerPrefs.GetFloat("SavedBGM", 0.75f);
+        // Carrega volumes salvos com padrões equilibrados
+        float masterVal = PlayerPrefs.GetFloat("SavedMaster", 0.8f);
+        float bgmVal = PlayerPrefs.GetFloat("SavedBGM", 0.5f);
         float sfxVal = PlayerPrefs.GetFloat("SavedSFX", 0.75f);
 
         if (mainMixer != null)
@@ -71,6 +99,15 @@ public class GlobalAudioManager : MonoBehaviour
         if (bgmSource.clip == musicClip && bgmSource.isPlaying) return;
 
         bgmSource.clip = musicClip;
+        bgmSource.volume = 0.35f;
         bgmSource.Play();
+    }
+
+    public void StopMusic()
+    {
+        if (bgmSource != null && bgmSource.isPlaying)
+        {
+            bgmSource.Stop();
+        }
     }
 }

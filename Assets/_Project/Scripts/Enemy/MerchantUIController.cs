@@ -193,34 +193,34 @@ public class MerchantUIController : MonoBehaviour
 
     private int[] currentDisplayedPactIndices = new int[3];
 
-    public static bool HasInstance => _instance != null;
+    public static bool HasInstance => _instance != null && _instance.gameObject != null;
 
     private static MerchantUIController _instance;
     public static MerchantUIController Instance
     {
         get
         {
-            if (_instance == null)
+            if (_instance == null || _instance.gameObject == null)
             {
+                // 1. Prioridade Máxima: Busca na hierarquia da cena atual (mesmo inativo)
                 _instance = FindFirstObjectByType<MerchantUIController>(FindObjectsInactive.Include);
+
+                // 2. Se a cena não tiver o canvas na hierarquia, instancia o prefab oficial de Resources
                 if (_instance == null)
                 {
                     GameObject prefab = Resources.Load<GameObject>("MerchantCanvas");
-                    if (prefab == null) prefab = Resources.Load<GameObject>("MerchantCanva");
-                    if (prefab == null) prefab = Resources.Load<GameObject>("MerchantUI");
-
                     if (prefab != null)
                     {
                         GameObject go = Instantiate(prefab);
+                        go.name = "MerchantCanvas";
                         _instance = go.GetComponent<MerchantUIController>();
                         if (_instance == null) _instance = go.AddComponent<MerchantUIController>();
+                        Debug.Log("🧙 [MerchantUIController] Canvas oficial do Mercador instanciado automaticamente a partir de Resources!");
                     }
                     else
                     {
-                        GameObject go = new GameObject("MerchantUIController_Auto");
-                        _instance = go.AddComponent<MerchantUIController>();
+                        Debug.LogError("🚨 [MerchantUIController] ERRO: Prefab oficial 'MerchantCanvas' não encontrado na pasta Resources!");
                     }
-                    if (_instance != null) DontDestroyOnLoad(_instance.gameObject);
                 }
             }
             return _instance;
@@ -230,7 +230,7 @@ public class MerchantUIController : MonoBehaviour
 
     void Awake()
     {
-        if (_instance == null)
+        if (_instance == null || _instance.gameObject == null)
         {
             _instance = this;
         }
@@ -256,6 +256,14 @@ public class MerchantUIController : MonoBehaviour
         
         SetupRightSideText();
         SetupSurgeryLayout();
+    }
+
+    void OnDestroy()
+    {
+        if (_instance == this)
+        {
+            _instance = null;
+        }
     }
 
     /// <summary>
