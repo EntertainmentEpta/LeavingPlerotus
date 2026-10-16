@@ -79,10 +79,10 @@ public class DummyHealth : MonoBehaviour
 
     private void Start()
     {
-        // Aplica escalonamento de HP por sala (+3% por sala avançada conforme Hp_Dano_Inimigos.pdf)
-        if (RunManager.instance != null && RunManager.instance.currentLevel > 1)
+        // Aplica escalonamento de HP por sala (+3% por sala avançada conforme Hp_Dano_Inimigos.pdf / GDD)
+        if (RunManager.instance != null && RunManager.instance.currentRoomNumber > 1)
         {
-            int roomIndex = RunManager.instance.currentLevel;
+            int roomIndex = RunManager.instance.currentRoomNumber;
             float hpScalingMultiplier = 1f + (0.03f * (roomIndex - 1));
             maxHealth = Mathf.RoundToInt(maxHealth * hpScalingMultiplier);
             CurrentHealth = maxHealth;
@@ -317,7 +317,9 @@ public class DummyHealth : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("[DROPS] EnemyDrops NÃO encontrado em " + gameObject.name + "! Adicione o componente EnemyDrops.");
+            Debug.LogWarning("[DROPS] EnemyDrops NÃO encontrado em " + gameObject.name + "! Adicionando fallback em runtime.");
+            drops = gameObject.AddComponent<EnemyDrops>();
+            drops.OnDeath();
         }
 
 

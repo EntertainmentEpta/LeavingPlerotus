@@ -365,11 +365,11 @@ public class CheatConsole : MonoBehaviour
 
             if (Application.CanStreamedLevelBeLoaded("BossRoom_Cromatico"))
             {
-                UnityEngine.SceneManagement.SceneManager.LoadScene("BossRoom_Cromatico");
+                GameManager.EnsureInstance().LoadSceneWithLoading("BossRoom_Cromatico", false);
             }
             else if (Application.CanStreamedLevelBeLoaded("Geobionte"))
             {
-                UnityEngine.SceneManagement.SceneManager.LoadScene("Geobionte");
+                GameManager.EnsureInstance().LoadSceneWithLoading("Geobionte", false);
             }
         }
         else if (string.Equals(command, "boss", System.StringComparison.OrdinalIgnoreCase) ||
@@ -396,11 +396,11 @@ public class CheatConsole : MonoBehaviour
             // Tenta carregar diretamente a cena do Boss
             if (Application.CanStreamedLevelBeLoaded("BossRoom_Cromatico"))
             {
-                UnityEngine.SceneManagement.SceneManager.LoadScene("BossRoom_Cromatico");
+                GameManager.EnsureInstance().LoadSceneWithLoading("BossRoom_Cromatico", false);
             }
             else if (Application.CanStreamedLevelBeLoaded("Geobionte"))
             {
-                UnityEngine.SceneManagement.SceneManager.LoadScene("Geobionte");
+                GameManager.EnsureInstance().LoadSceneWithLoading("Geobionte", false);
             }
         }
         else if (string.Equals(command, "poison", System.StringComparison.OrdinalIgnoreCase) ||

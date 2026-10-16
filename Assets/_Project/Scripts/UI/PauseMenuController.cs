@@ -167,7 +167,7 @@ public class PauseMenuController : MonoBehaviour
     public void ReturnToMainMenu()
     {
         GamePause.ResetAll();
-        SceneManager.LoadScene(mainMenuSceneName);
+        GameManager.EnsureInstance().LoadSceneWithLoading(mainMenuSceneName, false);
     }
 
     private void OnDestroy() => GamePause.Release(this);

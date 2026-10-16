@@ -41,7 +41,7 @@ public class LevelGenerator : MonoBehaviour
         if (GameManager.instance == null)
         {
             EnsureAudioListenerInGameScene();
-            GenerateLevel();
+            GameManager.EnsureInstance().GenerateCurrentSceneWithLoading(this);
         }
     }
 

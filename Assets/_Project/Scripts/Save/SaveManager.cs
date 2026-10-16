@@ -766,8 +766,8 @@ public class SaveManager : MonoBehaviour
             GlobalAudioManager.Instance.StopMusic();
         }
 
-        // 8. Carrega Base com os dados do slot selecionado
-        SceneManager.LoadScene("Base");
+        // 8. Carrega Base com os dados do slot selecionado usando a tela de Loading
+        GameManager.EnsureInstance().ReturnToBase();
     }
 
     /// <summary>
@@ -820,8 +820,8 @@ public class SaveManager : MonoBehaviour
             GlobalAudioManager.Instance.StopMusic();
         }
 
-        // 9. Carrega cena Base limpa
-        SceneManager.LoadScene("Base");
+        // 9. Carrega cena Base limpa usando a tela de Loading
+        GameManager.EnsureInstance().ReturnToBase();
     }
 
     /// <summary>

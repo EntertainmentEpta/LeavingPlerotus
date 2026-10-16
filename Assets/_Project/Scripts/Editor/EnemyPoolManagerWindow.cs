@@ -158,25 +158,25 @@ public class EnemyPoolManagerWindow : EditorWindow
             if (prefab != null && !list.Contains(prefab)) list.Add(prefab);
         }
 
-        // 1. Mobs Menores
+        // 1. Mobs Menores (1 pt)
         AddIfValid(targetPool.mobMenorPrefabs, "Assets/_Project/Enemies/Spider/Spider.prefab");
-        AddIfValid(targetPool.mobMenorPrefabs, "Assets/_Project/Enemies/SharpBlur/Sh.prefab");
+        AddIfValid(targetPool.mobMenorPrefabs, "Assets/_Project/Enemies/SharpBlur/Meshy_AI_Amethyst_Wraith_biped/ANt_Sharp.prefab");
         AddIfValid(targetPool.mobMenorPrefabs, "Assets/_Project/Enemies/Totem/Totem 1.prefab");
 
-        // 2. Atiradores
-        AddIfValid(targetPool.atiradorPrefabs, "Assets/_Project/Enemies/Goblin/Goblin.prefab");
+        // 2. Atiradores (2 pts)
+        AddIfValid(targetPool.atiradorPrefabs, "Assets/_Project/Enemies/Peixe/Peixe.prefab");
         AddIfValid(targetPool.atiradorPrefabs, "Assets/_Project/Enemies/CrystalWatcher/CrystalWatcher.prefab");
-        AddIfValid(targetPool.atiradorPrefabs, "Assets/_Project/Enemies/Fish/cristaldrag.prefab");
+        AddIfValid(targetPool.atiradorPrefabs, "Assets/_Project/Enemies/Goblin/Goblin.prefab");
 
-        // 3. Tanques
+        // 3. Tanques (4 pts)
         AddIfValid(targetPool.tanquePrefabs, "Assets/_Project/Enemies/Golem/Golem.prefab");
-        AddIfValid(targetPool.tanquePrefabs, "Assets/_Project/Enemies/MagicStone/MagicStoneEnemy.prefab");
+        AddIfValid(targetPool.tanquePrefabs, "Assets/_Project/Enemies Shortcut/Enemies/MagicStoneEnemy.prefab");
+        AddIfValid(targetPool.tanquePrefabs, "Assets/_Project/Enemies/ShardSwarm/Star.prefab");
 
-        // 4. Elites
-        AddIfValid(targetPool.elitePrefabs, "Assets/_Project/Enemies/ShardSwarm/Shard Swarm.prefab");
+        // 4. Elites (10 pts)
         AddIfValid(targetPool.elitePrefabs, "Assets/GameAssets/Prefabs-Gabriel/Enemies Prefabs/Geobionte.prefab");
 
-        // 5. Suporte
+        // 5. Suporte (3 pts)
         AddIfValid(targetPool.suportePrefabs, "Assets/_Project/Enemies/Cristalus/Cristalus.prefab");
         AddIfValid(targetPool.suportePrefabs, "Assets/_Project/Enemies/CrystalTunner/CrystalTuner_Root.prefab");
 
@@ -188,42 +188,14 @@ public class EnemyPoolManagerWindow : EditorWindow
     }
 
     /// <summary>
-    /// Atualiza todas as salas de combate em New map/ para vincularem o EnemyPoolConfig
+    /// Atualiza todas as salas de combate do projeto e da cena ativa para vincularem o EnemyPoolConfig
     /// </summary>
     private void SyncPoolToAllRooms()
     {
-        string[] searchFolders = new string[] { "Assets/_Project/Enviroment/Map/New map" };
-        string[] guids = AssetDatabase.FindAssets("t:Prefab", searchFolders);
-        int updated = 0;
-
-        foreach (string guid in guids)
-        {
-            string path = AssetDatabase.GUIDToAssetPath(guid);
-            GameObject root = PrefabUtility.LoadPrefabContents(path);
-            if (root == null) continue;
-
-            RoomController rc = root.GetComponentInChildren<RoomController>(true);
-            if (rc != null && !rc.isSafeRoom)
-            {
-                rc.enemyPoolConfig = targetPool;
-
-                // Também atualiza as listas locais como fallback de segurança
-                rc.mobMenorPrefabs = new List<GameObject>(targetPool.mobMenorPrefabs);
-                rc.atiradorPrefabs = new List<GameObject>(targetPool.atiradorPrefabs);
-                rc.tanquePrefabs = new List<GameObject>(targetPool.tanquePrefabs);
-                rc.elitePrefabs = new List<GameObject>(targetPool.elitePrefabs);
-                rc.suportePrefabs = new List<GameObject>(targetPool.suportePrefabs);
-
-                PrefabUtility.SaveAsPrefabAsset(root, path);
-                updated++;
-            }
-
-            PrefabUtility.UnloadPrefabContents(root);
-        }
-
+        serializedPool?.ApplyModifiedProperties();
+        EditorUtility.SetDirty(targetPool);
         AssetDatabase.SaveAssets();
-        AssetDatabase.Refresh();
 
-        EditorUtility.DisplayDialog("Salas Sincronizadas", $"{updated} prefabs de sala foram vinculados ao EnemyPoolConfig e atualizados com sucesso!", "OK");
+        RoomControllerEnemyPopulator.PopulateAllRoomControllers();
     }
 }

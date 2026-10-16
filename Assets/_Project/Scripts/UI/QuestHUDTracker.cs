@@ -41,6 +41,9 @@ public class QuestHUDTracker : MonoBehaviour
     [Tooltip("Largura do painel do quest log.")]
     public float widgetWidth = 430f;
 
+    [Tooltip("Largura compacta do widget durante a gameplay.")]
+    public float compactWidth = 260f;
+
     // ── Cores do Design System ──
     private static readonly Color BG_COLOR        = new Color(0.04f, 0.03f, 0.08f, 0.92f);
     private static readonly Color BORDER_ACTIVE   = new Color(0.96f, 0.76f, 0.20f, 0.95f); // Dourado
@@ -59,6 +62,16 @@ public class QuestHUDTracker : MonoBehaviour
     private Image           borderAccent;
     private CanvasGroup     canvasGroup;
     private TMP_FontAsset   customFont;
+
+    // ── Seção Compacta (Gameplay / Resumido) ──
+    private GameObject      compactContainer;
+    private TextMeshProUGUI compactMasterText;
+    private TextMeshProUGUI compactActiveText;
+    private TextMeshProUGUI compactHintText;
+
+    // ── Seção Expandida (Inventário / Detalhado) ──
+    private GameObject      expandedContainer;
+    private bool            isCurrentlyExpanded = false;
 
     // ── Seção da Meta Suprema (Núcleos da Nave) ──
     private GameObject      masterSection;
@@ -145,6 +158,37 @@ public class QuestHUDTracker : MonoBehaviour
             float targetAlpha = (inMainMenu || inDialog || inMenu || isWakingUp || !introCompleted) ? 0f : 1f;
             canvasGroup.alpha = Mathf.MoveTowards(canvasGroup.alpha, targetAlpha, Time.unscaledDeltaTime * 6f);
         }
+
+        UpdateDisplayMode();
+    }
+
+    private bool IsInventoryOpen()
+    {
+        if (InventoryUI.Instance != null && InventoryUI.Instance.IsOpen()) return true;
+        if (SyntheticBagUI.Instance != null && SyntheticBagUI.Instance.IsOpen()) return true;
+        return false;
+    }
+
+    private void UpdateDisplayMode()
+    {
+        bool shouldExpand = IsInventoryOpen();
+
+        if (isCurrentlyExpanded != shouldExpand)
+        {
+            isCurrentlyExpanded = shouldExpand;
+            if (compactContainer != null) compactContainer.SetActive(!isCurrentlyExpanded);
+            if (expandedContainer != null) expandedContainer.SetActive(isCurrentlyExpanded);
+        }
+
+        if (widgetRect != null)
+        {
+            float targetW = isCurrentlyExpanded ? widgetWidth : compactWidth;
+            float currentW = widgetRect.sizeDelta.x;
+            if (Mathf.Abs(currentW - targetW) > 0.5f)
+            {
+                widgetRect.sizeDelta = new Vector2(Mathf.Lerp(currentW, targetW, Time.unscaledDeltaTime * 14f), widgetRect.sizeDelta.y);
+            }
+        }
     }
 
     private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
@@ -188,12 +232,12 @@ public class QuestHUDTracker : MonoBehaviour
         widgetRect.anchorMax = new Vector2(1f, 0.5f);
         widgetRect.pivot = new Vector2(1f, 0.5f);
         widgetRect.anchoredPosition = new Vector2(offsetX, offsetY);
-        widgetRect.sizeDelta = new Vector2(widgetWidth, 120f);
+        widgetRect.sizeDelta = new Vector2(compactWidth, 80f);
 
         // Layout vertical dinâmico com auto-ajuste de tamanho
         VerticalLayoutGroup vlg = widgetObj.AddComponent<VerticalLayoutGroup>();
-        vlg.padding = new RectOffset(22, 20, 16, 16);
-        vlg.spacing = 10f;
+        vlg.padding = new RectOffset(18, 16, 12, 12);
+        vlg.spacing = 8f;
         vlg.childControlWidth = true;
         vlg.childControlHeight = true;
         vlg.childForceExpandWidth = true;
@@ -216,6 +260,62 @@ public class QuestHUDTracker : MonoBehaviour
         bRect.anchoredPosition = Vector2.zero;
         LayoutElement bLe = borderGO.AddComponent<LayoutElement>();
         bLe.ignoreLayout = true;
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // A. CONTAINER COMPACTO (GAMEPLAY - RESUMIDO)
+        // ═══════════════════════════════════════════════════════════════════════
+        compactContainer = new GameObject("Compact_Container");
+        compactContainer.transform.SetParent(widgetObj.transform, false);
+        VerticalLayoutGroup cVlg = compactContainer.AddComponent<VerticalLayoutGroup>();
+        cVlg.spacing = 3f;
+        cVlg.padding = new RectOffset(0, 0, 0, 0);
+        cVlg.childControlWidth = true;
+        cVlg.childControlHeight = true;
+        cVlg.childForceExpandWidth = true;
+        cVlg.childForceExpandHeight = false;
+
+        // Linha 1: Meta Núcleos
+        GameObject cMasterGO = new GameObject("Compact_Master");
+        cMasterGO.transform.SetParent(compactContainer.transform, false);
+        compactMasterText = cMasterGO.AddComponent<TextMeshProUGUI>();
+        compactMasterText.text = "★ NÚCLEOS: 0 / 4 [☆☆☆☆]";
+        compactMasterText.fontSize = 13;
+        compactMasterText.fontStyle = FontStyles.Bold;
+        compactMasterText.color = BORDER_MASTER;
+        if (customFont != null) compactMasterText.font = customFont;
+
+        // Linha 2: Missão Ativa
+        GameObject cActiveGO = new GameObject("Compact_Active");
+        cActiveGO.transform.SetParent(compactContainer.transform, false);
+        compactActiveText = cActiveGO.AddComponent<TextMeshProUGUI>();
+        compactActiveText.text = "● DIRETRIZ ATIVA";
+        compactActiveText.fontSize = 14;
+        compactActiveText.fontStyle = FontStyles.Bold;
+        compactActiveText.color = TEXT_TITLE;
+        compactActiveText.textWrappingMode = TextWrappingModes.Normal;
+        if (customFont != null) compactActiveText.font = customFont;
+
+        // Linha 3: Dica de Inventário
+        GameObject cHintGO = new GameObject("Compact_Hint");
+        cHintGO.transform.SetParent(compactContainer.transform, false);
+        compactHintText = cHintGO.AddComponent<TextMeshProUGUI>();
+        compactHintText.text = "[TAB] Missão completa";
+        compactHintText.fontSize = 10;
+        compactHintText.color = new Color(0.7f, 0.65f, 0.85f, 0.6f);
+        if (customFont != null) compactHintText.font = customFont;
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // B. CONTAINER EXPANDIDO (INVENTÁRIO / TAB - DETALHADO)
+        // ═══════════════════════════════════════════════════════════════════════
+        expandedContainer = new GameObject("Expanded_Container");
+        expandedContainer.transform.SetParent(widgetObj.transform, false);
+        VerticalLayoutGroup eVlg = expandedContainer.AddComponent<VerticalLayoutGroup>();
+        eVlg.spacing = 10f;
+        eVlg.padding = new RectOffset(0, 0, 0, 0);
+        eVlg.childControlWidth = true;
+        eVlg.childControlHeight = true;
+        eVlg.childForceExpandWidth = true;
+        eVlg.childForceExpandHeight = false;
 
         // ═══════════════════════════════════════════════════════════════════════
         // 0. SEÇÃO DA META SUPREMA (NÚCLEOS DA NAVE)
@@ -254,7 +354,7 @@ public class QuestHUDTracker : MonoBehaviour
 
         // Linha divisória após Master Objective
         masterDividerLine = new GameObject("MasterDividerLine");
-        masterDividerLine.transform.SetParent(widgetObj.transform, false);
+        masterDividerLine.transform.SetParent(expandedContainer.transform, false);
         Image mDivImg = masterDividerLine.AddComponent<Image>();
         mDivImg.color = new Color(BORDER_MASTER.r, BORDER_MASTER.g, BORDER_MASTER.b, 0.25f);
         LayoutElement mDivLe = masterDividerLine.AddComponent<LayoutElement>();
@@ -300,7 +400,7 @@ public class QuestHUDTracker : MonoBehaviour
         // 2. LINHA DIVISÓRIA
         // ═══════════════════════════════════════════════════════════════════════
         dividerLine = new GameObject("DividerLine");
-        dividerLine.transform.SetParent(widgetObj.transform, false);
+        dividerLine.transform.SetParent(expandedContainer.transform, false);
         Image divImg = dividerLine.AddComponent<Image>();
         divImg.color = DIVIDER_COLOR;
         LayoutElement divLe = dividerLine.AddComponent<LayoutElement>();
@@ -342,12 +442,17 @@ public class QuestHUDTracker : MonoBehaviour
         activeProgressText.fontStyle = FontStyles.Bold;
         activeProgressText.color = TEXT_SUB;
         if (customFont != null) activeProgressText.font = customFont;
+
+        // Inicia em modo compacto (gameplay)
+        compactContainer.SetActive(true);
+        expandedContainer.SetActive(false);
+        isCurrentlyExpanded = false;
     }
 
     private GameObject CreateSectionContainer(string name)
     {
         GameObject sec = new GameObject(name);
-        sec.transform.SetParent(widgetObj.transform, false);
+        sec.transform.SetParent(expandedContainer != null ? expandedContainer.transform : widgetObj.transform, false);
         VerticalLayoutGroup v = sec.AddComponent<VerticalLayoutGroup>();
         v.spacing = 3f;
         v.childControlWidth = true;
@@ -365,7 +470,7 @@ public class QuestHUDTracker : MonoBehaviour
         if (widgetRect != null)
         {
             widgetRect.anchoredPosition = new Vector2(offsetX, offsetY);
-            widgetRect.sizeDelta = new Vector2(widgetWidth, widgetRect.sizeDelta.y);
+            widgetRect.sizeDelta = new Vector2(isCurrentlyExpanded ? widgetWidth : compactWidth, widgetRect.sizeDelta.y);
         }
 
         PersistentSaveData save = SaveManager.instance != null ? SaveManager.instance.CachedData : null;
@@ -392,6 +497,39 @@ public class QuestHUDTracker : MonoBehaviour
         bool hasActive = active != null;
         int shipParts = SaveManager.instance != null ? SaveManager.instance.GetShipPartsRecovered() : 0;
 
+        string coresIcons = "";
+        for (int i = 0; i < 4; i++)
+        {
+            coresIcons += (i < shipParts) ? "★" : "☆";
+        }
+
+        // ── Atualização do Modo Compacto (Gameplay) ──
+        if (compactMasterText != null)
+        {
+            compactMasterText.text = $"★ NÚCLEOS: {shipParts} / 4  [{coresIcons}]";
+        }
+
+        if (compactActiveText != null)
+        {
+            if (hasActive)
+            {
+                int prog = save != null ? save.activeQuestProgress : 0;
+                int req = Mathf.Max(1, active.requiredAmount);
+                compactActiveText.text = $"● {active.questTitle.ToUpper()}  ({prog}/{req})";
+                compactActiveText.color = TEXT_TITLE;
+            }
+            else if (hasCompleted)
+            {
+                compactActiveText.text = "✔ TODAS AS DIRETRIZES CONCLUÍDAS";
+                compactActiveText.color = BORDER_DONE;
+            }
+            else
+            {
+                compactActiveText.text = "★ RESTAURE A NAVE";
+                compactActiveText.color = BORDER_MASTER;
+            }
+        }
+
         // O widget exibe a meta suprema e as diretrizes do jogo
         widgetObj.SetActive(true);
 
@@ -399,11 +537,6 @@ public class QuestHUDTracker : MonoBehaviour
         if (masterSection != null)
         {
             masterSection.SetActive(true);
-            string coresIcons = "";
-            for (int i = 0; i < 4; i++)
-            {
-                coresIcons += (i < shipParts) ? "★" : "☆";
-            }
             masterProgressText.text = $"Núcleos: {shipParts} / 4  [{coresIcons}]";
         }
 

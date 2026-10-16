@@ -112,13 +112,6 @@ public class VictoryScreenUI : MonoBehaviour
             RunStatsManager.Instance.ResetStats();
         }
 
-        if (GameManager.instance != null)
-        {
-            GameManager.instance.ReturnToBase();
-        }
-        else
-        {
-            SceneManager.LoadScene("Base");
-        }
+        GameManager.EnsureInstance().ReturnToBase();
     }
 }

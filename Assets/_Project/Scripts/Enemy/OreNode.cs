@@ -32,15 +32,30 @@ public class OreNode : MonoBehaviour
     }
 
     /// <summary>
-    /// Configura o visual placeholder do minério (esfera brilhante).
+    /// Configura o visual placeholder do minério apenas se não houver modelo/material texturizado.
     /// </summary>
     void SetupVisual()
     {
         oreRenderer = GetComponentInChildren<Renderer>();
         if (oreRenderer != null)
         {
-            // Cria material emissivo para o minério
-            // URP usa "Universal Render Pipeline/Lit", fallback para "Standard"
+            // Se o objeto já possui um material válido com textura ou shader configurado, NÃO sobrescreve!
+            if (oreRenderer.sharedMaterial != null)
+            {
+                Material shared = oreRenderer.sharedMaterial;
+                bool hasTexture = shared.mainTexture != null || 
+                                  (shared.HasProperty("_BaseMap") && shared.GetTexture("_BaseMap") != null);
+                bool isCustomNamed = !shared.name.ToLower().Contains("default") && 
+                                     !shared.name.ToLower().Contains("internal");
+
+                if (hasTexture || isCustomNamed)
+                {
+                    // Preserva o material autêntico do modelo 3D (ex: Cristal)
+                    return;
+                }
+            }
+
+            // Cria material emissivo apenas para placeholders sem material próprio
             Shader shader = Shader.Find("Universal Render Pipeline/Lit");
             if (shader == null) shader = Shader.Find("Standard");
 

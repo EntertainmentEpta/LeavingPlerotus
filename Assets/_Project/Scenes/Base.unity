@@ -10769,7 +10769,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
   loadingScreenCanvas: {fileID: 0}
   loadingBar: {fileID: 0}
-  minimumLoadingTime: 2
+  minimumLoadingTime: 3
   currentPlayer: {fileID: 0}
 --- !u!4 &437036603
 Transform:

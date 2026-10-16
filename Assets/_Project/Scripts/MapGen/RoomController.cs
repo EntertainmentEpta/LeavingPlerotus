@@ -191,6 +191,27 @@ public class RoomController : MonoBehaviour
         {
             enemyPoolConfig = Resources.Load<EnemyPoolConfig>("DefaultEnemyPool");
         }
+
+        if (!isSafeRoom && enemyPoolConfig != null)
+        {
+            SyncListsFromPoolConfig();
+        }
+    }
+
+    public void SyncListsFromPoolConfig()
+    {
+        if (enemyPoolConfig == null || isSafeRoom) return;
+
+        if (enemyPoolConfig.mobMenorPrefabs != null && enemyPoolConfig.mobMenorPrefabs.Count > 0)
+            mobMenorPrefabs = new List<GameObject>(enemyPoolConfig.mobMenorPrefabs);
+        if (enemyPoolConfig.atiradorPrefabs != null && enemyPoolConfig.atiradorPrefabs.Count > 0)
+            atiradorPrefabs = new List<GameObject>(enemyPoolConfig.atiradorPrefabs);
+        if (enemyPoolConfig.tanquePrefabs != null && enemyPoolConfig.tanquePrefabs.Count > 0)
+            tanquePrefabs = new List<GameObject>(enemyPoolConfig.tanquePrefabs);
+        if (enemyPoolConfig.elitePrefabs != null && enemyPoolConfig.elitePrefabs.Count > 0)
+            elitePrefabs = new List<GameObject>(enemyPoolConfig.elitePrefabs);
+        if (enemyPoolConfig.suportePrefabs != null && enemyPoolConfig.suportePrefabs.Count > 0)
+            suportePrefabs = new List<GameObject>(enemyPoolConfig.suportePrefabs);
     }
 
     void Start()

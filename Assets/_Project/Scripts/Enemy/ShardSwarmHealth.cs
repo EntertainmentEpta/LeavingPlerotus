@@ -59,6 +59,14 @@ public class ShardSwarmHealth : MonoBehaviour
 
     private void Start()
     {
+        // Aplica escalonamento de HP por sala (+3% por sala avançada conforme GDD)
+        if (RunManager.instance != null && RunManager.instance.currentRoomNumber > 1)
+        {
+            int roomIndex = RunManager.instance.currentRoomNumber;
+            float hpScalingMultiplier = 1f + (0.03f * (roomIndex - 1));
+            maxHealth = Mathf.RoundToInt(maxHealth * hpScalingMultiplier);
+        }
+
         CurrentHealth = maxHealth;
 
         dummyRenderer = GetComponentInChildren<Renderer>();

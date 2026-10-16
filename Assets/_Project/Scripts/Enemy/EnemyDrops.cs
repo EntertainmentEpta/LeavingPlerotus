@@ -79,6 +79,18 @@ public class EnemyDrops : MonoBehaviour
 
         // 1. Sempre spawna essência com inflação por sala
         // Fórmula GDD §1.1: E(n) = d × (1 + α × n)  onde α = 0,05
+        if (essencePrefab == null)
+        {
+            essencePrefab = Resources.Load<GameObject>("Essência")
+                         ?? Resources.Load<GameObject>("Drops Prefabs/Essência");
+#if UNITY_EDITOR
+            if (essencePrefab == null)
+            {
+                essencePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Items_and_Crafting/Drops Prefabs/Essência.prefab");
+            }
+#endif
+        }
+
         if (essencePrefab != null)
         {
             // Aplica o multiplicador de sala (d é o essenceAmount base)
@@ -108,24 +120,55 @@ public class EnemyDrops : MonoBehaviour
             Debug.LogWarning("[ENEMY DROPS] essencePrefab está NULL! Configure no Inspector.");
         }
 
-        // 2. Chance de dropar ALGUM item característico (Roleta com Pesos)
+        // 2. Chance de dropar ALGUM item característico calibrada por Classe (Matriz de Balanceamento GDD)
         float effectiveDropChance = globalDropChance;
+        string objName = gameObject.name.ToLower();
 
-        // Auto-balanceia a chance de drop para evitar que todas as salas fiquem entulhadas de itens (Estilo Brotato)
-        bool isBossOrElites = GetComponent<Geobionte_AI>() != null || GetComponent<CrystalTuner>() != null || gameObject.name.ToLower().Contains("boss");
-        bool isMediumUnit = GetComponent<Golem_AI>() != null || GetComponent<CrystalWatcher_AI>() != null;
+        bool isBossOrElites = GetComponent<Geobionte_AI>() != null || 
+                              objName.Contains("sentinel") || 
+                              objName.Contains("bismutado") || 
+                              objName.Contains("boss");
 
-        if (!isBossOrElites)
+        bool isTankOrStructure = GetComponent<Golem_AI>() != null || 
+                                 GetComponent<MagicStone_AI>() != null || 
+                                 GetComponent<ShardSwarm_AI>() != null || 
+                                 GetComponent<TotemSpawner>() != null || 
+                                 objName.Contains("golem") || 
+                                 objName.Contains("magicstone") || 
+                                 objName.Contains("star") || 
+                                 objName.Contains("totem");
+
+        bool isSupport = GetComponent<Cristalus_AI>() != null || 
+                         GetComponent<CrystalTuner>() != null || 
+                         objName.Contains("cristalus") || 
+                         objName.Contains("tuner");
+
+        bool isRanged = GetComponent<PeixeAI>() != null || 
+                        GetComponent<GoblinAI_Transform>() != null || 
+                        GetComponent<CrystalWatcher_AI>() != null || 
+                        objName.Contains("peixe") || 
+                        objName.Contains("goblin") || 
+                        objName.Contains("watcher");
+
+        if (isBossOrElites)
         {
-            if (isMediumUnit)
-            {
-                effectiveDropChance = Mathf.Min(effectiveDropChance, 0.50f);
-            }
-            else
-            {
-                // Mobs comuns (Spider, Goblin, SharpBlur)
-                effectiveDropChance = Mathf.Min(effectiveDropChance, 0.22f);
-            }
+            effectiveDropChance = 1.0f; // Drop garantido para Elites / Chefes
+        }
+        else if (isTankOrStructure)
+        {
+            effectiveDropChance = Mathf.Min(effectiveDropChance, 0.35f); // 35% Tanques e Estruturas
+        }
+        else if (isSupport)
+        {
+            effectiveDropChance = Mathf.Min(effectiveDropChance, 0.25f); // 25% Suportes
+        }
+        else if (isRanged)
+        {
+            effectiveDropChance = Mathf.Min(effectiveDropChance, 0.18f); // 18% Atiradores
+        }
+        else
+        {
+            effectiveDropChance = Mathf.Min(effectiveDropChance, 0.10f); // 10% Mobs Menores (Aranha, SharpBlur)
         }
 
         if (lootPool != null && lootPool.Count > 0 && Random.value <= effectiveDropChance)
@@ -154,13 +197,59 @@ public class EnemyDrops : MonoBehaviour
                 filteredPool = lootPool;
             }
 
+            // Ponderação dinâmica de Tier de acordo com a sala atual (GDD §4)
+            int currentRoom = RunManager.instance != null ? RunManager.instance.currentRoomNumber : 1;
+
             float totalWeight = 0f;
+            List<float> adjustedWeights = new List<float>();
+
             foreach (var loot in filteredPool)
             {
-                if (loot.itemPrefab != null && loot.weight > 0f)
+                if (loot.itemPrefab == null || loot.weight <= 0f)
                 {
-                    totalWeight += loot.weight;
+                    adjustedWeights.Add(0f);
+                    continue;
                 }
+
+                float weightMult = 1f;
+                string pName = loot.itemPrefab.name.ToLower();
+
+                if (isBossOrElites)
+                {
+                    // Elites priorizam T2, T3 e T4 (sem T1)
+                    if (pName.Contains("t1") || pName.Contains("1")) weightMult = 0f;
+                    else if (pName.Contains("t2") || pName.Contains("2")) weightMult = 0.5f;
+                    else if (pName.Contains("t3") || pName.Contains("3")) weightMult = 1.5f;
+                    else if (pName.Contains("t4") || pName.Contains("4")) weightMult = 2.0f;
+                }
+                else
+                {
+                    if (currentRoom <= 4)
+                    {
+                        if (pName.Contains("t1") || pName.Contains("1")) weightMult = 1.2f;
+                        else if (pName.Contains("t2") || pName.Contains("2")) weightMult = 0.5f;
+                        else if (pName.Contains("t3") || pName.Contains("3")) weightMult = 0.15f;
+                        else if (pName.Contains("t4") || pName.Contains("4")) weightMult = 0f;
+                    }
+                    else if (currentRoom <= 8)
+                    {
+                        if (pName.Contains("t1") || pName.Contains("1")) weightMult = 0.8f;
+                        else if (pName.Contains("t2") || pName.Contains("2")) weightMult = 1.0f;
+                        else if (pName.Contains("t3") || pName.Contains("3")) weightMult = 0.5f;
+                        else if (pName.Contains("t4") || pName.Contains("4")) weightMult = 0.15f;
+                    }
+                    else
+                    {
+                        if (pName.Contains("t1") || pName.Contains("1")) weightMult = 0.5f;
+                        else if (pName.Contains("t2") || pName.Contains("2")) weightMult = 1.1f;
+                        else if (pName.Contains("t3") || pName.Contains("3")) weightMult = 1.0f;
+                        else if (pName.Contains("t4") || pName.Contains("4")) weightMult = 0.5f;
+                    }
+                }
+
+                float finalW = loot.weight * weightMult;
+                adjustedWeights.Add(finalW);
+                totalWeight += finalW;
             }
 
             if (totalWeight > 0f)
@@ -169,14 +258,15 @@ public class EnemyDrops : MonoBehaviour
                 float currentSum = 0f;
                 GameObject selectedPrefab = null;
 
-                foreach (var loot in filteredPool)
+                for (int i = 0; i < filteredPool.Count; i++)
                 {
-                    if (loot.itemPrefab == null || loot.weight <= 0f) continue;
+                    float w = adjustedWeights[i];
+                    if (w <= 0f) continue;
                     
-                    currentSum += loot.weight;
+                    currentSum += w;
                     if (randomVal <= currentSum)
                     {
-                        selectedPrefab = loot.itemPrefab;
+                        selectedPrefab = filteredPool[i].itemPrefab;
                         break;
                     }
                 }

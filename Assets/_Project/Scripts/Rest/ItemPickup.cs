@@ -57,19 +57,35 @@ public class ItemPickup : MonoBehaviour
     void Awake()
     {
         interactable = GetComponent<Interactable>();
+        EnsureTriggerCollider();
 
         if (glowObject != null && !IsVisualRendererObject(glowObject)) 
         {
             glowObject.SetActive(false);
         }
 
-        if (pressFUI != null)
+        EnsurePromptUI();
+    }
+
+    private void EnsureTriggerCollider()
+    {
+        Collider[] colliders = GetComponents<Collider>();
+        bool hasTrigger = false;
+        foreach (var c in colliders)
         {
-            pressFUI.SetActive(false);
+            if (c != null && c.isTrigger)
+            {
+                hasTrigger = true;
+                break;
+            }
         }
-        else
+
+        if (!hasTrigger)
         {
-            BuildAutoPromptUI();
+            BoxCollider box = gameObject.AddComponent<BoxCollider>();
+            box.isTrigger = true;
+            box.center = new Vector3(0f, 0.5f, 0f);
+            box.size = new Vector3(2.5f, 2.5f, 2.5f);
         }
     }
 
@@ -92,6 +108,8 @@ public class ItemPickup : MonoBehaviour
     {
         spawnTime = Time.time;
         if (lifetime > 0) Destroy(gameObject, lifetime);
+
+        EnsureTriggerCollider();
 
         if (!IsMapResource())
         {
@@ -119,8 +137,12 @@ public class ItemPickup : MonoBehaviour
 
         string nameLower = gameObject.name.ToLower();
         if (nameLower.Contains("melacotus") || nameLower.Contains("lotus") || nameLower.Contains("lothus") || 
-            nameLower.Contains("lantern") || nameLower.Contains("cristal") || nameLower.Contains("quebradi") || 
-            nameLower.Contains("ovocristal") || nameLower.Contains("fly") || nameLower.Contains("planta"))
+            nameLower.Contains("lantern") || nameLower.Contains("cristal") || nameLower.Contains("crystal") ||
+            nameLower.Contains("quebradi") || nameLower.Contains("ovocristal") || nameLower.Contains("fly") || 
+            nameLower.Contains("vagalume") || nameLower.Contains("planta") || nameLower.Contains("plant") ||
+            nameLower.Contains("frog") || nameLower.Contains("sapo") || nameLower.Contains("tinker") ||
+            nameLower.Contains("stone") || nameLower.Contains("pedra") || nameLower.Contains("carpet") ||
+            nameLower.Contains("tapete"))
         {
             return true;
         }
@@ -162,6 +184,26 @@ public class ItemPickup : MonoBehaviour
     {
         if (IsMapResource()) return;
 
+        // Se o objeto não for um drop de mob simples tipo orbe ou não vier da pasta de Drops,
+        // mas tiver materiais com texturas próprias de modelo 3D, PRESERVA o material e a textura!
+        bool isMonsterDrop = gameObject.name.ToLower().Contains("drop") ||
+                             gameObject.name.ToLower().Contains("shard") ||
+                             gameObject.name.ToLower().Contains("spider") ||
+                             gameObject.name.ToLower().Contains("golem") ||
+                             gameObject.name.ToLower().Contains("watcher") ||
+                             gameObject.name.ToLower().Contains("totem") ||
+                             gameObject.name.ToLower().Contains("tuner") ||
+                             gameObject.name.ToLower().Contains("peixe_escama") ||
+                             gameObject.name.ToLower().Contains("magic_") ||
+                             gameObject.name.ToLower().Contains("essência") ||
+                             gameObject.name.ToLower().Contains("essencia");
+
+        if (!isMonsterDrop)
+        {
+            // É um item/modelo 3D do mundo. Preserva malha e texturas autênticas!
+            return;
+        }
+
         Shader defaultShader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
 
         Color tierColor = Color.white;
@@ -174,6 +216,10 @@ public class ItemPickup : MonoBehaviour
         foreach (var r in GetComponentsInChildren<Renderer>(true))
         {
             if (r == null || r.gameObject.name.Contains("Text") || r.gameObject.name.Contains("Canvas") || r.gameObject.name.Contains("glow"))
+                continue;
+
+            // Se o renderizador tem uma textura real, não sobrescreve com cor sólida
+            if (r.sharedMaterial != null && (r.sharedMaterial.mainTexture != null || (r.sharedMaterial.HasProperty("_BaseMap") && r.sharedMaterial.GetTexture("_BaseMap") != null)))
                 continue;
 
             Material mat = r.material;
@@ -325,11 +371,10 @@ public class ItemPickup : MonoBehaviour
 
             // Colisor adequado para interação
             BoxCollider boxCol = GetComponent<BoxCollider>();
-            if (boxCol != null)
-            {
-                boxCol.center = Vector3.zero;
-                boxCol.size = new Vector3(2.2f, 2.2f, 2.2f);
-            }
+            if (boxCol == null) boxCol = gameObject.AddComponent<BoxCollider>();
+            boxCol.isTrigger = true;
+            boxCol.center = new Vector3(0f, 0.5f, 0f);
+            boxCol.size = new Vector3(2.5f, 2.5f, 2.5f);
         }
         else if (source == "Flora")
         {
@@ -357,11 +402,10 @@ public class ItemPickup : MonoBehaviour
             light.intensity = 1.4f;
 
             BoxCollider boxCol = GetComponent<BoxCollider>();
-            if (boxCol != null)
-            {
-                boxCol.center = Vector3.zero;
-                boxCol.size = new Vector3(2.4f, 2.4f, 2.4f);
-            }
+            if (boxCol == null) boxCol = gameObject.AddComponent<BoxCollider>();
+            boxCol.isTrigger = true;
+            boxCol.center = new Vector3(0f, 0.5f, 0f);
+            boxCol.size = new Vector3(2.5f, 2.5f, 2.5f);
         }
         else if (source == "Minerals")
         {
@@ -389,11 +433,10 @@ public class ItemPickup : MonoBehaviour
             light.intensity = 1.4f;
 
             BoxCollider boxCol = GetComponent<BoxCollider>();
-            if (boxCol != null)
-            {
-                boxCol.center = Vector3.zero;
-                boxCol.size = new Vector3(2.4f, 2.4f, 2.4f);
-            }
+            if (boxCol == null) boxCol = gameObject.AddComponent<BoxCollider>();
+            boxCol.isTrigger = true;
+            boxCol.center = new Vector3(0f, 0.5f, 0f);
+            boxCol.size = new Vector3(2.5f, 2.5f, 2.5f);
         }
     }
 
@@ -411,15 +454,37 @@ public class ItemPickup : MonoBehaviour
 
     private void EnsurePromptUI()
     {
-        if (pressFUI == null)
+        bool hasValidPrompt = false;
+        if (pressFUI != null)
         {
+            // Verifica se o pressFUI configurado possui texto legível
+            TextMeshProUGUI tmp = pressFUI.GetComponentInChildren<TextMeshProUGUI>(true);
+            Text legacyTxt = pressFUI.GetComponentInChildren<Text>(true);
+            if (tmp != null || legacyTxt != null)
+            {
+                hasValidPrompt = true;
+            }
+        }
+
+        if (!hasValidPrompt)
+        {
+            // Se pressFUI for nulo ou for apenas um Canvas vazio sem texto, recria limpo
+            if (pressFUI != null && autoPromptTMP == null)
+            {
+                Destroy(pressFUI);
+                pressFUI = null;
+            }
             BuildAutoPromptUI();
+        }
+        else
+        {
+            pressFUI.SetActive(false);
         }
     }
 
     private void BuildAutoPromptUI()
     {
-        if (pressFUI != null) return;
+        if (pressFUI != null && autoPromptTMP != null) return;
 
         GameObject promptRoot = new GameObject("ItemPickup_PromptUI");
         promptRoot.transform.SetParent(transform, false);
@@ -577,16 +642,27 @@ public class ItemPickup : MonoBehaviour
 
     void OnTriggerEnter(Collider other)
     {
-        if (!other.CompareTag("Player")) return;
-        playerNearby = other.gameObject;
+        if (!IsPlayerCollider(other)) return;
+        playerNearby = other.GetComponentInParent<PlayerHealth>()?.gameObject ?? 
+                       other.GetComponentInParent<PlayerInventory>()?.gameObject ?? 
+                       other.gameObject;
         if (glowObject != null) glowObject.SetActive(true);
     }
 
     void OnTriggerExit(Collider other)
     {
-        if (!other.CompareTag("Player")) return;
+        if (!IsPlayerCollider(other)) return;
         playerNearby = null;
         if (glowObject != null) glowObject.SetActive(false);
+    }
+
+    private bool IsPlayerCollider(Collider other)
+    {
+        if (other == null) return false;
+        if (other.CompareTag("Player")) return true;
+        if (other.GetComponentInParent<PlayerHealth>() != null) return true;
+        if (other.GetComponentInParent<PlayerInventory>() != null) return true;
+        return false;
     }
 
     /// <summary>
@@ -605,7 +681,9 @@ public class ItemPickup : MonoBehaviour
         }
 
         // Toca som de coleta se disponível
-        PlayerInventory playerInv = player.GetComponentInParent<PlayerInventory>() ?? player.GetComponent<PlayerInventory>();
+        PlayerInventory playerInv = player.GetComponentInParent<PlayerInventory>() ?? 
+                                    player.GetComponent<PlayerInventory>() ?? 
+                                    FindFirstObjectByType<PlayerInventory>();
         if (playerInv != null)
         {
             playerInv.PlayItemPickupSound();

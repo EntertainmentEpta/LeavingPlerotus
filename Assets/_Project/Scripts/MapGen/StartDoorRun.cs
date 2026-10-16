@@ -48,7 +48,7 @@ public class StartRunDoor : MonoBehaviour
             else
             {
                 // Fallback direct load if PlayerM is missing
-                if (GameManager.instance != null) GameManager.instance.LoadGameLevel();
+                GameManager.EnsureInstance().LoadGameLevel();
             }
         }
     }
@@ -68,31 +68,9 @@ public class StartRunDoor : MonoBehaviour
             player.animator.SetFloat("Speed", 0f);
         }
 
-        // 2. Find ScreenFader (on player or in the scene)
-        ScreenFader fader = player.GetComponentInChildren<ScreenFader>();
-        if (fader == null)
-        {
-            fader = Object.FindFirstObjectByType<ScreenFader>();
-        }
+        yield return null;
 
-        if (fader != null)
-        {
-            // Fade Out (screen goes black smoothly)
-            yield return player.StartCoroutine(fader.FadeOut());
-        }
-        else
-        {
-            Debug.LogWarning("[StartRunDoor] ScreenFader not found. Transitioning instantly.");
-        }
-
-        // 3. Call GameManager to load the level asynchronously (which will show the loading canvas on black screen)
-        if (GameManager.instance != null)
-        {
-            GameManager.instance.LoadGameLevel();
-        }
-        else
-        {
-            Debug.LogError("GameManager.instance não encontrado! O jogo não pode começar.");
-        }
+        // 2. Call GameManager to load the level asynchronously (which immediately fades in the LoadingScreen with Eptinho walking)
+        GameManager.EnsureInstance().LoadGameLevel();
     }
-}
+}

@@ -798,20 +798,29 @@ MonoBehaviour:
   activationDistance: 25
   chaseSpeed: 6
   dashTriggerDistance: 8
-  meleeTriggerDistance: 2.5
+  meleeTriggerDistance: 3
+  dashCooldown: 3.5
   dashDistance: 9
   dashSpeed: 30
   pauseBetweenDashes: 0.25
-  endSequenceRest: 1.2
+  endSequenceRest: 1
   meleeDuration: 1
   meleeDamage: 10
   anticipationTime: 0.2
   leadPrediction: 0.541
-  retreatDistance: 4
+  retreatDistance: 3.5
   dashDamage: 10
   hologramPrefab: {fileID: 4003337562454944380, guid: 92ec80068f9a9234ba6e3dd5d7a80d41, type: 3}
   hologramMaterial: {fileID: 2100000, guid: 70a32a940b8e3e042a142b4897bfe3f3, type: 2}
   hologramAlpha: 0.1
+  teleportSound: {fileID: 8300000, guid: 5e27c96573a6eb347ba4ea633f5627a9, type: 3}
+  teleportSoundVolume: 0.8
+  meleeAttackSound: {fileID: 8300000, guid: f75792465661afe42acaebbfc98f757e, type: 3}
+  meleeAttackSoundVolume: 0.9
+  hitSounds: []
+  hitSoundVolume: 0.7
+  dieSounds: []
+  dieSoundVolume: 0.8
 --- !u!65 &5437306787277278715
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -848,17 +857,17 @@ MonoBehaviour:
   essencePrefab: {fileID: 1526004001283604428, guid: aac8898d50c757240944683fe67b0d7c, type: 3}
   essenceAmount: 10
   essenceVariation: 3
-  globalDropChance: 0.3
+  globalDropChance: 0.1
   itemAmount: 1
   lootPool:
   - itemPrefab: {fileID: 1066167381274076914, guid: 49e1272cbdf39084fb8ff69343530505, type: 3}
-    weight: 20
+    weight: 40
   - itemPrefab: {fileID: 1066167381274076914, guid: 7cf60631c7d43e843830b9b2c1675adb, type: 3}
-    weight: 40
+    weight: 30
   - itemPrefab: {fileID: 1066167381274076914, guid: cca9af8f0c9d96445ad0c3e26762de19, type: 3}
-    weight: 40
+    weight: 20
   - itemPrefab: {fileID: 1066167381274076914, guid: 30dbe1bfec1a55e4db268fb8c323dc07, type: 3}
-    weight: 80
+    weight: 10
   spawnHeight: 0.5
   spawnRadius: 0.5
   launchForce: 3

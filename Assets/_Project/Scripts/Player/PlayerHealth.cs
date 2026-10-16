@@ -983,6 +983,13 @@ public class PlayerHealth : MonoBehaviour
         // Dispara modelo ficando levemente vermelho
         TriggerPlayerRedFlash();
 
+        // Escalonamento de Dano Inimigo (+3% por sala avançada conforme GDD / Hp_Dano_Inimigos.pdf)
+        if (RunManager.instance != null && RunManager.instance.currentRoomNumber > 1 && attacker != null)
+        {
+            float roomDamageMultiplier = 1f + 0.03f * (RunManager.instance.currentRoomNumber - 1);
+            damage = Mathf.RoundToInt(damage * roomDamageMultiplier);
+        }
+
         // Se estivermos no modo Endless e o level for maior que 3, aumenta o dano recebido pelo jogador
         if (RunManager.instance != null && RunManager.instance.isEndlessMode && RunManager.instance.currentLevel > 3)
         {
