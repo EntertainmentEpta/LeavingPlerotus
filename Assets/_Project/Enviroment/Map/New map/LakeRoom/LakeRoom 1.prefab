@@ -193,8 +193,8 @@ MonoBehaviour:
   minEnemiesPerWave: 6
   mobCapFraction: 0.7
   spawnAreas:
-  - {fileID: 0}
-  spawnIndicatorPrefab: {fileID: 0}
+  - {fileID: 2634700804782588318}
+  spawnIndicatorPrefab: {fileID: 1535335175129926780, guid: e096f35eb08cf4846bbc7c5a4f31afb3, type: 3}
   spawnDelay: 1.5
   spawnHeightOffset: 0.1
   faunaSpawnEntries: []
@@ -206,8 +206,8 @@ MonoBehaviour:
     itemData: {fileID: 0}
     weight: 1
   doors:
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 716727505430917571}
+  - {fileID: 8119354542359240632}
   showSpawnLog: 1
 --- !u!1 &4982431326818486561
 GameObject:

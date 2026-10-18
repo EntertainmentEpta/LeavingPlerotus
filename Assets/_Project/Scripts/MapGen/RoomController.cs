@@ -185,6 +185,7 @@ public class RoomController : MonoBehaviour
 
     void Awake()
     {
+        EnsureValidSpawnAreas();
         EnsureDefaultCollectibleEntries();
 
         if (enemyPoolConfig == null)
@@ -216,6 +217,8 @@ public class RoomController : MonoBehaviour
 
     void Start()
     {
+        EnsureValidSpawnAreas();
+
         if (gameObject.name.ToLower().Contains("3way") || gameObject.name.ToLower().Contains("treeway"))
         {
             roomCategory = RoomCategory.Contemplation;
@@ -426,7 +429,7 @@ public class RoomController : MonoBehaviour
             {
                 targetRoom.activeEnemies.Add(enemy);
                 MagicStone_AI magicStone = enemy.GetComponent<MagicStone_AI>();
-                if (magicStone != null && targetRoom.spawnAreas.Count > 0)
+                if (magicStone != null && targetRoom.spawnAreas.Count > 0 && targetRoom.spawnAreas[0] != null)
                     magicStone.SetRoomBounds(targetRoom.spawnAreas[0]);
             }
 
@@ -568,6 +571,7 @@ public class RoomController : MonoBehaviour
 
     IEnumerator SpawnEnemyWithDelay(GameObject prefab)
     {
+        EnsureValidSpawnAreas();
         if (prefab == null || spawnAreas == null || spawnAreas.Count == 0)
         {
             enemiesPendingSpawn--;
@@ -616,7 +620,7 @@ public class RoomController : MonoBehaviour
 
         // Integração especial: passa os limites de área para a MagicStone (usa a primeira área como referência)
         MagicStone_AI magicStone = newEnemy.GetComponent<MagicStone_AI>();
-        if (magicStone != null)
+        if (magicStone != null && spawnAreas != null && spawnAreas.Count > 0 && spawnAreas[0] != null)
             magicStone.SetRoomBounds(spawnAreas[0]);
 
         activeEnemies.Add(newEnemy);
@@ -690,10 +694,152 @@ public class RoomController : MonoBehaviour
     // HELPERS
     // =====================================================
 
+    /// <summary>
+    /// Retorna a altura Y do chão da sala no espaço de mundo.
+    /// Dá prioridade aos ConnectionPoints (Entrada/Saída), que estão sempre no nível do piso.
+    /// Evita depender do transform.position do root, que pode ter offset elevado no modelo.
+    /// </summary>
+    public float GetRoomFloorWorldY()
+    {
+        ConnectionPoint[] cps = GetComponentsInChildren<ConnectionPoint>();
+        if (cps != null)
+        {
+            foreach (var cp in cps)
+            {
+                if (cp != null && cp.pointType == ConnectionPoint.PointType.Entrada)
+                {
+                    return cp.GetFloorWorldY();
+                }
+            }
+            if (cps.Length > 0 && cps[0] != null)
+            {
+                return cps[0].GetFloorWorldY();
+            }
+        }
+
+        if (LevelGenerator.Instance != null)
+        {
+            return LevelGenerator.Instance.roomFloorY;
+        }
+
+        return transform.position.y;
+    }
+
+    /// <summary>
+    /// Calcula os limites tridimensionais (Bounds) da sala para uso de spawn.
+    /// Usa SpawnAreas configuradas, ou renderers combinados, ou ConnectionPoints como fallback.
+    /// </summary>
+    public Bounds GetRoomBounds()
+    {
+        // 1. Tenta usar as SpawnAreas configuradas
+        if (spawnAreas != null && spawnAreas.Count > 0)
+        {
+            Bounds b = new Bounds();
+            bool hasFirst = false;
+            foreach (var area in spawnAreas)
+            {
+                if (area == null) continue;
+                if (!hasFirst) { b = area.bounds; hasFirst = true; }
+                else { b.Encapsulate(area.bounds); }
+            }
+            if (hasFirst && b.size.sqrMagnitude > 1f) return b;
+        }
+
+        // 2. Se não houver spawnAreas, calcula bounds combinados de todos os renderers da sala
+        Renderer[] renderers = GetComponentsInChildren<Renderer>();
+        if (renderers != null && renderers.Length > 0)
+        {
+            Bounds b = new Bounds();
+            bool hasFirst = false;
+            foreach (var r in renderers)
+            {
+                if (r == null || !r.enabled) continue;
+                if (!hasFirst) { b = r.bounds; hasFirst = true; }
+                else { b.Encapsulate(r.bounds); }
+            }
+            if (hasFirst && b.size.sqrMagnitude > 1f) return b;
+        }
+
+        // 3. Fallback usando ConnectionPoints
+        ConnectionPoint[] cps = GetComponentsInChildren<ConnectionPoint>();
+        if (cps != null && cps.Length > 0)
+        {
+            Bounds b = new Bounds(cps[0].transform.position, Vector3.one * 10f);
+            for (int i = 1; i < cps.Length; i++)
+            {
+                if (cps[i] != null)
+                    b.Encapsulate(cps[i].transform.position);
+            }
+            return b;
+        }
+
+        return new Bounds(new Vector3(transform.position.x, GetRoomFloorWorldY(), transform.position.z), Vector3.one * 10f);
+    }
+
+    /// <summary>
+    /// Garante que a lista de spawnAreas não tenha referências nulas e, caso esteja vazia,
+    /// detecta colliders filhos ou cria dinamicamente uma AutoSpawnArea no nível correto do chão.
+    /// </summary>
+    public void EnsureValidSpawnAreas()
+    {
+        if (spawnAreas != null)
+        {
+            spawnAreas.RemoveAll(a => a == null);
+        }
+        else
+        {
+            spawnAreas = new List<BoxCollider>();
+        }
+
+        if (spawnAreas.Count == 0)
+        {
+            // 1. Tenta encontrar BoxCollider existente nos filhos que se chame SpawnArea ou contenha Spawn
+            BoxCollider[] allBoxes = GetComponentsInChildren<BoxCollider>(true);
+            foreach (var box in allBoxes)
+            {
+                if (box == null) continue;
+                string n = box.gameObject.name.ToLower();
+                if (n.Contains("spawnarea") || n.Contains("spawn_area") || n.Contains("spawn area") || n == "spawn")
+                {
+                    spawnAreas.Add(box);
+                    break;
+                }
+            }
+
+            // 2. Se ainda não encontrou, cria dinamicamente uma AutoSpawnArea baseada nos limites reais da sala
+            if (spawnAreas.Count == 0)
+            {
+                Bounds roomBounds = GetRoomBounds();
+                float floorY = GetRoomFloorWorldY();
+
+                GameObject autoSpawnGO = new GameObject("AutoSpawnArea");
+                autoSpawnGO.transform.SetParent(transform, true);
+                autoSpawnGO.transform.position = new Vector3(roomBounds.center.x, floorY + 1.5f, roomBounds.center.z);
+
+                BoxCollider autoBox = autoSpawnGO.AddComponent<BoxCollider>();
+                autoBox.isTrigger = true;
+
+                float sx = Mathf.Clamp(roomBounds.size.x * 0.65f, 6f, 30f);
+                float sz = Mathf.Clamp(roomBounds.size.z * 0.65f, 6f, 30f);
+                autoBox.size = new Vector3(sx, 3f, sz);
+
+                spawnAreas.Add(autoBox);
+                Debug.Log($"[RoomController] AutoSpawnArea gerada dinamicamente para a sala '{gameObject.name}' em Y={floorY:F2}");
+            }
+        }
+    }
+
     Vector3 GetRandomPositionInArea(BoxCollider area)
     {
-        if (area == null) return transform.position;
-        Bounds bounds = area.bounds;
+        if (area == null)
+        {
+            EnsureValidSpawnAreas();
+            if (spawnAreas != null && spawnAreas.Count > 0 && spawnAreas[0] != null)
+                area = spawnAreas[0];
+        }
+
+        float floorY = GetRoomFloorWorldY();
+        Bounds bounds = (area != null) ? area.bounds : GetRoomBounds();
         Vector3 size = bounds.size;
 
         // Inset das margens (0.70f = 30% de recuo das bordas) para não spawnar em cristais e paredes do perímetro
@@ -705,34 +851,37 @@ public class RoomController : MonoBehaviour
         {
             float x = Random.Range(bounds.center.x - halfX, bounds.center.x + halfX);
             float z = Random.Range(bounds.center.z - halfZ, bounds.center.z + halfZ);
-            Vector3 candidatePos = new Vector3(x, bounds.center.y, z);
+            Vector3 candidatePos = new Vector3(x, floorY + 0.5f, z);
 
             // 1. Tenta NavMesh e garante distância mínima das paredes/bordas
-            if (UnityEngine.AI.NavMesh.SamplePosition(candidatePos, out UnityEngine.AI.NavMeshHit navHit, 4f, UnityEngine.AI.NavMesh.AllAreas))
+            if (UnityEngine.AI.NavMesh.SamplePosition(candidatePos, out UnityEngine.AI.NavMeshHit navHit, 6f, UnityEngine.AI.NavMesh.AllAreas))
             {
-                // Verifica se não está colado na borda do NavMesh (mínimo 1.2m da parede)
-                if (UnityEngine.AI.NavMesh.FindClosestEdge(navHit.position, out UnityEngine.AI.NavMeshHit edgeHit, UnityEngine.AI.NavMesh.AllAreas))
+                if (Mathf.Abs(navHit.position.y - floorY) <= 4.0f)
                 {
-                    if (edgeHit.distance < 1.2f) continue;
-                }
-
-                // Raycast de confirmação para garantir que não caiu no topo de um cristal decorativo
-                Vector3 checkRayStart = navHit.position + Vector3.up * 5f;
-                if (Physics.Raycast(checkRayStart, Vector3.down, out RaycastHit surfaceHit, 8f))
-                {
-                    string nameLower = surfaceHit.collider.gameObject.name.ToLower();
-                    if (nameLower.Contains("crystal") || nameLower.Contains("prop") || surfaceHit.collider.CompareTag("Prop"))
+                    // Verifica se não está colado na borda do NavMesh (mínimo 1.2m da parede)
+                    if (UnityEngine.AI.NavMesh.FindClosestEdge(navHit.position, out UnityEngine.AI.NavMeshHit edgeHit, UnityEngine.AI.NavMesh.AllAreas))
                     {
-                        continue; // Rejeita e sorteia outro ponto se for no topo de um cristal
+                        if (edgeHit.distance < 1.2f) continue;
                     }
-                }
 
-                return navHit.position;
+                    // Raycast de confirmação para garantir que não caiu no topo de um cristal decorativo
+                    Vector3 checkRayStart = navHit.position + Vector3.up * 4f;
+                    if (Physics.Raycast(checkRayStart, Vector3.down, out RaycastHit surfaceHit, 6f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+                    {
+                        string nameLower = surfaceHit.collider.gameObject.name.ToLower();
+                        if (nameLower.Contains("crystal") || nameLower.Contains("prop") || surfaceHit.collider.CompareTag("Prop"))
+                        {
+                            continue; // Rejeita e sorteia outro ponto se for no topo de um cristal
+                        }
+                    }
+
+                    return navHit.position;
+                }
             }
 
             // 2. Raycast de cima para baixo como fallback secundário
-            Vector3 rayStart = new Vector3(x, bounds.center.y + 15f, z);
-            if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, 35f))
+            Vector3 rayStart = new Vector3(x, floorY + 3.5f, z);
+            if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, 8f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
             {
                 if (!hit.collider.isTrigger && !hit.collider.CompareTag("Player"))
                 {
@@ -745,20 +894,28 @@ public class RoomController : MonoBehaviour
             }
         }
 
-        // Fallback final seguro: amostragem no NavMesh no centro da área ou na posição da sala
-        if (UnityEngine.AI.NavMesh.SamplePosition(bounds.center, out UnityEngine.AI.NavMeshHit centerHit, 20f, UnityEngine.AI.NavMesh.AllAreas))
+        // Fallback final seguro: amostragem no NavMesh no centro da área ou na posição do chão da sala
+        Vector3 centerCandidate = new Vector3(bounds.center.x, floorY + 0.5f, bounds.center.z);
+        if (UnityEngine.AI.NavMesh.SamplePosition(centerCandidate, out UnityEngine.AI.NavMeshHit centerHit, 15f, UnityEngine.AI.NavMesh.AllAreas))
         {
-            return centerHit.position;
+            if (Mathf.Abs(centerHit.position.y - floorY) <= 4.0f)
+                return centerHit.position;
         }
 
-        return transform.position + Vector3.up * 0.1f;
+        return new Vector3(bounds.center.x, floorY + spawnHeightOffset, bounds.center.z);
     }
 
-    private Vector3 GetRandomPositionForCollectible(BoxCollider box, bool isHigh, bool isNearWall)
+    private Vector3 GetRandomPositionForCollectible(BoxCollider box, bool isNearWall, bool isHigh)
     {
-        if (box == null) return transform.position;
-        
-        Bounds bounds = box.bounds;
+        if (box == null)
+        {
+            EnsureValidSpawnAreas();
+            if (spawnAreas != null && spawnAreas.Count > 0 && spawnAreas[0] != null)
+                box = spawnAreas[0];
+        }
+
+        float floorY = GetRoomFloorWorldY();
+        Bounds bounds = (box != null) ? box.bounds : GetRoomBounds();
         Vector3 size = bounds.size;
 
         // Se a área for muito pequena (erro de escala no prefab), expande para um raio útil de 7 metros
@@ -788,35 +945,58 @@ public class RoomController : MonoBehaviour
         }
 
         // Snap to ground using NavMesh or Raycast downwards
-        float y = bounds.center.y;
-        Vector3 candidatePos = new Vector3(x, y, z);
+        float y = floorY;
+        Vector3 candidatePos = new Vector3(x, floorY + 0.5f, z);
         bool foundGround = false;
 
-        // 1. Tenta NavMesh primeiro
-        if (UnityEngine.AI.NavMesh.SamplePosition(candidatePos, out UnityEngine.AI.NavMeshHit navHit, 15f, UnityEngine.AI.NavMesh.AllAreas))
+        // 1. Tenta NavMesh primeiro (próximo do nível do chão da sala)
+        if (UnityEngine.AI.NavMesh.SamplePosition(candidatePos, out UnityEngine.AI.NavMeshHit navHit, 6f, UnityEngine.AI.NavMesh.AllAreas))
         {
-            y = navHit.position.y;
-            foundGround = true;
-        }
-
-        // 2. Se NavMesh falhar, tenta Raycast de cima para baixo
-        if (!foundGround)
-        {
-            Vector3 rayStart = new Vector3(x, bounds.center.y + 8f, z);
-            if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, 20f))
+            if (Mathf.Abs(navHit.position.y - floorY) <= 4.0f)
             {
-                if (!hit.collider.isTrigger)
-                {
-                    y = hit.point.y;
-                    foundGround = true;
-                }
+                y = navHit.position.y;
+                foundGround = true;
             }
         }
 
-        // 3. Fallback final seguro
+        // 2. Se NavMesh falhar (ex: sobre a água do LakeRoom), tenta Raycast de cima para baixo
         if (!foundGround)
         {
-            y = bounds.min.y + 0.1f;
+            Vector3 rayStart = new Vector3(x, floorY + 3.5f, z);
+            RaycastHit[] hits = Physics.RaycastAll(rayStart, Vector3.down, 8.0f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            float bestDist = float.MaxValue;
+            RaycastHit bestHit = default;
+            bool hitFound = false;
+
+            foreach (var h in hits)
+            {
+                if (h.collider == null || h.collider.isTrigger) continue;
+                if (h.collider.CompareTag("Player")) continue;
+
+                string hitName = h.collider.gameObject.name.ToLower();
+                if (hitName.Contains("crystal") || hitName.Contains("prop") || h.collider.CompareTag("Prop"))
+                    continue;
+
+                float dist = Mathf.Abs(h.point.y - floorY);
+                if (dist < bestDist)
+                {
+                    bestDist = dist;
+                    bestHit = h;
+                    hitFound = true;
+                }
+            }
+
+            if (hitFound)
+            {
+                y = bestHit.point.y;
+                foundGround = true;
+            }
+        }
+
+        // 3. Fallback final seguro: se nada encontrou colisão, usa o chão de referência da sala
+        if (!foundGround)
+        {
+            y = floorY;
         }
 
         if (isHigh)
@@ -908,7 +1088,12 @@ public class RoomController : MonoBehaviour
 
     private Vector3 GetSeparatedRandomPositionForCollectible(List<Vector3> existingPositions, bool isNearWall, bool isHigh, float minDistance = 7f)
     {
-        if (spawnAreas == null || spawnAreas.Count == 0) return transform.position;
+        EnsureValidSpawnAreas();
+        if (spawnAreas == null || spawnAreas.Count == 0)
+        {
+            float floorY = GetRoomFloorWorldY();
+            return new Vector3(transform.position.x, floorY + (isHigh ? 1.8f : 0.05f), transform.position.z);
+        }
 
         Vector3 bestCandidate = Vector3.zero;
         float maxMinDist = -1f;
@@ -949,6 +1134,7 @@ public class RoomController : MonoBehaviour
 
     private void SpawnRoomCollectibles()
     {
+        EnsureValidSpawnAreas();
         if (spawnAreas == null || spawnAreas.Count == 0) return;
 
         EnsureDefaultCollectibleEntries();

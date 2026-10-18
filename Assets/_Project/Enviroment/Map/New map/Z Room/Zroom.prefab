@@ -375,8 +375,7 @@ MonoBehaviour:
   timeBetweenWaves: 2
   minEnemiesPerWave: 6
   mobCapFraction: 0.7
-  spawnAreas:
-  - {fileID: 0}
+  spawnAreas: []
   spawnIndicatorPrefab: {fileID: 1535335175129926780, guid: e096f35eb08cf4846bbc7c5a4f31afb3, type: 3}
   spawnDelay: 1.5
   spawnHeightOffset: 0.1
