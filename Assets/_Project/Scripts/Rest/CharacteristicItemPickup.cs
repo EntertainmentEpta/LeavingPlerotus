@@ -228,6 +228,12 @@ public class CharacteristicItemPickup : MonoBehaviour
         
         Debug.Log("[ITEM] Coletou: " + itemName + " (ID: " + itemId + ")");
 
+        // Integração com o catálogo de sinergias
+        if (SynergyCatalogManager.Instance != null)
+        {
+            SynergyCatalogManager.Instance.DiscoverNode(itemId);
+        }
+
         // VFX/SFX de coleta aqui se quiser
 
         Destroy(gameObject);

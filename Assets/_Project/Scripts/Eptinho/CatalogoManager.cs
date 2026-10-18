@@ -53,6 +53,10 @@ public class CatalogoManager : MonoBehaviour
             if (EptinhoPopupController.instancia != null)
                 EptinhoPopupController.instancia.MostrarPopup(item.itemData);
 
+            // Integração com o catálogo de sinergias
+            if (!string.IsNullOrEmpty(item.itemData.synergyNodeID))
+                SynergyCatalogManager.Instance.DiscoverNode(item.itemData.synergyNodeID);
+
             Debug.Log($"[CATÁLOGO] Novo item registrado: {item.itemData.itemName}");
         }
         else

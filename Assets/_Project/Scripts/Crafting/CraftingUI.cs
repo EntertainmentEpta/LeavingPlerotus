@@ -1,38 +1,14 @@
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.EventSystems;
 using TMPro;
 using System.Collections.Generic;
 
 /// <summary>
 /// Interface de usuário do sistema de Crafting.
-/// Singleton — criado programaticamente (mesmo padrão do InventoryUI.cs).
-///
-/// LAYOUT:
-///   ┌─────────────────────────────────────────────────┐
-///   │  MESA DE TRABALHO                          [X]  │
-///   ├────────────────────┬────────────────────────────┤
-///   │  Lista de Receitas │  Detalhes da Receita       │
-///   │  ┌──────────────┐  │  Nome: Expansão de Inv.    │
-///   │  │ Receita 1  ✓ │  │  Ingredientes:             │
-///   │  ├──────────────┤  │    5/5 Shard Splinter      │
-///   │  │ Receita 2  ✗ │  │    3/3 Magic Dust          │
-///   │  ├──────────────┤  │  Resultado:                │
-///   │  │ Receita 3  ✗ │  │    +5 Slots de Inventário  │
-///   │  └──────────────┘  │  [   CRAFTAR   ]           │
-///   ├────────────────────┴────────────────────────────┤
-///   │  MELHORIAS CRAFTADAS                            │
-///   │  ┌────────────┐ ┌────────────┐                  │
-///   │  │ Melhoria 1 │ │ Melhoria 2 │                  │
-///   │  │ [Equipar]  │ │[Desequipar]│                  │
-///   │  └────────────┘ └────────────┘                  │
-///   └─────────────────────────────────────────────────┘
-///
-/// DEPENDÊNCIAS:
-///   - CraftingManager.Instance  (lógica de craft)
-///   - EquipmentManager.Instance (equipar/desequipar)
-///   - SaveManager.instance      (leitura de baseResources)
-///   - ItemDatabase.Instance     (ícones e nomes dos itens)
+/// Singleton — criado programaticamente.
+/// 
+/// Agora inclui um painel lateral esquerdo para exibir o modelo 3D do Robô
+/// em tempo real, conectado ao RobotPreviewManager.
 /// </summary>
 public class CraftingUI : MonoBehaviour
 {
@@ -41,6 +17,7 @@ public class CraftingUI : MonoBehaviour
     // Referências internas
     private Canvas craftingCanvas;
     private GameObject canvasObject;
+    private GameObject backgroundObject;
     private GameObject panelObject;
     private RectTransform panelRect;
 
@@ -65,33 +42,50 @@ public class CraftingUI : MonoBehaviour
     private bool uiBuilt = false;
     private CraftingRecipe selectedRecipe;
     private int currentTab = 0;
+    private Image trajeTabImage;
+    private Image baseTabImage;
+    private int currentViewTab = 0;
+
+    private GameObject recipeListPanel;
+    private GameObject detailPanel;
+    private GameObject equipmentPanel;
+    private readonly List<Image> viewTabImages = new List<Image>();
 
     public TMP_FontAsset customFont;
 
-    // Tooltip flutuante para descrição de melhoria (Hover)
-    private GameObject upgradeTooltipPanel;
-    private TextMeshProUGUI tooltipNameText;
-    private TextMeshProUGUI tooltipDescText;
-    private TextMeshProUGUI tooltipEffectText;
+    // Dimensões Fixas da Mesa
+    private const float PANEL_WIDTH = 1180f;
+    private const float PANEL_HEIGHT = 820f;
 
-    // Dimensões Fixas (Conforme solicitado)
-    private const float PANEL_WIDTH = 1100f;
-    private const float PANEL_HEIGHT = 900f;
+    [Header("Preview do Robô (Layout)")]
+    [Tooltip("Exibir a renderização 3D do robô ao lado do crafting?")]
+    public bool showRobotPreview = true;
+    [Tooltip("Posição da Mesa de Crafting (Deslocada para a direita)")]
+    public Vector3 craftingPanelPosition = new Vector3(230f, 0f, 0f);
+    [Tooltip("Posição do Painel do Robô (Deslocado para a esquerda)")]
+    public Vector3 previewPanelPosition = new Vector3(-500f, 0f, 0f);
+    [Tooltip("Tamanho do painel do Robô")]
+    public Vector2 previewPanelSize = new Vector2(390f, 680f);
 
-    [Header("Configurações de Design (Ajustáveis em Tempo Real)")]
-    [Range(30f, 200f)] [SerializeField] private float recipeSlotHeight = 76f;
-    [Range(60f, 400f)] [SerializeField] private float equipmentSlotSize = 200f;
+    private GameObject previewPanelObject;
+    private RawImage previewRawImage;
 
-    [SerializeField] private Color panelBg = new Color(0.02f, 0.02f, 0.04f, 0.92f);
-    [SerializeField] private Color panelBorder = new Color(1f, 1f, 1f, 0.12f);
-    [SerializeField] private Color sectionBg = new Color(0.04f, 0.04f, 0.07f, 0.90f);
-    [SerializeField] private Color headerColor = new Color(0.85f, 0.80f, 0.95f, 1f);
-    [SerializeField] private Color accentColor = new Color(0.6f, 0.45f, 0.90f, 1f);
+    [Header("Configurações de Design")]
+    [Range(30f, 200f)] [SerializeField] private float recipeSlotHeight = 140f;
+    [Range(220f, 420f)] [SerializeField] private float equipmentSlotSize = 340f;
+    private const float EQUIPMENT_CARD_MIN_WIDTH = 340f;
+    private const float EQUIPMENT_CARD_HEIGHT = 360f;
 
-    private static readonly Color BTN_CRAFT_ENABLED = new Color(0.25f, 0.70f, 0.30f, 1f);
-    private static readonly Color BTN_CRAFT_DISABLED = new Color(0.3f, 0.3f, 0.3f, 0.6f);
-    private static readonly Color BTN_EQUIP = new Color(0.3f, 0.55f, 0.85f, 1f);
-    private static readonly Color BTN_UNEQUIP = new Color(0.7f, 0.35f, 0.35f, 1f);
+    [SerializeField] private Color panelBg = new Color(0.055f, 0.075f, 0.095f, 0.98f);
+    [SerializeField] private Color panelBorder = new Color(0.33f, 0.82f, 0.76f, 0.28f);
+    [SerializeField] private Color sectionBg = new Color(0.085f, 0.11f, 0.135f, 0.98f);
+    [SerializeField] private Color headerColor = new Color(0.94f, 0.96f, 0.94f, 1f);
+    [SerializeField] private Color accentColor = new Color(0.32f, 0.82f, 0.75f, 1f);
+
+    private static readonly Color BTN_CRAFT_ENABLED = new Color(0.19f, 0.68f, 0.58f, 1f);
+    private static readonly Color BTN_CRAFT_DISABLED = new Color(0.16f, 0.19f, 0.22f, 1f);
+    private static readonly Color BTN_EQUIP = new Color(0.22f, 0.52f, 0.66f, 1f);
+    private static readonly Color BTN_UNEQUIP = new Color(0.68f, 0.28f, 0.27f, 1f);
 
     void Awake()
     {
@@ -104,7 +98,6 @@ public class CraftingUI : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
-        // Carrega Oswald Bold SDF como fallback consistente se não definida no Inspector
         if (customFont == null)
         {
             customFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/Oswald Bold SDF");
@@ -114,8 +107,19 @@ public class CraftingUI : MonoBehaviour
     void Start()
     {
         CreateCraftingUI();
+        
         panelObject.SetActive(false);
+        if (backgroundObject != null) backgroundObject.SetActive(false);
+        if (previewPanelObject != null) previewPanelObject.SetActive(false);
+        SetCraftingView(0);
+        
         uiBuilt = true;
+
+        // Conecta o RawImage criado ao Manager do Robô assim que o jogo começa
+        if (showRobotPreview && RobotPreviewManager.Instance != null && previewRawImage != null)
+        {
+            RobotPreviewManager.Instance.SetupPreview(previewRawImage);
+        }
     }
 
 #if UNITY_EDITOR
@@ -126,7 +130,16 @@ public class CraftingUI : MonoBehaviour
             bool wasOpen = isOpen;
             Destroy(canvasObject);
             CreateCraftingUI();
+            
             panelObject.SetActive(wasOpen);
+            if (previewPanelObject != null) previewPanelObject.SetActive(wasOpen && showRobotPreview);
+
+            // Refaz a conexão da câmera caso a UI seja reconstruída em tempo real no Editor
+            if (showRobotPreview && RobotPreviewManager.Instance != null && previewRawImage != null)
+            {
+                RobotPreviewManager.Instance.SetupPreview(previewRawImage);
+            }
+            
             RefreshUI();
         }
     }
@@ -162,9 +175,9 @@ public class CraftingUI : MonoBehaviour
         if (isOpen && Input.GetKeyDown(KeyCode.Escape))
         {
             CloseCrafting();
+            if (RobotPreviewManager.Instance != null) RobotPreviewManager.Instance.Deactivate();
         }
 
-        // Atalho T para realizar Craft se a UI estiver aberta e a receita for craftável
         if (isOpen && Input.GetKeyDown(KeyCode.T))
         {
             if (selectedRecipe != null && CraftingManager.Instance != null)
@@ -176,7 +189,6 @@ public class CraftingUI : MonoBehaviour
             }
         }
 
-        // CHEAT DEBUG: Pressionando P com a UI aberta adiciona todos os recursos para testes rápidos de craft!
         if (isOpen && Input.GetKeyDown(KeyCode.P))
         {
             if (ItemDatabase.Instance != null && SaveManager.instance != null)
@@ -196,13 +208,17 @@ public class CraftingUI : MonoBehaviour
 
     // ─── API PÚBLICA ─────────────────────────────────────────────────────────
 
-    /// <summary>Abre a tela de crafting.</summary>
     public void OpenCrafting()
     {
         if (isOpen) return;
         isOpen = true;
+        
         panelObject.SetActive(true);
+        if (backgroundObject != null) backgroundObject.SetActive(true);
+        if (showRobotPreview && previewPanelObject != null) previewPanelObject.SetActive(true);
+        
         selectedRecipe = null;
+        SetCraftingView(0);
 
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
@@ -211,12 +227,14 @@ public class CraftingUI : MonoBehaviour
         Debug.Log("[CRAFTING] UI aberta");
     }
 
-    /// <summary>Fecha a tela de crafting.</summary>
     public void CloseCrafting()
     {
         if (!isOpen) return;
         isOpen = false;
+        
         panelObject.SetActive(false);
+        if (backgroundObject != null) backgroundObject.SetActive(false);
+        if (previewPanelObject != null) previewPanelObject.SetActive(false);
 
         Cursor.visible = false;
         Cursor.lockState = CursorLockMode.Locked;
@@ -224,7 +242,6 @@ public class CraftingUI : MonoBehaviour
         Debug.Log("[CRAFTING] UI fechada");
     }
 
-    /// <summary>Retorna se a UI está aberta.</summary>
     public bool IsOpen() => gameObject.activeInHierarchy && isOpen;
 
     // ─── REFRESH ─────────────────────────────────────────────────────────────
@@ -236,6 +253,7 @@ public class CraftingUI : MonoBehaviour
         RefreshRecipeList();
         RefreshDetails();
         RefreshEquipmentSection();
+        SetCraftingView(currentViewTab);
     }
 
     private void RefreshRecipeList()
@@ -250,14 +268,12 @@ public class CraftingUI : MonoBehaviour
             else if (currentTab == 1 && isBase) recipes.Add(r);
         }
 
-        // Limpa slots antigos
         foreach (var slot in recipeSlots)
         {
             if (slot != null) Destroy(slot.gameObject);
         }
         recipeSlots.Clear();
 
-        // Cria novos slots
         foreach (var recipe in recipes)
         {
             GameObject slotObj = new GameObject("RecipeSlot_" + recipe.recipeId);
@@ -291,14 +307,12 @@ public class CraftingUI : MonoBehaviour
         detailNameText.text = selectedRecipe.recipeName;
         detailDescText.text = selectedRecipe.description;
 
-        // Ingredientes
         string ingText = "<b>Ingredientes:</b>\n";
         foreach (var ing in selectedRecipe.ingredients)
         {
             int available = CraftingManager.Instance.GetAvailableAmount(ing.itemId);
             string itemName = ing.itemId;
 
-            // Tenta pegar nome bonito do ItemDatabase
             if (ItemDatabase.Instance != null)
             {
                 ItemData itemData = ItemDatabase.Instance.GetItemData(ing.itemId);
@@ -311,14 +325,13 @@ public class CraftingUI : MonoBehaviour
         }
         ingredientsText.text = ingText;
 
-        // Resultado
         switch (selectedRecipe.resultType)
         {
             case CraftingResultType.Equipment:
                 if (selectedRecipe.resultEquipment != null)
                 {
                     var eq = selectedRecipe.resultEquipment;
-                    resultText.text = $"<b>Resultado:</b>\n  {eq.equipmentName}\n  <color=#9B7FD4>{GetEffectDescription(eq)}</color>";
+                    resultText.text = $"<b>Resultado:</b>\n  {GetEquipmentDisplayName(eq)}\n  <color=#9B7FD4>{GetEffectDescription(eq)}</color>";
                 }
                 break;
             case CraftingResultType.Item:
@@ -332,7 +345,6 @@ public class CraftingUI : MonoBehaviour
                 break;
         }
 
-        // Botão de craft
         bool canCraft = CraftingManager.Instance.CanCraft(selectedRecipe);
         craftButton.interactable = canCraft;
         craftButton.GetComponent<Image>().color = canCraft ? BTN_CRAFT_ENABLED : BTN_CRAFT_DISABLED;
@@ -343,17 +355,12 @@ public class CraftingUI : MonoBehaviour
     {
         if (!uiBuilt || EquipmentManager.Instance == null) return;
 
-        // Limpa slots antigos
         foreach (var obj in equipmentSlotObjects)
         {
             if (obj != null) Destroy(obj);
         }
         equipmentSlotObjects.Clear();
 
-        // Oculta o tooltip ao atualizar a lista para evitar que fique órfão
-        ShowUpgradeTooltip(null, false, Vector2.zero);
-
-        // Cria slots para cada equipamento craftado
         List<EquipmentData> owned = EquipmentManager.Instance.GetOwnedEquipment();
         owned.RemoveAll(e => e.isBaseUpgrade);
 
@@ -363,39 +370,6 @@ public class CraftingUI : MonoBehaviour
             slotObj.transform.SetParent(equipmentContainer, false);
             equipmentSlotObjects.Add(slotObj);
 
-            // Adiciona detector de hover para abrir o painel de descrição detalhada
-            UpgradeHoverHandler hover = slotObj.AddComponent<UpgradeHoverHandler>();
-            hover.equipment = equip;
-            hover.onHover = (eq, isHovering) =>
-            {
-                if (isHovering)
-                {
-                    // Converte a posição do slot para coordenadas locais do Canvas pai principal (panelRect)
-                    Vector3 worldPos = slotObj.transform.position;
-                    Vector2 localPos;
-                    RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                        panelRect,
-                        RectTransformUtility.WorldToScreenPoint(null, worldPos),
-                        null,
-                        out localPos
-                    );
-
-                    // Posiciona o tooltip acima do slot centralizado
-                    float slotHeight = 180f;
-                    if (equipmentContainer.parent != null)
-                    {
-                        RectTransform parentRect = equipmentContainer.parent.GetComponent<RectTransform>();
-                        if (parentRect != null) slotHeight = parentRect.rect.height;
-                    }
-
-                    Vector2 tooltipPos = new Vector2(localPos.x, localPos.y + slotHeight / 2f + 15f);
-                    ShowUpgradeTooltip(eq, true, tooltipPos);
-                }
-                else
-                {
-                    ShowUpgradeTooltip(null, false, Vector2.zero);
-                }
-            };
         }
     }
 
@@ -405,13 +379,11 @@ public class CraftingUI : MonoBehaviour
     {
         selectedRecipe = recipe;
 
-        // Atualiza seleção visual
         foreach (var slot in recipeSlots)
         {
             slot.SetSelected(false);
         }
 
-        // Encontra e marca o slot selecionado
         if (CraftingManager.Instance != null)
         {
             var recipes = CraftingManager.Instance.GetAllRecipes();
@@ -426,6 +398,7 @@ public class CraftingUI : MonoBehaviour
         }
 
         RefreshDetails();
+        SetCraftingView(1);
     }
 
     private void OnCraftButtonClicked()
@@ -468,22 +441,31 @@ public class CraftingUI : MonoBehaviour
         }
     }
 
+    private string GetEquipmentDisplayName(EquipmentData equip)
+    {
+        if (equip == null || string.IsNullOrWhiteSpace(equip.equipmentName))
+            return "noname";
+
+        return equip.equipmentName;
+    }
+
     // ─── CRIAÇÃO DA UI ───────────────────────────────────────────────────────
 
     private void CreateCraftingUI()
     {
-        // Canvas próprio persistente
         canvasObject = new GameObject("CraftingUI_Canvas");
         craftingCanvas = canvasObject.AddComponent<Canvas>();
         craftingCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        craftingCanvas.sortingOrder = 110; // Acima do inventário
+        craftingCanvas.sortingOrder = 110; 
         var scaler = canvasObject.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
         canvasObject.AddComponent<GraphicRaycaster>();
         DontDestroyOnLoad(canvasObject);
 
-        // Painel principal
+        CreateCraftingBackground();
+
+        // Painel principal da Mesa
         panelObject = new GameObject("CraftingPanel");
         panelObject.transform.SetParent(craftingCanvas.transform, false);
 
@@ -492,59 +474,178 @@ public class CraftingUI : MonoBehaviour
         panelRect.anchorMax = new Vector2(0.5f, 0.5f);
         panelRect.pivot = new Vector2(0.5f, 0.5f);
         panelRect.sizeDelta = new Vector2(PANEL_WIDTH, PANEL_HEIGHT);
+        panelRect.anchoredPosition3D = craftingPanelPosition; // <--- Deslocado para a direita
 
         Image mainPanelBg = panelObject.AddComponent<Image>();
         mainPanelBg.color = panelBg;
         mainPanelBg.raycastTarget = true;
 
-        // Efeito de sombra (Drop Shadow) para dar profundidade de vidro suspenso
         Shadow panelShadow = panelObject.AddComponent<Shadow>();
         panelShadow.effectColor = new Color(0f, 0f, 0f, 0.45f);
         panelShadow.effectDistance = new Vector2(6f, -6f);
 
-        // Acento reflexivo superior de vidro (Glass Highlight)
         GameObject glassHighlightObj = new GameObject("GlassHighlight");
         glassHighlightObj.transform.SetParent(panelObject.transform, false);
-        glassHighlightObj.layer = panelObject.layer;
-
         RectTransform glassHighlightRect = glassHighlightObj.AddComponent<RectTransform>();
         glassHighlightRect.anchorMin = new Vector2(0f, 1f);
         glassHighlightRect.anchorMax = new Vector2(1f, 1f);
         glassHighlightRect.pivot = new Vector2(0.5f, 1f);
         glassHighlightRect.anchoredPosition = new Vector2(0f, -2f);
         glassHighlightRect.sizeDelta = new Vector2(-4f, 2f);
-
         glassHighlightObj.AddComponent<CanvasRenderer>();
         Image glassHighlightImg = glassHighlightObj.AddComponent<Image>();
-        glassHighlightImg.color = new Color(1f, 1f, 1f, 0.12f); // reflexo superior fino
+        glassHighlightImg.color = new Color(1f, 1f, 1f, 0.12f);
         glassHighlightImg.raycastTarget = false;
 
-        // Borda do painel
         CreateBorder(panelObject.transform);
-
-        // Acento superior
         CreateTopAccent(panelObject.transform);
-
-        // Header
         CreateHeader(panelObject.transform);
-
-        // Área de conteúdo dividida em duas colunas
+        CreateViewTabs(panelObject.transform);
         CreateRecipeListSection(panelObject.transform);
         CreateDetailSection(panelObject.transform);
-
-        // Seção de equipamentos (abaixo)
         CreateEquipmentSection(panelObject.transform);
-
-        // Botão de fechar
         CreateCloseButton(panelObject.transform);
-
-        // Botão de Cheats (Recursos Infinitos)
         CreateCheatButton(panelObject.transform);
 
-        // Tooltip flutuante de melhorias (por cima de tudo)
-        CreateUpgradeTooltip(panelObject.transform);
+        // === CRIA O PAINEL DO ROBÔ ===
+        if (showRobotPreview)
+        {
+            CreateRobotPreviewPanel();
+        }
 
         Debug.Log("[CRAFTING] UI criada.");
+    }
+
+    private void CreateViewTabs(Transform parent)
+    {
+        GameObject tabsObject = new GameObject("CraftingViewTabs");
+        tabsObject.transform.SetParent(parent, false);
+
+        RectTransform tabsRect = tabsObject.AddComponent<RectTransform>();
+        tabsRect.anchorMin = new Vector2(0f, 1f);
+        tabsRect.anchorMax = new Vector2(1f, 1f);
+        tabsRect.pivot = new Vector2(0.5f, 1f);
+        tabsRect.anchoredPosition = new Vector2(0f, -48f);
+        tabsRect.sizeDelta = new Vector2(-32f, 34f);
+
+        string[] labels = { "SELECIONAR CRAFT", "DETALHES DO CRAFT", "MELHORIAS CRAFTADAS" };
+        for (int index = 0; index < labels.Length; index++)
+        {
+            GameObject tabObject = new GameObject(labels[index]);
+            tabObject.transform.SetParent(tabsObject.transform, false);
+
+            RectTransform tabRect = tabObject.AddComponent<RectTransform>();
+            tabRect.anchorMin = new Vector2(index / 3f, 0f);
+            tabRect.anchorMax = new Vector2((index + 1) / 3f, 1f);
+            tabRect.offsetMin = new Vector2(2f, 0f);
+            tabRect.offsetMax = new Vector2(-2f, 0f);
+
+            Image tabImage = tabObject.AddComponent<Image>();
+            tabImage.color = sectionBg;
+            viewTabImages.Add(tabImage);
+
+            Button tabButton = tabObject.AddComponent<Button>();
+            int capturedIndex = index;
+            tabButton.onClick.AddListener(() => SetCraftingView(capturedIndex));
+
+            TextMeshProUGUI label = CreateTextElement(tabObject.transform, "Label",
+                Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f),
+                Vector2.zero, Vector2.zero, 14f, FontStyles.Bold, headerColor);
+            label.text = labels[index];
+            label.alignment = TextAlignmentOptions.Center;
+        }
+    }
+
+    private void SetCraftingView(int viewIndex)
+    {
+        currentViewTab = Mathf.Clamp(viewIndex, 0, 2);
+
+        if (recipeListPanel != null) recipeListPanel.SetActive(currentViewTab == 0);
+        if (detailPanel != null) detailPanel.SetActive(currentViewTab == 1);
+        if (equipmentPanel != null) equipmentPanel.SetActive(currentViewTab == 2);
+
+        for (int index = 0; index < viewTabImages.Count; index++)
+        {
+            viewTabImages[index].color = index == currentViewTab
+                ? new Color(0.18f, 0.55f, 0.52f, 1f)
+                : new Color(0.10f, 0.14f, 0.17f, 1f);
+        }
+    }
+
+    private void CreateCraftingBackground()
+    {
+        backgroundObject = new GameObject("CraftingBackgroundImage");
+        backgroundObject.transform.SetParent(canvasObject.transform, false);
+
+        RectTransform backgroundRect = backgroundObject.AddComponent<RectTransform>();
+        backgroundRect.anchorMin = Vector2.zero;
+        backgroundRect.anchorMax = Vector2.one;
+        backgroundRect.offsetMin = Vector2.zero;
+        backgroundRect.offsetMax = Vector2.zero;
+
+        Image backgroundImage = backgroundObject.AddComponent<Image>();
+        backgroundImage.color = new Color(0f, 0f, 0f, 217f / 255f);
+        backgroundImage.raycastTarget = false;
+        backgroundObject.transform.SetSiblingIndex(0);
+    }
+
+    private void CreateRobotPreviewPanel()
+    {
+        previewPanelObject = new GameObject("RobotPreviewPanel");
+        previewPanelObject.transform.SetParent(craftingCanvas.transform, false);
+
+        RectTransform r = previewPanelObject.AddComponent<RectTransform>();
+        r.anchorMin = new Vector2(0.5f, 0.5f);
+        r.anchorMax = new Vector2(0.5f, 0.5f);
+        r.pivot = new Vector2(0.5f, 0.5f);
+        r.anchoredPosition3D = previewPanelPosition;
+        r.sizeDelta = previewPanelSize;
+
+        previewPanelObject.AddComponent<CanvasRenderer>();
+        Image bg = previewPanelObject.AddComponent<Image>();
+        bg.color = panelBg;
+        bg.raycastTarget = true;
+
+        Shadow shadow = previewPanelObject.AddComponent<Shadow>();
+        shadow.effectColor = new Color(0f, 0f, 0f, 0.45f);
+        shadow.effectDistance = new Vector2(6f, -6f);
+
+        GameObject highlightObj = new GameObject("GlassHighlight");
+        highlightObj.transform.SetParent(previewPanelObject.transform, false);
+        RectTransform hr = highlightObj.AddComponent<RectTransform>();
+        hr.anchorMin = new Vector2(0f, 1f);
+        hr.anchorMax = new Vector2(1f, 1f);
+        hr.pivot = new Vector2(0.5f, 1f);
+        hr.anchoredPosition = new Vector2(0f, -2f);
+        hr.sizeDelta = new Vector2(-4f, 2f);
+        highlightObj.AddComponent<CanvasRenderer>();
+        Image hImg = highlightObj.AddComponent<Image>();
+        hImg.color = new Color(1f, 1f, 1f, 0.12f);
+        hImg.raycastTarget = false;
+
+        GameObject borderObj = new GameObject("Border");
+        borderObj.transform.SetParent(previewPanelObject.transform, false);
+        RectTransform br = borderObj.AddComponent<RectTransform>();
+        br.anchorMin = Vector2.zero;
+        br.anchorMax = Vector2.one;
+        br.sizeDelta = new Vector2(4f, 4f);
+        borderObj.AddComponent<CanvasRenderer>();
+        Image bImg = borderObj.AddComponent<Image>();
+        bImg.color = panelBorder;
+        bImg.type = Image.Type.Sliced;
+        bImg.fillCenter = false;
+        bImg.raycastTarget = false;
+
+        GameObject rawImgObj = new GameObject("RawImage");
+        rawImgObj.transform.SetParent(previewPanelObject.transform, false);
+        RectTransform rr = rawImgObj.AddComponent<RectTransform>();
+        rr.anchorMin = Vector2.zero;
+        rr.anchorMax = Vector2.one;
+        rr.sizeDelta = new Vector2(-20f, -20f); // Margem interna
+        rawImgObj.AddComponent<CanvasRenderer>();
+        
+        previewRawImage = rawImgObj.AddComponent<RawImage>();
+        previewRawImage.color = Color.white;
     }
 
     private void CreateBorder(Transform parent)
@@ -591,7 +692,7 @@ public class CraftingUI : MonoBehaviour
         obj.AddComponent<CanvasRenderer>();
         TextMeshProUGUI txt = obj.AddComponent<TextMeshProUGUI>();
         txt.text = "MESA DE TRABALHO";
-        txt.fontSize = 22f; // Revertido para o padrão limpo e compacto
+        txt.fontSize = 18f; 
         txt.fontStyle = FontStyles.Bold;
         txt.color = headerColor;
         txt.alignment = TextAlignmentOptions.Center;
@@ -613,7 +714,7 @@ public class CraftingUI : MonoBehaviour
 
         btnObj.AddComponent<CanvasRenderer>();
         Image bg = btnObj.AddComponent<Image>();
-        bg.color = new Color(0.20f, 0.55f, 0.30f, 0.90f);
+        bg.color = new Color(0.18f, 0.58f, 0.48f, 0.95f);
 
         Button btn = btnObj.AddComponent<Button>();
         btn.onClick.AddListener(() =>
@@ -624,7 +725,6 @@ public class CraftingUI : MonoBehaviour
             }
             else
             {
-                // Fallback direto
                 if (SaveManager.instance != null && ItemDatabase.Instance != null)
                 {
                     foreach (var item in ItemDatabase.Instance.allItems)
@@ -645,8 +745,8 @@ public class CraftingUI : MonoBehaviour
 
         txtObj.AddComponent<CanvasRenderer>();
         TextMeshProUGUI txt = txtObj.AddComponent<TextMeshProUGUI>();
-        txt.text = "🎁 CHEAT: +999 RECURSOS";
-        txt.fontSize = 11f;
+        txt.text = "+999 RECURSOS";
+        txt.fontSize = 10f;
         txt.fontStyle = FontStyles.Bold;
         txt.color = Color.white;
         txt.alignment = TextAlignmentOptions.Center;
@@ -654,21 +754,20 @@ public class CraftingUI : MonoBehaviour
 
     private void CreateRecipeListSection(Transform parent)
     {
-        // Container da lista de receitas (lado esquerdo)
-        GameObject listPanel = new GameObject("RecipeListPanel");
+        recipeListPanel = new GameObject("RecipeListPanel");
+        GameObject listPanel = recipeListPanel;
         listPanel.transform.SetParent(parent, false);
         RectTransform r = listPanel.AddComponent<RectTransform>();
-        r.anchorMin = new Vector2(0f, 0.28f);
-        r.anchorMax = new Vector2(0.38f, 0.92f);
+        r.anchorMin = new Vector2(0f, 0.08f);
+        r.anchorMax = new Vector2(1f, 0.88f);
         r.offsetMin = new Vector2(12f, 0f);
-        r.offsetMax = new Vector2(0f, -8f);
+        r.offsetMax = new Vector2(-12f, 0f);
 
         listPanel.AddComponent<CanvasRenderer>();
         Image bg = listPanel.AddComponent<Image>();
         bg.color = sectionBg;
         bg.raycastTarget = true;
 
-        // TABS - Traje
         GameObject tabBase = new GameObject("TabTraje");
         tabBase.transform.SetParent(listPanel.transform, false);
         RectTransform rtTraje = tabBase.AddComponent<RectTransform>();
@@ -678,15 +777,15 @@ public class CraftingUI : MonoBehaviour
         rtTraje.sizeDelta = new Vector2(0f, 30f);
         rtTraje.anchoredPosition = new Vector2(0f, 0f);
         Image imgTraje = tabBase.AddComponent<Image>();
-        imgTraje.color = new Color(0.1f, 0.1f, 0.15f, 1f);
+        trajeTabImage = imgTraje;
         Button btnTraje = tabBase.AddComponent<Button>();
-        btnTraje.onClick.AddListener(() => { currentTab = 0; RefreshRecipeList(); });
+        btnTraje.onClick.AddListener(() => { currentTab = 0; RefreshRecipeList(); UpdateRecipeCategoryTabs(); });
         
         GameObject txtTraje = new GameObject("Text");
         txtTraje.transform.SetParent(tabBase.transform, false);
         TextMeshProUGUI labelTraje = txtTraje.AddComponent<TextMeshProUGUI>();
         labelTraje.text = "TRAJE";
-        labelTraje.fontSize = 14f;
+        labelTraje.fontSize = 19f;
         labelTraje.fontStyle = FontStyles.Bold;
         labelTraje.color = accentColor;
         labelTraje.alignment = TextAlignmentOptions.Center;
@@ -694,7 +793,6 @@ public class CraftingUI : MonoBehaviour
         RectTransform rtTxt1 = txtTraje.GetComponent<RectTransform>();
         rtTxt1.anchorMin = Vector2.zero; rtTxt1.anchorMax = Vector2.one; rtTxt1.sizeDelta = Vector2.zero;
 
-        // TABS - Base
         GameObject tabBase2 = new GameObject("TabBase");
         tabBase2.transform.SetParent(listPanel.transform, false);
         RectTransform rtBase = tabBase2.AddComponent<RectTransform>();
@@ -704,15 +802,15 @@ public class CraftingUI : MonoBehaviour
         rtBase.sizeDelta = new Vector2(0f, 30f);
         rtBase.anchoredPosition = new Vector2(0f, 0f);
         Image imgBase = tabBase2.AddComponent<Image>();
-        imgBase.color = new Color(0.12f, 0.12f, 0.17f, 1f);
+        baseTabImage = imgBase;
         Button btnBase = tabBase2.AddComponent<Button>();
-        btnBase.onClick.AddListener(() => { currentTab = 1; RefreshRecipeList(); });
+        btnBase.onClick.AddListener(() => { currentTab = 1; RefreshRecipeList(); UpdateRecipeCategoryTabs(); });
         
         GameObject txtBase = new GameObject("Text");
         txtBase.transform.SetParent(tabBase2.transform, false);
         TextMeshProUGUI labelBase = txtBase.AddComponent<TextMeshProUGUI>();
         labelBase.text = "BASE";
-        labelBase.fontSize = 14f;
+        labelBase.fontSize = 19f;
         labelBase.fontStyle = FontStyles.Bold;
         labelBase.color = accentColor;
         labelBase.alignment = TextAlignmentOptions.Center;
@@ -720,21 +818,19 @@ public class CraftingUI : MonoBehaviour
         RectTransform rtTxt2 = txtBase.GetComponent<RectTransform>();
         rtTxt2.anchorMin = Vector2.zero; rtTxt2.anchorMax = Vector2.one; rtTxt2.sizeDelta = Vector2.zero;
 
-        // ScrollView para as receitas
         GameObject scrollObj = new GameObject("RecipeScroll");
         scrollObj.transform.SetParent(listPanel.transform, false);
         RectTransform sr = scrollObj.AddComponent<RectTransform>();
         sr.anchorMin = new Vector2(0f, 0f);
         sr.anchorMax = new Vector2(1f, 1f);
         sr.offsetMin = new Vector2(4f, 4f);
-        sr.offsetMax = new Vector2(-4f, -26f);
+        sr.offsetMax = new Vector2(-34f, -26f);
 
         scrollObj.AddComponent<CanvasRenderer>();
         Image scrollMask = scrollObj.AddComponent<Image>();
         scrollMask.color = new Color(0, 0, 0, 0.01f);
         scrollObj.AddComponent<Mask>().showMaskGraphic = false;
 
-        // Content
         GameObject contentObj = new GameObject("RecipeContent");
         contentObj.transform.SetParent(scrollObj.transform, false);
         RectTransform cr = contentObj.AddComponent<RectTransform>();
@@ -754,7 +850,6 @@ public class CraftingUI : MonoBehaviour
         ContentSizeFitter fitter = contentObj.AddComponent<ContentSizeFitter>();
         fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-        // ScrollRect
         ScrollRect scroll = scrollObj.AddComponent<ScrollRect>();
         scroll.content = cr;
         scroll.horizontal = false;
@@ -762,51 +857,102 @@ public class CraftingUI : MonoBehaviour
         scroll.movementType = ScrollRect.MovementType.Clamped;
         scroll.scrollSensitivity = 20f;
 
+        Scrollbar recipeScrollbar = CreateVerticalScrollbar(listPanel.transform, "RecipeScrollbar");
+        scroll.verticalScrollbar = recipeScrollbar;
+        scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+
         recipesContainer = contentObj.transform;
+        UpdateRecipeCategoryTabs();
+    }
+
+    private void UpdateRecipeCategoryTabs()
+    {
+        if (trajeTabImage != null)
+        {
+            trajeTabImage.color = currentTab == 0
+                ? new Color(0.18f, 0.55f, 0.52f, 1f)
+                : new Color(0.10f, 0.14f, 0.17f, 1f);
+        }
+
+        if (baseTabImage != null)
+        {
+            baseTabImage.color = currentTab == 1
+                ? new Color(0.18f, 0.55f, 0.52f, 1f)
+                : new Color(0.10f, 0.14f, 0.17f, 1f);
+        }
+    }
+
+    private Scrollbar CreateVerticalScrollbar(Transform parent, string objectName)
+    {
+        GameObject scrollbarObject = new GameObject(objectName);
+        scrollbarObject.transform.SetParent(parent, false);
+
+        RectTransform scrollbarRect = scrollbarObject.AddComponent<RectTransform>();
+        scrollbarRect.anchorMin = new Vector2(1f, 0f);
+        scrollbarRect.anchorMax = new Vector2(1f, 1f);
+        scrollbarRect.pivot = new Vector2(1f, 0.5f);
+        scrollbarRect.anchoredPosition = new Vector2(-6f, -13f);
+        scrollbarRect.sizeDelta = new Vector2(12f, -42f);
+
+        Image trackImage = scrollbarObject.AddComponent<Image>();
+        trackImage.color = new Color(0.04f, 0.07f, 0.08f, 0.9f);
+        trackImage.raycastTarget = true;
+
+        GameObject handleObject = new GameObject("Handle");
+        handleObject.transform.SetParent(scrollbarObject.transform, false);
+        RectTransform handleRect = handleObject.AddComponent<RectTransform>();
+        handleRect.anchorMin = Vector2.zero;
+        handleRect.anchorMax = Vector2.one;
+        handleRect.offsetMin = new Vector2(2f, 2f);
+        handleRect.offsetMax = new Vector2(-2f, -2f);
+
+        Image handleImage = handleObject.AddComponent<Image>();
+        handleImage.color = accentColor;
+        handleImage.raycastTarget = true;
+
+        Scrollbar scrollbar = scrollbarObject.AddComponent<Scrollbar>();
+        scrollbar.direction = Scrollbar.Direction.BottomToTop;
+        scrollbar.handleRect = handleRect;
+        scrollbar.targetGraphic = handleImage;
+        return scrollbar;
     }
 
     private void CreateDetailSection(Transform parent)
     {
-        // Container dos detalhes (lado direito)
-        GameObject detailPanel = new GameObject("DetailPanel");
+        detailPanel = new GameObject("DetailPanel");
         detailPanel.transform.SetParent(parent, false);
         RectTransform r = detailPanel.AddComponent<RectTransform>();
-        r.anchorMin = new Vector2(0.40f, 0.28f);
-        r.anchorMax = new Vector2(1f, 0.92f);
-        r.offsetMin = new Vector2(0f, 0f);
-        r.offsetMax = new Vector2(-12f, -8f);
+        r.anchorMin = new Vector2(0f, 0.08f);
+        r.anchorMax = new Vector2(1f, 0.88f);
+        r.offsetMin = new Vector2(12f, 0f);
+        r.offsetMax = new Vector2(-12f, 0f);
 
         detailPanel.AddComponent<CanvasRenderer>();
         Image bg = detailPanel.AddComponent<Image>();
         bg.color = sectionBg;
         bg.raycastTarget = false;
 
-        // Nome da receita (Extra Grande: 32f)
         detailNameText = CreateTextElement(detailPanel.transform, "DetailName",
             new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
-            new Vector2(0f, -15f), new Vector2(-16f, 38f), 32f, FontStyles.Bold, headerColor);
+            new Vector2(0f, -15f), new Vector2(-16f, 46f), 30f, FontStyles.Bold, headerColor);
 
-        // Descrição (Extra Grande: 22f)
         detailDescText = CreateTextElement(detailPanel.transform, "DetailDesc",
             new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
-            new Vector2(0f, -60f), new Vector2(-16f, 48f), 22f, FontStyles.Italic,
-            new Color(0.7f, 0.68f, 0.78f, 1f));
+            new Vector2(0f, -68f), new Vector2(-16f, 60f), 18f, FontStyles.Italic,
+            new Color(0.61f, 0.70f, 0.72f, 1f));
 
-        // Ingredientes (Extra Grande: 24f)
         ingredientsText = CreateTextElement(detailPanel.transform, "Ingredients",
             new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
-            new Vector2(0f, -115f), new Vector2(-16f, 180f), 24f, FontStyles.Normal,
-            new Color(0.85f, 0.83f, 0.92f, 1f));
+            new Vector2(0f, -140f), new Vector2(-16f, 220f), 21f, FontStyles.Normal,
+            new Color(0.86f, 0.89f, 0.87f, 1f));
         ingredientsText.richText = true;
 
-        // Resultado (Extra Grande: 24f)
         resultText = CreateTextElement(detailPanel.transform, "Result",
             new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
-            new Vector2(0f, -310f), new Vector2(-16f, 80f), 24f, FontStyles.Normal,
-            new Color(0.85f, 0.83f, 0.92f, 1f));
+            new Vector2(0f, -385f), new Vector2(-16f, 110f), 21f, FontStyles.Normal,
+            new Color(0.86f, 0.89f, 0.87f, 1f));
         resultText.richText = true;
 
-        // Botão de Craftar (Ajustado para tamanho 50f)
         GameObject btnObj = new GameObject("CraftButton");
         btnObj.transform.SetParent(detailPanel.transform, false);
         RectTransform br = btnObj.AddComponent<RectTransform>();
@@ -825,7 +971,6 @@ public class CraftingUI : MonoBehaviour
         craftButton.onClick.AddListener(OnCraftButtonClicked);
         craftButton.interactable = false;
 
-        // Texto do botão (Extra Grande: 28f)
         GameObject btnTextObj = new GameObject("CraftBtnText");
         btnTextObj.transform.SetParent(btnObj.transform, false);
         RectTransform btr = btnTextObj.AddComponent<RectTransform>();
@@ -835,14 +980,13 @@ public class CraftingUI : MonoBehaviour
         btnTextObj.AddComponent<CanvasRenderer>();
         craftButtonText = btnTextObj.AddComponent<TextMeshProUGUI>();
         craftButtonText.text = "CRAFTAR";
-        craftButtonText.fontSize = 28f; 
+        craftButtonText.fontSize = 23f; 
         craftButtonText.fontStyle = FontStyles.Bold;
         craftButtonText.color = Color.white;
         craftButtonText.alignment = TextAlignmentOptions.Center;
         craftButtonText.raycastTarget = false;
         if (customFont != null) craftButtonText.font = customFont;
 
-        // Inicializa com "selecione uma receita"
         detailNameText.text = "Selecione uma receita";
         detailDescText.text = "";
         ingredientsText.text = "";
@@ -851,21 +995,20 @@ public class CraftingUI : MonoBehaviour
 
     private void CreateEquipmentSection(Transform parent)
     {
-        // Seção de melhorias (parte inferior)
-        GameObject equipPanel = new GameObject("EquipmentPanel");
+        equipmentPanel = new GameObject("EquipmentPanel");
+        GameObject equipPanel = equipmentPanel;
         equipPanel.transform.SetParent(parent, false);
         RectTransform r = equipPanel.AddComponent<RectTransform>();
-        r.anchorMin = new Vector2(0f, 0f);
-        r.anchorMax = new Vector2(1f, 0.26f);
+        r.anchorMin = new Vector2(0f, 0.08f);
+        r.anchorMax = new Vector2(1f, 0.88f);
         r.offsetMin = new Vector2(12f, 8f);
-        r.offsetMax = new Vector2(-12f, -2f);
+        r.offsetMax = new Vector2(-12f, 0f);
 
         equipPanel.AddComponent<CanvasRenderer>();
         Image bg = equipPanel.AddComponent<Image>();
         bg.color = sectionBg;
         bg.raycastTarget = false;
 
-        // Label
         GameObject labelObj = new GameObject("EquipmentLabel");
         labelObj.transform.SetParent(equipPanel.transform, false);
         RectTransform lr = labelObj.AddComponent<RectTransform>();
@@ -877,21 +1020,20 @@ public class CraftingUI : MonoBehaviour
         labelObj.AddComponent<CanvasRenderer>();
         TextMeshProUGUI label = labelObj.AddComponent<TextMeshProUGUI>();
         label.text = "MELHORIAS CRAFTADAS";
-        label.fontSize = 14f; // Revertido para o padrão limpo e compacto
+        label.fontSize = 17f;
         label.fontStyle = FontStyles.Bold;
         label.color = accentColor;
         label.alignment = TextAlignmentOptions.Center;
         label.raycastTarget = false;
         if (customFont != null) label.font = customFont;
 
-        // ScrollView horizontal para equipamentos
         GameObject scrollObj = new GameObject("EquipScroll");
         scrollObj.transform.SetParent(equipPanel.transform, false);
         RectTransform sr = scrollObj.AddComponent<RectTransform>();
         sr.anchorMin = new Vector2(0f, 0f);
         sr.anchorMax = new Vector2(1f, 1f);
         sr.offsetMin = new Vector2(4f, 4f);
-        sr.offsetMax = new Vector2(-4f, -24f);
+        sr.offsetMax = new Vector2(-4f, -34f);
 
         scrollObj.AddComponent<CanvasRenderer>();
         Image scrollMask = scrollObj.AddComponent<Image>();
@@ -901,26 +1043,32 @@ public class CraftingUI : MonoBehaviour
         GameObject contentObj = new GameObject("EquipContent");
         contentObj.transform.SetParent(scrollObj.transform, false);
         RectTransform cr = contentObj.AddComponent<RectTransform>();
-        cr.anchorMin = new Vector2(0f, 0f);
-        cr.anchorMax = new Vector2(0f, 1f);
-        cr.pivot = new Vector2(0f, 0.5f);
+        cr.anchorMin = new Vector2(0f, 1f);
+        cr.anchorMax = new Vector2(1f, 1f);
+        cr.pivot = new Vector2(0.5f, 1f);
         cr.sizeDelta = new Vector2(0f, 0f);
 
-        HorizontalLayoutGroup hlg = contentObj.AddComponent<HorizontalLayoutGroup>();
-        hlg.spacing = 8f;
-        hlg.padding = new RectOffset(4, 4, 4, 4);
-        hlg.childForceExpandWidth = false;
-        hlg.childForceExpandHeight = true;
-        hlg.childControlWidth = false;
+        GridLayoutGroup glg = contentObj.AddComponent<GridLayoutGroup>();
+        float cardWidth = Mathf.Max(equipmentSlotSize, EQUIPMENT_CARD_MIN_WIDTH);
+        glg.cellSize = new Vector2(cardWidth, EQUIPMENT_CARD_HEIGHT);
+        glg.spacing = new Vector2(16f, 16f);
+        glg.padding = new RectOffset(14, 14, 14, 14);
+        glg.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+        glg.constraintCount = 3;
+        glg.childAlignment = TextAnchor.UpperLeft;
 
         ContentSizeFitter fitter = contentObj.AddComponent<ContentSizeFitter>();
-        fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         ScrollRect scroll = scrollObj.AddComponent<ScrollRect>();
         scroll.content = cr;
-        scroll.horizontal = true;
-        scroll.vertical = false;
+        scroll.horizontal = false;
+        scroll.vertical = true;
         scroll.movementType = ScrollRect.MovementType.Clamped;
+
+        Scrollbar equipmentScrollbar = CreateVerticalScrollbar(equipPanel.transform, "EquipmentScrollbar");
+        scroll.verticalScrollbar = equipmentScrollbar;
+        scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
 
         equipmentContainer = contentObj.transform;
     }
@@ -928,17 +1076,17 @@ public class CraftingUI : MonoBehaviour
     private GameObject CreateEquipmentSlot(EquipmentData equip)
     {
         bool isEquipped = EquipmentManager.Instance.IsEquipped(equip.equipmentId);
+        string displayName = GetEquipmentDisplayName(equip);
 
         GameObject slotObj = new GameObject("EquipSlot_" + equip.equipmentId);
         RectTransform r = slotObj.AddComponent<RectTransform>();
-        r.sizeDelta = new Vector2(equipmentSlotSize, 0f);
+        r.sizeDelta = new Vector2(Mathf.Max(equipmentSlotSize, EQUIPMENT_CARD_MIN_WIDTH), EQUIPMENT_CARD_HEIGHT);
 
         slotObj.AddComponent<CanvasRenderer>();
         Image bg = slotObj.AddComponent<Image>();
         bg.color = new Color(0.12f, 0.12f, 0.18f, 0.95f);
-        bg.raycastTarget = true; // Necessário para detectar o PointerEnter/Exit do hover
+        bg.raycastTarget = true; 
 
-        // Borda interna do slot de melhoria para ficar mais premium
         GameObject borderObj = new GameObject("Border");
         borderObj.transform.SetParent(slotObj.transform, false);
         RectTransform borderRect = borderObj.AddComponent<RectTransform>();
@@ -954,14 +1102,13 @@ public class CraftingUI : MonoBehaviour
 
         float nameOffsetLeft = 6f;
 
-        // Ícone da melhoria se disponível
         if (equip.icon != null)
         {
             GameObject iconObj = new GameObject("Icon");
             iconObj.transform.SetParent(slotObj.transform, false);
             RectTransform iconRect = iconObj.AddComponent<RectTransform>();
-            iconRect.anchorMin = new Vector2(0.06f, 0.60f);
-            iconRect.anchorMax = new Vector2(0.24f, 0.92f);
+            iconRect.anchorMin = new Vector2(0.34f, 0.66f);
+            iconRect.anchorMax = new Vector2(0.66f, 0.94f);
             iconRect.sizeDelta = Vector2.zero;
             
             iconObj.AddComponent<CanvasRenderer>();
@@ -970,52 +1117,66 @@ public class CraftingUI : MonoBehaviour
             iconImg.preserveAspect = true;
             iconImg.raycastTarget = false;
 
-            nameOffsetLeft = 56f;
         }
 
-        // Nome da Melhoria (Revertido para 13f limpo)
         GameObject nameObj = new GameObject("Name");
         nameObj.transform.SetParent(slotObj.transform, false);
         RectTransform nr = nameObj.AddComponent<RectTransform>();
-        nr.anchorMin = new Vector2(0f, 0.60f);
-        nr.anchorMax = new Vector2(1f, 0.92f);
+        nr.anchorMin = new Vector2(0.05f, 0.50f);
+        nr.anchorMax = new Vector2(0.95f, 0.68f);
         nr.sizeDelta = Vector2.zero;
-        nr.offsetMin = new Vector2(nameOffsetLeft, 0f);
-        nr.offsetMax = new Vector2(-6f, 0f);
+        nr.offsetMin = Vector2.zero;
+        nr.offsetMax = Vector2.zero;
         nameObj.AddComponent<CanvasRenderer>();
         TextMeshProUGUI nameText = nameObj.AddComponent<TextMeshProUGUI>();
-        nameText.text = equip.equipmentName;
-        nameText.fontSize = 13f; 
+        nameText.text = displayName;
+        nameText.fontSize = 19f; 
         nameText.fontStyle = FontStyles.Bold;
         nameText.color = new Color(0.9f, 0.88f, 0.95f);
-        nameText.alignment = (equip.icon != null) ? TextAlignmentOptions.MidlineLeft : TextAlignmentOptions.Center;
+        nameText.alignment = TextAlignmentOptions.Center;
         nameText.raycastTarget = false;
         nameText.textWrappingMode = TextWrappingModes.Normal;
         if (customFont != null) nameText.font = customFont;
 
-        // Efeito (Revertido para 11f limpo)
+        GameObject descriptionObj = new GameObject("Description");
+        descriptionObj.transform.SetParent(slotObj.transform, false);
+        RectTransform descriptionRect = descriptionObj.AddComponent<RectTransform>();
+        descriptionRect.anchorMin = new Vector2(0.06f, 0.32f);
+        descriptionRect.anchorMax = new Vector2(0.94f, 0.49f);
+        descriptionRect.sizeDelta = Vector2.zero;
+        descriptionObj.AddComponent<CanvasRenderer>();
+        TextMeshProUGUI descriptionText = descriptionObj.AddComponent<TextMeshProUGUI>();
+        descriptionText.text = string.IsNullOrWhiteSpace(equip.description) ? "noname" : equip.description;
+        descriptionText.fontSize = 13f;
+        descriptionText.fontStyle = FontStyles.Italic;
+        descriptionText.color = new Color(0.76f, 0.78f, 0.82f, 1f);
+        descriptionText.alignment = TextAlignmentOptions.Top;
+        descriptionText.raycastTarget = false;
+        descriptionText.textWrappingMode = TextWrappingModes.Normal;
+        descriptionText.overflowMode = TextOverflowModes.Ellipsis;
+        if (customFont != null) descriptionText.font = customFont;
+
         GameObject effectObj = new GameObject("Effect");
         effectObj.transform.SetParent(slotObj.transform, false);
         RectTransform er = effectObj.AddComponent<RectTransform>();
-        er.anchorMin = new Vector2(0.06f, 0.30f);
-        er.anchorMax = new Vector2(0.94f, 0.55f);
+        er.anchorMin = new Vector2(0.06f, 0.21f);
+        er.anchorMax = new Vector2(0.94f, 0.30f);
         er.sizeDelta = Vector2.zero;
         effectObj.AddComponent<CanvasRenderer>();
         TextMeshProUGUI effectText = effectObj.AddComponent<TextMeshProUGUI>();
         effectText.text = GetEffectDescription(equip);
-        effectText.fontSize = 11f; 
+        effectText.fontSize = 15f; 
         effectText.color = new Color(0.4f, 0.85f, 0.4f);
         effectText.alignment = TextAlignmentOptions.Center;
         effectText.raycastTarget = false;
         effectText.textWrappingMode = TextWrappingModes.Normal;
         if (customFont != null) effectText.font = customFont;
 
-        // Botão Equipar/Desequipar
         GameObject btnObj = new GameObject("EquipBtn");
         btnObj.transform.SetParent(slotObj.transform, false);
         RectTransform br = btnObj.AddComponent<RectTransform>();
-        br.anchorMin = new Vector2(0.1f, 0.05f);
-        br.anchorMax = new Vector2(0.9f, 0.25f);
+        br.anchorMin = new Vector2(0.12f, 0.06f);
+        br.anchorMax = new Vector2(0.88f, 0.21f);
         br.sizeDelta = Vector2.zero;
 
         btnObj.AddComponent<CanvasRenderer>();
@@ -1034,7 +1195,6 @@ public class CraftingUI : MonoBehaviour
                 EquipmentManager.Instance.Equip(eqId);
         });
 
-        // Texto do botão (Revertido para 12f limpo)
         GameObject btnTextObj = new GameObject("BtnText");
         btnTextObj.transform.SetParent(btnObj.transform, false);
         RectTransform btr = btnTextObj.AddComponent<RectTransform>();
@@ -1044,7 +1204,7 @@ public class CraftingUI : MonoBehaviour
         btnTextObj.AddComponent<CanvasRenderer>();
         TextMeshProUGUI btnText = btnTextObj.AddComponent<TextMeshProUGUI>();
         btnText.text = isEquipped ? "DESEQUIPAR" : "EQUIPAR";
-        btnText.fontSize = 12f; 
+        btnText.fontSize = 16f; 
         btnText.fontStyle = FontStyles.Bold;
         btnText.color = Color.white;
         btnText.alignment = TextAlignmentOptions.Center;
@@ -1087,7 +1247,7 @@ public class CraftingUI : MonoBehaviour
         xObj.AddComponent<CanvasRenderer>();
         TextMeshProUGUI x = xObj.AddComponent<TextMeshProUGUI>();
         x.text = "X";
-        x.fontSize = 18f; // Revertido para o padrão limpo e compacto
+        x.fontSize = 18f; 
         x.color = Color.white;
         x.alignment = TextAlignmentOptions.Center;
         x.raycastTarget = false;
@@ -1121,145 +1281,4 @@ public class CraftingUI : MonoBehaviour
         return txt;
     }
 
-    // ─── TOOLTIP DE UPGRADES (HOVER) ──────────────────────────────────────────
-
-    private void CreateUpgradeTooltip(Transform parent)
-    {
-        upgradeTooltipPanel = new GameObject("UpgradeTooltip");
-        upgradeTooltipPanel.transform.SetParent(parent, false);
-        upgradeTooltipPanel.layer = parent.gameObject.layer;
-
-        RectTransform r = upgradeTooltipPanel.AddComponent<RectTransform>();
-        r.anchorMin = new Vector2(0.5f, 0.5f);
-        r.anchorMax = new Vector2(0.5f, 0.5f);
-        r.pivot = new Vector2(0.5f, 0f); // Pivô inferior central (ficará acima do slot)
-        r.sizeDelta = new Vector2(600f, 300f); // Aumentado em 2x exatas (anteriormente 300f, 150f)
-
-        upgradeTooltipPanel.AddComponent<CanvasRenderer>();
-        Image bg = upgradeTooltipPanel.AddComponent<Image>();
-        bg.color = new Color(0.02f, 0.02f, 0.04f, 0.98f); // Vidro escuro opaco
-        bg.raycastTarget = false;
-
-        // Borda reflexiva fina
-        GameObject borderObj = new GameObject("Border");
-        borderObj.transform.SetParent(upgradeTooltipPanel.transform, false);
-        RectTransform br = borderObj.AddComponent<RectTransform>();
-        br.anchorMin = Vector2.zero;
-        br.anchorMax = Vector2.one;
-        br.sizeDelta = new Vector2(2f, 2f);
-        borderObj.AddComponent<CanvasRenderer>();
-        Image borderImg = borderObj.AddComponent<Image>();
-        borderImg.color = new Color(0.6f, 0.45f, 0.90f, 0.60f); // Borda neon roxa
-        borderImg.type = Image.Type.Sliced;
-        borderImg.fillCenter = false;
-        borderImg.raycastTarget = false;
-
-        // Nome da melhoria no Tooltip (Extra Grande: 30f - 2x exatas)
-        GameObject nameObj = new GameObject("Name");
-        nameObj.transform.SetParent(upgradeTooltipPanel.transform, false);
-        RectTransform nr = nameObj.AddComponent<RectTransform>();
-        nr.anchorMin = new Vector2(0f, 0.76f);
-        nr.anchorMax = new Vector2(1f, 0.94f);
-        nr.sizeDelta = Vector2.zero;
-        nr.offsetMin = new Vector2(20f, 0f);
-        nr.offsetMax = new Vector2(-20f, 0f);
-        nameObj.AddComponent<CanvasRenderer>();
-        tooltipNameText = nameObj.AddComponent<TextMeshProUGUI>();
-        tooltipNameText.fontSize = 30f;
-        tooltipNameText.fontStyle = FontStyles.Bold;
-        tooltipNameText.color = new Color(0.9f, 0.88f, 0.95f);
-        tooltipNameText.alignment = TextAlignmentOptions.BottomLeft;
-        tooltipNameText.raycastTarget = false;
-        if (customFont != null) tooltipNameText.font = customFont;
-
-        // Linha divisória
-        GameObject lineObj = new GameObject("Line");
-        lineObj.transform.SetParent(upgradeTooltipPanel.transform, false);
-        RectTransform lr = lineObj.AddComponent<RectTransform>();
-        lr.anchorMin = new Vector2(0.03f, 0.74f);
-        lr.anchorMax = new Vector2(0.97f, 0.74f);
-        lr.sizeDelta = new Vector2(0f, 1f);
-        lineObj.AddComponent<CanvasRenderer>();
-        Image lineImg = lineObj.AddComponent<Image>();
-        lineImg.color = new Color(1f, 1f, 1f, 0.15f);
-        lineImg.raycastTarget = false;
-
-        // Descrição detalhada da melhoria (Extra Grande: 24f - 2x exatas)
-        GameObject descObj = new GameObject("Description");
-        descObj.transform.SetParent(upgradeTooltipPanel.transform, false);
-        RectTransform dr = descObj.AddComponent<RectTransform>();
-        dr.anchorMin = new Vector2(0f, 0.32f);
-        dr.anchorMax = new Vector2(1f, 0.70f);
-        dr.sizeDelta = Vector2.zero;
-        dr.offsetMin = new Vector2(20f, 0f);
-        dr.offsetMax = new Vector2(-20f, 0f);
-        descObj.AddComponent<CanvasRenderer>();
-        tooltipDescText = descObj.AddComponent<TextMeshProUGUI>();
-        tooltipDescText.fontSize = 24f;
-        tooltipDescText.fontStyle = FontStyles.Italic;
-        tooltipDescText.color = new Color(0.75f, 0.73f, 0.85f);
-        tooltipDescText.alignment = TextAlignmentOptions.TopLeft;
-        tooltipDescText.raycastTarget = false;
-        tooltipDescText.textWrappingMode = TextWrappingModes.Normal;
-        if (customFont != null) tooltipDescText.font = customFont;
-
-        // Efeito da melhoria (Extra Grande: 26f - 2x exatas)
-        GameObject effectObj = new GameObject("Effect");
-        effectObj.transform.SetParent(upgradeTooltipPanel.transform, false);
-        RectTransform er = effectObj.AddComponent<RectTransform>();
-        er.anchorMin = new Vector2(0f, 0.06f);
-        er.anchorMax = new Vector2(1f, 0.28f);
-        er.sizeDelta = Vector2.zero;
-        er.offsetMin = new Vector2(20f, 0f);
-        er.offsetMax = new Vector2(-20f, 0f);
-        effectObj.AddComponent<CanvasRenderer>();
-        tooltipEffectText = effectObj.AddComponent<TextMeshProUGUI>();
-        tooltipEffectText.fontSize = 26f;
-        tooltipEffectText.color = new Color(0.4f, 0.85f, 0.4f);
-        tooltipEffectText.alignment = TextAlignmentOptions.MidlineLeft;
-        tooltipEffectText.raycastTarget = false;
-        if (customFont != null) tooltipEffectText.font = customFont;
-
-        upgradeTooltipPanel.SetActive(false);
-    }
-
-    private void ShowUpgradeTooltip(EquipmentData equip, bool show, Vector2 localPos)
-    {
-        if (upgradeTooltipPanel == null) return;
-
-        if (show && equip != null)
-        {
-            tooltipNameText.text = equip.equipmentName;
-            tooltipDescText.text = equip.description;
-            tooltipEffectText.text = GetEffectDescription(equip);
-
-            RectTransform r = upgradeTooltipPanel.GetComponent<RectTransform>();
-            r.anchoredPosition = localPos;
-            upgradeTooltipPanel.SetActive(true);
-        }
-        else
-        {
-            upgradeTooltipPanel.SetActive(false);
-        }
-    }
 }
-
-// ─── CLASSE AUXILIAR DETECTOR DE HOVER ────────────────────────────────────────
-
-public class UpgradeHoverHandler : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
-{
-    public EquipmentData equipment;
-    public System.Action<EquipmentData, bool> onHover;
-
-    public void OnPointerEnter(PointerEventData eventData)
-    {
-        onHover?.Invoke(equipment, true);
-    }
-
-    public void OnPointerExit(PointerEventData eventData)
-    {
-        onHover?.Invoke(equipment, false);
-    }
-}
-
-

@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 /// <summary>
 /// Motor central de Upgrades (InfusÃ£o e Reciclagem).
@@ -180,13 +180,14 @@ public class InfusionManager : MonoBehaviour
     /// Usado pelo Mercador na "Cirurgia de RemoÃ§Ã£o".
     /// Remove permanentemente os efeitos de um item e reduz o peso de inflaÃ§Ã£o.
     /// </summary>
-            public bool InfuseMultipleItems(System.Collections.Generic.List<string> itemIds)
+    public bool InfuseMultipleItems(System.Collections.Generic.List<string> itemIds)
     {
         if (ItemDatabase.Instance == null || inventory == null || essenceWallet == null) return false;
 
         int totalCost = 0;
         float currentWeight = totalInfusionWeight; 
         System.Collections.Generic.List<ItemData> validItems = new System.Collections.Generic.List<ItemData>();
+        System.Collections.Generic.List<string> itemIDsToInfuse = new System.Collections.Generic.List<string>();
         
         foreach(var id in itemIds)
         {
@@ -201,25 +202,73 @@ public class InfusionManager : MonoBehaviour
             totalCost += cost;
             currentWeight += data.GetTierWeight();
             validItems.Add(data);
+            itemIDsToInfuse.Add(data.itemId);
         }
 
         if (validItems.Count == 0) return false;
 
-        if (essenceWallet.GetEssence() < totalCost)
+        // CÃ¡lculo da Sinergia
+        SynergyResult result = SynergyInfusionCalculator.Instance.EvaluateInfusion(itemIDsToInfuse);
+
+        // AplicaÃ§Ã£o do Desconto
+        int discountedCost = UnityEngine.Mathf.RoundToInt(totalCost * (1f - result.totalEssenceDiscount));
+
+        if (essenceWallet.GetEssence() < discountedCost)
         {
             UnityEngine.Debug.Log("[INFUSÃO MULTIPLA] Bloqueado! Sem essência suficiente.");
             return false;
         }
 
+        // Paga o custo descontado de uma vez
+        essenceWallet.SpendEssence(discountedCost);
+
         bool success = false;
         foreach (var data in validItems)
         {
-            if (InfuseItem(data.itemId))
+            // Aplica stats base
+            foreach (var buff in data.itemAttributes)
             {
-                success = true;
+                ApplyAttribute(buff);
+            }
+            
+            float addedWeight = data.GetTierWeight();
+            totalInfusionWeight += addedWeight;
+            infusedItems.Add(data);
+            
+            if (data.tier4Effect != Tier4EffectType.None)
+            {
+                Tier4EffectManager t4Manager = GetComponent<Tier4EffectManager>();
+                if (t4Manager != null) t4Manager.ActivateEffect(data.tier4Effect);
+            }
+            
+            inventory.RemoveItem(data.itemId, 1);
+            success = true;
+            Debug.Log($"[INFUSÃO] Sucesso! {data.itemName} infundido via mÃºltipla.");
+        }
+
+        // AplicaÃ§Ã£o dos Modificadores Extras
+        if (result.extraModifiers != null)
+        {
+            foreach (var mod in result.extraModifiers)
+            {
+                ApplySynergyModifier(mod);
             }
         }
+
         return success;
+    }
+
+    private void ApplySynergyModifier(StatModifier mod)
+    {
+        if (System.Enum.TryParse(mod.statName, out AttributeType attrType))
+        {
+            if (mod.baseValue != 0f) ApplyAttribute(new ItemAttributeParam { attributeType = attrType, value = mod.baseValue, isMultiplier = false });
+            if (mod.multiplierValue != 0f) ApplyAttribute(new ItemAttributeParam { attributeType = attrType, value = mod.multiplierValue, isMultiplier = true });
+        }
+        else
+        {
+            Debug.LogWarning($"[SYNERGY] Atributo {mod.statName} invÃ¡lido no StatModifier!");
+        }
     }
     public bool InfuseSynergy(string item1Id, string item2Id)
     {

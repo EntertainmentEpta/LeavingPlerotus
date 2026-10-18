@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public enum WeaponType { Dagger, Sword, Axe }
+public enum WeaponType { Dagger, Sword, Axe, Gun }
 
 public class WeaponOffset : MonoBehaviour
 {

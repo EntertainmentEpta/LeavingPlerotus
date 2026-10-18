@@ -28,6 +28,11 @@ public class EnemyData : ScriptableObject
     [Tooltip("Descrição do inimigo exibida no Bestiário.")]
     public string descricao;
 
+    [Header("Sinergia")]
+    [Tooltip("ID do nó correspondente no catálogo de sinergias (SynergyNodeData.nodeID). " +
+             "Deixe vazio se o inimigo não participa do sistema de sinergias.")]
+    public string synergyNodeID;
+
     [Header("Dados de Combate (opcional — exibição no Bestiário)")]
     [Tooltip("Vida base do inimigo.")]
     public int vidaBase;

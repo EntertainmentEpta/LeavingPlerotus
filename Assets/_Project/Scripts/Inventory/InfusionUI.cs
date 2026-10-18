@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections;
@@ -599,12 +599,26 @@ public class InfusionUI : MonoBehaviour
             }
         }
 
+        // -- SINERGIA PREVIEW --
+        SynergyResult previewResult = SynergyInfusionCalculator.Instance.EvaluateInfusion(ids);
+        int discountedCost = UnityEngine.Mathf.RoundToInt(totalCost * (1f - previewResult.totalEssenceDiscount));
+
         if (itemRarity != null) itemRarity.text = rarityString;
         if (itemStatsDescription != null) itemStatsDescription.text = descString;
         if (btnInfundir != null)
         {
             TMPro.TextMeshProUGUI txt = btnInfundir.GetComponentInChildren<TMPro.TextMeshProUGUI>();
-            if (txt != null) txt.text = "INFUNDIR\n(" + totalCost + " Essence)";
+            if (txt != null) 
+            {
+                if (previewResult.totalEssenceDiscount > 0f)
+                {
+                    txt.text = "INFUNDIR\n(<color=#00FFAA>" + discountedCost + " Essence</color>)";
+                }
+                else
+                {
+                    txt.text = "INFUNDIR\n(" + totalCost + " Essence)";
+                }
+            }
         }
         if (recycleValueText != null) recycleValueText.text = "+" + totalRecycle;
     }
@@ -712,6 +726,11 @@ public class InfusionUI : MonoBehaviour
             btnInfundir.interactable = true;
             int realCost = infusionManager != null ? infusionManager.GetInflatedCost(data) : data.infusionEssenceCost;
 
+            // -- SINERGIA PREVIEW --
+            System.Collections.Generic.List<string> singleIDList = new System.Collections.Generic.List<string> { data.itemId };
+            SynergyResult previewResult = SynergyInfusionCalculator.Instance.EvaluateInfusion(singleIDList);
+            int discountedCost = UnityEngine.Mathf.RoundToInt(realCost * (1f - previewResult.totalEssenceDiscount));
+
             TextMeshProUGUI btnTxt = btnInfundir.GetComponentInChildren<TextMeshProUGUI>();
             if (btnTxt != null)
             {
@@ -719,7 +738,15 @@ public class InfusionUI : MonoBehaviour
                 string inflaTag = isInflated 
                     ? $" <size=60%><color=#FF6666>({data.infusionEssenceCost} base)</color></size>" 
                     : "";
-                btnTxt.text = $"<b>INFUNDIR</b>\n<color=#FFD700><size=88%>-{realCost} ESSÃƒÅ NCIAS</size></color>{inflaTag}";
+                
+                if (previewResult.totalEssenceDiscount > 0f)
+                {
+                    btnTxt.text = $"<b>INFUNDIR</b>\n<color=#00FFAA><size=88%>-{discountedCost} ESSÊNCIAS (COMBO!)</size></color>{inflaTag}";
+                }
+                else
+                {
+                    btnTxt.text = $"<b>INFUNDIR</b>\n<color=#FFD700><size=88%>-{realCost} ESSÊNCIAS</size></color>{inflaTag}";
+                }
             }
 
             UpdateButtonVisuals(btnInfundir);

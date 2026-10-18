@@ -163,6 +163,8 @@ public class PlayerAnimationEvents : MonoBehaviour
         Ultimate_Axe axeUlt = FindUltimateAxe();
         if (axeUlt != null)
             axeUlt.PlayChargeSFX();
+        else
+            Debug.LogWarning("[PlayerAnimationEvents] PlayChargeSFX: Ultimate_Axe NÃO encontrado!");
     }
 
     /// <summary>
@@ -173,6 +175,8 @@ public class PlayerAnimationEvents : MonoBehaviour
         Ultimate_Axe axeUlt = FindUltimateAxe();
         if (axeUlt != null)
             axeUlt.PlayGroundImpactSFX();
+        else
+            Debug.LogWarning("[PlayerAnimationEvents] PlayGroundImpactSFX: Ultimate_Axe NÃO encontrado!");
     }
 
     /// <summary>
@@ -183,6 +187,8 @@ public class PlayerAnimationEvents : MonoBehaviour
         Ultimate_Axe axeUlt = FindUltimateAxe();
         if (axeUlt != null)
             axeUlt.PlayCrystalShatterSFX();
+        else
+            Debug.LogWarning("[PlayerAnimationEvents] PlayCrystalShatterSFX: Ultimate_Axe NÃO encontrado!");
     }
 
     /// <summary>
