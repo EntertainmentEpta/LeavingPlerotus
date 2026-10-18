@@ -477,7 +477,7 @@ public class CheatConsole : MonoBehaviour
             {
                 EptinhoPopupController.instancia.MostrarPopupAviso(msg);
             }
-
+        }
         else if (string.Equals(command, "resetcaderno", System.StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(command, "resetlivro", System.StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(command, "resetbook", System.StringComparison.OrdinalIgnoreCase))
@@ -496,31 +496,6 @@ public class CheatConsole : MonoBehaviour
             if (EptinhoPopupController.instancia != null)
             {
                 EptinhoPopupController.instancia.MostrarPopupAviso(msg);
-            }
-        }
-        else if (string.Equals(command, "escrituras", System.StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(command, "scriptures", System.StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(command, "lore", System.StringComparison.OrdinalIgnoreCase))
-        {
-            if (LoreManager.Instance != null)
-            {
-                string[] samples = { "scripture_acid_filter", "scripture_shell_breaker", "scripture_hyphae_dilution", "scripture_lore_01", "scripture_lore_02" };
-                int count = 0;
-                foreach (string sid in samples)
-                {
-                    var sc = LoreManager.Instance.GetScripture(sid);
-                    if (sc != null)
-                    {
-                        LoreManager.Instance.CollectScripture(sc);
-                        count++;
-                    }
-                }
-                string msg = $"+{count} ESCRITURAS CATALOGADAS!\nAbra o caderno com [E] ou digite /caderno para conferir!";
-                Debug.Log($"💻 CHEAT: {msg}");
-                if (EptinhoPopupController.instancia != null)
-                {
-                    EptinhoPopupController.instancia.MostrarPopupAviso(msg);
-                }
             }
         }
         else if (string.Equals(command, "limparescrituras", System.StringComparison.OrdinalIgnoreCase) ||
