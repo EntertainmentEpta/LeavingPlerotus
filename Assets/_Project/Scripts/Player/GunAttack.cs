@@ -340,8 +340,42 @@ public class GunAttack : MonoBehaviour
         return GetFallbackAimDirection();
     }
 
+    private void TryResolveBatteryOrbSprites()
+    {
+        if (batteryOrbSprites == null || batteryOrbSprites.Length < 5)
+        {
+            batteryOrbSprites = new Sprite[5];
+        }
+
+        bool hasMissing = false;
+        for (int i = 0; i < 5; i++)
+        {
+            if (batteryOrbSprites[i] == null)
+            {
+                hasMissing = true;
+                break;
+            }
+        }
+
+        if (!hasMissing) return;
+
+        // Fallback: search loaded sprites across memory by asset name
+        Sprite[] allSprites = Resources.FindObjectsOfTypeAll<Sprite>();
+        foreach (Sprite s in allSprites)
+        {
+            if (s == null) continue;
+            if (batteryOrbSprites[0] == null && s.name == "0_sem_carga") batteryOrbSprites[0] = s;
+            else if (batteryOrbSprites[1] == null && s.name == "1_carga") batteryOrbSprites[1] = s;
+            else if (batteryOrbSprites[2] == null && s.name == "2_carga") batteryOrbSprites[2] = s;
+            else if (batteryOrbSprites[3] == null && s.name == "3_carga") batteryOrbSprites[3] = s;
+            else if (batteryOrbSprites[4] == null && s.name == "4_carga") batteryOrbSprites[4] = s;
+        }
+    }
+
     private void EnsureBatteryHUD()
     {
+        TryResolveBatteryOrbSprites();
+
         bool hasAllSprites = batteryOrbSprites != null && batteryOrbSprites.Length >= 5;
         if (hasAllSprites)
         {
