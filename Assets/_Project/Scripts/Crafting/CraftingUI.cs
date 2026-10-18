@@ -45,6 +45,7 @@ public class CraftingUI : MonoBehaviour
     private Image playerTabImage;
     private Image baseTabImage;
     private Image weaponsTabImage;
+    private ObjectiveMarker tabWeaponsMarker;
     private int currentViewTab = 0;
 
     private GameObject recipeListPanel;
@@ -174,42 +175,48 @@ public class CraftingUI : MonoBehaviour
 
     void Update()
     {
-        if (isOpen && Input.GetKeyDown(KeyCode.Escape))
+        if (isOpen)
         {
-            CloseCrafting();
-            if (RobotPreviewManager.Instance != null) RobotPreviewManager.Instance.Deactivate();
-        }
+            if (Cursor.lockState != CursorLockMode.None) Cursor.lockState = CursorLockMode.None;
+            if (!Cursor.visible) Cursor.visible = true;
 
-        if (isOpen && Input.GetKeyDown(KeyCode.T))
-        {
-            if (selectedRecipe != null && CraftingManager.Instance != null)
+            if (Input.GetKeyDown(KeyCode.Escape))
             {
-                if (CraftingManager.Instance.CanCraft(selectedRecipe))
-                {
-                    OnCraftButtonClicked();
-                }
-                else
-                {
-                    // Sem materiais — toca som de falha
-                    if (CraftingTableInteraction.Instance != null)
-                        CraftingTableInteraction.Instance.PlaySynthesizeFailSound();
-                }
+                CloseCrafting();
+                if (RobotPreviewManager.Instance != null) RobotPreviewManager.Instance.Deactivate();
             }
-        }
 
-        if (isOpen && Input.GetKeyDown(KeyCode.P))
-        {
-            if (ItemDatabase.Instance != null && SaveManager.instance != null)
+            if (Input.GetKeyDown(KeyCode.T))
             {
-                foreach (var item in ItemDatabase.Instance.allItems)
+                if (selectedRecipe != null && CraftingManager.Instance != null)
                 {
-                    if (item != null && item.returnsToBase)
+                    if (CraftingManager.Instance.CanCraft(selectedRecipe))
                     {
-                        SaveManager.instance.AddResourceToBase(item.itemId, 20);
+                        OnCraftButtonClicked();
+                    }
+                    else
+                    {
+                        // Sem materiais — toca som de falha
+                        if (CraftingTableInteraction.Instance != null)
+                            CraftingTableInteraction.Instance.PlaySynthesizeFailSound();
                     }
                 }
-                RefreshUI();
-                Debug.Log("[DEBUG CHEAT] Adicionados 20 de cada recurso de base!");
+            }
+
+            if (Input.GetKeyDown(KeyCode.P))
+            {
+                if (ItemDatabase.Instance != null && SaveManager.instance != null)
+                {
+                    foreach (var item in ItemDatabase.Instance.allItems)
+                    {
+                        if (item != null && item.returnsToBase)
+                        {
+                            SaveManager.instance.AddResourceToBase(item.itemId, 20);
+                        }
+                    }
+                    RefreshUI();
+                    Debug.Log("[DEBUG CHEAT] Adicionados 20 de cada recurso de base!");
+                }
             }
         }
     }
@@ -221,6 +228,10 @@ public class CraftingUI : MonoBehaviour
         if (isOpen) return;
         isOpen = true;
         
+        UpdateCanvasCamera();
+        if (canvasObject != null) canvasObject.SetActive(true);
+        if (craftingCanvas != null) craftingCanvas.enabled = true;
+
         panelObject.SetActive(true);
         if (backgroundObject != null) backgroundObject.SetActive(true);
         if (showRobotPreview && previewPanelObject != null) previewPanelObject.SetActive(true);
@@ -231,8 +242,14 @@ public class CraftingUI : MonoBehaviour
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
 
+        if (showRobotPreview && RobotPreviewManager.Instance != null && previewRawImage != null)
+        {
+            RobotPreviewManager.Instance.SetupPreview(previewRawImage);
+        }
+
         RefreshUI();
-        Debug.Log("[CRAFTING] UI aberta");
+        if (tabWeaponsMarker != null) tabWeaponsMarker.CheckVisibility();
+        Debug.Log("[CRAFTING] UI aberta com sucesso");
     }
 
     public void CloseCrafting()
@@ -246,6 +263,11 @@ public class CraftingUI : MonoBehaviour
 
         Cursor.visible = false;
         Cursor.lockState = CursorLockMode.Locked;
+
+        if (RobotPreviewManager.Instance != null)
+        {
+            RobotPreviewManager.Instance.Deactivate();
+        }
 
         Debug.Log("[CRAFTING] UI fechada");
     }
@@ -296,6 +318,15 @@ public class CraftingUI : MonoBehaviour
         {
             if (r == null) continue;
             if (IsWeaponRecipe(r)) continue; // Armas exclusivas na aba Armas!
+
+            // Se for receita de blueprint de escritura ancestral, só exibe no Robozinho se já foi desbloqueada
+            if (r.resultEquipment != null && r.resultEquipment.equipmentId.StartsWith("equip_") && r.resultEquipment.equipmentId != "equip_detector_barreiras")
+            {
+                if (LoreManager.Instance != null && !LoreManager.Instance.IsBlueprintUnlocked(r.resultEquipment.equipmentId))
+                {
+                    continue; // Bloqueado até o jogador encontrar a escritura no mapa!
+                }
+            }
 
             bool isBase = r.resultEquipment != null && r.resultEquipment.isBaseUpgrade;
             if (currentTab == 0 && !isBase) recipes.Add(r);
@@ -620,15 +651,54 @@ public class CraftingUI : MonoBehaviour
 
     // ─── CRIAÇÃO DA UI ───────────────────────────────────────────────────────
 
+    public void UpdateCanvasCamera()
+    {
+        if (craftingCanvas == null) return;
+
+        craftingCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        craftingCanvas.sortingOrder = 500;
+
+        int uiLayer = LayerMask.NameToLayer("UI");
+        if (uiLayer < 0) uiLayer = 5;
+        if (canvasObject != null)
+        {
+            SetLayerRecursively(canvasObject, uiLayer);
+        }
+    }
+
+    private void SetLayerRecursively(GameObject obj, int layer)
+    {
+        if (obj == null) return;
+        obj.layer = layer;
+        foreach (Transform child in obj.transform)
+        {
+            if (child != null)
+            {
+                SetLayerRecursively(child.gameObject, layer);
+            }
+        }
+    }
+
     private void CreateCraftingUI()
     {
+        // Garante EventSystem para interação de mouse e botões na UI
+        if (Object.FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
+        {
+            GameObject esObj = new GameObject("EventSystem");
+            esObj.AddComponent<UnityEngine.EventSystems.EventSystem>();
+            esObj.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+            DontDestroyOnLoad(esObj);
+        }
+
         canvasObject = new GameObject("CraftingUI_Canvas");
         craftingCanvas = canvasObject.AddComponent<Canvas>();
-        craftingCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        craftingCanvas.sortingOrder = 110; 
+        UpdateCanvasCamera();
+
         var scaler = canvasObject.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
+        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+        scaler.matchWidthOrHeight = 0.5f;
         canvasObject.AddComponent<GraphicRaycaster>();
         DontDestroyOnLoad(canvasObject);
 
@@ -647,7 +717,7 @@ public class CraftingUI : MonoBehaviour
 
         Image mainPanelBg = panelObject.AddComponent<Image>();
         mainPanelBg.color = panelBg;
-        mainPanelBg.raycastTarget = true;
+        mainPanelBg.raycastTarget = false;
 
         Shadow panelShadow = panelObject.AddComponent<Shadow>();
         panelShadow.effectColor = new Color(0f, 0f, 0f, 0.45f);
@@ -682,6 +752,7 @@ public class CraftingUI : MonoBehaviour
             CreateRobotPreviewPanel();
         }
 
+        UpdateCanvasCamera();
         Debug.Log("[CRAFTING] UI criada.");
     }
 
@@ -753,7 +824,7 @@ public class CraftingUI : MonoBehaviour
         backgroundRect.offsetMax = Vector2.zero;
 
         Image backgroundImage = backgroundObject.AddComponent<Image>();
-        backgroundImage.color = new Color(0f, 0f, 0f, 217f / 255f);
+        backgroundImage.color = new Color(0.02f, 0.03f, 0.05f, 0.85f);
         backgroundImage.raycastTarget = false;
         backgroundObject.transform.SetSiblingIndex(0);
     }
@@ -773,7 +844,7 @@ public class CraftingUI : MonoBehaviour
         previewPanelObject.AddComponent<CanvasRenderer>();
         Image bg = previewPanelObject.AddComponent<Image>();
         bg.color = panelBg;
-        bg.raycastTarget = true;
+        bg.raycastTarget = false;
 
         Shadow shadow = previewPanelObject.AddComponent<Shadow>();
         shadow.effectColor = new Color(0f, 0f, 0f, 0.45f);
@@ -815,6 +886,7 @@ public class CraftingUI : MonoBehaviour
         
         previewRawImage = rawImgObj.AddComponent<RawImage>();
         previewRawImage.color = Color.white;
+        previewRawImage.raycastTarget = false;
     }
 
     private void CreateBorder(Transform parent)
@@ -1006,13 +1078,14 @@ public class CraftingUI : MonoBehaviour
             RefreshRecipeList(); 
             UpdateRecipeCategoryTabs(); 
             TutorialManager.Instance?.CompleteStep(TutorialStep.AbrirAbaArmas);
+            if (tabWeaponsMarker != null) tabWeaponsMarker.CheckVisibility();
         });
 
-        ObjectiveMarker tabMarker = tabWeapons.AddComponent<ObjectiveMarker>();
-        tabMarker.condition = ObjectiveMarker.TriggerCondition.ByTutorialStep;
-        tabMarker.activeOnStep = TutorialStep.AbrirAbaArmas;
-        tabMarker.mode = ObjectiveMarker.MarkerMode.CanvasUI;
-        tabMarker.markerSize = new Vector2(40f, 40f);
+        tabWeaponsMarker = tabWeapons.AddComponent<ObjectiveMarker>();
+        tabWeaponsMarker.condition = ObjectiveMarker.TriggerCondition.ByTutorialStep;
+        tabWeaponsMarker.activeOnStep = TutorialStep.AbrirAbaArmas;
+        tabWeaponsMarker.mode = ObjectiveMarker.MarkerMode.CanvasUI;
+        tabWeaponsMarker.markerSize = new Vector2(24f, 24f);
         
         GameObject txtWeapons = new GameObject("Text");
         txtWeapons.transform.SetParent(tabWeapons.transform, false);
@@ -1091,6 +1164,11 @@ public class CraftingUI : MonoBehaviour
         if (weaponsTabImage != null)
         {
             weaponsTabImage.color = currentTab == 2 ? activeColor : inactColor;
+        }
+
+        if (tabWeaponsMarker != null)
+        {
+            tabWeaponsMarker.CheckVisibility();
         }
     }
 

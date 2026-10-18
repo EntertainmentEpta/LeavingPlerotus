@@ -66,8 +66,14 @@ public class QuestHUDTracker : MonoBehaviour
     // ── Seção Compacta (Gameplay / Resumido) ──
     private GameObject      compactContainer;
     private TextMeshProUGUI compactMasterText;
+    private TextMeshProUGUI compactJournalText;
     private TextMeshProUGUI compactActiveText;
     private TextMeshProUGUI compactHintText;
+
+    // ── Seção do Caderno do Pesquisador ──
+    private GameObject      journalSection;
+    private TextMeshProUGUI journalBadgeText;
+    private TextMeshProUGUI journalProgressText;
 
     // ── Seção Expandida (Inventário / Detalhado) ──
     private GameObject      expandedContainer;
@@ -119,6 +125,8 @@ public class QuestHUDTracker : MonoBehaviour
             QuestManager.Instance.StateChanged += RefreshDisplay;
             QuestManager.Instance.QuestCompletedEvent += HandleQuestCompleted;
         }
+        LoreManager.OnScriptureDiscovered += HandleScriptureDiscovered;
+        LoreManager.OnResearcherBookDiscovered += RefreshDisplay;
         UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
@@ -129,7 +137,16 @@ public class QuestHUDTracker : MonoBehaviour
             QuestManager.Instance.StateChanged -= RefreshDisplay;
             QuestManager.Instance.QuestCompletedEvent -= HandleQuestCompleted;
         }
+        LoreManager.OnScriptureDiscovered -= HandleScriptureDiscovered;
+        LoreManager.OnResearcherBookDiscovered -= RefreshDisplay;
         UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void HandleScriptureDiscovered(LoreScriptureData data)
+    {
+        RefreshDisplay();
+        if (pulseRoutine != null) StopCoroutine(pulseRoutine);
+        pulseRoutine = StartCoroutine(PulseWidget());
     }
 
     private void OnDestroy()
@@ -284,7 +301,18 @@ public class QuestHUDTracker : MonoBehaviour
         compactMasterText.color = BORDER_MASTER;
         if (customFont != null) compactMasterText.font = customFont;
 
-        // Linha 2: Missão Ativa
+        // Linha 2: Caderno do Pesquisador (se encontrado)
+        GameObject cJournalGO = new GameObject("Compact_Journal");
+        cJournalGO.transform.SetParent(compactContainer.transform, false);
+        compactJournalText = cJournalGO.AddComponent<TextMeshProUGUI>();
+        compactJournalText.text = "📖 CADERNO: 0% [0/24]";
+        compactJournalText.fontSize = 13;
+        compactJournalText.fontStyle = FontStyles.Bold;
+        compactJournalText.color = new Color(0.35f, 0.95f, 0.95f);
+        if (customFont != null) compactJournalText.font = customFont;
+        cJournalGO.SetActive(false);
+
+        // Linha 3: Missão Ativa
         GameObject cActiveGO = new GameObject("Compact_Active");
         cActiveGO.transform.SetParent(compactContainer.transform, false);
         compactActiveText = cActiveGO.AddComponent<TextMeshProUGUI>();
@@ -295,7 +323,7 @@ public class QuestHUDTracker : MonoBehaviour
         compactActiveText.textWrappingMode = TextWrappingModes.Normal;
         if (customFont != null) compactActiveText.font = customFont;
 
-        // Linha 3: Dica de Inventário
+        // Linha 4: Dica de Inventário
         GameObject cHintGO = new GameObject("Compact_Hint");
         cHintGO.transform.SetParent(compactContainer.transform, false);
         compactHintText = cHintGO.AddComponent<TextMeshProUGUI>();
@@ -360,6 +388,28 @@ public class QuestHUDTracker : MonoBehaviour
         LayoutElement mDivLe = masterDividerLine.AddComponent<LayoutElement>();
         mDivLe.minHeight = 1f;
         mDivLe.preferredHeight = 1f;
+
+        // Seção do Caderno do Pesquisador (se encontrado)
+        journalSection = CreateSectionContainer("Section_Journal");
+
+        GameObject jBadgeGO = new GameObject("Badge");
+        jBadgeGO.transform.SetParent(journalSection.transform, false);
+        journalBadgeText = jBadgeGO.AddComponent<TextMeshProUGUI>();
+        journalBadgeText.text = "📖 CADERNO DO PESQUISADOR";
+        journalBadgeText.fontSize = 14;
+        journalBadgeText.fontStyle = FontStyles.Bold;
+        journalBadgeText.color = new Color(0.35f, 0.95f, 0.95f);
+        if (customFont != null) journalBadgeText.font = customFont;
+
+        GameObject jProgGO = new GameObject("Progress");
+        jProgGO.transform.SetParent(journalSection.transform, false);
+        journalProgressText = jProgGO.AddComponent<TextMeshProUGUI>();
+        journalProgressText.text = "Páginas: 0%  (0 / 24)";
+        journalProgressText.fontSize = 15;
+        journalProgressText.fontStyle = FontStyles.Bold;
+        journalProgressText.color = TEXT_SUB;
+        if (customFont != null) journalProgressText.font = customFont;
+        journalSection.SetActive(false);
 
         // ═══════════════════════════════════════════════════════════════════════
         // 1. SEÇÃO DE MISSÃO CONCLUÍDA (RISCADA)
@@ -509,6 +559,24 @@ public class QuestHUDTracker : MonoBehaviour
             compactMasterText.text = $"★ NÚCLEOS: {shipParts} / 4  [{coresIcons}]";
         }
 
+        bool hasBook = LoreManager.Instance != null && LoreManager.Instance.HasFoundResearcherBook;
+        int scripturesFound = LoreManager.Instance != null ? LoreManager.Instance.DiscoveredScripturesCount : 0;
+        int totalScriptures = LoreManager.Instance != null ? LoreManager.Instance.TotalScripturesCount : 24;
+        float bookPercent = totalScriptures > 0 ? ((float)scripturesFound / totalScriptures) * 100f : 0f;
+
+        if (compactJournalText != null)
+        {
+            if (hasBook)
+            {
+                compactJournalText.gameObject.SetActive(true);
+                compactJournalText.text = $"📖 CADERNO: {bookPercent:F0}% ({scripturesFound}/{totalScriptures})";
+            }
+            else
+            {
+                compactJournalText.gameObject.SetActive(false);
+            }
+        }
+
         if (compactActiveText != null)
         {
             if (hasActive)
@@ -540,9 +608,23 @@ public class QuestHUDTracker : MonoBehaviour
             masterProgressText.text = $"Núcleos: {shipParts} / 4  [{coresIcons}]";
         }
 
+        // Seção do Caderno do Pesquisador (se encontrado)
+        if (journalSection != null)
+        {
+            if (hasBook)
+            {
+                journalSection.SetActive(true);
+                journalProgressText.text = $"Recuperação: <color=#4DEEEA><b>{bookPercent:F0}%</b></color>  ({scripturesFound} / {totalScriptures} Páginas)";
+            }
+            else
+            {
+                journalSection.SetActive(false);
+            }
+        }
+
         if (masterDividerLine != null)
         {
-            masterDividerLine.SetActive(hasCompleted || hasActive);
+            masterDividerLine.SetActive(hasCompleted || hasActive || hasBook);
         }
 
         // 1. Configura a Seção Concluída (Riscada)

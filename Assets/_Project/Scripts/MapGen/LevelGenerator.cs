@@ -104,6 +104,14 @@ public class LevelGenerator : MonoBehaviour
         return deadEndPrefab;
     }
 
+    [Header("Anomalia / Fissura de Lore")]
+    [Tooltip("Prefab da sala de Anomalia (Necrose do Fungo). Se nulo, converte um DeadEnd dinamicamente.")]
+    public GameObject anomalyRoomPrefab;
+
+    [Range(0f, 1f)]
+    [Tooltip("Chance de cada beco sem saída restante gerar a Sala de Anomalia (máx 1 por run).")]
+    public float anomalyRoomChance = 0.35f;
+
     [Header("Boss Fight")]
     [Tooltip("Prefab da sala de Boss Fight (Round 4). Deve ter 1 ConnectionPoint(Entrada).\nQuando o round boss for detectado, apenas Safe Room + Boss Room são gerados.")]
     public GameObject bossRoomPrefab;
@@ -144,6 +152,7 @@ public class LevelGenerator : MonoBehaviour
     private Transform playerSpawnPoint;
     private bool merchantRoomSpawned = false;
     private bool exitRoomSpawned = false;
+    private bool anomalyRoomSpawned = false;
     private int roomSequenceCounter = 0;
     private NavMeshDataInstance activeNavMeshInstance;
     private NavMeshData activeNavData;
@@ -173,6 +182,7 @@ public class LevelGenerator : MonoBehaviour
         placedRoomBounds.Clear();
         merchantRoomSpawned = false;
         exitRoomSpawned = false;
+        anomalyRoomSpawned = false;
         roomSequenceCounter = 0;
 
         // --- Progressão de Rounds: ajusta maxMainRooms dinamicamente ---
@@ -207,6 +217,9 @@ public class LevelGenerator : MonoBehaviour
 
         // Registra as saídas da Safe Room (pula a Entrada, que fica no West/Nave)
         RegisterOutputPoints(startRoom, isStartRoom: true);
+
+        // Spawna o Caderno do Pesquisador se ainda não foi recuperado pelo jogador
+        TrySpawnResearcherBookInStartRoom(startRoom);
 
         if (isBossRound)
             StartCoroutine(BossGenerationCoroutine());
@@ -263,6 +276,7 @@ public class LevelGenerator : MonoBehaviour
         yield return new WaitForSeconds(extraLoadDelay);
 
         TriggerItemSpawning();
+        TrySpawnScripturePageInDungeon();
 
         BakeGlobalNavMesh();
 
@@ -511,7 +525,7 @@ public class LevelGenerator : MonoBehaviour
             }
         }
 
-        // 2. Demais saídas → Mercador ou DeadEnd
+        // 2. Demais saídas → Mercador, Anomalia ou DeadEnd
         List<ConnectionPoint> deadEnds = new List<ConnectionPoint>(openOutputs);
         openOutputs.Clear();
 
@@ -524,11 +538,11 @@ public class LevelGenerator : MonoBehaviour
                 if (TrySpawnMerchantRoom(deadEnds[i]))
                     merchantRoomSpawned = true;
                 else
-                    TrySpawnSpecialRoom(GetRandomDeadEndPrefab(), deadEnds[i], "Dead End", useTransition: false);
+                    TrySpawnDeadEndOrAnomaly(deadEnds[i]);
             }
             else
             {
-                TrySpawnSpecialRoom(GetRandomDeadEndPrefab(), deadEnds[i], "Dead End", useTransition: false);
+                TrySpawnDeadEndOrAnomaly(deadEnds[i]);
             }
         }
 
@@ -591,6 +605,7 @@ public class LevelGenerator : MonoBehaviour
         yield return new WaitForSeconds(extraLoadDelay);
 
         TriggerItemSpawning();
+        TrySpawnScripturePageInDungeon();
 
         BakeGlobalNavMesh();
 
@@ -739,6 +754,85 @@ public class LevelGenerator : MonoBehaviour
         Debug.Log("[LevelGenerator] ✅ Sala do Mercador criada.");
         return true;
     }
+
+    bool TrySpawnDeadEndOrAnomaly(ConnectionPoint targetOutput)
+    {
+        // Se ainda não gerou a Sala de Anomalia e passou na chance, tenta gerar
+        if (!anomalyRoomSpawned && Random.value < anomalyRoomChance)
+        {
+            if (TrySpawnAnomalyRoom(targetOutput))
+            {
+                anomalyRoomSpawned = true;
+                return true;
+            }
+        }
+
+        return TrySpawnSpecialRoom(GetRandomDeadEndPrefab(), targetOutput, "Dead End", useTransition: false);
+    }
+
+    bool TrySpawnAnomalyRoom(ConnectionPoint targetOutput)
+    {
+        if (targetOutput == null) return false;
+
+        // 1. Tenta usar o prefab dedicado se fornecido
+        if (anomalyRoomPrefab != null)
+        {
+            if (TrySpawnSpecialRoom(anomalyRoomPrefab, targetOutput, "Sala de Anomalia", useTransition: false))
+            {
+                NotifyAnomalyRoomSpawned(targetOutput.transform.position);
+                return true;
+            }
+        }
+
+        // 2. Fallback procedural inteligente: converte um DeadEnd em Sala de Anomalia
+        GameObject deadEndPrefabToUse = GetRandomDeadEndPrefab();
+        if (deadEndPrefabToUse == null) return false;
+
+        GameObject room = Instantiate(deadEndPrefabToUse);
+        room.name = "[Room_Anomaly] " + deadEndPrefabToUse.name;
+        ConnectionPoint entrada = GetInputPoint(room, targetOutput.connectionTag, targetOutput.transform);
+
+        if (entrada == null)
+        {
+            Destroy(room);
+            return false;
+        }
+
+        AlignRooms(targetOutput.transform, entrada.transform);
+
+        if (HasOverlapWithExistingRooms(room, excludeRoom: targetOutput.transform.root.gameObject))
+        {
+            Destroy(room);
+            return false;
+        }
+
+        targetOutput.isOccupied = true;
+        entrada.isOccupied = true;
+        RegisterRoomBounds(room);
+
+        // Adiciona controlador de anomalia dinamicamente
+        if (room.GetComponent<AnomalyRoomController>() == null)
+        {
+            room.AddComponent<AnomalyRoomController>();
+        }
+
+        NotifyAnomalyRoomSpawned(room.transform.position);
+        Debug.Log("[LevelGenerator] 🌌 Sala de Anomalia biológica gerada com sucesso!");
+        return true;
+    }
+
+    private void NotifyAnomalyRoomSpawned(Vector3 position)
+    {
+        // Se o jogador possui a Sonda de Fissura Mineral equipada, notifica via Eptinho
+        if (EquipmentManager.Instance != null && EquipmentManager.Instance.HasAnomalySonar)
+        {
+            if (EptinhoPopupController.instancia != null)
+            {
+                EptinhoPopupController.instancia.MostrarPopupAviso("📡 <i>[Sonda de Fissura Mineral Ativa] Ressonância de necrose anômala detectada no setor!</i>");
+            }
+        }
+    }
+
     // =========================================================
     // SELEÇÃO DE PREFAB
     // =========================================================
@@ -1076,6 +1170,125 @@ public class LevelGenerator : MonoBehaviour
             Debug.Log("[LevelGenerator] ItemSpawner nao encontrado na cena. Adicionado automaticamente.");
         }
         itemSpawner.SpawnItems();
+    }
+
+    /// <summary>
+    /// Spawna o Caderno do Pesquisador no chão da Safe Room caso o jogador ainda não o tenha encontrado.
+    /// Fica alguns passos à frente do spawn inicial do jogador.
+    /// </summary>
+    private void TrySpawnResearcherBookInStartRoom(GameObject startRoom)
+    {
+        if (startRoom == null) return;
+        if (LoreManager.Instance != null && LoreManager.Instance.HasFoundResearcherBook) return;
+
+        // Se já existe na cena, não duplica
+        if (FindFirstObjectByType<ResearcherBookPickup>() != null) return;
+
+        GameObject pickupPrefab = Resources.Load<GameObject>("Lore/ResearcherBookPickup") ?? 
+                                 Resources.Load<GameObject>("ResearcherBookPickup");
+
+        Vector3 spawnPos = Vector3.zero;
+        if (playerSpawnPoint != null)
+        {
+            spawnPos = playerSpawnPoint.position + playerSpawnPoint.forward * 3.5f;
+            spawnPos.y = roomFloorY + 0.1f;
+        }
+
+        if (pickupPrefab != null)
+        {
+            Instantiate(pickupPrefab, spawnPos, Quaternion.identity);
+            Debug.Log($"[LevelGenerator] 📖 Caderno do Pesquisador spawnado na Safe Room em {spawnPos}!");
+        }
+        else
+        {
+            // Fallback dinâmico: cria objeto interativo no chão
+            GameObject pickupGo = new GameObject("ResearcherBookPickup_Auto");
+            pickupGo.transform.position = spawnPos;
+            ResearcherBookPickup pickupComp = pickupGo.AddComponent<ResearcherBookPickup>();
+            pickupComp.promptActionText = "Pegar Caderno do Pesquisador";
+
+            SphereCollider sc = pickupGo.AddComponent<SphereCollider>();
+            sc.isTrigger = true;
+            sc.radius = 2.5f;
+
+            // Luz suave indicando o item
+            GameObject lightGo = new GameObject("BookLight");
+            lightGo.transform.SetParent(pickupGo.transform, false);
+            lightGo.transform.localPosition = Vector3.up * 0.3f;
+            Light l = lightGo.AddComponent<Light>();
+            l.type = LightType.Point;
+            l.color = new Color(1f, 0.85f, 0.3f);
+            l.range = 3.2f;
+            l.intensity = 1.8f;
+
+            Debug.Log($"[LevelGenerator] 📖 Caderno do Pesquisador (Procedural) spawnado na Safe Room em {spawnPos}!");
+        }
+    }
+
+    /// <summary>
+    /// Spawna 1 página de escritura ancestral pelo chão das galerias (Dead Ends ou Anomalia) a cada floor.
+    /// Garante que o jogador descubra novas páginas a cada expedição.
+    /// </summary>
+    private void TrySpawnScripturePageInDungeon()
+    {
+        if (FindFirstObjectByType<ScripturePickup>() != null) return;
+
+        GameObject pagePrefab = Resources.Load<GameObject>("Lore/ScripturePagePickup") ?? 
+                                Resources.Load<GameObject>("Scriptures/ScripturePickup");
+
+        // Escolhe o melhor local: Sala de Anomalia ou Dead End distante
+        Vector3 spawnPos = Vector3.zero;
+        bool foundSpot = false;
+
+        RoomController[] rooms = FindObjectsByType<RoomController>(FindObjectsSortMode.None);
+        var specialRooms = rooms.Where(r => r != null && (r.gameObject.name.Contains("Anomaly") || r.gameObject.name.Contains("DeadEnd") || r.gameObject.name.Contains("Z Room"))).ToList();
+
+        if (specialRooms.Count > 0)
+        {
+            RoomController targetRoom = specialRooms[Random.Range(0, specialRooms.Count)];
+            spawnPos = targetRoom.transform.position + Vector3.up * 0.2f;
+            foundSpot = true;
+        }
+        else if (rooms.Length > 2)
+        {
+            RoomController targetRoom = rooms[Random.Range(1, rooms.Length)];
+            spawnPos = targetRoom.transform.position + Vector3.up * 0.2f;
+            foundSpot = true;
+        }
+
+        if (foundSpot)
+        {
+            if (pagePrefab != null)
+            {
+                Instantiate(pagePrefab, spawnPos, Quaternion.identity);
+            }
+            else
+            {
+                GameObject pageGo = new GameObject("ScripturePickup_FloorPage");
+                pageGo.transform.position = spawnPos;
+                ScripturePickup sp = pageGo.AddComponent<ScripturePickup>();
+                sp.autoCollectOnTrigger = false;
+                sp.interactKey = KeyCode.E;
+                sp.interactionRadius = 2.5f;
+
+                if (LoreManager.Instance != null)
+                {
+                    sp.scriptureData = LoreManager.Instance.GetNextUndiscoveredScripture();
+                }
+
+                // Luz vertical mística / beacon para avistar de longe
+                GameObject lightGo = new GameObject("BeaconLight");
+                lightGo.transform.SetParent(pageGo.transform, false);
+                lightGo.transform.localPosition = Vector3.up * 0.5f;
+                Light l = lightGo.AddComponent<Light>();
+                l.type = LightType.Point;
+                l.color = new Color(0.2f, 0.95f, 1f);
+                l.range = 5f;
+                l.intensity = 2.2f;
+            }
+
+            Debug.Log($"[LevelGenerator] 📜 Página de escritura spawnada no chão da dungeon em {spawnPos}!");
+        }
     }
 
     void BakeGlobalNavMesh()

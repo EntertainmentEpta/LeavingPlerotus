@@ -86,6 +86,7 @@ public class MerchantUIController : MonoBehaviour
     private int pendingHealthCost = 0;
     private Vector2[] originalCardPositions = new Vector2[3];
     private Vector3[] originalCardScales = new Vector3[3];
+    private int lastDialogueRoomNumber = -999;
 
     public void ResetPactState()
     {
@@ -718,6 +719,15 @@ public class MerchantUIController : MonoBehaviour
 
         Time.timeScale = 0f;
         ShowPrompt(false);
+
+        // Dispara o diálogo progressivo dos 20 encontros com o Mercador e a revelação do segredo (1x por sala)
+        int currentRoom = (RunManager.instance != null) ? RunManager.instance.currentRoomNumber : -1;
+        if (lastDialogueRoomNumber != currentRoom || currentRoom == -1)
+        {
+            lastDialogueRoomNumber = currentRoom;
+            MerchantEncounterDialogueSystem.CheckAndTriggerEncounterDialogue();
+        }
+
         Debug.Log("[MERCHANT UI] Painel do Pacto de Sangue aberto com sucesso.");
     }
 

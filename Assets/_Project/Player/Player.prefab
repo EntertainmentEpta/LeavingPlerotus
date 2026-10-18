@@ -1894,9 +1894,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1f438548421a8c841b86d43804752999, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
-  maxHealth: 10000
-  maxArmor: 30
-  armorRegenRate: 50
+  maxHealth: 100
+  maxArmor: 60
+  armorRegenRate: 10
+  shieldRegenDelay: 3.5
   isInvulnerable: 0
   playerMovement: {fileID: 0}
   playerAttack: {fileID: 399265535294509767}
@@ -1907,6 +1908,8 @@ MonoBehaviour:
   armorBarImage: {fileID: 0}
   armorText: {fileID: 0}
   percentageText: {fileID: 0}
+  mercadorHealthFillImage: {fileID: 0}
+  mercadorBarObj: {fileID: 0}
   hasPactCorrupted: 0
   darkPactHealthColor: {r: 0.38, g: 0.04, b: 0.08, a: 1}
   damageMultiplier: 1
@@ -2132,6 +2135,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InfusionManager
   inflationAlpha: 0.1
+  fusionStackMultiplier: 2
+  surgeryEssenceCost: 150
   infusedItems: []
 --- !u!114 &2622090170748288850
 MonoBehaviour:
@@ -2453,6 +2458,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Tier4EffectManager
   explosiveDashEffect: {fileID: 0}
+  poisonDamagePerTick: 5
+  poisonDuration: 5
+  poisonTickInterval: 1
+  homingDetectionRadius: 30
+  homingTurnSpeed: 360
+  homingTargetRefreshInterval: 0.1
+  homingBatteryOrbTint: {r: 0.49411765, g: 0.23921569, b: 0.7921569, a: 1}
 --- !u!114 &7903399675111266686
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2506,6 +2518,7 @@ MonoBehaviour:
   iconRotationSpeed: 540
   healthBarReference: {fileID: 0}
   stunBarColor: {r: 0.65, g: 0.1, b: 1, a: 1}
+  stunBarBgColor: {r: 0.15, g: 0.05, b: 0.25, a: 0.75}
   stunBarHeight: 7
   stunBarYOffset: 3
 --- !u!1 &3037435734811326214

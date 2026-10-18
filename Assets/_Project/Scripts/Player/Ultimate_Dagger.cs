@@ -18,7 +18,7 @@ public class Ultimate_Dagger : MonoBehaviour
 
     [Header("Combate e Dano")]
     [Tooltip("Quantidade de dano que a onda causa aos inimigos.")]
-    public int waveDamage = 500;
+    public int waveDamage = 180;
     [Tooltip("Velocidade com que a onda de corte viaja para frente.")]
     public float waveSpeed = 15.0f;
     [Tooltip("Distância máxima que a onda viaja antes de sumir.")]

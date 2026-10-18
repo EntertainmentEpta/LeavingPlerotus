@@ -465,9 +465,90 @@ public class CheatConsole : MonoBehaviour
                 EptinhoPopupController.instancia.MostrarPopupAviso(msg);
             }
         }
+        else if (string.Equals(command, "caderno", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "livro", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "journal", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "book", System.StringComparison.OrdinalIgnoreCase))
+        {
+            if (LoreManager.Instance != null && !LoreManager.Instance.HasFoundResearcherBook)
+            {
+                LoreManager.Instance.DiscoverResearcherBook();
+            }
+
+            if (JournalBookUI.Instance != null)
+            {
+                if (JournalBookUI.Instance.IsOpen) JournalBookUI.Instance.CloseJournal();
+                else JournalBookUI.Instance.OpenJournal();
+            }
+            else
+            {
+                JournalBookUI.CreateOrGet()?.OpenJournal();
+            }
+            Debug.Log("💻 CHEAT: Interface do Caderno do Pesquisador acionada.");
+        }
+        else if (string.Equals(command, "resetcaderno", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "resetlivro", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "resetbook", System.StringComparison.OrdinalIgnoreCase))
+        {
+            if (SaveManager.instance != null && SaveManager.instance.CachedData != null)
+            {
+                SaveManager.instance.CachedData.hasFoundResearcherBook = false;
+                SaveManager.instance.SavePersistentData();
+            }
+            if (FloatingBookDisplay.Instance != null)
+            {
+                FloatingBookDisplay.Instance.CheckBookVisibility();
+            }
+            string msg = "CADERNO RESETADO!\nAgora você pode encontrá-lo no chão da Safe Room novamente.";
+            Debug.Log($"💻 CHEAT: {msg}");
+            if (EptinhoPopupController.instancia != null)
+            {
+                EptinhoPopupController.instancia.MostrarPopupAviso(msg);
+            }
+        }
+        else if (string.Equals(command, "escrituras", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "scriptures", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "lore", System.StringComparison.OrdinalIgnoreCase))
+        {
+            if (LoreManager.Instance != null)
+            {
+                string[] samples = { "scripture_acid_filter", "scripture_shell_breaker", "scripture_hyphae_dilution", "scripture_lore_01", "scripture_lore_02" };
+                int count = 0;
+                foreach (string sid in samples)
+                {
+                    var sc = LoreManager.Instance.GetScripture(sid);
+                    if (sc != null)
+                    {
+                        LoreManager.Instance.CollectScripture(sc);
+                        count++;
+                    }
+                }
+                string msg = $"+{count} ESCRITURAS CATALOGADAS!\nAbra o caderno com [E] ou digite /caderno para conferir!";
+                Debug.Log($"💻 CHEAT: {msg}");
+                if (EptinhoPopupController.instancia != null)
+                {
+                    EptinhoPopupController.instancia.MostrarPopupAviso(msg);
+                }
+            }
+        }
+        else if (string.Equals(command, "limparescrituras", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "clearscriptures", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "clearlore", System.StringComparison.OrdinalIgnoreCase))
+        {
+            if (LoreManager.Instance != null)
+            {
+                LoreManager.Instance.LimparEscriturasSalvas();
+                string msg = "ESCRITURAS E BLUEPRINTS RESETADOS!\nTodas as páginas voltaram a ficar em branco.";
+                Debug.Log($"💻 CHEAT: {msg}");
+                if (EptinhoPopupController.instancia != null)
+                {
+                    EptinhoPopupController.instancia.MostrarPopupAviso(msg);
+                }
+            }
+        }
         else
         {
-            Debug.LogWarning($"💻 CHEAT RECUSADO: A palavra '{command}' não é reconhecida. Tente: aim, pact, poison, thorns, EPTA, killall, endless, recursos, unlockall, orbs, boss.");
+            Debug.LogWarning($"💻 CHEAT RECUSADO: A palavra '{command}' não é reconhecida. Tente: caderno, resetcaderno, escrituras, limparescrituras, aim, pact, poison, thorns, EPTA, killall, endless, recursos, unlockall, orbs, boss.");
         }
 
         // Depois de tentar o cheat, fecha o console pro jogo voltar ao normal

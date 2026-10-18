@@ -60,7 +60,7 @@ public class Ultimate_Axe : MonoBehaviour
     public float slowMotionDuration = 1.0f;
 
     [Header("💥 Impacto e Dano em Área (AoE)")]
-    public int slamDamage = 1000;
+    public int slamDamage = 240;
     public float shockwaveRadius = 5.0f;
     public float knockbackForce = 12.0f;
     public float upwardKnockbackForce = 0.4f;

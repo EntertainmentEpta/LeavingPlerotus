@@ -96,7 +96,30 @@ public class CraftingManager : MonoBehaviour
             allRecipes.Add(axeRecipe);
         }
 
+        RegisterBlueprintRecipes();
+
         Debug.Log($"[CRAFTING] CraftingManager inicializado com {allRecipes.Count} receitas.");
+    }
+
+    public void RegisterBlueprintRecipes()
+    {
+        if (LoreManager.Instance == null) return;
+        foreach (var sc in LoreManager.Instance.allScriptures)
+        {
+            if (sc == null || !sc.hasBlueprint || string.IsNullOrEmpty(sc.blueprintEquipmentId)) continue;
+            string rId = "recipe_" + sc.blueprintEquipmentId;
+            if (allRecipes.Exists(r => r != null && r.recipeId == rId)) continue;
+
+            CraftingRecipe bpRecipe = ScriptableObject.CreateInstance<CraftingRecipe>();
+            bpRecipe.recipeId = rId;
+            bpRecipe.recipeName = sc.blueprintTitle;
+            bpRecipe.description = sc.blueprintDescription;
+            bpRecipe.ingredients = sc.ingredients != null ? new List<CraftingIngredient>(sc.ingredients) : new List<CraftingIngredient>();
+            bpRecipe.resultType = CraftingResultType.Equipment;
+            bpRecipe.resultEquipment = EquipmentManager.Instance != null ? EquipmentManager.Instance.GetEquipmentData(sc.blueprintEquipmentId) : null;
+
+            allRecipes.Add(bpRecipe);
+        }
     }
 
     // ─── HELPERS INTERNOS ─────────────────────────────────────────────────────

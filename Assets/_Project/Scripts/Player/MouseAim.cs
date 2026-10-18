@@ -26,6 +26,9 @@ public class MouseAim : MonoBehaviour
     private void LateUpdate()
     {
         if (!enableMouseAim || spine == null) return;
+        if (DialogManager.BlocksGameplayInput || GamePause.IsPaused) return;
+        if (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen()) return;
+        if (JournalBookUI.Instance != null && JournalBookUI.Instance.IsOpen) return;
 
         // 1. Descobrir onde o mouse está no mundo 3D
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);

@@ -50,5 +50,11 @@ public class PersistentSaveData
     // --- Onboarding & Tutoriais ---
     public int tutorialStep = 0;
     public List<string> seenDialogIds = new List<string>();
+
+    // --- Sistema de Lore, Escrituras e Mistério de Plerotus ---
+    public bool hasFoundResearcherBook = false;
+    public List<string> discoveredScriptureIds = new List<string>();
+    public List<string> unlockedRobotBlueprints = new List<string>();
+    public int merchantEncounterCount = 0;
 }
 

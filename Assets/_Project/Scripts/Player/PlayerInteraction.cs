@@ -38,6 +38,8 @@ public class PlayerInteraction : MonoBehaviour
     void Update()
     {
         if (DialogManager.BlocksGameplayInput || GamePause.IsPaused) return;
+        if (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen()) return;
+        if (JournalBookUI.Instance != null && JournalBookUI.Instance.IsOpen) return;
 
         if (itemAtual != null && Input.GetKeyDown(interactKey))
         {

@@ -9,20 +9,22 @@ public class GunAttack : MonoBehaviour
     public GunProjectile projectilePrefab;
     public Transform muzzle;
     public ParticleSystem muzzleFlashVFX;
-    public float fireCooldown = 0.35f;
-    public int baseDamage = 25;
+    public float fireCooldown = 0.40f;
+    public int baseDamage = 22;
     public int maxExtraProjectiles = 5;
 
     [Header("Alcance do Projétil")]
-    [Min(1f)] public float minimumProjectileRange = 200f;
+    [Min(1f)] public float minimumProjectileRange = 18f;
     [Min(0f)] public float mapRangePadding = 5f;
 
     [Header("Bateria de Plasma")]
     [Min(1)] public int batteryCapacity = 6;
-    [Tooltip("Tempo para recuperar uma carga enquanto a bateria ainda não está vazia.")]
-    [Min(0.05f)] public float passiveChargeRegenInterval = 0.5f;
+    [Tooltip("Tempo sem atirar para começar a recuperar cargas passivamente.")]
+    [Min(0.1f)] public float passiveChargeRegenDelay = 2.0f;
+    [Tooltip("Tempo para recuperar uma carga enquanto a bateria ainda não está vazia após o delay.")]
+    [Min(0.05f)] public float passiveChargeRegenInterval = 0.8f;
     [Tooltip("Tempo da recarga manual punitiva após a bateria zerar.")]
-    [Min(0.1f)] public float batteryRechargeDuration = 2.5f;
+    [Min(0.1f)] public float batteryRechargeDuration = 2.0f;
     public KeyCode reloadKey = KeyCode.R;
     [Min(1)] public int chargePerTrigger = 1;
 
@@ -47,6 +49,7 @@ public class GunAttack : MonoBehaviour
     [Min(0f)] public float minimumAimConeHalfAngle = 5f;
 
     private float nextFireTime;
+    private float lastFireTime = -999f;
     private float batteryRechargeElapsed;
     private float passiveChargeRegenElapsed;
     private int batteryCharge;
@@ -295,6 +298,7 @@ public class GunAttack : MonoBehaviour
         if (InventoryUI.Instance != null && InventoryUI.Instance.IsOpen()) return true;
         if (SyntheticBagUI.Instance != null && SyntheticBagUI.Instance.IsOpen()) return true;
         if (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen()) return true;
+        if (JournalBookUI.Instance != null && JournalBookUI.Instance.IsOpen) return true;
         if (EptinhoMenuController.instancia != null && EptinhoMenuController.instancia.IsOpen()) return true;
         if (MerchantUIController.HasInstance && MerchantUIController.Instance.IsUiOpen()) return true;
         if (DeathScreenUI.Instance != null && DeathScreenUI.Instance.deathPanel != null && DeathScreenUI.Instance.deathPanel.activeSelf) return true;
@@ -680,6 +684,7 @@ public class GunAttack : MonoBehaviour
         }
 
         if (projectilePrefab == null || !TryConsumeCharge(Mathf.Max(1, chargePerTrigger))) return false;
+        lastFireTime = Time.time;
 
         PlayerAttributesOffensive attributes = offensiveAttributes != null
             ? offensiveAttributes
@@ -804,6 +809,13 @@ public class GunAttack : MonoBehaviour
         batteryCharge = Mathf.Clamp(batteryCharge, 0, capacity);
         if (batteryCharge <= 0) return;
         if (batteryCharge >= capacity)
+        {
+            passiveChargeRegenElapsed = 0f;
+            return;
+        }
+
+        // Delay sem disparar para a bateria esfriar e iniciar a regeneração passiva
+        if (Time.time - lastFireTime < passiveChargeRegenDelay)
         {
             passiveChargeRegenElapsed = 0f;
             return;

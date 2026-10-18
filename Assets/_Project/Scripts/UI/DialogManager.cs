@@ -98,7 +98,7 @@ public class DialogManager : MonoBehaviour
         DontDestroyOnLoad(canvasGo);
         Canvas canvas = canvasGo.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 250;
+        canvas.sortingOrder = 1500;
 
         CanvasScaler scaler = canvasGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -236,6 +236,12 @@ public class DialogManager : MonoBehaviour
     public void StartDialog(string[] lines, Action onComplete = null)
     {
         EnsureUI();
+        if (dialogPanel != null)
+        {
+            Canvas c = dialogPanel.GetComponentInParent<Canvas>();
+            if (c != null && c.sortingOrder < 1500) c.sortingOrder = 1500;
+        }
+
         if (lines == null || lines.Length == 0 || dialogPanel == null || dialogText == null)
         {
             Debug.LogWarning("[DialogManager] Diálogo vazio ou UI não configurada — executando callback direto.", this);

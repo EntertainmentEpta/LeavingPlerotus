@@ -82,6 +82,8 @@ public class DashM : MonoBehaviour
     {
         if (DialogManager.BlocksGameplayInput || GamePause.IsPaused) return;
         if (CheatConsole.IsOpen) return;
+        if (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen()) return;
+        if (JournalBookUI.Instance != null && JournalBookUI.Instance.IsOpen) return;
 
         // Trava de segurança: Proíbe Dash durante o Ultimate para evitar exploits de voo/cancelamento indevido
         PlayerUltimate playerUlt = GetComponent<PlayerUltimate>() ?? GetComponentInParent<PlayerUltimate>() ?? GetComponentInChildren<PlayerUltimate>();

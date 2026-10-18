@@ -184,8 +184,23 @@ public class DummyHealth : MonoBehaviour
         if (fixedDamageOverride > 0)
             damage = fixedDamageOverride;
 
-        // Se estiver buffado, recebe dano reduzido (ex: metade)
-        if (isBuffed) damage = Mathf.RoundToInt(damage * 0.5f);
+        // Blueprint: Solenoide de Quebra-Casca (+20% de dano contra monstros pesados/couraça)
+        if (EquipmentManager.Instance != null && EquipmentManager.Instance.HasShellBreaker)
+        {
+            string n = gameObject.name.ToLower();
+            if (n.Contains("golem") || n.Contains("peixe") || n.Contains("geobionte") || n.Contains("bismutado") || n.Contains("magicstone") || n.Contains("star"))
+            {
+                damage = Mathf.RoundToInt(damage * 1.20f);
+            }
+        }
+
+        // Se estiver buffado pelo Sintonizador:
+        if (isBuffed)
+        {
+            // Se o jogador equipou o Estabilizador de Frequência do Robozinho, inibe o escudo defensivo do Sintonizador
+            float buffFactor = (EquipmentManager.Instance != null && EquipmentManager.Instance.HasTunerDisruptor) ? 0.80f : 0.50f;
+            damage = Mathf.RoundToInt(damage * buffFactor);
+        }
 
         CurrentHealth -= damage;
         RunStatsManager.Instance?.RecordDamageDealt(damage);

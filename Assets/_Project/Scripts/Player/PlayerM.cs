@@ -100,12 +100,25 @@ public class PlayerM : MonoBehaviour
 
     private void Update()
     {
-        if (DialogManager.BlocksGameplayInput || GamePause.IsPaused)
+        bool isUIBlocking = DialogManager.BlocksGameplayInput || 
+                            GamePause.IsPaused || 
+                            (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen()) || 
+                            (JournalBookUI.Instance != null && JournalBookUI.Instance.IsOpen);
+
+        if (isUIBlocking)
         {
             if (footstepSource != null && footstepSource.isPlaying)
             {
                 footstepSource.Stop();
                 isFootstepPlaying = false;
+            }
+            if (rb != null)
+            {
+                rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            }
+            if (animator != null && animator.isActiveAndEnabled)
+            {
+                animator.SetFloat("Speed", 0f);
             }
             return;
         }
@@ -132,6 +145,13 @@ public class PlayerM : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if ((CraftingUI.Instance != null && CraftingUI.Instance.IsOpen()) || 
+            (JournalBookUI.Instance != null && JournalBookUI.Instance.IsOpen))
+        {
+            if (rb != null) rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            return;
+        }
+
         PlayerUltimate ult = GetComponent<PlayerUltimate>() ?? GetComponentInChildren<PlayerUltimate>();
         if (ult != null && ult.IsUltimateActive())
         {

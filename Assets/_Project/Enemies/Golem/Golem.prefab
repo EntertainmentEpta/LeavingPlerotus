@@ -227,7 +227,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyDrops
   essencePrefab: {fileID: 1526004001283604428, guid: aac8898d50c757240944683fe67b0d7c, type: 3}
-  essenceAmount: 100
+  essenceAmount: 30
   essenceVariation: 10
   globalDropChance: 1
   itemAmount: 1

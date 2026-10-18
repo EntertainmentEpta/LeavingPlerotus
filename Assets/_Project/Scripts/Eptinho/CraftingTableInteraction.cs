@@ -46,11 +46,13 @@ public class CraftingTableInteraction : MonoBehaviour
 
     private ObjectiveMarker roboMarker;
     private bool playerPerto = false;
+    private Transform playerTransform;
     private AudioSource audioSource;
     private CanvasGroup promptCanvasGroup;
 
     void Awake()
     {
+        if (gameObject.name.Contains("Clone") || gameObject.name.Contains("Preview")) return;
         Instance = this;
 
         audioSource = GetComponent<AudioSource>();
@@ -182,6 +184,7 @@ public class CraftingTableInteraction : MonoBehaviour
     void OnTriggerEnter(Collider other)
     {
         if (!other.CompareTag("Player")) return;
+        playerTransform = other.transform;
         playerPerto = true;
         UpdatePromptText();
     }
@@ -189,6 +192,15 @@ public class CraftingTableInteraction : MonoBehaviour
     void OnTriggerExit(Collider other)
     {
         if (!other.CompareTag("Player")) return;
+
+        // Se a interface estiver aberta ou o jogador ainda estiver fisicamente dentro do raio (<= 3.5m),
+        // ignora o evento para prevenir fechamento prematuro por atualização de física.
+        float dist = Vector3.Distance(transform.position, other.transform.position);
+        if (dist <= 3.5f)
+        {
+            return;
+        }
+
         playerPerto = false;
         
         if (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen())
@@ -200,6 +212,26 @@ public class CraftingTableInteraction : MonoBehaviour
 
     void Update()
     {
+        // === 0. VERIFICAÇÃO DE PROXIMIDADE CONTÍNUA (FAILSAFE) ===
+        if (playerTransform == null)
+        {
+            var p = GameObject.FindGameObjectWithTag("Player");
+            if (p != null) playerTransform = p.transform;
+        }
+
+        if (playerTransform != null)
+        {
+            float dist = Vector3.Distance(transform.position, playerTransform.position);
+            if (dist <= 3.0f)
+            {
+                playerPerto = true;
+            }
+            else if (dist > 3.8f && (CraftingUI.Instance == null || !CraftingUI.Instance.IsOpen()))
+            {
+                playerPerto = false;
+            }
+        }
+
         // === 1. LÓGICA DO FADE SUAVE DO PROMPT ===
         if (promptUI != null && promptCanvasGroup != null)
         {
@@ -234,8 +266,6 @@ public class CraftingTableInteraction : MonoBehaviour
 
         if (Input.GetKeyDown(interactKey) || Input.GetKeyDown(KeyCode.T))
         {
-            PlayTalkSound();
-
             if (CraftingUI.Instance != null)
             {
                 if (CraftingUI.Instance.IsOpen())
@@ -246,14 +276,26 @@ public class CraftingTableInteraction : MonoBehaviour
                 }
                 else
                 {
+                    PlayTalkSound();
                     hasInteractedWithRobot = true;
+
+                    // Garante que o passo do tutorial avance para AbrirAbaArmas (passo 2)
+                    if (TutorialManager.Instance != null && TutorialManager.Instance.currentStep <= TutorialStep.FalarComRobozinho)
+                    {
+                        TutorialManager.Instance.currentStep = TutorialStep.AbrirAbaArmas;
+                        if (SaveManager.instance != null && SaveManager.instance.CachedData != null)
+                        {
+                            SaveManager.instance.CachedData.tutorialStep = (int)TutorialStep.AbrirAbaArmas;
+                            SaveManager.instance.SavePersistentData();
+                        }
+                    }
+
                     CraftingUI.Instance.OpenCrafting();
-                    TutorialManager.Instance?.CompleteStep(TutorialStep.FalarComRobozinho);
                     roboMarker?.CheckVisibility();
                     
                     if (RobotPreviewManager.Instance != null) 
                     {
-                        RobotPreviewManager.Instance.Activate(robotModelTransform);
+                        RobotPreviewManager.Instance.Activate(robotModelTransform != null ? robotModelTransform : transform);
                     }
                 }
             }

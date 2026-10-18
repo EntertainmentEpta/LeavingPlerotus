@@ -329,6 +329,7 @@ public class PrimaryAttackKnife : MonoBehaviour
         if (InventoryUI.Instance != null && InventoryUI.Instance.IsOpen()) return true;
         if (SyntheticBagUI.Instance != null && SyntheticBagUI.Instance.IsOpen()) return true;
         if (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen()) return true;
+        if (JournalBookUI.Instance != null && JournalBookUI.Instance.IsOpen) return true;
         if (EptinhoMenuController.instancia != null && EptinhoMenuController.instancia.IsOpen()) return true;
         if (MerchantUIController.HasInstance && MerchantUIController.Instance.IsUiOpen()) return true;
         return false;

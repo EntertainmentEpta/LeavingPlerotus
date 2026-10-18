@@ -8,14 +8,16 @@ public class PlayerHealth : MonoBehaviour
 {
     [Header("Configurações")]
     public int maxHealth = 100;
-    public int maxArmor = 300;
+    public int maxArmor = 60;
     public int currentHealth { get; private set; }
     private int currentArmor;
     public int CurrentArmor => currentArmor;
     private int cursedHealthLost = 0;
 
     [Header("Armor Regen")]
-    public float armorRegenRate = 5f;
+    public float armorRegenRate = 10f;
+    [Tooltip("Tempo em segundos sem tomar dano para a armadura começar a se regenerar")]
+    public float shieldRegenDelay = 3.5f;
     
     [Header("Invulnerability")]
     public bool isInvulnerable = false;
@@ -588,7 +590,7 @@ public class PlayerHealth : MonoBehaviour
         Debug.Log("🩸 [PACTO MERCADOR] Animação de garras e sangue corrompido concluída com sucesso!");
     }
 
-    void FullHeal()
+    public void FullHeal()
     {
         hasPactCorrupted = false;
         canRegenArmor = true;
@@ -597,6 +599,13 @@ public class PlayerHealth : MonoBehaviour
         currentArmor = maxArmor;
         ResetMercadorPactUI();
         UpdateHealthBar();
+        UpdateArmorBar();
+    }
+
+    public void RestoreFullArmor()
+    {
+        if (isDead || maxArmor <= 0) return;
+        currentArmor = maxArmor;
         UpdateArmorBar();
     }
     
@@ -781,8 +790,8 @@ public class PlayerHealth : MonoBehaviour
             stunImmunityTimer -= Time.deltaTime;
         }
         
-        // === REGENERAÇÃO DE ARMADURA ===
-        if (!isDead && maxArmor > 0 && canRegenArmor && currentArmor < maxArmor && playerAttributes != null)
+        // === REGENERAÇÃO DE ARMADURA (com Shield Delay pós-dano) ===
+        if (!isDead && maxArmor > 0 && canRegenArmor && currentArmor < maxArmor && playerAttributes != null && (Time.time - lastDamageTime >= shieldRegenDelay))
         {
             armorRegenAccumulator += armorRegenRate * playerAttributes.armorRegen * Time.deltaTime;
             if (armorRegenAccumulator >= 1.0f)
@@ -995,6 +1004,12 @@ public class PlayerHealth : MonoBehaviour
         {
             float endlessDamageMultiplier = 1f + (RunManager.instance.currentLevel - 3) * 0.15f; // +15% de dano por level acima do 3
             damage = Mathf.RoundToInt(damage * endlessDamageMultiplier);
+        }
+
+        // Resistência a Danos de Ácido / Poças / Veneno (Filtro Químico do Robozinho)
+        if (EquipmentManager.Instance != null && EquipmentManager.Instance.HasAcidPoisonResist && attacker == null)
+        {
+            damage = Mathf.RoundToInt(damage * 0.60f);
         }
         
         int finalDamage = Mathf.RoundToInt(damage * damageTakenMultiplier);

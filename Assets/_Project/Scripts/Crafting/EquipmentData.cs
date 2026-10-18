@@ -26,7 +26,13 @@ public enum EquipmentEffectType
     BarrierCounterDisplay,   // Exibe o contador de salas/barreiras na UI (Detector de Barreiras)
     UnlockSynergyMap,        // Desbloqueia o Mapa de Sinergias no Oráculo Eptinho
     UnlockProjectileWeapon,  // Desbloqueia a Arma de Projétil para a run
-    RepairLabDoor            // Conserta a porta do Laboratório na Base
+    RepairLabDoor,           // Conserta a porta do Laboratório na Base
+    AcidPoisonResist,        // Reduz dano sofrido por veneno e poças ácidas (Blueprint do Robozinho)
+    ShellBreakerArmorDmg,    // Aumenta dano contra armadura e cascas pesadas de inimigos (Blueprint do Robozinho)
+    SlowResistance,          // Reduz duração e efeito de lentidão (Blueprint do Robozinho)
+    TunerDisruptor,          // Inibe o bônus de cadência em inimigos sintonizados (Blueprint do Robozinho)
+    AnomalySonar,            // Revela a presença de Salas de Anomalia e veios (Blueprint do Robozinho)
+    AncestralCatalyst        // Amplifica o poder crítico e dano base da arma (Arma/Composto Ancestral)
 }
 
 /// <summary>

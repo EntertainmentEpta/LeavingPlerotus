@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bb12d84630a0668428eacdd58e4325e8, type: 3}
+  m_Name: quest_researcher_journal
+  m_EditorClassIdentifier: Assembly-CSharp::QuestData
+  questId: quest_researcher_journal
+  questTitle: O Caderno Perdido
+  questDescription: "Recupere as páginas e escrituras ancestrais espalhadas pelas galerias de Plerotus para restaurar o diário e revelar segredos técnicos."
+  questType: 1
+  targetId: scripture_pickup
+  requiredAmount: 24
+  nextQuest: {fileID: 0}

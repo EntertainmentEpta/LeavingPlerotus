@@ -65,6 +65,8 @@ public class ObjectiveMarker : MonoBehaviour
                 boundButton.onClick.AddListener(OnButtonClicked);
             }
         }
+
+        CheckVisibility();
     }
 
     private void OnEnable()
@@ -232,15 +234,15 @@ public class ObjectiveMarker : MonoBehaviour
         }
         else
         {
-            // Constrói ícone 2D ancorado no canto superior do elemento da UI
+            // Constrói ícone 2D ancorado no canto superior/direito do elemento da UI
             GameObject uiMarker = new GameObject("ObjectiveMarker_UI");
             uiMarker.transform.SetParent(transform, false);
 
             RectTransform rect = uiMarker.AddComponent<RectTransform>();
-            rect.anchorMin = new Vector2(1f, 1f);
-            rect.anchorMax = new Vector2(1f, 1f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = new Vector2(0f, 0f);
+            rect.anchorMin = new Vector2(1f, 0.5f);
+            rect.anchorMax = new Vector2(1f, 0.5f);
+            rect.pivot = new Vector2(1f, 0.5f);
+            rect.anchoredPosition = new Vector2(-6f, 0f);
             rect.sizeDelta = markerSize;
 
             Image img = uiMarker.AddComponent<Image>();
@@ -249,6 +251,7 @@ public class ObjectiveMarker : MonoBehaviour
             img.raycastTarget = false;
 
             indicatorVisual = uiMarker;
+            uiMarker.transform.SetAsLastSibling();
         }
 
         indicatorVisual.SetActive(false);
@@ -358,9 +361,16 @@ public class ObjectiveMarker : MonoBehaviour
             BuildVisualIfNeeded();
         }
 
-        if (indicatorVisual != null && indicatorVisual.activeSelf != on)
+        if (indicatorVisual != null)
         {
-            indicatorVisual.SetActive(on);
+            if (indicatorVisual.activeSelf != on)
+            {
+                indicatorVisual.SetActive(on);
+            }
+            if (on)
+            {
+                indicatorVisual.transform.SetAsLastSibling();
+            }
         }
     }
 

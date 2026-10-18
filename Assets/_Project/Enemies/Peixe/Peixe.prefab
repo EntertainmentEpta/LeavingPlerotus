@@ -39,6 +39,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
+  - component: {fileID: 8945618291029384751}
   - component: {fileID: 4991438441872711960}
   - component: {fileID: 5130606364834901001}
   - component: {fileID: 3335048824468592716}
@@ -189,7 +190,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DummyHealth
   isSlowed: 0
-  maxHealth: 300
+  maxHealth: 75
   debugLogDamage: 0
   healthBarSlider: {fileID: 7625250770171721549}
   normalColor: {r: 1, g: 0, b: 0, a: 1}
@@ -527,3 +528,32 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 2031fa1f1641bc74abad1871967f9edd, type: 3}
   m_PrefabInstance: {fileID: 8767586831261052443}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &8945618291029384751
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6455373743372300023}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 182d9df1045b668438bf37c0018f5e08, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyDrops
+  essencePrefab: {fileID: 1526004001283604428, guid: aac8898d50c757240944683fe67b0d7c, type: 3}
+  essenceAmount: 12
+  essenceVariation: 3
+  globalDropChance: 0.18
+  itemAmount: 1
+  lootPool:
+  - itemPrefab: {fileID: 3032503514866833266, guid: 76b7b03a4e2e8bf4383a94ebda98a6a7, type: 3}
+    weight: 60
+  - itemPrefab: {fileID: 3032503514866833266, guid: 228b3dd20599a464bbaa2c9ba8a073c3, type: 3}
+    weight: 25
+  - itemPrefab: {fileID: 3032503514866833266, guid: 7565ab52d13de0d41b12c37c8e222163, type: 3}
+    weight: 10
+  - itemPrefab: {fileID: 3032503514866833266, guid: 4d565b28f0bf7c647ac7ba91637823b9, type: 3}
+    weight: 5
+  spawnHeight: 0.5
+  spawnRadius: 0.5
+  launchForce: 3
