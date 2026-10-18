@@ -240,7 +240,7 @@ public class JournalBookUI : MonoBehaviour
         float percent = LoreManager.Instance.CompletionPercentage;
         if (progressHeaderTMP != null)
         {
-            progressHeaderTMP.text = $"📖 <color=#FFE500>CADERNO DO PESQUISADOR</color>  —  RECUPERAÇÃO: <color=#4DEEEA><b>{percent:F0}%</b></color>  ({discoveredCount}/{total} PÁGINAS)";
+            progressHeaderTMP.text = $"[CODICE] <color=#FFE500>CADERNO DO PESQUISADOR</color>  —  RECUPERAÇÃO: <color=#4DEEEA><b>{percent:F0}%</b></color>  ({discoveredCount}/{total} PÁGINAS)";
         }
 
         // Atualiza Rodapé de Navegação
@@ -258,8 +258,8 @@ public class JournalBookUI : MonoBehaviour
             if (leftPageHeaderTMP != null)
             {
                 leftPageHeaderTMP.text = scripture.hasBlueprint
-                    ? "⚙ <color=#006E7F>[PROJETO DE ENGENHARIA]</color>"
-                    : "📜 <color=#8B2500>[CRÔNICA DE CAMPO]</color>";
+                    ? "<color=#006E7F>[PROJETO DE ENGENHARIA]</color>"
+                    : "<color=#8B2500>[CRÔNICA DE CAMPO]</color>";
             }
 
             if (leftPageTitleTMP != null)
@@ -276,7 +276,7 @@ public class JournalBookUI : MonoBehaviour
 
             if (leftPageStatusTMP != null)
             {
-                leftPageStatusTMP.text = "✔ <color=#006B44>REGISTRO INTEGRADO AO SISTEMA</color>";
+                leftPageStatusTMP.text = "[OK] <color=#006B44>REGISTRO INTEGRADO AO SISTEMA</color>";
             }
         }
         else
@@ -294,7 +294,7 @@ public class JournalBookUI : MonoBehaviour
             }
             if (leftPageStatusTMP != null)
             {
-                leftPageStatusTMP.text = "✖ <color=#8C4040>FRAGMENTO NÃO CATALOGADO</color>";
+                leftPageStatusTMP.text = "[X] <color=#8C4040>FRAGMENTO NÃO CATALOGADO</color>";
             }
         }
 
@@ -305,7 +305,7 @@ public class JournalBookUI : MonoBehaviour
             {
                 bool bpUnlocked = LoreManager.Instance.IsBlueprintUnlocked(scripture.blueprintEquipmentId);
 
-                if (rightPageHeaderTMP != null) rightPageHeaderTMP.text = "🛠 <color=#006E7F>[ESQUEMA DO ROBOZINHO]</color>";
+                if (rightPageHeaderTMP != null) rightPageHeaderTMP.text = "<color=#006E7F>[ESQUEMA DO ROBOZINHO]</color>";
                 if (rightPageTitleTMP != null)
                 {
                     rightPageTitleTMP.text = scripture.blueprintTitle.ToUpper();
@@ -345,14 +345,14 @@ public class JournalBookUI : MonoBehaviour
                 if (rightPageStatusTMP != null)
                 {
                     rightPageStatusTMP.text = bpUnlocked
-                        ? "✔ <color=#006B44>RECEITA DESBLOQUEADA NA MESA</color>"
+                        ? "[OK] <color=#006B44>RECEITA DESBLOQUEADA NA MESA</color>"
                         : "● <color=#8B5A00>DISPONÍVEL PARA SÍNTESE</color>";
                 }
             }
             else
             {
                 // Lore pura (anotações de sobrevivência)
-                if (rightPageHeaderTMP != null) rightPageHeaderTMP.text = "🔍 <color=#8B5A00>[OBSERVAÇÃO AMBIENTAL]</color>";
+                if (rightPageHeaderTMP != null) rightPageHeaderTMP.text = "<color=#8B5A00>[OBSERVAÇÃO AMBIENTAL]</color>";
                 if (rightPageTitleTMP != null)
                 {
                     rightPageTitleTMP.text = "DADOS DA EXPEDIÇÃO";
@@ -376,7 +376,7 @@ public class JournalBookUI : MonoBehaviour
                 }
                 if (rightPageStatusTMP != null)
                 {
-                    rightPageStatusTMP.text = "✔ <color=#8B5A00>ARQUIVADO NO CÓDICE</color>";
+                    rightPageStatusTMP.text = "[OK] <color=#8B5A00>ARQUIVADO NO CÓDICE</color>";
                 }
             }
         }
@@ -405,7 +405,7 @@ public class JournalBookUI : MonoBehaviour
             }
             if (rightPageStatusTMP != null)
             {
-                rightPageStatusTMP.text = "✖ <color=#8C4040>BLOQUEADO</color>";
+                rightPageStatusTMP.text = "[X] <color=#8C4040>BLOQUEADO</color>";
             }
         }
     }

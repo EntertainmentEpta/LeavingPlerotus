@@ -58,15 +58,9 @@ public class DevCheatConsole : MonoBehaviour
     /// </summary>
     public void UnlockAllLoreAndScriptures()
     {
-        if (LoreManager.Instance != null)
-        {
-            LoreManager.Instance.UnlockAllScripturesAndBook();
-            Log("<color=#FFD154>[CHEAT OK]</color> Caderno do Pesquisador e todas as 18 escrituras desbloqueados!");
-        }
-        else
-        {
-            Log("[ERRO] LoreManager não encontrado.");
-        }
+        LoreManager.Instance.UnlockAllScripturesAndBook();
+        Log("<color=#FFD154>[CHEAT OK]</color> Caderno do Pesquisador e todas as 18 escrituras desbloqueados!");
+        JournalBookUI.Instance?.OpenJournal();
     }
 
     /// <summary>

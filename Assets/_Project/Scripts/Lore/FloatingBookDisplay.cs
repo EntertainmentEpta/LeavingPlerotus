@@ -355,10 +355,8 @@ public class FloatingBookDisplay : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.F8))
         {
             Debug.Log("[FloatingBookDisplay] 🔑 Tecla F8 pressionada: Desbloqueando todas as 18 escrituras e o Caderno!");
-            if (LoreManager.Instance != null)
-            {
-                LoreManager.Instance.UnlockAllScripturesAndBook();
-            }
+            LoreManager.Instance.UnlockAllScripturesAndBook();
+            ToggleJournal();
         }
 
         bool hasBook = LoreManager.Instance != null && LoreManager.Instance.HasFoundResearcherBook;
@@ -443,21 +441,12 @@ public class FloatingBookDisplay : MonoBehaviour
         KeyCode interactKey = GetCurrentInteractKey();
         if (Input.GetKeyDown(interactKey) || Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.F))
         {
-            if (hasBook)
+            if (!hasBook)
             {
-                ToggleJournal();
+                Debug.Log("[FloatingBookDisplay] Primeira interação no pedestal: auto-desbloqueando para testes!");
+                LoreManager.Instance.UnlockAllScripturesAndBook();
             }
-            else
-            {
-                if (EptinhoPopupController.instancia != null)
-                {
-                    EptinhoPopupController.instancia.MostrarPopupAviso(
-                        "📖 <color=#FFE500>PEDESTAL DE PESQUISA ANCESTRAL</color>\n" +
-                        "<size=85%><i>\"Este suporte sustenta o Códice de Campo do Pesquisador, perdido nas profundezas de Plerotus.\"</i>\n\n" +
-                        "<color=#4DEEEA><b>[MODO DE TESTE]</b> Pressione a tecla <b>F8</b> ou abra o console (/) e digite <b>/unlocklore</b> para destravar o livro e todas as 18 escrituras agora!</color></size>"
-                    );
-                }
-            }
+            ToggleJournal();
         }
     }
 

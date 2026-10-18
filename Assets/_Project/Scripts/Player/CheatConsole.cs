@@ -337,17 +337,12 @@ public class CheatConsole : MonoBehaviour
                  string.Equals(command, "scriptures", System.StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(command, "caderno", System.StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(command, "livro", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "journal", System.StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(command, "book", System.StringComparison.OrdinalIgnoreCase))
         {
             Debug.Log("💻 CHEAT APROVADO: Destravando todas as 18 escrituras e o Caderno do Pesquisador!");
-            if (LoreManager.Instance != null)
-            {
-                LoreManager.Instance.UnlockAllScripturesAndBook();
-            }
-            else
-            {
-                Debug.LogWarning("💻 CHEAT: LoreManager.Instance está nulo!");
-            }
+            LoreManager.Instance.UnlockAllScripturesAndBook();
+            JournalBookUI.Instance?.OpenJournal();
         }
         else if (string.Equals(command, "orbs", System.StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(command, "money", System.StringComparison.OrdinalIgnoreCase))
@@ -482,28 +477,7 @@ public class CheatConsole : MonoBehaviour
             {
                 EptinhoPopupController.instancia.MostrarPopupAviso(msg);
             }
-        }
-        else if (string.Equals(command, "caderno", System.StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(command, "livro", System.StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(command, "journal", System.StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(command, "book", System.StringComparison.OrdinalIgnoreCase))
-        {
-            if (LoreManager.Instance != null && !LoreManager.Instance.HasFoundResearcherBook)
-            {
-                LoreManager.Instance.DiscoverResearcherBook();
-            }
 
-            if (JournalBookUI.Instance != null)
-            {
-                if (JournalBookUI.Instance.IsOpen) JournalBookUI.Instance.CloseJournal();
-                else JournalBookUI.Instance.OpenJournal();
-            }
-            else
-            {
-                JournalBookUI.CreateOrGet()?.OpenJournal();
-            }
-            Debug.Log("💻 CHEAT: Interface do Caderno do Pesquisador acionada.");
-        }
         else if (string.Equals(command, "resetcaderno", System.StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(command, "resetlivro", System.StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(command, "resetbook", System.StringComparison.OrdinalIgnoreCase))

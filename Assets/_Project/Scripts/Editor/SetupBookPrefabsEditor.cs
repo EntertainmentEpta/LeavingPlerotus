@@ -69,6 +69,13 @@ public class SetupBookPrefabsEditor : EditorWindow
         }
     }
 
+    [MenuItem("RogueLike/Caderno/Destravar Todas as 18 Escrituras e Caderno")]
+    public static void MenuUnlockAllScriptures()
+    {
+        LoreManager.Instance.UnlockAllScripturesAndBook();
+        JournalBookUI.CreateOrGet()?.OpenJournal();
+    }
+
     public static void CreateAllBookPrefabs(bool silent = false)
     {
         // 1. Garante que os diretórios existam

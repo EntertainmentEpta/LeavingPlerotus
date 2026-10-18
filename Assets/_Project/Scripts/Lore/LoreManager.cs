@@ -8,7 +8,32 @@ using UnityEngine;
 /// </summary>
 public class LoreManager : MonoBehaviour
 {
-    public static LoreManager Instance { get; private set; }
+    private static LoreManager _instance;
+    public static LoreManager Instance
+    {
+        get
+        {
+            if (_instance == null)
+            {
+                _instance = FindFirstObjectByType<LoreManager>();
+                if (_instance == null)
+                {
+                    GameObject go = new GameObject("LoreManager_Auto");
+                    _instance = go.AddComponent<LoreManager>();
+                    DontDestroyOnLoad(go);
+                    Debug.Log("📜 [LORE] LoreManager auto-criado como singleton persistente!");
+                }
+            }
+            return _instance;
+        }
+        private set => _instance = value;
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    private static void EnsureInstanceOnLoad()
+    {
+        var unused = Instance;
+    }
 
     [Header("Escrituras Registradas")]
     public List<LoreScriptureData> allScriptures = new List<LoreScriptureData>();
@@ -25,13 +50,13 @@ public class LoreManager : MonoBehaviour
 
     void Awake()
     {
-        if (Instance != null && Instance != this)
+        if (_instance != null && _instance != this)
         {
             Destroy(gameObject);
             return;
         }
 
-        Instance = this;
+        _instance = this;
         DontDestroyOnLoad(gameObject);
 
         InitializeDefaultScriptures();
@@ -442,20 +467,54 @@ public class LoreManager : MonoBehaviour
     /// </summary>
     public void UnlockAllScripturesAndBook()
     {
-        DiscoverResearcherBook();
-
-        foreach (var sc in allScriptures)
+        if (allScriptures == null || allScriptures.Count == 0)
         {
-            if (sc != null)
-            {
-                CollectScripture(sc);
-            }
+            InitializeDefaultScriptures();
         }
 
-        FloatingBookDisplay.Instance?.CheckBookVisibility();
+        if (SaveManager.instance != null && SaveManager.instance.CachedData != null)
+        {
+            SaveManager.instance.CachedData.hasFoundResearcherBook = true;
 
-        string msg = "📖 <color=#FFE500>TODAS AS ESCRITURAS E O CADERNO FORAM DESBLOQUEADOS!</color>\n" +
-                     $"<size=85%>18 escrituras catalogadas ({DiscoveredScripturesCount}/{TotalScripturesCount}) e Códice liberado no Laboratório da Base!</size>";
+            if (SaveManager.instance.CachedData.discoveredScriptureIds == null)
+                SaveManager.instance.CachedData.discoveredScriptureIds = new List<string>();
+
+            if (SaveManager.instance.CachedData.unlockedRobotBlueprints == null)
+                SaveManager.instance.CachedData.unlockedRobotBlueprints = new List<string>();
+
+            foreach (var sc in allScriptures)
+            {
+                if (sc != null && !string.IsNullOrEmpty(sc.scriptureId))
+                {
+                    if (!SaveManager.instance.CachedData.discoveredScriptureIds.Contains(sc.scriptureId))
+                    {
+                        SaveManager.instance.CachedData.discoveredScriptureIds.Add(sc.scriptureId);
+                    }
+
+                    if (sc.hasBlueprint && !string.IsNullOrEmpty(sc.blueprintEquipmentId))
+                    {
+                        if (!SaveManager.instance.CachedData.unlockedRobotBlueprints.Contains(sc.blueprintEquipmentId))
+                        {
+                            SaveManager.instance.CachedData.unlockedRobotBlueprints.Add(sc.blueprintEquipmentId);
+                            Debug.Log($"🤖 [LORE] Blueprint desbloqueado para o Robozinho: {sc.blueprintTitle} ({sc.blueprintEquipmentId})");
+                        }
+                    }
+                }
+            }
+
+            SaveManager.instance.SavePersistentData();
+        }
+
+        OnResearcherBookDiscovered?.Invoke();
+
+        if (FloatingBookDisplay.Instance != null)
+        {
+            FloatingBookDisplay.Instance.CheckBookVisibility();
+        }
+
+        string msg = "<b>[CODICE DE PLEROTUS]</b>\n" +
+                     $"<color=#FFE500>TODAS AS {allScriptures.Count} ESCRITURAS E O CADERNO FORAM DESBLOQUEADOS!</color>\n" +
+                     $"<size=85%>18 capitulos catalogados ({DiscoveredScripturesCount}/{TotalScripturesCount}) e blueprints integrados ao Robozinho!</size>";
 
         if (EptinhoPopupController.instancia != null)
         {
@@ -463,7 +522,7 @@ public class LoreManager : MonoBehaviour
         }
         else
         {
-            Debug.Log($"🐕 [EPTINHO POPUP] {msg}");
+            Debug.Log($"[EPTINHO POPUP] {msg}");
         }
     }
 

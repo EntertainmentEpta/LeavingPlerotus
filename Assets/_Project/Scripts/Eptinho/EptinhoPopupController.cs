@@ -369,6 +369,24 @@ public class EptinhoPopupController : MonoBehaviour
         }
     }
 
+    public static string SanitizeEmojis(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return text;
+        return text.Replace("📖", "[LORE]")
+                   .Replace("📜", "[REGISTRO]")
+                   .Replace("🐕", "")
+                   .Replace("⚙", "[PROJETO]")
+                   .Replace("🛠", "[ESQUEMA]")
+                   .Replace("✔", "[OK]")
+                   .Replace("✖", "[X]")
+                   .Replace("💡", "[DICA]")
+                   .Replace("🎁", "[ITEM]")
+                   .Replace("🔓", "[DESTRAVADO]")
+                   .Replace("💰", "[ORBS]")
+                   .Replace("⚡", "[ENERGIA]")
+                   .Replace("💻", "[CONSOLE]");
+    }
+
     /// <summary>
     /// Calcula e ajusta dinamicamente as dimensões do painel com base no comprimento do texto,
     /// mantendo o retrato RIGIDAMENTE travado no tamanho correto!
@@ -376,6 +394,8 @@ public class EptinhoPopupController : MonoBehaviour
     private void AjustarTamanhoDoPainelDinamico(string mensagem)
     {
         if (!autoResizePanel || popupUI == null || textoDoItem == null) return;
+
+        mensagem = SanitizeEmojis(mensagem);
 
         Transform panel = popupUI.transform.Find("PopupPanel");
         if (panel == null) return;
@@ -516,6 +536,8 @@ public class EptinhoPopupController : MonoBehaviour
 
         // Aplica o estilo base
         EstilizarUIEmTempoReal();
+
+        mensagem = SanitizeEmojis(mensagem);
 
         if (textoDoItem != null)
         {
