@@ -144,6 +144,13 @@ public class DevCheatConsole : MonoBehaviour
         }
 
         SaveManager.instance.SavePersistentData();
+
+        LabDoorManager doorManager = Object.FindFirstObjectByType<LabDoorManager>();
+        if (doorManager != null)
+        {
+            doorManager.UpdateDoorState();
+        }
+
         Log($"<color=#4AE04A>[CHEAT OK]</color> Destravadas {count} melhorias equipáveis no Save!");
     }
 

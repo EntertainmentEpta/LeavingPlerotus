@@ -67,7 +67,7 @@ public class LabDoorManager : MonoBehaviour
         }
     }
 
-    private void UpdateDoorState()
+    public void UpdateDoorState()
     {
         if (SaveManager.instance != null)
         {

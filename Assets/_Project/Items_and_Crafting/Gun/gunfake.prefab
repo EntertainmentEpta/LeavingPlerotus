@@ -20237,6 +20237,7 @@ MonoBehaviour:
   minimumProjectileRange: 200
   mapRangePadding: 5
   batteryCapacity: 8
+  passiveChargeRegenDelay: 2
   passiveChargeRegenInterval: 0.5
   batteryRechargeDuration: 2
   reloadKey: 114
@@ -20288,8 +20289,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WeaponOffset
   weaponType: 3
-  equipPosition: {x: -0.18, y: 0.22, z: -0.03}
-  equipRotation: {x: 220, y: 355, z: 78}
+  equipPosition: {x: -0.2, y: 0.2, z: 0}
+  equipRotation: {x: 0, y: -180, z: -90}
   weaponAnimatorOverride: {fileID: 9100000, guid: f3a791f61d9b45f0b23e41a392fbd884, type: 2}
 --- !u!65 &1895922270732995986
 BoxCollider:
@@ -20324,3 +20325,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 632c6bf9ec0d6414d8d04cfaa3693725, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Dagger_Pickup
+  actionText: Pegar Adaga de Plasma
+  fadeSpeed: 6
+  promptOffset: {x: 0, y: 0.65, z: 0}

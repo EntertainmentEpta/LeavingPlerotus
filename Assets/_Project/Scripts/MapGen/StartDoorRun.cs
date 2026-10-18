@@ -5,24 +5,40 @@ public class StartRunDoor : MonoBehaviour
 {
     private bool isLoading = false; // Impede múltiplos triggers
 
+    private float lastWarningTime = 0f;
+
     private void OnTriggerEnter(Collider other)
+    {
+        TryTriggerRun(other, true);
+    }
+
+    private void OnTriggerStay(Collider other)
+    {
+        TryTriggerRun(other, false);
+    }
+
+    private void TryTriggerRun(Collider other, bool isEnter)
     {
         // Se o jogador (com a tag "Player") tocar o trigger
         if (other.CompareTag("Player") && !isLoading)
         {
             // Verificação se o jogador está armado e com a arma empunhada
-            Player_WeaponManager weaponManager = other.GetComponent<Player_WeaponManager>();
+            Player_WeaponManager weaponManager = other.GetComponent<Player_WeaponManager>() ?? other.GetComponentInParent<Player_WeaponManager>();
             if (weaponManager != null)
             {
                 if (weaponManager.currentWeapon == null || !weaponManager.isWeaponDrawn)
                 {
-                    if (EptinhoPopupController.instancia != null)
+                    if (isEnter || Time.time - lastWarningTime > 3.0f)
                     {
-                        EptinhoPopupController.instancia.MostrarPopupAviso("Você não pode sair desarmado! Empunhe sua arma antes de partir.");
-                    }
-                    else
-                    {
-                        Debug.LogWarning("[StartRunDoor] Jogador tentou sair desarmado, mas EptinhoPopupController não foi encontrado.");
+                        lastWarningTime = Time.time;
+                        if (EptinhoPopupController.instancia != null)
+                        {
+                            EptinhoPopupController.instancia.MostrarPopupAviso("Você não pode sair desarmado! Empunhe sua arma antes de partir.");
+                        }
+                        else
+                        {
+                            Debug.LogWarning("[StartRunDoor] Jogador tentou sair desarmado, mas EptinhoPopupController não foi encontrado.");
+                        }
                     }
                     return; // Bloqueia a transição
                 }
@@ -30,7 +46,10 @@ public class StartRunDoor : MonoBehaviour
 
             if (!EptinhoStoryDialogs.HasSeenDialog(EptinhoStoryDialogs.ID_PORTA_CONSERTADA))
             {
-                EptinhoStoryDialogs.TriggerPortaConsertada();
+                if (isEnter)
+                {
+                    EptinhoStoryDialogs.TriggerPortaConsertada();
+                }
                 return; // Aguarda o jogador ler a orientação do Eptinho
             }
 
@@ -38,9 +57,10 @@ public class StartRunDoor : MonoBehaviour
             Debug.Log("Jogador tocou a porta! Iniciando transição da run com fade...");
 
             // Desativa o collider da porta para evitar problemas
-            GetComponent<Collider>().enabled = false; 
+            Collider col = GetComponent<Collider>();
+            if (col != null) col.enabled = false; 
 
-            PlayerM playerMovement = other.GetComponent<PlayerM>();
+            PlayerM playerMovement = other.GetComponent<PlayerM>() ?? other.GetComponentInParent<PlayerM>();
             if (playerMovement != null)
             {
                 playerMovement.StartCoroutine(DoStartRunTransition(playerMovement));

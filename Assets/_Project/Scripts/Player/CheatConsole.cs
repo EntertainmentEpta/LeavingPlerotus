@@ -513,9 +513,32 @@ public class CheatConsole : MonoBehaviour
                 }
             }
         }
+        else if (string.Equals(command, "door", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "porta", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "lab", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "opendoor", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "abrirporta", System.StringComparison.OrdinalIgnoreCase))
+        {
+            if (SaveManager.instance != null)
+            {
+                SaveManager.instance.AddCraftedEquipment("eq_consertar_porta");
+                SaveManager.instance.SavePersistentData();
+            }
+            LabDoorManager doorManager = Object.FindFirstObjectByType<LabDoorManager>();
+            if (doorManager != null)
+            {
+                doorManager.UpdateDoorState();
+            }
+            string msg = "PORTA DO LABORATÓRIO CONSERTADA E ABERTA!";
+            Debug.Log($"💻 CHEAT: {msg}");
+            if (EptinhoPopupController.instancia != null)
+            {
+                EptinhoPopupController.instancia.MostrarPopupAviso(msg);
+            }
+        }
         else
         {
-            Debug.LogWarning($"💻 CHEAT RECUSADO: A palavra '{command}' não é reconhecida. Tente: caderno, resetcaderno, escrituras, limparescrituras, aim, pact, poison, thorns, EPTA, killall, endless, recursos, unlockall, orbs, boss.");
+            Debug.LogWarning($"💻 CHEAT RECUSADO: A palavra '{command}' não é reconhecida. Tente: door, porta, lab, caderno, resetcaderno, escrituras, limparescrituras, aim, pact, poison, thorns, EPTA, killall, endless, recursos, unlockall, orbs, boss.");
         }
 
         // Depois de tentar o cheat, fecha o console pro jogo voltar ao normal
