@@ -428,21 +428,8 @@ public class JournalBookUI : MonoBehaviour
         }
         if (journalCanvas == null) return;
 
-        Camera cam = Camera.main;
-        if (cam == null) cam = Object.FindFirstObjectByType<Camera>();
-
-        if (cam != null)
-        {
-            journalCanvas.renderMode = RenderMode.ScreenSpaceCamera;
-            journalCanvas.worldCamera = cam;
-            journalCanvas.planeDistance = Mathf.Clamp(cam.nearClipPlane + 0.5f, 0.5f, 2f);
-            journalCanvas.sortingOrder = 800;
-        }
-        else
-        {
-            journalCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            journalCanvas.sortingOrder = 800;
-        }
+        journalCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        journalCanvas.sortingOrder = 750;
 
         int uiLayer = LayerMask.NameToLayer("UI");
         if (uiLayer < 0) uiLayer = 5;
@@ -468,6 +455,16 @@ public class JournalBookUI : MonoBehaviour
     private void BuildUI()
     {
         if (canvasObj != null) return;
+
+        // Garante a existência do EventSystem para suportar cliques de mouse
+        if (FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
+        {
+            GameObject es = new GameObject("EventSystem_Auto");
+            es.AddComponent<UnityEngine.EventSystems.EventSystem>();
+            es.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+            DontDestroyOnLoad(es);
+            Debug.Log("[JournalBookUI] 🖱️ EventSystem auto-criado para suportar cliques no Códice!");
+        }
 
         canvasObj = new GameObject("JournalBook_CanvasRoot");
         canvasObj.transform.SetParent(transform, false);

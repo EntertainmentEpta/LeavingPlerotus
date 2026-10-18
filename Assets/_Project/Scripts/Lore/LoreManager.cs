@@ -436,12 +436,49 @@ public class LoreManager : MonoBehaviour
         OnResearcherBookDiscovered?.Invoke();
     }
 
+    /// <summary>
+    /// Desbloqueia instantaneamente o Caderno do Pesquisador e todas as 18 escrituras / blueprints para testes.
+    /// Chamado por comando de cheat (/unlocklore, /escrituras, /caderno), atalho F8, ou botão na DevCheatConsole.
+    /// </summary>
+    public void UnlockAllScripturesAndBook()
+    {
+        DiscoverResearcherBook();
+
+        foreach (var sc in allScriptures)
+        {
+            if (sc != null)
+            {
+                CollectScripture(sc);
+            }
+        }
+
+        FloatingBookDisplay.Instance?.CheckBookVisibility();
+
+        string msg = "📖 <color=#FFE500>TODAS AS ESCRITURAS E O CADERNO FORAM DESBLOQUEADOS!</color>\n" +
+                     $"<size=85%>18 escrituras catalogadas ({DiscoveredScripturesCount}/{TotalScripturesCount}) e Códice liberado no Laboratório da Base!</size>";
+
+        if (EptinhoPopupController.instancia != null)
+        {
+            EptinhoPopupController.instancia.MostrarPopupAviso(msg);
+        }
+        else
+        {
+            Debug.Log($"🐕 [EPTINHO POPUP] {msg}");
+        }
+    }
+
     // ─── FERRAMENTAS DE TESTE (INSPECTOR) ───────────────────────────────────
 
     [ContextMenu("📖 Testar Desbloqueio: Caderno do Pesquisador")]
     public void TestarDesbloqueioCaderno()
     {
         DiscoverResearcherBook();
+    }
+
+    [ContextMenu("📜 Testar Desbloqueio: Todas as 18 Escrituras e Caderno")]
+    public void TestarDesbloqueioTodasEscriturasECaderno()
+    {
+        UnlockAllScripturesAndBook();
     }
 
     [ContextMenu("🧪 Testar Coleta: Decomposição Ácida (Blueprint 1)")]

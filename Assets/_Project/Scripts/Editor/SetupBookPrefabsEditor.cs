@@ -164,6 +164,9 @@ public class SetupBookPrefabsEditor : EditorWindow
         floatBook.transform.localRotation = Quaternion.Euler(20f, 0f, 10f);
         floatBook.transform.localScale = Vector3.one * 42f;
 
+        // Descompacta a instância para gravar todos os componentes de malha dentro do prefab
+        PrefabUtility.UnpackPrefabInstance(floatBook, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+
         if (bookMat != null)
         {
             foreach (var r in floatBook.GetComponentsInChildren<Renderer>(true))
