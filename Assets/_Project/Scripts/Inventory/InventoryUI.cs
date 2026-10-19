@@ -555,22 +555,23 @@ public class InventoryUI : MonoBehaviour
             RebuildSlots(absoluteMaxSlots);
         }
 
-        // Preenche os slots com dados do inventário
-        Dictionary<string, int> items = playerInventory.GetAllItems();
+        // Preenche os slots com dados do inventário (sem stacking: cada item em 1 slot dedicado)
+        List<string> itemSlots = playerInventory.GetItemSlots();
         int slotIndex = 0;
 
-        foreach (var kvp in items)
+        for (int i = 0; i < itemSlots.Count; i++)
         {
             if (slotIndex >= maxSlots || slotIndex >= slots.Count) break;
 
+            string itemId = itemSlots[i];
             ItemData itemData = null;
             if (ItemDatabase.Instance != null)
             {
-                itemData = ItemDatabase.Instance.GetItemData(kvp.Key);
+                itemData = ItemDatabase.Instance.GetItemData(itemId);
             }
 
             slots[slotIndex].SetLocked(false);
-            slots[slotIndex].SetItem(kvp.Key, kvp.Value, itemData);
+            slots[slotIndex].SetItem(itemId, 1, itemData);
             slotIndex++;
         }
 

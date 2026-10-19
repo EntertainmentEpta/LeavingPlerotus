@@ -62,6 +62,7 @@ public class PlayerHealth : MonoBehaviour
     [Header("Efeitos dos Pactos do Mercador")]
     [HideInInspector] public bool canHeal = true;
     [HideInInspector] public bool hasDoubleLoot = false;
+    [HideInInspector] public bool hasGreedPact = false;
     [HideInInspector] public bool hasChaosSymphony = false;
     [HideInInspector] public bool hasVampirism = false;
     [HideInInspector] public bool hasNecrosis = false;
@@ -595,6 +596,16 @@ public class PlayerHealth : MonoBehaviour
         hasPactCorrupted = false;
         canRegenArmor = true;
         cursedHealthLost = 0;
+        hasGreedPact = false;
+        hasDoubleLoot = false;
+        hasChaosSymphony = false;
+        hasVampirism = false;
+        hasNecrosis = false;
+        hasSelfDamageOnAttack = false;
+        isKnockbackImmune = false;
+        canHeal = true;
+        damageMultiplier = 1.0f;
+        damageTakenMultiplier = 1.0f;
         currentHealth = maxHealth;
         currentArmor = maxArmor;
         ResetMercadorPactUI();

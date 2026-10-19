@@ -119,7 +119,7 @@ MonoBehaviour:
   essencePrefab: {fileID: 1526004001283604428, guid: aac8898d50c757240944683fe67b0d7c, type: 3}
   essenceAmount: 10
   essenceVariation: 3
-  globalDropChance: 1
+  globalDropChance: 0.28
   itemAmount: 1
   lootPool:
   - itemPrefab: {fileID: 3764477026988318115, guid: 2be4f3a63b118e64bb2a69427bfbf3f9, type: 3}

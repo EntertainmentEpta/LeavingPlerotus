@@ -288,12 +288,13 @@ public class RoomController : MonoBehaviour
     {
         currentWave++;
 
-        // Nas salas iniciais (1 e 2), limita a 1 onda leve para introdução suave
-        if (roomIndex <= 2)
+        int currentLvl = RunManager.instance != null ? RunManager.instance.currentLevel : 1;
+        // Apenas na introdução absoluta do jogo (Round 1, salas 1 e 2) limita a 1 onda leve
+        if (currentLvl == 1 && roomIndex <= 2)
         {
             totalWavesThisRoom = 1;
         }
-        else if (roomIndex <= 4)
+        else if (currentLvl == 1 && roomIndex <= 4)
         {
             totalWavesThisRoom = Mathf.Min(totalWavesThisRoom, 2);
         }
@@ -456,10 +457,7 @@ public class RoomController : MonoBehaviour
             }
         }
 
-        int maxMobPoints = Mathf.FloorToInt(waveBudget * mobCapFraction);
         int remainingPts = waveBudget;
-        int mobPointsUsed = 0;
-
         List<GameObject> curMobMenor = GetMobMenorPool();
         List<GameObject> curAtirador = GetAtiradorPool();
         List<GameObject> curTanque   = GetTanquePool();
@@ -468,58 +466,75 @@ public class RoomController : MonoBehaviour
 
         List<GameObject> result = new List<GameObject>();
 
-        // Suporte / Base: Apenas da Sala 2 em diante (NUNCA na Sala 1!), no máximo 1 por sala
-        if (roomIndex >= 2 && currentWave == 1 && curSuporte.Count > 0 && suporteSpawnedTotal < 1)
+        int currentLvl = RunManager.instance != null ? RunManager.instance.currentLevel : 1;
+        int effectiveProgression = ((currentLvl - 1) * 4) + roomIndex;
+
+        PlayerHealth player = Object.FindFirstObjectByType<PlayerHealth>();
+        bool chaosMode = player != null && player.hasChaosSymphony;
+        int eliteMax = chaosMode ? 3 : (currentLvl >= 3 ? 2 : 1);
+        int tanqueMax = chaosMode ? 8 : (currentLvl >= 3 ? 6 : (currentLvl >= 2 ? 4 : 2));
+
+        // 1. Suporte: da Sala 2 ou Round 2 em diante (máx 1 suporte por sala)
+        if (effectiveProgression >= 2 && currentWave == 1 && curSuporte.Count > 0 && suporteSpawnedTotal < 1 && remainingPts >= 3)
         {
             result.Add(GetRandom(curSuporte));
             suporteSpawnedTotal++;
             remainingPts -= 3;
         }
 
-        bool addedSomething = true;
-        while (remainingPts > 0 && addedSomething)
+        // 2. ÂNCORA DE VARIEDADE: Garante que inimigos pesados (Elite ou Tanque) ou Atiradores sejam escolhidos PRIMEIRO se houver budget!
+        // No Round 3 (Fase 3), prioriza spawnar Geobionte (Elite) ou Tanques pesados (Golem, Magic Stone, Star)!
+        if (currentLvl >= 3 && curElite.Count > 0 && remainingPts >= 10 && eliteSpawnedTotal < eliteMax && Random.value < 0.65f)
         {
-            addedSomething = false;
+            result.Add(GetRandom(curElite));
+            eliteSpawnedTotal++;
+            remainingPts -= 10;
+        }
+        else if (effectiveProgression >= 2 && curTanque.Count > 0 && remainingPts >= 4 && tanqueSpawnedTotal < tanqueMax && Random.value < 0.70f)
+        {
+            result.Add(GetRandom(curTanque));
+            tanqueSpawnedTotal++;
+            remainingPts -= 4;
+        }
+        else if (effectiveProgression >= 2 && curAtirador.Count > 0 && remainingPts >= 2 && Random.value < 0.60f)
+        {
+            result.Add(GetRandom(curAtirador));
+            remainingPts -= 2;
+        }
+
+        // 3. Distribuição ponderada e equilibrada para os pontos restantes
+        int loopGuard = 0;
+        while (remainingPts > 0 && loopGuard < 30)
+        {
+            loopGuard++;
             List<EnemyClass> validOptions = new List<EnemyClass>();
 
-            PlayerHealth player = Object.FindFirstObjectByType<PlayerHealth>();
-            bool chaosMode = player != null && player.hasChaosSymphony;
-            int eliteMax = chaosMode ? 3 : 1;
-            int tanqueMax = chaosMode ? 8 : 4;
-            int minRoomElite = chaosMode ? 2 : 5;
-            int minRoomTanque = chaosMode ? 1 : 3;
-
-            // Elite: máx. 1 POR SALA, apenas da Sala 5 em diante (No chaos mode, mais elites)
-            if (roomIndex >= minRoomElite && curElite.Count > 0 && remainingPts >= 10 && eliteSpawnedTotal < eliteMax)
+            // Elite (10 pts)
+            if (effectiveProgression >= 4 && curElite.Count > 0 && remainingPts >= 10 && eliteSpawnedTotal < eliteMax)
                 validOptions.Add(EnemyClass.Elite);
 
-            // Tanque: máx. 4 POR SALA, apenas da Sala 3 em diante (No chaos mode, mais tanques)
-            if (roomIndex >= minRoomTanque && curTanque.Count > 0 && remainingPts >= 4 && tanqueSpawnedTotal < tanqueMax)
+            // Tanque (4 pts)
+            if (effectiveProgression >= 2 && curTanque.Count > 0 && remainingPts >= 4 && tanqueSpawnedTotal < tanqueMax)
                 validOptions.Add(EnemyClass.Tanque);
 
-            // Atirador: par (4 pts), apenas da Sala 2 em diante
-            if (roomIndex >= 2 && curAtirador.Count > 0 && remainingPts >= 4)
+            // Atirador (2 pts individual ou 4 pts par)
+            if (effectiveProgression >= 2 && curAtirador.Count > 0 && remainingPts >= 2)
                 validOptions.Add(EnemyClass.Atirador);
 
-            // Mob Menor: sempre permitido para preencher a onda
+            // Mob Menor (1 pt)
             if (curMobMenor.Count > 0 && remainingPts >= 1)
                 validOptions.Add(EnemyClass.MobMenor);
 
             if (validOptions.Count == 0) break;
 
-            // Prioriza Mobs Menores nas escolhas (ponderado) para não entulhar inimigos pesados nas salas iniciais
-            EnemyClass chosen = EnemyClass.MobMenor;
-            if (validOptions.Count > 1 && Random.value < 0.35f)
+            // Sorteio justo entre as opções viáveis
+            EnemyClass chosen = validOptions[Random.Range(0, validOptions.Count)];
+
+            // Em fases avançadas (Round 2 e 3), favorece variedade de Tanques e Atiradores
+            if (currentLvl >= 2 && validOptions.Count > 1 && chosen == EnemyClass.MobMenor && Random.value < 0.50f)
             {
-                chosen = validOptions[Random.Range(0, validOptions.Count)];
-            }
-            else if (validOptions.Contains(EnemyClass.MobMenor))
-            {
-                chosen = EnemyClass.MobMenor;
-            }
-            else
-            {
-                chosen = validOptions[Random.Range(0, validOptions.Count)];
+                List<EnemyClass> advanced = validOptions.FindAll(c => c != EnemyClass.MobMenor);
+                if (advanced.Count > 0) chosen = advanced[Random.Range(0, advanced.Count)];
             }
 
             switch (chosen)
@@ -537,15 +552,17 @@ public class RoomController : MonoBehaviour
                     break;
 
                 case EnemyClass.Atirador:
-                    // Par de atiradores (podem ser inimigos diferentes)
                     result.Add(GetRandom(curAtirador));
-                    result.Add(GetRandom(curAtirador));
-                    remainingPts -= 4;
+                    remainingPts -= 2;
+                    if (remainingPts >= 2 && Random.value < 0.5f)
+                    {
+                        result.Add(GetRandom(curAtirador));
+                        remainingPts -= 2;
+                    }
                     break;
 
                 case EnemyClass.MobMenor:
                     result.Add(GetRandom(curMobMenor));
-                    mobPointsUsed++;
                     remainingPts -= 1;
                     break;
 
@@ -564,7 +581,7 @@ public class RoomController : MonoBehaviour
         }
 
         if (showSpawnLog)
-            Debug.Log($"[ROOM {roomIndex}] Onda {currentWave}: {result.Count} inimigos gerados (Elite:{eliteSpawnedTotal} Tanque:{tanqueSpawnedTotal} Suporte:{suporteSpawnedTotal})");
+            Debug.Log($"[ROOM {roomIndex} | FASE {currentLvl}] Onda {currentWave}: {result.Count} inimigos gerados (Elite:{eliteSpawnedTotal} Tanque:{tanqueSpawnedTotal} Suporte:{suporteSpawnedTotal})");
 
         return result;
     }

@@ -68,12 +68,13 @@ public class EnemyDrops : MonoBehaviour
         Vector3 basePosition = transform.position + Vector3.up * spawnHeight;
 
         // --- SISTEMA DE PACTOS DO JOGADOR ---
-        bool doubleLoot = false;
+        bool hasGreed = false;
+        bool doubleEssence = false;
         PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
-        if (playerHealth != null && playerHealth.hasDoubleLoot)
+        if (playerHealth != null)
         {
-            doubleLoot = true;
-            Debug.Log("[ENEMY DROPS] A Ganância ativada! Drop em dobro!");
+            if (playerHealth.hasGreedPact) hasGreed = true;
+            if (playerHealth.hasDoubleLoot) doubleEssence = true;
         }
         // ------------------------------------
 
@@ -102,7 +103,7 @@ public class EnemyDrops : MonoBehaviour
             int finalEssence = scaledBase + Random.Range(-essenceVariation, essenceVariation + 1);
             finalEssence = Mathf.Max(1, finalEssence);
 
-            if (doubleLoot) finalEssence *= 2; // Dobra a essência!
+            if (doubleEssence || hasGreed) finalEssence *= 2; // Dobra a essência com Ganância!
 
             GameObject essence = SpawnDrop(essencePrefab, basePosition);
             
@@ -120,7 +121,7 @@ public class EnemyDrops : MonoBehaviour
             Debug.LogWarning("[ENEMY DROPS] essencePrefab está NULL! Configure no Inspector.");
         }
 
-        // 2. Chance de dropar ALGUM item característico calibrada por Classe (Matriz de Balanceamento GDD)
+        // 2. Chance de dropar ALGUM item característico calibrada por Classe
         float effectiveDropChance = globalDropChance;
         string objName = gameObject.name.ToLower();
 
@@ -156,19 +157,28 @@ public class EnemyDrops : MonoBehaviour
         }
         else if (isTankOrStructure)
         {
-            effectiveDropChance = Mathf.Min(effectiveDropChance, 0.35f); // 35% Tanques e Estruturas
+            // Totem e Tanques: chance saudável e calibrada (~28%)
+            effectiveDropChance = Mathf.Clamp(effectiveDropChance, 0.20f, 0.30f);
         }
         else if (isSupport)
         {
-            effectiveDropChance = Mathf.Min(effectiveDropChance, 0.25f); // 25% Suportes
+            effectiveDropChance = Mathf.Clamp(effectiveDropChance, 0.20f, 0.28f);
         }
         else if (isRanged)
         {
-            effectiveDropChance = Mathf.Min(effectiveDropChance, 0.18f); // 18% Atiradores
+            effectiveDropChance = Mathf.Clamp(effectiveDropChance, 0.20f, 0.28f);
         }
         else
         {
-            effectiveDropChance = Mathf.Min(effectiveDropChance, 0.10f); // 10% Mobs Menores (Aranha, SharpBlur)
+            // Mobs menores (SharpBlur, Aranha): ajustado de 10% para 25% para não sumir
+            effectiveDropChance = Mathf.Clamp(effectiveDropChance, 0.20f, 0.30f);
+        }
+
+        // --- PACTO DE GANÂNCIA: Sorte aumentada significativamente em vez de duplicar drop! ---
+        if (hasGreed)
+        {
+            effectiveDropChance = Mathf.Clamp01(effectiveDropChance * 2.5f);
+            Debug.Log($"[ENEMY DROPS] A Ganância ativa! Chance de drop amplificada para {effectiveDropChance * 100:F0}%");
         }
 
         if (lootPool != null && lootPool.Count > 0 && Random.value <= effectiveDropChance)
@@ -247,6 +257,15 @@ public class EnemyDrops : MonoBehaviour
                     }
                 }
 
+                if (hasGreed)
+                {
+                    // Ganância: Melhora as chances de sortear Tiers superiores (T2, T3, T4)!
+                    if (pName.Contains("t1") || pName.Contains("1")) weightMult *= 1.2f;
+                    else if (pName.Contains("t2") || pName.Contains("2")) weightMult *= 2.5f;
+                    else if (pName.Contains("t3") || pName.Contains("3")) weightMult *= 3.5f;
+                    else if (pName.Contains("t4") || pName.Contains("4")) weightMult *= 5.0f;
+                }
+
                 float finalW = loot.weight * weightMult;
                 adjustedWeights.Add(finalW);
                 totalWeight += finalW;
@@ -273,7 +292,7 @@ public class EnemyDrops : MonoBehaviour
 
                 if (selectedPrefab != null)
                 {
-                    int finalItemAmount = doubleLoot ? itemAmount * 2 : itemAmount; // Dobra itens!
+                    int finalItemAmount = itemAmount; // Não duplica itens no chão; a Ganância aumenta a chance de drop e tiers!
 
                     for (int i = 0; i < finalItemAmount; i++)
                     {

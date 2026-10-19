@@ -253,13 +253,18 @@ public class RunManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Orçamento de pontos de spawn para a sala n.
-    /// P(1) = 4 pts (apenas mobs leves), crescendo gradualmente a cada sala.
+    /// Orçamento de pontos de spawn para a sala n no round/level atual.
+    /// Escala de forma progressiva considerando tanto a sala quanto a fase (round) da run.
     /// </summary>
     public int GetSpawnBudget(int roomNumber)
     {
-        int n = Mathf.Max(1, roomNumber);
-        int budget = Mathf.RoundToInt(3f + 1.1f * n);
+        int level = Mathf.Max(1, currentLevel);
+        int room = Mathf.Max(1, roomNumber);
+        
+        // Sala cumulativa na run (Round 1: 1..4, Round 2: 5..8, Round 3: 9..12)
+        int effectiveRoom = ((level - 1) * 4) + room;
+
+        int budget = Mathf.RoundToInt(5f + 2.2f * effectiveRoom);
 
         PlayerHealth player = Object.FindFirstObjectByType<PlayerHealth>();
         if (player != null && player.hasChaosSymphony)

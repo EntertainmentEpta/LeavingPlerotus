@@ -147,7 +147,7 @@ public class MerchantUIController : MonoBehaviour
     {
         new PactData {
             name = "A GANÂNCIA",
-            description = "<color=#00ff99>✦ Dobro de loot e essência ao eliminar inimigos.</color>\n<color=#ff4455>✖ Você sofre 50% a mais de dano.</color>",
+            description = "<color=#00ff99>✦ Sorte Extrema: Aumenta muito a chance de drop de itens (Tiers 1 a 4) e +100% Essência.</color>\n<color=#ff4455>✖ Você sofre 50% a mais de dano.</color>",
             healthCostPercent = 0.20f
         },
         new PactData {
@@ -795,7 +795,12 @@ public class MerchantUIController : MonoBehaviour
     // ============================================
     public void OnTarotCardClicked(int cardSlot)
     {
-        if (playerHealth == null || isRevealingPactCard) return;
+        if (isRevealingPactCard)
+        {
+            ConfirmRevealedPactAndClose();
+            return;
+        }
+        if (playerHealth == null) return;
         if (cardSlot < 0 || cardSlot >= currentDisplayedPactIndices.Length) return;
 
         int pactIndex = currentDisplayedPactIndices[cardSlot];
@@ -908,9 +913,57 @@ public class MerchantUIController : MonoBehaviour
         if (childTexts.Length > 1 && descTxt == null) descTxt = (childTexts[1] != nameTxt) ? childTexts[1] : (childTexts.Length > 2 ? childTexts[2] : null);
         if (childTexts.Length > 2 && costTxt == null) costTxt = (childTexts[2] != nameTxt && childTexts[2] != descTxt) ? childTexts[2] : null;
 
-        if (nameTxt != null) nameTxt.text = $"<color=#ffcc00><b>✦ {pact.name} ✦</b></color>";
-        if (descTxt != null) descTxt.text = pact.description; // REVELA O VERSO COM O SEGREDO COMPLETO!
-        if (costTxt != null) costTxt.text = $"<color=#ff2233><b>-{pact.healthCostPercent * 100}% VIDA MÁXIMA</b></color>";
+        if (nameTxt != null)
+        {
+            nameTxt.gameObject.SetActive(true);
+            nameTxt.text = $"<color=#ffcc00><b>✦ {pact.name} ✦</b></color>";
+            RectTransform nRt = nameTxt.rectTransform;
+            nRt.anchorMin = new Vector2(0.05f, 0.78f);
+            nRt.anchorMax = new Vector2(0.95f, 0.95f);
+            nRt.offsetMin = Vector2.zero;
+            nRt.offsetMax = Vector2.zero;
+            nRt.pivot = new Vector2(0.5f, 0.5f);
+            nameTxt.alignment = TextAlignmentOptions.Center;
+            nameTxt.enableWordWrapping = true;
+            nameTxt.enableAutoSizing = true;
+            nameTxt.fontSizeMin = 18;
+            nameTxt.fontSizeMax = 28;
+        }
+
+        if (descTxt != null)
+        {
+            descTxt.gameObject.SetActive(true);
+            descTxt.text = pact.description; // REVELA O VERSO COM O SEGREDO COMPLETO!
+            RectTransform dRt = descTxt.rectTransform;
+            dRt.anchorMin = new Vector2(0.08f, 0.30f);
+            dRt.anchorMax = new Vector2(0.92f, 0.76f);
+            dRt.offsetMin = Vector2.zero;
+            dRt.offsetMax = Vector2.zero;
+            dRt.pivot = new Vector2(0.5f, 0.5f);
+            descTxt.alignment = TextAlignmentOptions.Center;
+            descTxt.enableWordWrapping = true;
+            descTxt.overflowMode = TextOverflowModes.Ellipsis;
+            descTxt.enableAutoSizing = true;
+            descTxt.fontSizeMin = 14;
+            descTxt.fontSizeMax = 20;
+        }
+
+        if (costTxt != null)
+        {
+            costTxt.gameObject.SetActive(true);
+            costTxt.text = $"<color=#ff2233><b>-{pact.healthCostPercent * 100}% VIDA MÁXIMA</b></color>\n\n<size=75%><color=#ffdd00><b>[ CLIQUE NA CARTA PARA CONCLUIR ]</b></color></size>";
+            RectTransform cRt = costTxt.rectTransform;
+            cRt.anchorMin = new Vector2(0.05f, 0.05f);
+            cRt.anchorMax = new Vector2(0.95f, 0.28f);
+            cRt.offsetMin = Vector2.zero;
+            cRt.offsetMax = Vector2.zero;
+            cRt.pivot = new Vector2(0.5f, 0.5f);
+            costTxt.alignment = TextAlignmentOptions.Center;
+            costTxt.enableWordWrapping = true;
+            costTxt.enableAutoSizing = true;
+            costTxt.fontSizeMin = 14;
+            costTxt.fontSizeMax = 22;
+        }
 
         // FASE 3: Gira de 90° até 0°, desdobrando a face traseira no centro!
         elapsed = 0f;
@@ -928,6 +981,8 @@ public class MerchantUIController : MonoBehaviour
 
         cardRect.localEulerAngles = Vector3.zero;
         chosenBtn.interactable = true;
+        chosenBtn.onClick.RemoveAllListeners();
+        chosenBtn.onClick.AddListener(ConfirmRevealedPactAndClose);
 
         // Dispara o Popup do Eptinho com a nova expressão 'eptinhomedo'!
         if (EptinhoPopupController.instancia != null)
@@ -969,7 +1024,8 @@ public class MerchantUIController : MonoBehaviour
         switch(index)
         {
             case 0: // A GANÂNCIA
-                playerHealth.hasDoubleLoot = true;
+                playerHealth.hasGreedPact = true;
+                playerHealth.hasDoubleLoot = true; // Dobro de essência
                 playerHealth.damageTakenMultiplier += 0.5f;
                 break;
 
