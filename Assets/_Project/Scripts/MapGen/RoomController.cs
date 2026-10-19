@@ -105,7 +105,7 @@ public class RoomController : MonoBehaviour
     [Tooltip("Intervalo em segundos entre o fim de uma onda e o início da próxima.")]
     public float timeBetweenWaves = 2f;
     [Tooltip("Número mínimo de inimigos garantidos por onda (Mob Menor preenchem o restante).")]
-    [Range(1, 20)] public int minEnemiesPerWave = 6;
+    [Range(1, 20)] public int minEnemiesPerWave = 3;
     [Tooltip("Fracão máxima do budget que pode ser gasta em Mob Menor. 0.7 = 70%.")]
     [Range(0.1f, 1f)] public float mobCapFraction = 0.7f;
 
@@ -309,14 +309,42 @@ public class RoomController : MonoBehaviour
         currentWave++;
 
         int currentLvl = RunManager.instance != null ? RunManager.instance.currentLevel : 1;
-        // Apenas na introdução absoluta do jogo (Round 1, salas 1 e 2) limita a 1 onda leve
-        if (currentLvl == 1 && roomIndex <= 2)
+        int minEnemies;
+        int maxEnemies;
+
+        if (currentLvl == 1)
         {
-            totalWavesThisRoom = 1;
+            // Fase 1: Escalonamento suave e gradual para o início da run
+            if (roomIndex <= 2)
+            {
+                totalWavesThisRoom = 1;
+                minEnemies = 2;
+                maxEnemies = 3;
+            }
+            else if (roomIndex <= 4)
+            {
+                totalWavesThisRoom = Mathf.Min(totalWavesThisRoom, 2);
+                minEnemies = 2;
+                maxEnemies = 4;
+            }
+            else
+            {
+                totalWavesThisRoom = Mathf.Min(totalWavesThisRoom, 2);
+                minEnemies = 3;
+                maxEnemies = 4;
+            }
         }
-        else if (currentLvl == 1 && roomIndex <= 4)
+        else if (currentLvl == 2)
         {
-            totalWavesThisRoom = Mathf.Min(totalWavesThisRoom, 2);
+            // Fase 2: Complexidade moderada
+            minEnemies = 3;
+            maxEnemies = 5;
+        }
+        else
+        {
+            // Fase 3+: Combate pleno com alta variedade
+            minEnemies = 4;
+            maxEnemies = 7;
         }
 
         // O budget total da sala é dividido igualmente entre as ondas.
@@ -325,13 +353,11 @@ public class RoomController : MonoBehaviour
             : Mathf.RoundToInt(3 + 0.9f * roomIndex);
         int waveBudget = Mathf.Max(3, Mathf.RoundToInt(totalBudget / (float)totalWavesThisRoom));
 
-        int effectiveMinEnemies = Mathf.Clamp(Mathf.RoundToInt(2 + (roomIndex * 0.25f)), 2, minEnemiesPerWave);
-
         if (showSpawnLog)
-            Debug.Log($"[ROOM {roomIndex}] ONDA {currentWave}/{totalWavesThisRoom} | Budget: {waveBudget} pts | Mín. inimigos: {effectiveMinEnemies}");
+            Debug.Log($"[ROOM {roomIndex} | FASE {currentLvl}] ONDA {currentWave}/{totalWavesThisRoom} | Budget: {waveBudget} pts | Inimigos: {minEnemies}-{maxEnemies}");
 
         // Gera a lista de inimigos desta onda pelo algoritmo de pontos
-        List<GameObject> waveEnemies = BuildWaveFromPoints(waveBudget, effectiveMinEnemies);
+        List<GameObject> waveEnemies = BuildWaveFromPoints(waveBudget, minEnemies, maxEnemies);
 
         // Flag de pendentes para o CheckWaveStatus
         enemiesPendingSpawn += waveEnemies.Count;
@@ -465,7 +491,7 @@ public class RoomController : MonoBehaviour
     /// Monta a lista de inimigos de uma onda usando o sistema de pontos do GDD.
     /// Respeita a progressão por salas e limites GLOBAIS.
     /// </summary>
-    List<GameObject> BuildWaveFromPoints(int waveBudget, int minEnemies)
+    List<GameObject> BuildWaveFromPoints(int waveBudget, int minEnemies, int maxEnemies = 10)
     {
         if (forceAllMobsMode)
         {
@@ -495,7 +521,7 @@ public class RoomController : MonoBehaviour
         int tanqueMax = chaosMode ? 8 : (currentLvl >= 3 ? 6 : (currentLvl >= 2 ? 4 : 2));
 
         // 1. Suporte: da Sala 2 ou Round 2 em diante (máx 1 suporte por sala)
-        if (effectiveProgression >= 2 && currentWave == 1 && curSuporte.Count > 0 && suporteSpawnedTotal < 1 && remainingPts >= 3)
+        if (effectiveProgression >= 2 && currentWave == 1 && curSuporte.Count > 0 && suporteSpawnedTotal < 1 && remainingPts >= 3 && result.Count < maxEnemies)
         {
             result.Add(GetRandom(curSuporte));
             suporteSpawnedTotal++;
@@ -504,7 +530,7 @@ public class RoomController : MonoBehaviour
 
         // 2. ÂNCORA DE VARIEDADE: Garante que inimigos pesados (Elite ou Tanque) e Atiradores apareçam com frequência
         // No Round 3 (Fase 3), prioriza spawnar Geobionte (Elite) e Tanques pesados (Golem, Magic Stone, Star, Totem)!
-        if (currentLvl >= 3 && curElite.Count > 0 && remainingPts >= 10 && eliteSpawnedTotal < eliteMax && Random.value < 0.75f)
+        if (currentLvl >= 3 && curElite.Count > 0 && remainingPts >= 10 && eliteSpawnedTotal < eliteMax && Random.value < 0.75f && result.Count < maxEnemies)
         {
             result.Add(GetRandom(curElite));
             eliteSpawnedTotal++;
@@ -512,7 +538,7 @@ public class RoomController : MonoBehaviour
         }
 
         // Garante presença de Tanques no Round 2 e Round 3
-        if (effectiveProgression >= 2 && curTanque.Count > 0 && remainingPts >= 4 && tanqueSpawnedTotal < tanqueMax && Random.value < 0.75f)
+        if (effectiveProgression >= 2 && curTanque.Count > 0 && remainingPts >= 4 && tanqueSpawnedTotal < tanqueMax && Random.value < 0.75f && result.Count < maxEnemies)
         {
             result.Add(GetRandom(curTanque));
             tanqueSpawnedTotal++;
@@ -520,7 +546,7 @@ public class RoomController : MonoBehaviour
         }
 
         // Garante presença de Atiradores (Peixe, Goblin, Crystal Watcher)
-        if (effectiveProgression >= 2 && curAtirador.Count > 0 && remainingPts >= 2 && Random.value < 0.70f)
+        if (effectiveProgression >= 2 && curAtirador.Count > 0 && remainingPts >= 2 && Random.value < 0.70f && result.Count < maxEnemies)
         {
             result.Add(GetRandom(curAtirador));
             remainingPts -= 2;
@@ -528,7 +554,7 @@ public class RoomController : MonoBehaviour
 
         // 3. Distribuição ponderada e equilibrada para os pontos restantes
         int loopGuard = 0;
-        while (remainingPts > 0 && loopGuard < 30)
+        while (remainingPts > 0 && result.Count < maxEnemies && loopGuard < 30)
         {
             loopGuard++;
             List<EnemyClass> validOptions = new List<EnemyClass>();
@@ -578,7 +604,7 @@ public class RoomController : MonoBehaviour
                 case EnemyClass.Atirador:
                     result.Add(GetRandom(curAtirador));
                     remainingPts -= 2;
-                    if (remainingPts >= 2 && Random.value < 0.5f)
+                    if (remainingPts >= 2 && result.Count < maxEnemies && Random.value < 0.5f)
                     {
                         result.Add(GetRandom(curAtirador));
                         remainingPts -= 2;
@@ -597,12 +623,12 @@ public class RoomController : MonoBehaviour
             }
         }
 
-        // Garante mínimo de inimigos por onda sem inflar artificialmente caso já existam elites ou tanques
-        int targetMin = minEnemies;
+        // Garante mínimo de inimigos por onda sem ultrapassar o maxEnemies nem inflar artificialmente caso já existam elites ou tanques
+        int targetMin = Mathf.Min(minEnemies, maxEnemies);
         if (eliteSpawnedTotal > 0) targetMin = Mathf.Min(targetMin, 3);
         else if (tanqueSpawnedTotal >= 2) targetMin = Mathf.Min(targetMin, 4);
 
-        while (result.Count < targetMin)
+        while (result.Count < targetMin && result.Count < maxEnemies)
         {
             // No Round 2 e 3, varia o preenchimento entre Atiradores e MobMenor
             if (currentLvl >= 2 && curAtirador.Count > 0 && Random.value < 0.4f)
@@ -617,6 +643,12 @@ public class RoomController : MonoBehaviour
             {
                 break;
             }
+        }
+
+        // Trava final rígida para que nunca exceda maxEnemies
+        if (result.Count > maxEnemies)
+        {
+            result = result.GetRange(0, maxEnemies);
         }
 
         if (showSpawnLog)

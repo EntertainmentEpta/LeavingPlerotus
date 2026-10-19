@@ -284,21 +284,24 @@ public class RunManager : MonoBehaviour
 
         if (level == 1)
         {
-            // Level 1: Sala 1 = 10 pts, Sala 3 = 15 pts, Sala 5 = 19 pts
-            baseBudget = 8f;
-            perRoomBudget = 2.2f;
+            // Level 1: Início calmo e escalonado para aprendizado do jogador
+            // Sala 1 = 4 pts, Sala 2 = 5 pts, Sala 3 = 6 pts, Sala 4 = 7 pts, Sala 5 = 8 pts
+            baseBudget = 3.5f;
+            perRoomBudget = 0.9f;
         }
         else if (level == 2)
         {
-            // Level 2: Sala 1 = 23 pts, Sala 4 = 32 pts, Sala 7 = 41 pts
-            baseBudget = 20f;
-            perRoomBudget = 3.0f;
+            // Level 2: Intermediário
+            // Sala 1 = 14 pts, Sala 4 = 19 pts, Sala 7 = 25 pts
+            baseBudget = 12f;
+            perRoomBudget = 1.8f;
         }
         else if (level == 3)
         {
-            // Level 3: Sala 1 = 40 pts, Sala 5 = 54 pts, Sala 9 = 68 pts
-            baseBudget = 36f;
-            perRoomBudget = 3.5f;
+            // Level 3: Avançado com grande variedade de mobs pesados
+            // Sala 1 = 25 pts, Sala 5 = 35 pts, Sala 9 = 45 pts
+            baseBudget = 22f;
+            perRoomBudget = 2.5f;
         }
         else // Endless / Level 4+
         {
