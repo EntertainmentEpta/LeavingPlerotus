@@ -341,12 +341,16 @@ public class InfusionManager : MonoBehaviour
         System.Collections.Generic.List<ItemData> validItems = new System.Collections.Generic.List<ItemData>();
         System.Collections.Generic.List<string> itemIDsToInfuse = new System.Collections.Generic.List<string>();
         
+        Dictionary<string, int> requiredCounts = new Dictionary<string, int>();
         foreach(var id in itemIds)
         {
             ItemData data = ItemDatabase.Instance.GetItemData(id);
             if (data == null) continue;
             if (data.tier == ItemTier.Legendary && infusedItems.Contains(data)) continue; 
-            if (!inventory.HasItem(id, 1)) continue;
+
+            int currentReq = requiredCounts.ContainsKey(id) ? requiredCounts[id] + 1 : 1;
+            if (inventory.GetItemCount(id) < currentReq) continue;
+            requiredCounts[id] = currentReq;
             
             float costF = data.infusionEssenceCost * (1f + inflationAlpha * currentWeight);
             int cost = UnityEngine.Mathf.RoundToInt(costF);

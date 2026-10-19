@@ -397,44 +397,9 @@ public class InfusionUI : MonoBehaviour
         radialGlowSprite = Sprite.Create(tex, new Rect(0, 0, 32, 32), new Vector2(0.5f, 0.5f));
     }
 
-    private bool HasActiveEnemies()
-    {
-        GameObject[] enemies = GameObject.FindGameObjectsWithTag("Enemy");
-        foreach (var enemy in enemies)
-        {
-            if (enemy == null) continue;
-            if (!enemy.activeInHierarchy) continue;
-
-            DummyHealth health = enemy.GetComponentInChildren<DummyHealth>();
-            if (health != null)
-            {
-                if (health.CurrentHealth > 0) return true;
-            }
-            else
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
     public bool OpenPanel()
     {
-        // Impede a infusÃƒÂ£o caso haja inimigos ativos na cena
-        if (HasActiveEnemies())
-        {
-            if (EptinhoPopupController.instancia != null)
-            {
-                EptinhoPopupController.instancia.MostrarPopupAviso("Aqui ÃƒÂ© perigoso!");
-            }
-            else
-            {
-                Debug.LogWarning("[INFUSION] NÃƒÂ£o foi possÃƒÂ­vel abrir o painel: Inimigos por perto!");
-            }
-            return false;
-        }
-
-        // ReconexÃƒÂ£o de SeguranÃƒÂ§a
+        // Reconexão de Segurança
         if (infusionManager == null)
         {
             infusionManager = FindFirstObjectByType<InfusionManager>();
@@ -443,6 +408,7 @@ public class InfusionUI : MonoBehaviour
         if (painelUpgrades != null) 
         {
             painelUpgrades.SetActive(true);
+            painelUpgrades.transform.SetAsLastSibling();
             
             Canvas c = painelUpgrades.GetComponent<Canvas>();
             if (c == null) 
@@ -453,7 +419,7 @@ public class InfusionUI : MonoBehaviour
             c.overrideSorting = true;
             c.sortingOrder = 999; 
 
-            // AnimaÃƒÂ§ÃƒÂ£o de Abertura
+            // Animação de Abertura
             if(openAnimCoroutine != null) StopCoroutine(openAnimCoroutine);
             openAnimCoroutine = StartCoroutine(AnimatePanelOpen());
         }
@@ -602,7 +568,7 @@ public class InfusionUI : MonoBehaviour
             }
         }
 
-        // -- FLUXO DE SINERGIA (itens diferentes) --
+        // -- FLUXO DE SINERGIA (itens diferentes ou múltiplos) --
         int totalCost = 0;
         int totalRecycle = 0;
         string rarityString = "";
@@ -615,38 +581,74 @@ public class InfusionUI : MonoBehaviour
             ItemData data = ItemDatabase.Instance.GetItemData(id);
             if (data != null)
             {
-                float costF = data.infusionEssenceCost * (1f + 0.15f * currentWeight); // Assuming inflationAlpha is 0.15f
-                if (infusionManager != null) costF = data.infusionEssenceCost * (1f + infusionManager.inflationAlpha * currentWeight);
+                float costF = (infusionManager != null)
+                    ? data.infusionEssenceCost * (1f + infusionManager.inflationAlpha * currentWeight)
+                    : data.infusionEssenceCost * (1f + 0.1f * currentWeight);
                 
                 int cost = UnityEngine.Mathf.RoundToInt(costF);
                 
                 totalCost += cost;
                 totalRecycle += data.recycleEssenceValue;
                 
-                rarityString += data.GetTierName() + " ";
-                descString += "- " + data.description + "\n";
+                rarityString += $"[{data.GetTierName()}] ";
+
+                string tierHex = ColorUtility.ToHtmlStringRGB(data.GetTierColor());
+                descString += $"<color=#{tierHex}><b>{data.itemName.ToUpper()}</b></color> <size=80%>({data.GetTierName()})</size>\n";
+                if (data.itemAttributes != null && data.itemAttributes.Count > 0)
+                {
+                    foreach (var buff in data.itemAttributes)
+                    {
+                        string signal = buff.value > 0 ? "+" : "";
+                        string tipoMultiplier = buff.isMultiplier ? "%" : "";
+                        float displayVal = buff.isMultiplier ? (buff.value * 100f) : buff.value;
+                        descString += $"  <color=#00FFAA>• {signal}{displayVal}{tipoMultiplier}</color> {FormatterName(buff.attributeType.ToString())}\n";
+                    }
+                }
+                else
+                {
+                    descString += $"  <color=#8888AA><i>{data.description}</i></color>\n";
+                }
+
                 currentWeight += data.GetTierWeight();
             }
         }
 
         // -- SINERGIA PREVIEW --
         SynergyResult previewResult = SynergyInfusionCalculator.Instance.EvaluateInfusion(ids);
-        int discountedCost = UnityEngine.Mathf.RoundToInt(totalCost * (1f - previewResult.totalEssenceDiscount));
+        if (previewResult != null && (previewResult.totalEssenceDiscount > 0f || (previewResult.extraModifiers != null && previewResult.extraModifiers.Count > 0)))
+        {
+            descString += "\n<color=#FFD700><b>★ SINERGIA ATIVADA!</b></color>\n";
+            if (previewResult.totalEssenceDiscount > 0f)
+            {
+                descString += $"  <color=#00FFAA>• Desconto de Essência:</color> -{Mathf.RoundToInt(previewResult.totalEssenceDiscount * 100f)}%\n";
+            }
+            if (previewResult.extraModifiers != null)
+            {
+                foreach (var mod in previewResult.extraModifiers)
+                {
+                    string signal = mod.baseValue > 0 ? "+" : "";
+                    if (mod.baseValue != 0f) descString += $"  <color=#00FFAA>• Bônus Sinergia: {signal}{mod.baseValue}</color> {FormatterName(mod.statName)}\n";
+                    if (mod.multiplierValue != 0f) descString += $"  <color=#00FFAA>• Bônus Sinergia: +{mod.multiplierValue * 100f}%</color> {FormatterName(mod.statName)}\n";
+                }
+            }
+        }
 
-        if (itemRarity != null) itemRarity.text = rarityString;
+        int discountedCost = previewResult != null ? UnityEngine.Mathf.RoundToInt(totalCost * (1f - previewResult.totalEssenceDiscount)) : totalCost;
+
+        if (itemRarity != null) itemRarity.text = rarityString.Trim();
         if (itemStatsDescription != null) itemStatsDescription.text = descString;
         if (btnInfundir != null)
         {
             TMPro.TextMeshProUGUI txt = btnInfundir.GetComponentInChildren<TMPro.TextMeshProUGUI>();
             if (txt != null) 
             {
-                if (previewResult.totalEssenceDiscount > 0f)
+                if (previewResult != null && previewResult.totalEssenceDiscount > 0f)
                 {
-                    txt.text = "INFUNDIR\n(<color=#00FFAA>" + discountedCost + " Essence</color>)";
+                    txt.text = $"<b>INFUNDIR COMBINADO</b>\n<color=#00FFAA>{discountedCost} ESSÊNCIAS</color> <size=65%><color=#FF6666>(-{Mathf.RoundToInt(previewResult.totalEssenceDiscount * 100f)}%)</color></size>";
                 }
                 else
                 {
-                    txt.text = "INFUNDIR\n(" + totalCost + " Essence)";
+                    txt.text = $"<b>INFUNDIR COMBINADO</b>\n<color=#FFD700>{totalCost} ESSÊNCIAS</color>";
                 }
             }
         }
@@ -906,6 +908,10 @@ public class InfusionUI : MonoBehaviour
         StartCoroutine(ScreenFlash(fx));
         StartCoroutine(ShockwaveRingFX(new Color(fx.r, fx.g, fx.b, 0.8f)));
         ClearSelection();
+        if (InventoryUI.Instance != null)
+        {
+            InventoryUI.Instance.ClearSelection();
+        }
         if (QuestManager.Instance != null)
         {
             QuestManager.Instance.AdvanceQuest(QuestType.Interact, "infusion_completed", 1);
@@ -975,16 +981,20 @@ public class InfusionUI : MonoBehaviour
 
         if (infusionManager == null)
         {
-            Debug.LogWarning("[INFUSION UI] InfusionManager nÃƒÂ£o encontrado! BotÃƒÂ£o Reciclar ignorado.");
+            Debug.LogWarning("[INFUSION UI] InfusionManager não encontrado! Botão Reciclar ignorado.");
             return;
         }
 
         bool sucesso = infusionManager.RecycleItem(selectedItemId);
         if (sucesso)
         {
-            StartCoroutine(ScreenFlash(new Color(1f, 0.7f, 0.0f, 0.45f))); // Flash Dourado EnergÃƒÂ©tico
+            StartCoroutine(ScreenFlash(new Color(1f, 0.7f, 0.0f, 0.45f))); // Flash Dourado Energético
             StartCoroutine(ShockwaveRingFX(new Color(1f, 0.7f, 0f, 0.8f)));
             ClearSelection(); 
+            if (InventoryUI.Instance != null)
+            {
+                InventoryUI.Instance.ClearSelection();
+            }
         }
     }
 

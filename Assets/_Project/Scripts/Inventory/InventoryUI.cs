@@ -1599,16 +1599,24 @@ public class InventoryUI : MonoBehaviour
         }
         else
         {
-            // Seleciona (Limita a 2 itens)
+            // Seleciona (Limita a 4 itens)
             if (selectedSlots.Count >= 4)
             {
                 // Remove o primeiro para dar espaço ao novo
                 InventorySlotUI oldest = selectedSlots[0];
-                oldest.SetSelected(false);
+                if (oldest != null) oldest.SetSelected(false);
                 selectedSlots.RemoveAt(0);
             }
-            slot.SetSelected(true);
             selectedSlots.Add(slot);
+        }
+
+        // Atualiza a numeração ordinal de cada slot selecionado (#1, #2, #3, ...)
+        for (int i = 0; i < selectedSlots.Count; i++)
+        {
+            if (selectedSlots[i] != null)
+            {
+                selectedSlots[i].SetSelected(true, i + 1);
+            }
         }
 
         UpdateMergeButtonState();
@@ -1631,6 +1639,11 @@ public class InventoryUI : MonoBehaviour
         if (selectedSlots.Count > 0 && selectedSlots.Count <= 4)
         {
             mergeButtonObj.SetActive(true);
+            if (mergeButtonText != null)
+            {
+                string countLabel = selectedSlots.Count == 1 ? "1 ITEM" : $"{selectedSlots.Count} ITENS";
+                mergeButtonText.text = $"INFUNDIR ({countLabel})";
+            }
         }
         else
         {
@@ -1649,7 +1662,7 @@ public class InventoryUI : MonoBehaviour
         btnRect.anchorMax = new Vector2(0.5f, -0.05f);
         btnRect.pivot = new Vector2(0.5f, 1f);
         btnRect.anchoredPosition = new Vector2(-150f, 5f);
-        btnRect.sizeDelta = new Vector2(120f, 30f); 
+        btnRect.sizeDelta = new Vector2(160f, 32f); 
 
         mergeButtonObj.AddComponent<CanvasRenderer>();
         UnityEngine.UI.Image btnBg = mergeButtonObj.AddComponent<UnityEngine.UI.Image>();
@@ -1679,12 +1692,12 @@ public class InventoryUI : MonoBehaviour
         textRect.sizeDelta = Vector2.zero;
         textRect.anchoredPosition = Vector2.zero;
 
-        TMPro.TextMeshProUGUI tmpText = textObj.AddComponent<TMPro.TextMeshProUGUI>();
-        tmpText.text = "INFUSÃO";
-        tmpText.fontSize = 12;
-        tmpText.color = Color.white;
-        tmpText.alignment = TMPro.TextAlignmentOptions.Center;
-        // if (titleFont != null) tmpText.font = titleFont; // I'll leave the font logic since they might have Oswald Bold globally assigned.
+        mergeButtonText = textObj.AddComponent<TMPro.TextMeshProUGUI>();
+        mergeButtonText.text = "INFUSÃO";
+        mergeButtonText.fontSize = 12;
+        mergeButtonText.fontStyle = FontStyles.Bold;
+        mergeButtonText.color = Color.white;
+        mergeButtonText.alignment = TMPro.TextAlignmentOptions.Center;
 
         mergeButtonObj.SetActive(false);
     }

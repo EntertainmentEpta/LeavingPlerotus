@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
@@ -17,6 +17,7 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     public Image glowImage;
     public TextMeshProUGUI quantityText;
     public TextMeshProUGUI lockText;
+    public TextMeshProUGUI selectionBadgeText;
 
     // Dados do slot
     public string currentItemId;
@@ -172,6 +173,30 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         }
         lockText.enabled = false;
 
+        // === Badge de Seleção (Número de Seleção para Infusão) ===
+        if (selectionBadgeText == null)
+        {
+            GameObject badgeObj = new GameObject("SelectionBadge");
+            badgeObj.transform.SetParent(transform, false);
+            badgeObj.layer = uiLayer;
+
+            RectTransform badgeRect = badgeObj.AddComponent<RectTransform>();
+            badgeRect.anchorMin = new Vector2(0f, 0.60f);
+            badgeRect.anchorMax = new Vector2(0.40f, 1f);
+            badgeRect.sizeDelta = Vector2.zero;
+            badgeRect.anchoredPosition = Vector2.zero;
+
+            badgeObj.AddComponent<CanvasRenderer>();
+            selectionBadgeText = badgeObj.AddComponent<TextMeshProUGUI>();
+            selectionBadgeText.fontSize = slotSize * 0.22f;
+            selectionBadgeText.color = new Color(0.2f, 0.95f, 1f, 1f); // Ciano Elétrico
+            selectionBadgeText.alignment = TextAlignmentOptions.TopLeft;
+            selectionBadgeText.fontStyle = FontStyles.Bold;
+            selectionBadgeText.raycastTarget = false;
+            selectionBadgeText.margin = new Vector4(4, 2, 0, 0);
+        }
+        selectionBadgeText.enabled = false;
+
         SetEmpty();
     }
 
@@ -205,6 +230,7 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         if (fontAsset == null) return;
         if (quantityText != null) quantityText.font = fontAsset;
         if (lockText != null) lockText.font = fontAsset;
+        if (selectionBadgeText != null) selectionBadgeText.font = fontAsset;
     }
 
     /// <summary>
@@ -306,6 +332,7 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         borderImage.color = SLOT_EMPTY_BORDER;
         if (lockText != null) lockText.enabled = false;
         if (glowImage != null) glowImage.enabled = false;
+        if (selectionBadgeText != null) selectionBadgeText.enabled = false;
     }
 
     // === Hover Events para Tooltip ===
@@ -351,7 +378,7 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
 
     public bool isSelected = false;
 
-    public void SetSelected(bool selected)
+    public void SetSelected(bool selected, int orderIndex = 0)
     {
         if (isLocked || !isOccupied) return;
         isSelected = selected;
@@ -366,10 +393,19 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
                 glowImage.color = new UnityEngine.Color(0.2f, 0.6f, 1f, 0.8f);
                 glowImage.enabled = true;
             }
+            if (selectionBadgeText != null)
+            {
+                selectionBadgeText.text = orderIndex > 0 ? $"#{orderIndex}" : "✔";
+                selectionBadgeText.enabled = true;
+            }
             targetScale = new UnityEngine.Vector3(1.06f, 1.06f, 1.06f);
         }
         else
         {
+            if (selectionBadgeText != null)
+            {
+                selectionBadgeText.enabled = false;
+            }
             backgroundImage.color = SLOT_OCCUPIED_BG;
             if (currentItemData != null)
             {
