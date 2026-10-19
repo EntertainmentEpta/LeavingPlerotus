@@ -127,16 +127,22 @@ public class HomingHazard : MonoBehaviour
         health = GetComponent<DummyHealth>();
         internalPointLight = GetComponentInChildren<Light>();
 
-        // DESATIVAÇÃO DEFINITIVA DE PULSOS CONTÍNUOS ANTIGOS
-        // Desativa qualquer DamageZone ou PulseVisualizer residual
-        PulseVisualizer pv = GetComponentInChildren<PulseVisualizer>();
-        if (pv != null) pv.enabled = false;
+        // REMOÇÃO DEFINITIVA DE PULSOS E DAMAGEZONE RESIDUAL DO CONCEITO PASSADO
+        // O dano da caveira deve vir ÚNICA E EXCLUSIVAMENTE da explosão (fuse e bomba)!
+        DamageZone[] allDzs = GetComponentsInChildren<DamageZone>(true);
+        foreach (var d in allDzs)
+        {
+            if (d != null) Destroy(d);
+        }
 
-        DamageZone dz = GetComponent<DamageZone>();
-        if (dz != null) dz.enabled = false;
+        PulseVisualizer[] allPvs = GetComponentsInChildren<PulseVisualizer>(true);
+        foreach (var p in allPvs)
+        {
+            if (p != null) Destroy(p);
+        }
 
         Transform areaVis = transform.Find("AreaVisualizer");
-        if (areaVis != null) areaVis.gameObject.SetActive(false);
+        if (areaVis != null) Destroy(areaVis.gameObject);
 
         // Garante que os colisores da caveira sejam Triggers para fluir sem prender no Totem
         Collider[] cols = GetComponentsInChildren<Collider>();

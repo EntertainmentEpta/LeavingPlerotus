@@ -973,10 +973,13 @@ public class EptinhoMenuController : MonoBehaviour
 
     private void CreateItemCard(Transform parent, ItemData data)
     {
-        // Card container (1080 x 115)
+        bool isInfused = CatalogoManager.instancia != null && CatalogoManager.instancia.IsItemInfused(data.itemId);
+        Color accentColor = isInfused ? SUCCESS_COLOR : new Color(1.00f, 0.75f, 0.20f, 1.00f);
+
+        // Card container (1080 x 130)
         GameObject card = new GameObject("Card_" + data.itemId);
         card.transform.SetParent(parent, false);
-        StyleCardBase(card, 115f, TECH_CYAN, 5f);
+        StyleCardBase(card, 130f, accentColor, 5f);
 
         // Moldura do Ícone estilo slot de inventário
         GameObject iconFrame = new GameObject("IconFrame");
@@ -984,14 +987,14 @@ public class EptinhoMenuController : MonoBehaviour
         Image frameBg = iconFrame.AddComponent<Image>();
         frameBg.color = CARD_INSET_BG;
         RectTransform frameRect = iconFrame.GetComponent<RectTransform>();
-        frameRect.sizeDelta = new Vector2(85f, 85f);
+        frameRect.sizeDelta = new Vector2(90f, 90f);
         frameRect.anchorMin = new Vector2(0f, 0.5f);
         frameRect.anchorMax = new Vector2(0f, 0.5f);
         frameRect.pivot = new Vector2(0f, 0.5f);
         frameRect.anchoredPosition = new Vector2(18f, 0f);
 
         Outline iconOutline = iconFrame.AddComponent<Outline>();
-        iconOutline.effectColor = CARD_INSET_BORDER;
+        iconOutline.effectColor = isInfused ? new Color(0.25f, 0.85f, 0.55f, 0.6f) : CARD_INSET_BORDER;
         iconOutline.effectDistance = new Vector2(1.5f, -1.5f);
         Shadow iconShadow = iconFrame.AddComponent<Shadow>();
         iconShadow.effectColor = new Color(0f, 0f, 0f, 0.45f);
@@ -1005,7 +1008,7 @@ public class EptinhoMenuController : MonoBehaviour
             iconImg.sprite = data.icon;
             iconImg.preserveAspect = true;
             RectTransform iconRect = iconGO.GetComponent<RectTransform>();
-            iconRect.sizeDelta = new Vector2(75f, 75f);
+            iconRect.sizeDelta = new Vector2(80f, 80f);
             iconRect.anchorMin = new Vector2(0.5f, 0.5f);
             iconRect.anchorMax = new Vector2(0.5f, 0.5f);
             iconRect.pivot = new Vector2(0.5f, 0.5f);
@@ -1026,16 +1029,16 @@ public class EptinhoMenuController : MonoBehaviour
         nameRect.anchorMax = new Vector2(1f, 1f);
         nameRect.pivot = new Vector2(0f, 1f);
         nameRect.anchoredPosition = new Vector2(125f, -16f);
-        nameRect.sizeDelta = new Vector2(-360f, 28f);
+        nameRect.sizeDelta = new Vector2(-420f, 28f);
 
-        // Badge de Categoria (Top-Right): "● ITEM COLETÁVEL"
+        // Badge de Categoria (Top-Right): "● ATRIBUTOS DECODIFICADOS" / "● NÃO ANALISADO"
         GameObject tagGO = new GameObject("ItemTag");
         tagGO.transform.SetParent(card.transform, false);
         TextMeshProUGUI tagTMP = tagGO.AddComponent<TextMeshProUGUI>();
-        tagTMP.text = "● ITEM COLETÁVEL";
+        tagTMP.text = isInfused ? "● ATRIBUTOS DECODIFICADOS" : "● NÃO ANALISADO";
         tagTMP.fontSize = 13;
         tagTMP.fontStyle = FontStyles.Bold;
-        tagTMP.color = TECH_CYAN;
+        tagTMP.color = accentColor;
         tagTMP.alignment = TextAlignmentOptions.Right;
         if (customFont != null) tagTMP.font = customFont;
         RectTransform tagRect = tagGO.GetComponent<RectTransform>();
@@ -1043,25 +1046,44 @@ public class EptinhoMenuController : MonoBehaviour
         tagRect.anchorMax = new Vector2(1f, 1f);
         tagRect.pivot = new Vector2(1f, 1f);
         tagRect.anchoredPosition = new Vector2(-22f, -16f);
-        tagRect.sizeDelta = new Vector2(220f, 24f);
+        tagRect.sizeDelta = new Vector2(280f, 24f);
 
-        // Descrição do Item
-        if (!string.IsNullOrEmpty(data.description))
+        // Descrição e Atributos do Item
+        GameObject descGO = new GameObject("Desc");
+        descGO.transform.SetParent(card.transform, false);
+        TextMeshProUGUI descTMP = descGO.AddComponent<TextMeshProUGUI>();
+        
+        string descText = !string.IsNullOrEmpty(data.description) ? data.description : "";
+        if (isInfused)
         {
-            GameObject descGO = new GameObject("Desc");
-            descGO.transform.SetParent(card.transform, false);
-            TextMeshProUGUI descTMP = descGO.AddComponent<TextMeshProUGUI>();
-            descTMP.text = data.description;
-            descTMP.fontSize = 15;
-            descTMP.color = TEXT_BODY;
-            descTMP.textWrappingMode = TextWrappingModes.Normal;
-            RectTransform descRect = descGO.GetComponent<RectTransform>();
-            descRect.anchorMin = new Vector2(0f, 0f);
-            descRect.anchorMax = new Vector2(1f, 1f);
-            descRect.pivot = new Vector2(0f, 1f);
-            descRect.offsetMin = new Vector2(125f, 12f);
-            descRect.offsetMax = new Vector2(-22f, -50f);
+            if (data.itemAttributes != null && data.itemAttributes.Count > 0)
+            {
+                string buffsStr = "";
+                foreach (var buff in data.itemAttributes)
+                {
+                    float displayVal = buff.isMultiplier ? (buff.value - 1f) * 100f : buff.value;
+                    string signal = displayVal > 0 ? "+" : "";
+                    string suffix = buff.isMultiplier ? "%" : "";
+                    buffsStr += $"  <color=#00FFAA>• {signal}{displayVal:0.##}{suffix}</color> {buff.attributeType}";
+                }
+                descText += $"\n<size=85%><color=#80C0FF><b>Atributos decodificados:</b></color>{buffsStr}</size>";
+            }
         }
+        else
+        {
+            descText += "\n<size=85%><color=#FFCC00>• [ ? ? ? ] Propriedades Ocultas — Infunda no traje para decodificar no Catálogo.</color></size>";
+        }
+
+        descTMP.text = descText;
+        descTMP.fontSize = 14;
+        descTMP.color = TEXT_BODY;
+        descTMP.textWrappingMode = TextWrappingModes.Normal;
+        RectTransform descRect = descGO.GetComponent<RectTransform>();
+        descRect.anchorMin = new Vector2(0f, 0f);
+        descRect.anchorMax = new Vector2(1f, 1f);
+        descRect.pivot = new Vector2(0f, 1f);
+        descRect.offsetMin = new Vector2(125f, 10f);
+        descRect.offsetMax = new Vector2(-22f, -48f);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -360,6 +360,12 @@ public class InfusionManager : MonoBehaviour
 
         infusedItems.Add(data);
         infusedStackMultipliers.Add(stackMultiplier);
+
+        // Integração de Descoberta com o Catálogo do Eptinho (Fog of War de Atributos)
+        if (CatalogoManager.instancia != null && data != null)
+        {
+            CatalogoManager.instancia.RegistrarInfusao(data.itemId);
+        }
     }
 
     private void ActivateTier4Effect(ItemData data)

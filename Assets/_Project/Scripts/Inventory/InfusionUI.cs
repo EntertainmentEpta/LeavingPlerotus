@@ -281,6 +281,9 @@ public class InfusionUI : MonoBehaviour
         {
             itemIcon.color = Color.white; // Imagem 100% limpa com cores originais e vibrantes
             itemIcon.raycastTarget = false;
+            itemIcon.preserveAspect = true;
+            itemIcon.rectTransform.anchoredPosition = new Vector2(-320f, itemIcon.rectTransform.anchoredPosition.y);
+            itemIcon.rectTransform.sizeDelta = new Vector2(140f, 140f);
 
             Transform parentT = itemIcon.transform.parent;
             if (parentT != null)
@@ -562,9 +565,36 @@ public class InfusionUI : MonoBehaviour
         ItemData firstData = ItemDatabase.Instance.GetItemData(itemIds[0]);
         if (firstData != null) currentTierColor = firstData.GetTierColor();
 
-        float spacing = 120f;
         int count = itemIds.Count;
-        float startX = - (count - 1) * spacing / 2f;
+        float centerLeftX = -320f;
+        float spacing = count > 1 ? 110f : 0f;
+        float startX = centerLeftX - (count - 1) * spacing / 2f;
+
+        // Atualiza slot de fundo (CardBg) e Glow para abraçar os ícones na esquerda
+        if (cardBgImage != null)
+        {
+            RectTransform cbRt = cardBgImage.GetComponent<RectTransform>();
+            if (cbRt != null)
+            {
+                cbRt.anchoredPosition = new UnityEngine.Vector2(centerLeftX, cbRt.anchoredPosition.y);
+                float cardW = count > 1 ? 240f : 160f;
+                cbRt.sizeDelta = new UnityEngine.Vector2(cardW, 160f);
+            }
+            cardBgImage.color = new UnityEngine.Color(currentTierColor.r * 0.40f + 0.06f, currentTierColor.g * 0.40f + 0.06f, currentTierColor.b * 0.40f + 0.08f, 0.98f);
+        }
+
+        if (tierGlowImage != null)
+        {
+            RectTransform gRt = tierGlowImage.GetComponent<RectTransform>();
+            if (gRt != null)
+            {
+                gRt.anchoredPosition = new UnityEngine.Vector2(centerLeftX, gRt.anchoredPosition.y);
+                float glowW = count > 1 ? 340f : 260f;
+                gRt.sizeDelta = new UnityEngine.Vector2(glowW, 260f);
+            }
+            tierGlowImage.color = new UnityEngine.Color(currentTierColor.r, currentTierColor.g, currentTierColor.b, 0.95f);
+            tierGlowImage.enabled = true;
+        }
 
         for (int i = 0; i < count; i++)
         {
@@ -577,10 +607,12 @@ public class InfusionUI : MonoBehaviour
                 newIcon.name = "DynamicIcon_" + i;
                 newIcon.sprite = data.icon;
                 newIcon.color = UnityEngine.Color.white;
+                newIcon.preserveAspect = true;
                 newIcon.enabled = true;
                 
                 RectTransform rt = newIcon.GetComponent<RectTransform>();
                 rt.anchoredPosition = new UnityEngine.Vector2(startX + i * spacing, rt.anchoredPosition.y);
+                rt.sizeDelta = count > 1 ? new UnityEngine.Vector2(105f, 105f) : new UnityEngine.Vector2(140f, 140f);
                 
                 spawnedIcons.Add(newIcon.gameObject);
                 
@@ -591,11 +623,12 @@ public class InfusionUI : MonoBehaviour
                     plusObj.transform.SetParent(itemIcon.transform.parent, false);
                     RectTransform plusRt = plusObj.AddComponent<RectTransform>();
                     plusRt.anchoredPosition = new UnityEngine.Vector2(startX + i * spacing + (spacing / 2f), rt.anchoredPosition.y);
+                    plusRt.sizeDelta = new UnityEngine.Vector2(40f, 40f);
                     
                     plusObj.AddComponent<UnityEngine.CanvasRenderer>();
                     TMPro.TextMeshProUGUI plusText = plusObj.AddComponent<TMPro.TextMeshProUGUI>();
                     plusText.text = "+";
-                    plusText.fontSize = 60f;
+                    plusText.fontSize = 42f;
                     plusText.color = UnityEngine.Color.white;
                     plusText.alignment = TMPro.TextAlignmentOptions.Center;
                     if (customFont != null) plusText.font = customFont;
@@ -675,7 +708,12 @@ public class InfusionUI : MonoBehaviour
 
                 string tierHex = ColorUtility.ToHtmlStringRGB(data.GetTierColor());
                 descString += $"<color=#{tierHex}><b>{data.itemName.ToUpper()}</b></color> <size=80%>({data.GetTierName()})</size>\n";
-                if (data.itemAttributes != null && data.itemAttributes.Count > 0)
+                bool isDecoded = CatalogoManager.instancia != null && CatalogoManager.instancia.IsItemInfused(data.itemId);
+                if (!isDecoded)
+                {
+                    descString += "  <color=#FFCC00>• [ ? ? ? ] Efeito Oculto (Não Analisado)</color>\n";
+                }
+                else if (data.itemAttributes != null && data.itemAttributes.Count > 0)
                 {
                     foreach (var buff in data.itemAttributes)
                     {
@@ -783,13 +821,16 @@ public class InfusionUI : MonoBehaviour
 
         currentTierColor = data.GetTierColor();
 
-        // ConfiguraÃƒÂ§ÃƒÂ£o do ÃƒÂcone (Sem alterar a cor da imagem) e Glow por Tier
+        // Configuração do Ícone (Sem alterar a cor da imagem) e Glow por Tier
         if (itemIcon != null) 
         {
             itemIcon.sprite = data.icon;
             itemIcon.color = Color.white; // Imagem limpa sem filtro
+            itemIcon.preserveAspect = true;
+            itemIcon.rectTransform.anchoredPosition = new Vector2(-320f, itemIcon.rectTransform.anchoredPosition.y);
+            itemIcon.rectTransform.sizeDelta = new Vector2(140f, 140f);
             itemIcon.enabled = (data.icon != null);
-            itemIcon.transform.SetAsLastSibling(); // Garante 100% que o ÃƒÂ­cone fica no topo das camadas
+            itemIcon.transform.SetAsLastSibling(); // Garante 100% que o ícone fica no topo das camadas
 
             // Efeito visual ao selecionar
             if (gameObject.activeInHierarchy)
@@ -801,6 +842,13 @@ public class InfusionUI : MonoBehaviour
 
         if (cardBgImage != null)
         {
+            RectTransform cbRt = cardBgImage.GetComponent<RectTransform>();
+            if (cbRt != null)
+            {
+                cbRt.anchoredPosition = new Vector2(-320f, cbRt.anchoredPosition.y);
+                cbRt.sizeDelta = new Vector2(160f, 160f);
+            }
+
             // Tint visual vibrante e marcante no fundo do slot do card baseado na cor da raridade (Tier)
             cardBgImage.color = new Color(currentTierColor.r * 0.40f + 0.06f, currentTierColor.g * 0.40f + 0.06f, currentTierColor.b * 0.40f + 0.08f, 0.98f);
             
@@ -819,6 +867,12 @@ public class InfusionUI : MonoBehaviour
 
         if (tierGlowImage != null)
         {
+            RectTransform gRt = tierGlowImage.GetComponent<RectTransform>();
+            if (gRt != null)
+            {
+                gRt.anchoredPosition = new Vector2(-320f, gRt.anchoredPosition.y);
+                gRt.sizeDelta = new Vector2(260f, 260f);
+            }
             tierGlowImage.color = new Color(currentTierColor.r, currentTierColor.g, currentTierColor.b, 0.95f);
             tierGlowImage.enabled = true;
         }
@@ -828,7 +882,7 @@ public class InfusionUI : MonoBehaviour
             itemBorderImage.color = new Color(currentTierColor.r, currentTierColor.g, currentTierColor.b, 0.95f);
         }
 
-        // TÃƒÂ­tulo e Rarity
+        // Título e Rarity
         if (itemTitle != null)
         {
             itemTitle.text = data.itemName.ToUpper();
@@ -837,32 +891,40 @@ public class InfusionUI : MonoBehaviour
         
         if (itemRarity != null)
         {
-            itemRarity.text = $"<mark=#" + ColorUtility.ToHtmlStringRGBA(new Color(currentTierColor.r * 0.5f, currentTierColor.g * 0.5f, currentTierColor.b * 0.5f, 0.45f)) + ">  Ã¢â‚¬â€ " + data.GetTierName().ToUpper() + " Ã¢â‚¬â€  </mark>";
+            itemRarity.text = $"<mark=#" + ColorUtility.ToHtmlStringRGBA(new Color(currentTierColor.r * 0.5f, currentTierColor.g * 0.5f, currentTierColor.b * 0.5f, 0.45f)) + ">  — " + data.GetTierName().ToUpper() + " —  </mark>";
             itemRarity.color = currentTierColor;
         }
 
         if (recycleValueText != null)
-            recycleValueText.text = $"<color=#FFD700>+{data.recycleEssenceValue}</color> <size=65%>ESSÃƒÅ NCIAS</size>";
+            recycleValueText.text = $"<color=#FFD700>+{data.recycleEssenceValue}</color> <size=65%>ESSÊNCIAS</size>";
 
-        // DescriÃƒÂ§ÃƒÂ£o e Atributos Formatados com Estilo Sci-Fi Astronauta
+        // Descrição e Atributos Formatados com Estilo Sci-Fi Astronauta (com Fog of War de Descoberta)
         if (itemStatsDescription != null)
         {
-            if (data.itemAttributes != null && data.itemAttributes.Count > 0)
+            bool isDecoded = CatalogoManager.instancia != null && CatalogoManager.instancia.IsItemInfused(data.itemId);
+            if (!isDecoded)
             {
-                string desc = "<color=#80C0FF><b>PROPRIEDADES EXTRAÃƒÂVEIS</b></color>\n\n";
+                itemStatsDescription.text = "<color=#FFCC00><b>[ ? ? ? ] PROPRIEDADES NÃO ANALISADAS</b></color>\n\n" +
+                                            "<color=#00FFAA>• [ ? ? ? ] Efeito Oculto</color>\n\n" +
+                                            "<size=85%><color=#8899AA><i>Este composto nunca foi infundido no traje.\n" +
+                                            "Infunda pela 1ª vez para que o Eptinho analise sua composição e revele seus atributos permanentemente no Catálogo!</i></color></size>";
+            }
+            else if (data.itemAttributes != null && data.itemAttributes.Count > 0)
+            {
+                string desc = "<color=#80C0FF><b>PROPRIEDADES EXTRAÍVEIS</b></color>\n\n";
                 foreach(var buff in data.itemAttributes)
                 {
                     string signal = buff.value > 0 ? "+" : "";
                     string tipoMultiplier = buff.isMultiplier ? "%" : "";
                     float displayVal = buff.isMultiplier ? (buff.value * 100f) : buff.value;
                     
-                    desc += $"<color=#00FFAA><b>Ã¢â‚¬Â¢ {signal}{displayVal}{tipoMultiplier}</b></color>  <color=#EEEEEE>{FormatterName(buff.attributeType.ToString())}</color>\n";
+                    desc += $"<color=#00FFAA><b>• {signal}{displayVal}{tipoMultiplier}</b></color>  <color=#EEEEEE>{FormatterName(buff.attributeType.ToString())}</color>\n";
                 }
                 itemStatsDescription.text = desc;
             }
             else
             {
-                itemStatsDescription.text = "\n<color=#8888AA><i>Este item ÃƒÂ© um recurso de sÃƒÂ­ntese.\nNÃƒÂ£o possui propriedades extraÃƒÂ­veis para o traje.</i></color>";
+                itemStatsDescription.text = "\n<color=#8888AA><i>Este item é um recurso de síntese.\nNão possui propriedades extraíveis para o traje.</i></color>";
             }
         }
         
@@ -1105,6 +1167,16 @@ public class InfusionUI : MonoBehaviour
     {
         if (data.itemAttributes == null || data.itemAttributes.Count == 0)
             return "\n<color=#8888AA><i>Este item é um recurso de síntese.\nNão possui propriedades extraíveis para o traje.</i></color>";
+
+        // FOG OF WAR / CATÁLOGO DO EPTINHO: Atributos ocultos até a 1ª infusão
+        bool isDecoded = CatalogoManager.instancia != null && CatalogoManager.instancia.IsItemInfused(data.itemId);
+        if (!isDecoded)
+        {
+            return "<color=#FFCC00><b>[ ? ? ? ] PROPRIEDADES NÃO ANALISADAS</b></color>\n\n" +
+                   "<color=#00FFAA>• [ ? ? ? ] Efeito Oculto</color>\n\n" +
+                   "<size=85%><color=#8899AA><i>Este composto nunca foi infundido no traje.\n" +
+                   "Infunda pela 1ª vez para que o Eptinho analise sua composição e revele seus atributos permanentemente no Catálogo!</i></color></size>";
+        }
 
         string header = stackMultiplier > 1f ? $"PROPRIEDADES FUNDIDAS (×{stackMultiplier:0.##})" : "PROPRIEDADES EXTRAÍVEIS";
         System.Text.StringBuilder sb = new System.Text.StringBuilder($"<color=#80C0FF><b>{header}</b></color>\n\n");

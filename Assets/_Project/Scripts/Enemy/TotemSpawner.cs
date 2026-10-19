@@ -124,12 +124,12 @@ public class TotemSpawner : MonoBehaviour
             if (sCol != null) sCol.isTrigger = true;
         }
 
-        // 2. Desativa DamageZone e PulseVisualizer de anéis concêntricos contínuos durante o voo
-        DamageZone dz = newSkull.GetComponent<DamageZone>();
-        if (dz != null) dz.enabled = false;
+        // 2. Remove definitivamente DamageZone e PulseVisualizer do conceito legado de pulsos
+        DamageZone[] allDzs = newSkull.GetComponentsInChildren<DamageZone>(true);
+        foreach (var dz in allDzs) if (dz != null) Destroy(dz);
 
-        PulseVisualizer pv = newSkull.GetComponent<PulseVisualizer>();
-        if (pv != null) pv.enabled = false;
+        PulseVisualizer[] allPvs = newSkull.GetComponentsInChildren<PulseVisualizer>(true);
+        foreach (var pv in allPvs) if (pv != null) Destroy(pv);
 
         // 3. Inicializa o movimento de emergência da cabeça
         HomingHazard hazard = newSkull.GetComponent<HomingHazard>();
