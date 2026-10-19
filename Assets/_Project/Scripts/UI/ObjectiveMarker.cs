@@ -74,6 +74,14 @@ public class ObjectiveMarker : MonoBehaviour
         CheckVisibility();
     }
 
+    private void OnDisable()
+    {
+        if (indicatorVisual != null)
+        {
+            indicatorVisual.SetActive(false);
+        }
+    }
+
     private void OnDestroy()
     {
         if (boundTutorial != null)
@@ -90,6 +98,12 @@ public class ObjectiveMarker : MonoBehaviour
         if (boundButton != null)
         {
             boundButton.onClick.RemoveListener(OnButtonClicked);
+        }
+
+        if (indicatorVisual != null)
+        {
+            Destroy(indicatorVisual);
+            indicatorVisual = null;
         }
     }
 
@@ -202,13 +216,15 @@ public class ObjectiveMarker : MonoBehaviour
     {
         if (indicatorVisual != null) return;
 
+        DetermineMode();
         EnsureMarkerSprite();
 
         if (isWorldMode)
         {
-            // Constrói Canvas WorldSpace com Billboard e flutuação em coordenadas globais
+            // Constrói Canvas WorldSpace com Billboard e flutuação em coordenadas globais.
+            // Desacoplado da hierarquia do pai para não herdar distorções de escala (ex: Robozin scale 250)
             GameObject markerRoot = new GameObject("ObjectiveMarker_World");
-            markerRoot.transform.SetParent(transform, false);
+            markerRoot.transform.SetParent(null);
 
             Canvas canvas = markerRoot.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
@@ -216,7 +232,7 @@ public class ObjectiveMarker : MonoBehaviour
 
             RectTransform rect = markerRoot.GetComponent<RectTransform>();
             rect.sizeDelta = markerSize;
-            rect.localScale = Vector3.one * 0.02f;
+            rect.localScale = Vector3.one * 0.022f;
 
             GameObject imgObj = new GameObject("Icon");
             imgObj.transform.SetParent(markerRoot.transform, false);
@@ -279,15 +295,9 @@ public class ObjectiveMarker : MonoBehaviour
                 indicatorVisual.transform.position = baseWorldPos;
             }
 
-            // 3. Escala no MUNDO: compensa a escala local do pai para que a exclamação mantenha tamanho uniforme
+            // 3. Escala no MUNDO: como não tem pai, escala direta e uniforme com pulso senoidal
             float scaleMul = 1f + Mathf.Sin(Time.time * pulseFrequency) * pulseAmplitude;
-            float desiredWorldScale = 0.022f * scaleMul;
-            Vector3 lossy = transform.lossyScale;
-            indicatorVisual.transform.localScale = new Vector3(
-                Mathf.Abs(lossy.x) > 0.0001f ? desiredWorldScale / Mathf.Abs(lossy.x) : desiredWorldScale,
-                Mathf.Abs(lossy.y) > 0.0001f ? desiredWorldScale / Mathf.Abs(lossy.y) : desiredWorldScale,
-                Mathf.Abs(lossy.z) > 0.0001f ? desiredWorldScale / Mathf.Abs(lossy.z) : desiredWorldScale
-            );
+            indicatorVisual.transform.localScale = Vector3.one * (0.022f * scaleMul);
         }
         else
         {
@@ -299,18 +309,18 @@ public class ObjectiveMarker : MonoBehaviour
 
     private void TryBind()
     {
-        boundTutorial = TutorialManager.Instance;
-        if (boundTutorial != null)
+        if (boundTutorial == null && TutorialManager.Instance != null)
         {
+            boundTutorial = TutorialManager.Instance;
+            boundTutorial.stepChangedEvent -= OnStepChanged;
             boundTutorial.stepChangedEvent += OnStepChanged;
         }
 
         if (QuestManager.Instance != null)
         {
+            QuestManager.Instance.StateChanged -= CheckVisibility;
             QuestManager.Instance.StateChanged += CheckVisibility;
         }
-
-        CheckVisibility();
     }
 
     private void OnStepChanged(TutorialStep newStep) => CheckVisibility();
@@ -318,6 +328,8 @@ public class ObjectiveMarker : MonoBehaviour
     public void CheckVisibility()
     {
         if (this == null) return;
+
+        TryBind();
 
         bool shouldShow = false;
 

@@ -526,6 +526,7 @@ public class SaveManager : MonoBehaviour
     public void ResetAllProgress()
     {
         _cachedData = new PersistentSaveData();
+        _cachedData.profileName = $"Slot {ActiveSlot}";
 
         // Aplica o reset ao player atual, se ativo na cena
         GameObject player = GameManager.instance != null ? GameManager.instance.currentPlayer : null;
@@ -572,6 +573,15 @@ public class SaveManager : MonoBehaviour
             }
         }
 
+        // Reseta o TutorialManager de volta ao início (PegarAdaga)
+        if (TutorialManager.Instance != null)
+        {
+            TutorialManager.Instance.ResetTutorial();
+        }
+
+        // Reseta o estado do Robozinho na sessão
+        CraftingTableInteraction.hasInteractedWithRobot = false;
+
         // Notifica as UIs ativas para atualizar imediatamente
         OnBaseResourcesChanged?.Invoke();
         OnEquipmentChanged?.Invoke();
@@ -581,9 +591,16 @@ public class SaveManager : MonoBehaviour
             QuestManager.Instance.Reinitialize();
         }
 
-        CraftingTableInteraction.hasInteractedWithRobot = false;
+        if (FloatingBookDisplay.Instance != null)
+        {
+            FloatingBookDisplay.Instance.CheckBookVisibility();
+        }
+
         PlayerHealth.shouldPlayWakeUpAnimation = true;
-        Debug.Log("[SAVE] Progresso limpo da memória.");
+
+        // Grava imediatamente o save limpo em disco
+        SavePersistentData();
+        Debug.Log($"[SAVE] Progresso limpo da memória e persistido no Slot {ActiveSlot}.");
     }
 
     /// <summary>

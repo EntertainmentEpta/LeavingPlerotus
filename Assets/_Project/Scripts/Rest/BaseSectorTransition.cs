@@ -23,9 +23,11 @@ public class BaseSectorTransition : MonoBehaviour
     private static float nextAllowedTransitionTime = 0f;
     private const float MAX_TRANSITION_TIMEOUT = 2.5f;
 
-    // Temporary immunity: maps player collider to timestamp when immunity expires.
-    // Replaces the old indefinite HashSet<Collider> which permanently locked doors if OnTriggerExit missed.
-    private readonly Dictionary<Collider, float> temporaryImmunity = new Dictionary<Collider, float>();
+    // Rastreia colisores que acabaram de chegar neste setor através deste ou de outro portal próximo.
+    // Eles permanecem imunes a re-transição enquanto permanecerem parados dentro do trigger,
+    // sendo liberados assim que derem um passo para fora (OnTriggerExit) ou se afastarem mais de 3.0m.
+    private readonly HashSet<Collider> occupantsWhoTransitioned = new HashSet<Collider>();
+    private Vector3 lastArrivalSpawnPos = Vector3.zero;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStaticStateDomain()
@@ -52,6 +54,13 @@ public class BaseSectorTransition : MonoBehaviour
         }
     }
 
+    private void OnEnable()
+    {
+        // Limpa estado quando o setor é reativado para prevenir travas
+        occupantsWhoTransitioned.Clear();
+        lastArrivalSpawnPos = Vector3.zero;
+    }
+
     private void OnTriggerEnter(Collider other)
     {
         TryStartTransition(other);
@@ -64,10 +73,10 @@ public class BaseSectorTransition : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        if (other != null && temporaryImmunity.ContainsKey(other))
+        if (other != null && occupantsWhoTransitioned.Contains(other))
         {
-            temporaryImmunity.Remove(other);
-            Debug.Log($"[BaseSectorTransition] {other.name} saiu de {gameObject.name}; imunidade liberada.");
+            occupantsWhoTransitioned.Remove(other);
+            Debug.Log($"[BaseSectorTransition] {other.name} saiu de {gameObject.name}; portal rearmado para transição.");
         }
     }
 
@@ -75,25 +84,34 @@ public class BaseSectorTransition : MonoBehaviour
     {
         if (other == null) return false;
 
-        if (temporaryImmunity.TryGetValue(other, out float expiryTime))
+        if (occupantsWhoTransitioned.Contains(other))
         {
-            if (Time.time < expiryTime)
+            // Fail-safe de distância: se o jogador já se afastou mais de 3.0m do ponto de chegada/portal,
+            // remove a imunidade mesmo se OnTriggerExit não tiver sido capturado pela física da Unity.
+            if (lastArrivalSpawnPos != Vector3.zero && Vector3.Distance(other.transform.position, lastArrivalSpawnPos) > 3.0f)
             {
-                return true; // Still within grace period
+                occupantsWhoTransitioned.Remove(other);
+                return false;
             }
-            // Immunity expired automatically
-            temporaryImmunity.Remove(other);
+            return true; // Ainda dentro da área de chegada/trigger: NÃO retransiciona
         }
         return false;
     }
 
-    public void GrantTemporaryImmunity(Collider playerCollider, float duration = 1.0f)
+    public void GrantArrivalImmunity(Collider playerCollider, Vector3 arrivalPoint)
     {
         if (playerCollider != null)
         {
-            temporaryImmunity[playerCollider] = Time.time + duration;
-            Debug.Log($"[BaseSectorTransition] Concedendo imunidade temporária ({duration:F1}s) a {playerCollider.name} no portal {gameObject.name}");
+            occupantsWhoTransitioned.Add(playerCollider);
+            lastArrivalSpawnPos = arrivalPoint;
+            Debug.Log($"[BaseSectorTransition] Concedendo imunidade de chegada a {playerCollider.name} no portal {gameObject.name} (posição {arrivalPoint}).");
         }
+    }
+
+    // Compatibilidade com chamadas legadas
+    public void GrantTemporaryImmunity(Collider playerCollider, float duration = 1.0f)
+    {
+        GrantArrivalImmunity(playerCollider, transform.position);
     }
 
     private void TryStartTransition(Collider other)
@@ -189,16 +207,20 @@ public class BaseSectorTransition : MonoBehaviour
             // Força atualização da física para que as portas recém ativadas sejam detectadas
             Physics.SyncTransforms();
 
+            // Limpa o jogador da porta de origem para que ele possa retornar no futuro
+            occupantsWhoTransitioned.Remove(playerCollider);
+
             if (spawnPoint != null)
             {
-                // Concede imunidade temporária de 1 segundo nos portais próximos ao ponto de nascimento
-                Collider[] hitColliders = Physics.OverlapSphere(spawnPoint.position, 1.5f);
+                // Concede imunidade de chegada aos portais próximos ao ponto de nascimento no novo setor.
+                // O jogador não será re-teleportado enquanto permanecer parado no ponto de chegada.
+                Collider[] hitColliders = Physics.OverlapSphere(spawnPoint.position, 2.5f);
                 foreach (var hit in hitColliders)
                 {
                     BaseSectorTransition destTransition = hit.GetComponent<BaseSectorTransition>() ?? hit.GetComponentInParent<BaseSectorTransition>();
-                    if (destTransition != null && destTransition != this)
+                    if (destTransition != null)
                     {
-                        destTransition.GrantTemporaryImmunity(playerCollider, 1.0f);
+                        destTransition.GrantArrivalImmunity(playerCollider, spawnPoint.position);
                     }
                 }
             }

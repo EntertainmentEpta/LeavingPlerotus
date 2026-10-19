@@ -536,9 +536,22 @@ public class CheatConsole : MonoBehaviour
                 EptinhoPopupController.instancia.MostrarPopupAviso(msg);
             }
         }
+        else if (string.Equals(command, "reset", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "novojogo", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "newgame", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "resetall", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "resetsave", System.StringComparison.OrdinalIgnoreCase))
+        {
+            Debug.Log("💻 CHEAT APROVADO: Reiniciando jogo e zerando save!");
+            if (EptinhoPopupController.instancia != null)
+            {
+                EptinhoPopupController.instancia.MostrarPopupAviso("REINICIANDO JORNADA DO ZERO...");
+            }
+            SaveManager.RestartGameFromZero();
+        }
         else
         {
-            Debug.LogWarning($"💻 CHEAT RECUSADO: A palavra '{command}' não é reconhecida. Tente: door, porta, lab, caderno, resetcaderno, escrituras, limparescrituras, aim, pact, poison, thorns, EPTA, killall, endless, recursos, unlockall, orbs, boss.");
+            Debug.LogWarning($"💻 CHEAT RECUSADO: A palavra '{command}' não é reconhecida. Tente: reset, novojogo, door, porta, lab, caderno, resetcaderno, escrituras, limparescrituras, aim, pact, poison, thorns, EPTA, killall, endless, recursos, unlockall, orbs, boss.");
         }
 
         // Depois de tentar o cheat, fecha o console pro jogo voltar ao normal

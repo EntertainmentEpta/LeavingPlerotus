@@ -287,19 +287,19 @@ public class FloatingBookDisplay : MonoBehaviour
 
         if (bookModel != null)
         {
-            bookModel.gameObject.SetActive(true);
+            bookModel.gameObject.SetActive(hasBook);
         }
 
         if (sparkleVfx != null)
         {
-            sparkleVfx.SetActive(true);
+            sparkleVfx.SetActive(hasBook);
         }
 
         if (bookPointLight != null)
         {
             bookPointLight.enabled = true;
-            bookPointLight.intensity = hasBook ? 2.2f : 1.0f;
-            bookPointLight.color = hasBook ? new Color(0.35f, 0.95f, 1.0f) : new Color(0.6f, 0.7f, 0.85f);
+            bookPointLight.intensity = hasBook ? 2.2f : 0.4f;
+            bookPointLight.color = hasBook ? new Color(0.35f, 0.95f, 1.0f) : new Color(0.5f, 0.6f, 0.75f);
         }
     }
 
@@ -344,7 +344,7 @@ public class FloatingBookDisplay : MonoBehaviour
             }
             else
             {
-                promptTextMesh.text = $"[ <color=#FFE500>{currentKey}</color> ]  <color=#4DEEEA><b>Pedestal de Pesquisa</b></color>\n<size=75%><color=#AAAAAA>(Pressione <color=#FFE500>F8</color> para Desbloquear)</color></size>";
+                promptTextMesh.text = $"[ <color=#FFE500>{currentKey}</color> ]  <color=#AAAAAA><b>Pedestal Vazio</b></color>\n<size=75%><color=#888888>(Caderno perdido em Plerotus | <color=#FFE500>F8</color> Cheat)</color></size>";
             }
         }
     }
@@ -443,8 +443,14 @@ public class FloatingBookDisplay : MonoBehaviour
         {
             if (!hasBook)
             {
-                Debug.Log("[FloatingBookDisplay] Primeira interação no pedestal: auto-desbloqueando para testes!");
-                LoreManager.Instance.UnlockAllScripturesAndBook();
+                Debug.Log("[FloatingBookDisplay] Interação no pedestal vazio.");
+                if (EptinhoPopupController.instancia != null)
+                {
+                    EptinhoPopupController.instancia.MostrarPopupAviso(
+                        "PEDESTAL VAZIO\nO Caderno de Campo deve ser resgatado em Plerotus.\n(Pressione F8 se quiser desbloqueá-lo como Cheat de teste)"
+                    );
+                }
+                return;
             }
             ToggleJournal();
         }

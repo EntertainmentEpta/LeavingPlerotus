@@ -97,4 +97,18 @@ public class TutorialManager : MonoBehaviour
     /// Compatibilidade retroativa. Avança o passo atual diretamente.
     /// </summary>
     public void CompleteCurrentStep() => CompleteStep(currentStep);
+
+    /// <summary>
+    /// Reseta o tutorial de volta ao início (PegarAdaga) e notifica os marcadores/UIs.
+    /// </summary>
+    public void ResetTutorial()
+    {
+        currentStep = TutorialStep.PegarAdaga;
+        if (SaveManager.instance != null && SaveManager.instance.CachedData != null)
+        {
+            SaveManager.instance.CachedData.tutorialStep = (int)currentStep;
+        }
+        stepChangedEvent?.Invoke(currentStep);
+        Debug.Log("[TutorialManager] Tutorial resetado para o início: PegarAdaga.");
+    }
 }
