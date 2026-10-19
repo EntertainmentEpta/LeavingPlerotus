@@ -1079,6 +1079,16 @@ public class CraftingUI : MonoBehaviour
             UpdateRecipeCategoryTabs(); 
             TutorialManager.Instance?.CompleteStep(TutorialStep.AbrirAbaArmas);
             if (tabWeaponsMarker != null) tabWeaponsMarker.CheckVisibility();
+
+            // Como o Machado de Cristal já está liberado de graça, completa o passo de forjar e direciona para equipar no Rack
+            if (TutorialManager.Instance != null && TutorialManager.Instance.currentStep == TutorialStep.ForjarArma)
+            {
+                bool hasAxe = SaveManager.instance != null && SaveManager.instance.GetAllCraftedEquipmentIds().Contains("eq_crystal_axe");
+                if (hasAxe)
+                {
+                    TutorialManager.Instance.CompleteStep(TutorialStep.ForjarArma);
+                }
+            }
         });
 
         tabWeaponsMarker = tabWeapons.AddComponent<ObjectiveMarker>();

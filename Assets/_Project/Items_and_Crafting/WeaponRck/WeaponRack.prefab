@@ -236,7 +236,7 @@ MonoBehaviour:
     weaponType: 2
     weaponPrefab: {fileID: 6809705995638202345, guid: 4bada7310c92e2646b3371a61727fdc9, type: 3}
     displayPoint: {fileID: 7173436877601531411}
-    unlockedByDefault: 0
+    unlockedByDefault: 1
     requiredCraftId: eq_crystal_axe
     displayInstance: {fileID: 0}
     pedestalPad: {fileID: 0}

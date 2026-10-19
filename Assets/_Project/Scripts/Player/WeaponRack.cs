@@ -302,14 +302,14 @@ public class WeaponRack : MonoBehaviour
                 weaponPrefab = Resources.Load<GameObject>("dagger_low")
             });
 
-            // Slot 1: Machado de Cristal (Desbloqueável no Robozinho)
+            // Slot 1: Machado de Cristal (Desbloqueado gratuitamente desde o início)
             slots.Add(new WeaponRackSlot
             {
                 weaponId = "crystal_axe",
                 displayName = "MACHADO DE CRISTAL",
                 description = "Golpes pesados devastadores em área com alto impacto.",
                 weaponType = WeaponType.Axe,
-                unlockedByDefault = false,
+                unlockedByDefault = true,
                 requiredCraftId = "eq_crystal_axe",
                 weaponPrefab = Resources.Load<GameObject>("Crystal_Axe")
             });

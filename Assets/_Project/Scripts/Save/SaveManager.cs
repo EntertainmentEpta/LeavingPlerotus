@@ -125,6 +125,7 @@ public class SaveManager : MonoBehaviour
                 if (_cachedData.baseResources == null) _cachedData.baseResources = new List<ItemSaveEntry>();
                 if (_cachedData.purchasedUpgradeIndices == null) _cachedData.purchasedUpgradeIndices = new List<int>();
                 if (_cachedData.craftedEquipmentIds == null) _cachedData.craftedEquipmentIds = new List<string>();
+                if (!_cachedData.craftedEquipmentIds.Contains("eq_crystal_axe")) _cachedData.craftedEquipmentIds.Add("eq_crystal_axe");
                 if (_cachedData.equippedEquipmentIds == null) _cachedData.equippedEquipmentIds = new List<string>();
                 if (_cachedData.inimigosDescobertos == null) _cachedData.inimigosDescobertos = new List<string>();
                 if (_cachedData.completedQuestIds == null) _cachedData.completedQuestIds = new List<string>();
@@ -527,6 +528,10 @@ public class SaveManager : MonoBehaviour
     {
         _cachedData = new PersistentSaveData();
         _cachedData.profileName = $"Slot {ActiveSlot}";
+        if (!_cachedData.craftedEquipmentIds.Contains("eq_crystal_axe"))
+        {
+            _cachedData.craftedEquipmentIds.Add("eq_crystal_axe");
+        }
 
         // Aplica o reset ao player atual, se ativo na cena
         GameObject player = GameManager.instance != null ? GameManager.instance.currentPlayer : null;
