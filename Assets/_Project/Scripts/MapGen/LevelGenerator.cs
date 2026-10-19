@@ -123,9 +123,19 @@ public class LevelGenerator : MonoBehaviour
     [Tooltip("Quantas vezes o mesmo prefab pode aparecer por run. Evita repetição excessiva.")]
     public int roomLimitPerType = 5;
 
-    [Range(0f, 1f)]
-    [Tooltip("Chance de cada beco sem saída virar sala do Mercador. O último garante o spawn caso nenhum sorteie.")]
-    public float merchantRoomChance = 0.25f;
+    [Header("Chances Progressivas do Mercador por Fase")]
+    [Tooltip("Chance do Mercador aparecer na Fase 1 (10%).")]
+    [Range(0f, 1f)] public float merchantChancePhase1 = 0.10f;
+
+    [Tooltip("Chance do Mercador aparecer na Fase 2 (20%).")]
+    [Range(0f, 1f)] public float merchantChancePhase2 = 0.20f;
+
+    [Tooltip("Chance do Mercador aparecer na Fase 3 (30%).")]
+    [Range(0f, 1f)] public float merchantChancePhase3 = 0.30f;
+
+    [Header("Lore e Escrituras")]
+    [Tooltip("Chance balanceada de uma página de escritura ancestral aparecer na dungeon nesta fase (35%). Evita que todo beco tenha escritura.")]
+    [Range(0f, 1f)] public float scriptureSpawnChance = 0.35f;
 
     [Header("Configurações")]
     [Tooltip("Delay extra após a geração antes de notificar o GameManager (para assets carregarem).")]
@@ -543,16 +553,15 @@ public class LevelGenerator : MonoBehaviour
         openOutputs.Clear();
 
         // Varre a cena para coletar qualquer ponto de saída (Saida) que tenha ficado desocupado
-        // (por exemplo em salas 3-Way, 4-Way ou ramificações não expandidas)
+        // (por exemplo em salas 3-Way, 4-Way ou ramificações não expandidas).
+        // A Safe Room / Start Room é EXCLUÍDA: suas outras saídas não devem receber becos.
         ConnectionPoint[] allSceneCPs = FindObjectsByType<ConnectionPoint>(FindObjectsSortMode.None);
         foreach (var cp in allSceneCPs)
         {
             if (cp != null && cp.pointType == ConnectionPoint.PointType.Saida && !cp.isOccupied)
             {
-                // Protege a saída West / Nave da Safe Room inicial
-                if (cp.gameObject.name.Contains("West") || cp.gameObject.name.Contains("Nave")) continue;
                 string rootName = cp.transform.root != null ? cp.transform.root.gameObject.name : "";
-                if (rootName.Contains("Safe") && (cp.gameObject.name.Contains("West") || cp.gameObject.name.Contains("Nave"))) continue;
+                if (rootName.Contains("Safe") || (startRoomPrefab != null && rootName.Contains(startRoomPrefab.name))) continue;
 
                 if (!deadEnds.Contains(cp))
                 {
@@ -566,13 +575,16 @@ public class LevelGenerator : MonoBehaviour
         if (pHealthCheck != null && pHealthCheck.hasPactCorrupted) canSpawnMerchantInRun = false;
         if (MerchantUIController.HasInstance && MerchantUIController.Instance.HasMadePactInRun) canSpawnMerchantInRun = false;
 
+        // Chance progressiva por fase (Fase 1: 10%, Fase 2: 20%, Fase 3: 30%, Fase 4 Boss: 0%)
+        float currentMerchantChance = GetMerchantChanceForCurrentPhase();
+        bool rollMerchantSpawn = canSpawnMerchantInRun && !merchantRoomSpawned && (Random.value < currentMerchantChance);
+        Debug.Log($"[LevelGenerator] 🧙 Sorteio do Mercador: Round={RunManager.instance?.currentLevel ?? 1}, Chance={currentMerchantChance:P0}, Sorteado={rollMerchantSpawn}");
+
         for (int i = 0; i < deadEnds.Count; i++)
         {
             if (deadEnds[i] == null || deadEnds[i].isOccupied) continue;
 
-            bool isLast = (i == deadEnds.Count - 1);
-
-            if (canSpawnMerchantInRun && !merchantRoomSpawned && (Random.value < merchantRoomChance || isLast))
+            if (rollMerchantSpawn && !merchantRoomSpawned)
             {
                 if (TrySpawnMerchantRoom(deadEnds[i]))
                 {
@@ -646,9 +658,9 @@ public class LevelGenerator : MonoBehaviour
         {
             if (cp != null && cp.pointType == ConnectionPoint.PointType.Saida && !cp.isOccupied)
             {
-                if (cp.gameObject.name.Contains("West") || cp.gameObject.name.Contains("Nave")) continue;
+                // Protege a sala inicial (Start Room / Safe Room): nenhuma de suas saídas deve receber becos
                 string rootName = cp.transform.root != null ? cp.transform.root.gameObject.name : "";
-                if (rootName.Contains("Safe") && (cp.gameObject.name.Contains("West") || cp.gameObject.name.Contains("Nave"))) continue;
+                if (rootName.Contains("Safe") || (startRoomPrefab != null && rootName.Contains(startRoomPrefab.name))) continue;
 
                 TrySpawnDeadEnd(cp);
             }
@@ -766,6 +778,26 @@ public class LevelGenerator : MonoBehaviour
         RegisterRoomBounds(directRoom);
         Debug.Log($"[LevelGenerator] ✅ {label} criado (conexão direta).");
         return true;
+    }
+
+    /// <summary>
+    /// Retorna a chance do Mercador baseada na fase/round atual:
+    /// Fase 1: 10%, Fase 2: 20%, Fase 3: 30%, Fase 4 (Boss): 0%.
+    /// </summary>
+    public float GetMerchantChanceForCurrentPhase()
+    {
+        int level = (RunManager.instance != null) ? RunManager.instance.currentLevel : 1;
+        switch (level)
+        {
+            case 1:
+                return merchantChancePhase1;
+            case 2:
+                return merchantChancePhase2;
+            case 3:
+                return merchantChancePhase3;
+            default:
+                return 0f; // Boss round ou além não gera mercador
+        }
     }
 
     bool TrySpawnMerchantRoom(ConnectionPoint targetOutput)
@@ -1146,16 +1178,29 @@ public class LevelGenerator : MonoBehaviour
 
         if (isStartRoom && outputs.Count > 0)
         {
-            // Na Safe Room, apenas UMA saída aleatória é aberta inicialmente
-            // (a saída West fica reservada para a Nave/Crash Site — não deve gerar salas)
+            // Na Safe Room / Start Room, apenas UMA saída é aberta inicialmente para o caminho principal.
+            // As demais saídas da sala inicial NÃO devem receber salas nem becos.
             List<ConnectionPoint> validStart = outputs
                 .Where(cp => !cp.gameObject.name.Contains("West") && !cp.gameObject.name.Contains("Nave"))
                 .ToList();
 
+            ConnectionPoint chosenStartOutput = null;
             if (validStart.Count > 0)
-                openOutputs.Add(validStart[Random.Range(0, validStart.Count)]);
+                chosenStartOutput = validStart[Random.Range(0, validStart.Count)];
             else if (outputs.Count > 0)
-                openOutputs.Add(outputs[Random.Range(0, outputs.Count)]);
+                chosenStartOutput = outputs[Random.Range(0, outputs.Count)];
+
+            if (chosenStartOutput != null)
+                openOutputs.Add(chosenStartOutput);
+
+            // Marca todas as outras saídas da sala inicial como ocupadas para que o gerador NUNCA anexe becos nelas
+            foreach (var op in outputs)
+            {
+                if (op != chosenStartOutput)
+                {
+                    op.isOccupied = true;
+                }
+            }
         }
         else
         {
@@ -1486,12 +1531,25 @@ public class LevelGenerator : MonoBehaviour
     }
 
     /// <summary>
-    /// Spawna 1 página de escritura ancestral pelo chão das galerias (Dead Ends ou Anomalia) a cada floor.
-    /// Garante que o jogador descubra novas páginas a cada expedição.
+    /// Spawna 1 página de escritura ancestral pelo chão das galerias (Dead Ends ou Anomalia) com chance balanceada.
+    /// Evita que todo beco/floor tenha escritura garantida, mantendo o mistério e valor da exploração.
     /// </summary>
     private void TrySpawnScripturePageInDungeon()
     {
         if (FindFirstObjectByType<ScripturePickup>() != null) return;
+
+        // 1. Se todas as escrituras já foram catalogadas, encerra
+        if (LoreManager.Instance != null && LoreManager.Instance.GetNextUndiscoveredScripture() == null)
+        {
+            return;
+        }
+
+        // 2. Sorteio balanceado por floor/run: nem todo beco tem escritura
+        if (Random.value > scriptureSpawnChance)
+        {
+            Debug.Log($"[LevelGenerator] 📜 Sorteio de escritura: nenhuma página gerada nesta fase (Chance={scriptureSpawnChance:P0}).");
+            return;
+        }
 
         // Escolhe o melhor local: Sala de Anomalia ou Dead End distante
         Vector3 spawnPos = Vector3.zero;
