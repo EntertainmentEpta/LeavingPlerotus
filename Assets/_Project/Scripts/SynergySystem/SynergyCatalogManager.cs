@@ -65,29 +65,74 @@ public class SynergyCatalogManager : MonoBehaviour
         }
     }
 
+    void Start()
+    {
+        LoadFromSave();
+    }
+
+    private bool saveCarregado = false;
+
+    /// <summary>
+    /// Carrega nós e sinergias descobertas de sessões anteriores via SaveManager.
+    /// </summary>
+    public void LoadFromSave()
+    {
+        if (SaveManager.instance == null || SaveManager.instance.CachedData == null) return;
+        saveCarregado = true;
+
+        var cached = SaveManager.instance.CachedData;
+        if (cached.discoveredSynergies != null)
+        {
+            foreach (string id in cached.discoveredSynergies)
+            {
+                if (!string.IsNullOrEmpty(id) && !discoveredSet.Contains(id))
+                {
+                    discoveredSet.Add(id);
+                    if (!discoveredNodeIDs.Contains(id))
+                        discoveredNodeIDs.Add(id);
+                }
+            }
+        }
+    }
+
     // ── API Pública ────────────────────────────────────────────
 
     /// <summary>
-    /// Registra a descoberta de um nó de sinergia. Ignora IDs nulos, vazios ou já registrados.
+    /// Registra a descoberta de um nó ou receita de sinergia. Ignora IDs nulos, vazios ou já registrados.
     /// </summary>
     public void DiscoverNode(string nodeID)
     {
         if (string.IsNullOrEmpty(nodeID)) return;
+        if (!saveCarregado) LoadFromSave();
         if (discoveredSet.Contains(nodeID)) return;
 
         discoveredSet.Add(nodeID);
         discoveredNodeIDs.Add(nodeID);
 
-        Debug.Log($"[SYNERGY CATALOG] Nó descoberto: {nodeID}");
+        // Persiste no save
+        if (SaveManager.instance != null && SaveManager.instance.CachedData != null)
+        {
+            var cached = SaveManager.instance.CachedData;
+            if (cached.discoveredSynergies == null) cached.discoveredSynergies = new List<string>();
+            if (!cached.discoveredSynergies.Contains(nodeID))
+            {
+                cached.discoveredSynergies.Add(nodeID);
+                SaveManager.instance.SavePersistentData();
+            }
+        }
+
+        Debug.Log($"[SYNERGY CATALOG] Nó/Sinergia descoberto: {nodeID}");
 
         OnNodeDiscovered?.Invoke(nodeID);
     }
 
     /// <summary>
-    /// Verifica se um nó já foi descoberto.
+    /// Verifica se um nó ou receita de sinergia já foi descoberto.
     /// </summary>
     public bool IsNodeDiscovered(string nodeID)
     {
+        if (string.IsNullOrEmpty(nodeID)) return false;
+        if (!saveCarregado) LoadFromSave();
         return discoveredSet.Contains(nodeID);
     }
 
@@ -96,6 +141,7 @@ public class SynergyCatalogManager : MonoBehaviour
     /// </summary>
     public IReadOnlyList<string> GetDiscoveredIDs()
     {
+        if (!saveCarregado) LoadFromSave();
         return discoveredNodeIDs;
     }
 }

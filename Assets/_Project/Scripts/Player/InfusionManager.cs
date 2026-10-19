@@ -465,12 +465,34 @@ public class InfusionManager : MonoBehaviour
             Debug.Log($"[INFUSÃO] Sucesso! {data.itemName} infundido via mÃºltipla.");
         }
 
-        // AplicaÃ§Ã£o dos Modificadores Extras
+        // Aplicação dos Modificadores Extras
         if (result.extraModifiers != null)
         {
             foreach (var mod in result.extraModifiers)
             {
                 ApplySynergyModifier(mod);
+            }
+        }
+
+        // Se uma ou mais sinergias foram ativadas:
+        if (result.hasSynergy && result.triggeredRecipeIDs != null && result.triggeredRecipeIDs.Count > 0)
+        {
+            foreach (var recId in result.triggeredRecipeIDs)
+            {
+                if (SynergyCatalogManager.Instance != null)
+                {
+                    SynergyCatalogManager.Instance.DiscoverNode(recId);
+                }
+            }
+
+            string recipesMsg = string.Join(", ", result.triggeredRecipeNames);
+            Debug.Log($"[INFUSÃO] ★ Sinergia(s) Alquímica(s) Catalogada(s): {recipesMsg}!");
+
+            if (EptinhoPopupController.instancia != null)
+            {
+                EptinhoPopupController.instancia.MostrarPopupAviso(
+                    $"★ SINERGIA ALQUÍMICA ATIVADA!\n'{recipesMsg}' registrada no Mapa Cósmico (M)!"
+                );
             }
         }
 

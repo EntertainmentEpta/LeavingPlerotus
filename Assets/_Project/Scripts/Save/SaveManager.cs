@@ -128,6 +128,9 @@ public class SaveManager : MonoBehaviour
                 if (!_cachedData.craftedEquipmentIds.Contains("eq_crystal_axe")) _cachedData.craftedEquipmentIds.Add("eq_crystal_axe");
                 if (_cachedData.equippedEquipmentIds == null) _cachedData.equippedEquipmentIds = new List<string>();
                 if (_cachedData.inimigosDescobertos == null) _cachedData.inimigosDescobertos = new List<string>();
+                if (_cachedData.itensCatalogados == null) _cachedData.itensCatalogados = new List<string>();
+                if (_cachedData.itensInfundidos == null) _cachedData.itensInfundidos = new List<string>();
+                if (_cachedData.discoveredSynergies == null) _cachedData.discoveredSynergies = new List<string>();
                 if (_cachedData.completedQuestIds == null) _cachedData.completedQuestIds = new List<string>();
                 if (_cachedData.seenDialogIds == null) _cachedData.seenDialogIds = new List<string>();
                 if (_cachedData.activeQuestId == null) _cachedData.activeQuestId = "";

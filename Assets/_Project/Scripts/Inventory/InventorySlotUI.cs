@@ -18,10 +18,13 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     public TextMeshProUGUI quantityText;
     public TextMeshProUGUI lockText;
     public TextMeshProUGUI selectionBadgeText;
+    public TextMeshProUGUI synergyBadgeText;
 
     // Dados do slot
     public string currentItemId;
     public bool isSyntheticBag = false;
+    public bool hasSynergyWithInventory = false;
+    public string synergisticRecipeName = null;
     private int currentQuantity;
     private ItemData currentItemData;
     private bool isOccupied = false;
@@ -198,6 +201,31 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         }
         selectionBadgeText.enabled = false;
 
+        // === Badge de Sinergia (Estrela Dourada no canto superior direito) ===
+        if (synergyBadgeText == null)
+        {
+            GameObject synObj = new GameObject("SynergyBadge");
+            synObj.transform.SetParent(transform, false);
+            synObj.layer = uiLayer;
+
+            RectTransform synRect = synObj.AddComponent<RectTransform>();
+            synRect.anchorMin = new Vector2(0.55f, 0.55f);
+            synRect.anchorMax = new Vector2(1f, 1f);
+            synRect.sizeDelta = Vector2.zero;
+            synRect.anchoredPosition = Vector2.zero;
+
+            synObj.AddComponent<CanvasRenderer>();
+            synergyBadgeText = synObj.AddComponent<TextMeshProUGUI>();
+            synergyBadgeText.fontSize = slotSize * 0.26f;
+            synergyBadgeText.color = new Color(1f, 0.82f, 0.15f, 1f); // Ouro Cósmico Solar
+            synergyBadgeText.alignment = TextAlignmentOptions.TopRight;
+            synergyBadgeText.fontStyle = FontStyles.Bold;
+            synergyBadgeText.raycastTarget = false;
+            synergyBadgeText.margin = new Vector4(0, 2, 4, 0);
+            synergyBadgeText.text = "★";
+        }
+        synergyBadgeText.enabled = false;
+
         SetEmpty();
     }
 
@@ -232,6 +260,21 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         if (quantityText != null) quantityText.font = fontAsset;
         if (lockText != null) lockText.font = fontAsset;
         if (selectionBadgeText != null) selectionBadgeText.font = fontAsset;
+        if (synergyBadgeText != null) synergyBadgeText.font = fontAsset;
+    }
+
+    /// <summary>
+    /// Ativa ou desativa o indicador visual de que este item forma sinergia com outro item no inventário.
+    /// </summary>
+    public void SetSynergyIndicator(bool active, string recipeName)
+    {
+        hasSynergyWithInventory = active;
+        synergisticRecipeName = recipeName;
+
+        if (synergyBadgeText != null)
+        {
+            synergyBadgeText.enabled = active && isOccupied && !isLocked;
+        }
     }
 
     /// <summary>
@@ -306,6 +349,9 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
             quantityText.enabled = false;
             if (lockText != null) lockText.enabled = true;
             if (glowImage != null) glowImage.enabled = false;
+            hasSynergyWithInventory = false;
+            synergisticRecipeName = null;
+            if (synergyBadgeText != null) synergyBadgeText.enabled = false;
         }
         else
         {
@@ -324,6 +370,8 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         currentItemData = null;
         isOccupied = false;
         isLocked = false;
+        hasSynergyWithInventory = false;
+        synergisticRecipeName = null;
 
         if (!isHovered)
             backgroundImage.color = SLOT_EMPTY_BG;
@@ -334,6 +382,7 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         if (lockText != null) lockText.enabled = false;
         if (glowImage != null) glowImage.enabled = false;
         if (selectionBadgeText != null) selectionBadgeText.enabled = false;
+        if (synergyBadgeText != null) synergyBadgeText.enabled = false;
     }
 
     // === Hover Events para Tooltip ===
@@ -350,7 +399,12 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
 
             if (tooltip != null && currentItemData != null)
             {
-                tooltip.Show(currentItemData, currentQuantity);
+                string extra = null;
+                if (hasSynergyWithInventory && !string.IsNullOrEmpty(synergisticRecipeName))
+                {
+                    extra = $"<color=#FFD700>★ Combina em Sinergia com outro item da mochila:\n<b>{synergisticRecipeName}</b></color>";
+                }
+                tooltip.Show(currentItemData, currentQuantity, extra);
             }
         }
         else

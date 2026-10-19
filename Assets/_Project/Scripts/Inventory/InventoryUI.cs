@@ -557,6 +557,16 @@ public class InventoryUI : MonoBehaviour
 
         // Preenche os slots com dados do inventário (sem stacking: cada item em 1 slot dedicado)
         List<string> itemSlots = playerInventory.GetItemSlots();
+
+        // Avalia itens que possuem sinergia ativa com outro item presente na mochila
+        Dictionary<string, string> itemToRecipe = new Dictionary<string, string>();
+        HashSet<string> synergisticItems = SynergyDatabase.GetSynergisticItemsInList(itemSlots, out itemToRecipe);
+
+        if (synergisticItems.Count > 0)
+        {
+            headerText.text += "  <size=12><color=#FFD700>★ Sinergia Disponível</color></size>";
+        }
+
         int slotIndex = 0;
 
         for (int i = 0; i < itemSlots.Count; i++)
@@ -572,6 +582,11 @@ public class InventoryUI : MonoBehaviour
 
             slots[slotIndex].SetLocked(false);
             slots[slotIndex].SetItem(itemId, 1, itemData);
+
+            bool hasSyn = !string.IsNullOrEmpty(itemId) && synergisticItems.Contains(itemId);
+            string recName = hasSyn && itemToRecipe.TryGetValue(itemId, out var rName) ? rName : null;
+            slots[slotIndex].SetSynergyIndicator(hasSyn, recName);
+
             slotIndex++;
         }
 

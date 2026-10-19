@@ -40,6 +40,7 @@ public class PersistentSaveData
     public List<string> inimigosDescobertos = new List<string>();
     public List<string> itensCatalogados = new List<string>();
     public List<string> itensInfundidos = new List<string>();
+    public List<string> discoveredSynergies = new List<string>();
 
     // --- Sistema de Quests Nível AAA ---
     public string activeQuestId = "";

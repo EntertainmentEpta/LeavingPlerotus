@@ -9,6 +9,7 @@ public class SynergyResult
     public float totalEssenceDiscount = 0f;
     public List<StatModifier> extraModifiers = new List<StatModifier>();
     public List<string> triggeredRecipeNames = new List<string>();
+    public List<string> triggeredRecipeIDs = new List<string>();
     public HashSet<string> usedItemIDs = new HashSet<string>();
     public bool hasSynergy => (triggeredRecipeNames != null && triggeredRecipeNames.Count > 0) || totalEssenceDiscount > 0f || (extraModifiers != null && extraModifiers.Count > 0);
 }
@@ -74,7 +75,7 @@ public class SynergyInfusionCalculator : MonoBehaviour
             }
         }
 
-        Debug.Log($"[SYNERGY CALCULATOR] Carregadas {availableRecipes.Count} receitas de sinergia.");
+        Debug.Log($"[SYNERGY CALCULATOR] Carregadas {availableRecipes.Count} receitas adicionais de sinergia.");
     }
 
     // ── API Pública ────────────────────────────────────────────
@@ -97,18 +98,43 @@ public class SynergyInfusionCalculator : MonoBehaviour
         if (selectedItemIDs == null || selectedItemIDs.Count == 0)
             return result;
 
-        HashSet<string> selectedSet = new HashSet<string>(selectedItemIDs);
+        // 1. Avalia contra as 10 Sinergias Oficiais do SynergyDatabase
+        var dbSynergies = SynergyDatabase.EvaluateSynergies(selectedItemIDs, out HashSet<string> usedDbIds);
+        foreach (var recipe in dbSynergies)
+        {
+            if (!result.triggeredRecipeIDs.Contains(recipe.id))
+            {
+                result.triggeredRecipeIDs.Add(recipe.id);
+            }
+            if (!string.IsNullOrEmpty(recipe.name) && !result.triggeredRecipeNames.Contains(recipe.name))
+            {
+                result.triggeredRecipeNames.Add(recipe.name);
+            }
+            result.totalEssenceDiscount += recipe.essenceDiscount;
+            if (recipe.modifiers != null)
+            {
+                result.extraModifiers.AddRange(recipe.modifiers);
+            }
+            Debug.Log($"[SYNERGY CALCULATOR] Sinergia Oficial Ativada: {recipe.name} (-{recipe.essenceDiscount * 100f:F0}% Essência)!");
+        }
 
+        foreach (var uId in usedDbIds)
+        {
+            result.usedItemIDs.Add(uId);
+        }
+
+        // 2. Avalia nós customizados do ScriptableObject (caso existam adicionais na pasta Resources)
+        HashSet<string> selectedSet = new HashSet<string>(selectedItemIDs);
         foreach (var recipe in availableRecipes)
         {
-            bool hasAllRequirements = true;
+            if (recipe == null) continue;
+            if (result.triggeredRecipeIDs.Contains(recipe.NodeID)) continue;
 
-            // Verifica se a receita possui requisitos para validar e se todos eles estão nos itens selecionados
+            bool hasAllRequirements = true;
             if (recipe.SynergyRequirements != null && recipe.SynergyRequirements.Count > 0)
             {
                 foreach (var req in recipe.SynergyRequirements)
                 {
-                    // Se o requisito for nulo ou o ID do requisito não estiver na seleção, falha
                     if (req == null || !selectedSet.Contains(req.NodeID))
                     {
                         hasAllRequirements = false;
@@ -118,14 +144,16 @@ public class SynergyInfusionCalculator : MonoBehaviour
             }
             else
             {
-                // Uma receita vazia (sem requisitos) não deve ativar automaticamente
                 hasAllRequirements = false;
             }
 
             if (hasAllRequirements)
             {
-                // Combo validado! Adiciona os bônus da receita ao resultado final
                 result.totalEssenceDiscount += recipe.EssenceDiscountPercentage;
+                if (!string.IsNullOrEmpty(recipe.NodeID) && !result.triggeredRecipeIDs.Contains(recipe.NodeID))
+                {
+                    result.triggeredRecipeIDs.Add(recipe.NodeID);
+                }
                 if (!string.IsNullOrEmpty(recipe.DisplayName) && !result.triggeredRecipeNames.Contains(recipe.DisplayName))
                 {
                     result.triggeredRecipeNames.Add(recipe.DisplayName);
@@ -147,7 +175,7 @@ public class SynergyInfusionCalculator : MonoBehaviour
                     result.extraModifiers.AddRange(recipe.StatModifiers);
                 }
                 
-                Debug.Log($"[SYNERGY CALCULATOR] Combo ativado: {recipe.DisplayName}!");
+                Debug.Log($"[SYNERGY CALCULATOR] Combo ScriptableObject ativado: {recipe.DisplayName}!");
             }
         }
 
@@ -155,5 +183,13 @@ public class SynergyInfusionCalculator : MonoBehaviour
         result.totalEssenceDiscount = Mathf.Clamp01(result.totalEssenceDiscount);
 
         return result;
+    }
+
+    /// <summary>
+    /// Retorna todos os itens da lista informada que compõem ao menos uma sinergia com outro item da lista.
+    /// </summary>
+    public HashSet<string> GetSynergisticItemsInList(IEnumerable<string> inventoryItemIds, out Dictionary<string, string> itemToRecipeName)
+    {
+        return SynergyDatabase.GetSynergisticItemsInList(inventoryItemIds, out itemToRecipeName);
     }
 }
