@@ -29,7 +29,7 @@ public class ItemPickup : MonoBehaviour
 
     [Header("Coleta")]
     [Tooltip("Delay após spawn antes de poder ser coletado")]
-    public float pickupDelay = 0.35f;
+    public float pickupDelay = 0.15f; // Reduzido para coleta ágil e fluida
     [Tooltip("Tempo em segundos até o item desaparecer. 0 = nunca")]
     public float lifetime = 0f; // Recursos de mapa não expiram por padrão
 
@@ -697,10 +697,22 @@ public class ItemPickup : MonoBehaviour
         // Atualiza visibilidade e orientação do prompt WorldSpace
         UpdatePromptUI();
 
-        // Coleta por tecla F (ou tecla de interação configurada)
-        if (playerNearby != null && canBePickedUp && Input.GetKeyDown(GetCurrentInteractKey()))
+        // Coleta de itens:
+        // Drops de combate / monstros são coletados imediatamente ao encostar (walkover)!
+        // Recursos permanentes da Bolsa Sintética utilizam a tecla de interação configurada.
+        if (playerNearby != null && canBePickedUp)
         {
-            TryCollect(playerNearby);
+            EnsureItemData();
+            bool isCombatDrop = (interactable != null && interactable.itemData != null && !interactable.itemData.returnsToBase);
+
+            if (isCombatDrop)
+            {
+                TryCollect(playerNearby);
+            }
+            else if (Input.GetKeyDown(GetCurrentInteractKey()))
+            {
+                TryCollect(playerNearby);
+            }
         }
     }
 
@@ -709,7 +721,8 @@ public class ItemPickup : MonoBehaviour
         if (pressFUI == null) EnsurePromptUI();
         if (pressFUI == null) return;
 
-        bool showPrompt = (playerNearby != null && canBePickedUp);
+        bool isCombatDrop = (interactable != null && interactable.itemData != null && !interactable.itemData.returnsToBase);
+        bool showPrompt = (playerNearby != null && canBePickedUp && !isCombatDrop);
 
         if (autoPromptCanvasGroup != null)
         {
@@ -759,6 +772,16 @@ public class ItemPickup : MonoBehaviour
                        other.GetComponentInParent<PlayerInventory>()?.gameObject ?? 
                        other.gameObject;
         if (glowObject != null) glowObject.SetActive(true);
+
+        // Se já puder ser coletado e for drop de combate, coleta no mesmo frame
+        if (canBePickedUp)
+        {
+            EnsureItemData();
+            if (interactable != null && interactable.itemData != null && !interactable.itemData.returnsToBase)
+            {
+                TryCollect(playerNearby);
+            }
+        }
     }
 
     void OnTriggerExit(Collider other)

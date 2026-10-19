@@ -103,7 +103,7 @@ public class RoomController : MonoBehaviour
     [Range(1, 5)] public int minWaves = 1;
     [Range(1, 5)] public int maxWaves = 3;
     [Tooltip("Intervalo em segundos entre o fim de uma onda e o início da próxima.")]
-    public float timeBetweenWaves = 2f;
+    public float timeBetweenWaves = 0.8f;
     [Tooltip("Número mínimo de inimigos garantidos por onda (Mob Menor preenchem o restante).")]
     [Range(1, 20)] public int minEnemiesPerWave = 3;
     [Tooltip("Fracão máxima do budget que pode ser gasta em Mob Menor. 0.7 = 70%.")]
@@ -119,7 +119,7 @@ public class RoomController : MonoBehaviour
     [Tooltip("Prefab do indicador visual (círculo/marcador) antes do spawn.")]
     public GameObject spawnIndicatorPrefab;
     [Tooltip("Tempo em segundos entre o indicador aparecer e o inimigo spawnar.")]
-    public float spawnDelay = 1.5f;
+    public float spawnDelay = 0.75f;
     [Tooltip("Altura acima do CHÃO da SpawnArea onde inimigos aparecem. 0.1 = rente ao chão.")]
     public float spawnHeightOffset = 0.1f;
 
@@ -292,13 +292,12 @@ public class RoomController : MonoBehaviour
         SpawnRoomCollectibles();
 
         // Aguarda o player entrar completamente na sala antes de fechar as portas.
-        // Sem este delay, a barreira fecha enquanto o player ainda está no vão da entrada.
-        yield return new WaitForSeconds(0.8f);
+        yield return new WaitForSeconds(0.35f);
 
         LockDoors();
         if (showSpawnLog)
             Debug.Log($"[ROOM {roomIndex}] Portas trancadas. {totalWavesThisRoom} ondas programadas.");
-        yield return new WaitForSeconds(1f);
+        yield return new WaitForSeconds(0.40f);
 
         SpawnNextWave();
         combatActive = true;

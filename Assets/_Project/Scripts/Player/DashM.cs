@@ -19,7 +19,7 @@ public class DashM : MonoBehaviour
     private int dashesLeft;
 
     [Header("Cooldown")]
-    public float dashCooldown = 2f; // Tempo em segundos para recarregar todos os dashes
+    public float dashCooldown = 1.3f; // Tempo em segundos para recarregar todos os dashes (acelerado para maior dinamismo)
     private float cooldownTimer;
     private bool isRecharging = false;
 
@@ -173,7 +173,9 @@ public class DashM : MonoBehaviour
 
         yield return new WaitForSeconds(dashDuration * dashDurationMultiplier);
 
-        rb.linearVelocity = Vector3.zero; // Para o movimento bruscamente no final do dash
+        // Conserva inércia suave na direção do dash para emendar diretamente na corrida
+        float exitSpeed = playerMovement != null ? playerMovement.sprintSpeed : 11f;
+        rb.linearVelocity = dashDirection * exitSpeed;
         
         // Desativar invulnerabilidade se estava ativa
         if (playerHealth != null && playerAttributes != null && playerAttributes.dashInvulnerability > 0)

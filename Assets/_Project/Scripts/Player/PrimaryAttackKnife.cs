@@ -77,19 +77,19 @@ public class PrimaryAttackKnife : MonoBehaviour
     public TrailRenderer weaponTrail; 
 
     [Header("Settings")]
-    public float attackAnimationSpeed = 1.0f;
-    public float defaultAttackSpeed = 1.0f; // Para resetar a velocidade padrão
-    public float axeAttackSpeed = 0.85f; // Velocidade reduzida e pesada para o machado
+    public float attackAnimationSpeed = 1.15f;
+    public float defaultAttackSpeed = 1.15f; // Para resetar a velocidade padrão
+    public float axeAttackSpeed = 0.95f; // Velocidade aprimorada e fluida para o machado
 
     [Header("Combo Speed Modifiers (Fine Tuning)")]
     [Tooltip("Multiplicador de velocidade para o Hit 1")]
-    public float hit1SpeedMultiplier = 1.0f;
+    public float hit1SpeedMultiplier = 1.05f;
     [Tooltip("Multiplicador de velocidade para o Hit 2")]
-    public float hit2SpeedMultiplier = 0.7f; // Reduzido por padrão!
+    public float hit2SpeedMultiplier = 1.05f; // Normalizado sem lentidão artificial!
     [Tooltip("Multiplicador de velocidade para o Hit 3")]
-    public float hit3SpeedMultiplier = 1.0f;
+    public float hit3SpeedMultiplier = 1.15f;
     [Tooltip("Multiplicador de velocidade para o Hit 4")]
-    public float hit4SpeedMultiplier = 1.0f;
+    public float hit4SpeedMultiplier = 1.20f;
 
     [Header("Weapon Damages")]
     public int[] defaultDamages = { 20, 25, 35 };
@@ -113,8 +113,8 @@ public class PrimaryAttackKnife : MonoBehaviour
     private int comboStep = 0;
 
     [Header("Lunge Impulse Control")]
-    [Tooltip("Se verdadeiro, aplica uma investida física (Lunge) para a frente ao atacar. Se falso (padrão), o ataque executa no lugar de forma instantânea sem arrasto.")]
-    public bool enableLunge = false;
+    [Tooltip("Se verdadeiro, aplica uma investida física (Lunge) para a frente ao atacar. Se falso, o ataque executa no lugar.")]
+    public bool enableLunge = true;
 
     [Header("Backup Animation Timing Settings (When no Animation Events exist)")]
     [Tooltip("Delay (em segundos) para ativar o colisor de dano da Adaga")]
