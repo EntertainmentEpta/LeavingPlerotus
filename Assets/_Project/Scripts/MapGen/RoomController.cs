@@ -482,21 +482,25 @@ public class RoomController : MonoBehaviour
             remainingPts -= 3;
         }
 
-        // 2. ÂNCORA DE VARIEDADE: Garante que inimigos pesados (Elite ou Tanque) ou Atiradores sejam escolhidos PRIMEIRO se houver budget!
-        // No Round 3 (Fase 3), prioriza spawnar Geobionte (Elite) ou Tanques pesados (Golem, Magic Stone, Star)!
-        if (currentLvl >= 3 && curElite.Count > 0 && remainingPts >= 10 && eliteSpawnedTotal < eliteMax && Random.value < 0.65f)
+        // 2. ÂNCORA DE VARIEDADE: Garante que inimigos pesados (Elite ou Tanque) e Atiradores apareçam com frequência
+        // No Round 3 (Fase 3), prioriza spawnar Geobionte (Elite) e Tanques pesados (Golem, Magic Stone, Star, Totem)!
+        if (currentLvl >= 3 && curElite.Count > 0 && remainingPts >= 10 && eliteSpawnedTotal < eliteMax && Random.value < 0.75f)
         {
             result.Add(GetRandom(curElite));
             eliteSpawnedTotal++;
             remainingPts -= 10;
         }
-        else if (effectiveProgression >= 2 && curTanque.Count > 0 && remainingPts >= 4 && tanqueSpawnedTotal < tanqueMax && Random.value < 0.70f)
+
+        // Garante presença de Tanques no Round 2 e Round 3
+        if (effectiveProgression >= 2 && curTanque.Count > 0 && remainingPts >= 4 && tanqueSpawnedTotal < tanqueMax && Random.value < 0.75f)
         {
             result.Add(GetRandom(curTanque));
             tanqueSpawnedTotal++;
             remainingPts -= 4;
         }
-        else if (effectiveProgression >= 2 && curAtirador.Count > 0 && remainingPts >= 2 && Random.value < 0.60f)
+
+        // Garante presença de Atiradores (Peixe, Goblin, Crystal Watcher)
+        if (effectiveProgression >= 2 && curAtirador.Count > 0 && remainingPts >= 2 && Random.value < 0.70f)
         {
             result.Add(GetRandom(curAtirador));
             remainingPts -= 2;
@@ -530,8 +534,8 @@ public class RoomController : MonoBehaviour
             // Sorteio justo entre as opções viáveis
             EnemyClass chosen = validOptions[Random.Range(0, validOptions.Count)];
 
-            // Em fases avançadas (Round 2 e 3), favorece variedade de Tanques e Atiradores
-            if (currentLvl >= 2 && validOptions.Count > 1 && chosen == EnemyClass.MobMenor && Random.value < 0.50f)
+            // Em fases avançadas (Round 2 e 3), favorece variedade de Tanques e Atiradores sobre MobMenor
+            if (currentLvl >= 2 && validOptions.Count > 1 && chosen == EnemyClass.MobMenor && Random.value < 0.65f)
             {
                 List<EnemyClass> advanced = validOptions.FindAll(c => c != EnemyClass.MobMenor);
                 if (advanced.Count > 0) chosen = advanced[Random.Range(0, advanced.Count)];
@@ -573,11 +577,26 @@ public class RoomController : MonoBehaviour
             }
         }
 
-        // Garante mínimo de inimigos por onda preenchendo com Mob Menor
-        if (curMobMenor.Count > 0)
+        // Garante mínimo de inimigos por onda sem inflar artificialmente caso já existam elites ou tanques
+        int targetMin = minEnemies;
+        if (eliteSpawnedTotal > 0) targetMin = Mathf.Min(targetMin, 3);
+        else if (tanqueSpawnedTotal >= 2) targetMin = Mathf.Min(targetMin, 4);
+
+        while (result.Count < targetMin)
         {
-            while (result.Count < minEnemies)
+            // No Round 2 e 3, varia o preenchimento entre Atiradores e MobMenor
+            if (currentLvl >= 2 && curAtirador.Count > 0 && Random.value < 0.4f)
+            {
+                result.Add(GetRandom(curAtirador));
+            }
+            else if (curMobMenor.Count > 0)
+            {
                 result.Add(GetRandom(curMobMenor));
+            }
+            else
+            {
+                break;
+            }
         }
 
         if (showSpawnLog)

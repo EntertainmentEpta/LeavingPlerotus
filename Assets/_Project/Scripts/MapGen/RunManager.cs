@@ -271,16 +271,42 @@ public class RunManager : MonoBehaviour
     /// <summary>
     /// Orçamento de pontos de spawn para a sala n no round/level atual.
     /// Escala de forma progressiva considerando tanto a sala quanto a fase (round) da run.
+    /// Garante que no Round 2 e Round 3 o orçamento de cada onda seja suficiente para spawnar
+    /// Tanques (4 pts), Atiradores (2 pts) e Elites (10 pts como Geobionte).
     /// </summary>
     public int GetSpawnBudget(int roomNumber)
     {
         int level = Mathf.Max(1, currentLevel);
         int room = Mathf.Max(1, roomNumber);
-        
-        // Sala cumulativa na run (Round 1: 1..4, Round 2: 5..8, Round 3: 9..12)
-        int effectiveRoom = ((level - 1) * 4) + room;
 
-        int budget = Mathf.RoundToInt(5f + 2.2f * effectiveRoom);
+        float baseBudget;
+        float perRoomBudget;
+
+        if (level == 1)
+        {
+            // Level 1: Sala 1 = 10 pts, Sala 3 = 15 pts, Sala 5 = 19 pts
+            baseBudget = 8f;
+            perRoomBudget = 2.2f;
+        }
+        else if (level == 2)
+        {
+            // Level 2: Sala 1 = 23 pts, Sala 4 = 32 pts, Sala 7 = 41 pts
+            baseBudget = 20f;
+            perRoomBudget = 3.0f;
+        }
+        else if (level == 3)
+        {
+            // Level 3: Sala 1 = 40 pts, Sala 5 = 54 pts, Sala 9 = 68 pts
+            baseBudget = 36f;
+            perRoomBudget = 3.5f;
+        }
+        else // Endless / Level 4+
+        {
+            baseBudget = 36f + (level - 3) * 15f;
+            perRoomBudget = 4.0f;
+        }
+
+        int budget = Mathf.RoundToInt(baseBudget + perRoomBudget * room);
 
         PlayerHealth player = Object.FindFirstObjectByType<PlayerHealth>();
         if (player != null && player.hasChaosSymphony)
