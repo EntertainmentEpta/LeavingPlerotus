@@ -782,13 +782,7 @@ public class SaveManager : MonoBehaviour
         // 6. Garante que a animação de acordar execute na Base
         PlayerHealth.shouldPlayWakeUpAnimation = true;
 
-        // 7. Para música do menu se estiver tocando
-        if (GlobalAudioManager.Instance != null)
-        {
-            GlobalAudioManager.Instance.StopMusic();
-        }
-
-        // 8. Carrega Base com os dados do slot selecionado usando a tela de Loading
+        // 7. Carrega Base com os dados do slot selecionado usando a tela de Loading
         GameManager.EnsureInstance().ReturnToBase();
     }
 
@@ -836,13 +830,7 @@ public class SaveManager : MonoBehaviour
         // 7. Garante que a animação de acordar execute na Base
         PlayerHealth.shouldPlayWakeUpAnimation = true;
 
-        // 8. Para música do menu se estiver tocando
-        if (GlobalAudioManager.Instance != null)
-        {
-            GlobalAudioManager.Instance.StopMusic();
-        }
-
-        // 9. Carrega cena Base limpa usando a tela de Loading
+        // 8. Carrega cena Base limpa usando a tela de Loading
         GameManager.EnsureInstance().ReturnToBase();
     }
 

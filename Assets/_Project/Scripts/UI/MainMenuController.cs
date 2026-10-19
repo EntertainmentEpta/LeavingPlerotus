@@ -277,19 +277,11 @@ public class MainMenuController : MonoBehaviour
 
     private void ContinueGame(int slot)
     {
-        if (GlobalAudioManager.Instance != null)
-        {
-            GlobalAudioManager.Instance.StopMusic();
-        }
         SaveManager.LoadGameFromSlot(slot);
     }
 
     private void StartNewGame(int slot)
     {
-        if (GlobalAudioManager.Instance != null)
-        {
-            GlobalAudioManager.Instance.StopMusic();
-        }
         SaveManager.StartNewGameInSlot(slot);
     }
 

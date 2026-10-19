@@ -67,7 +67,16 @@ public class MusicManager : MonoBehaviour
         instance = this;
         DontDestroyOnLoad(gameObject);
 
-        // Cria os dois AudioSources para crossfade
+        // Se o GlobalAudioManager existir sem música definida, compartilha o clip configurado no Inspector
+        if (GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.defaultMusic == null)
+        {
+            if (tracks != null && tracks.Length > 0 && tracks[0].clip != null)
+            {
+                GlobalAudioManager.Instance.defaultMusic = tracks[0].clip;
+            }
+        }
+
+        // Cria os dois AudioSources para crossfade (fallback autônomo)
         sourceA = gameObject.AddComponent<AudioSource>();
         sourceB = gameObject.AddComponent<AudioSource>();
         ConfigureSource(sourceA);
@@ -76,6 +85,10 @@ public class MusicManager : MonoBehaviour
 
     void Start()
     {
+        // Se o GlobalAudioManager já estiver tocando a música através do AudioMixer, não duplica o som!
+        if (GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.IsPlaying())
+            return;
+
         if (playOnStart >= 0 && tracks != null && playOnStart < tracks.Length)
             PlayTrack(playOnStart);
     }
@@ -96,6 +109,15 @@ public class MusicManager : MonoBehaviour
     public void PlayTrack(int index, float fadeDuration = -1f)
     {
         if (tracks == null || index < 0 || index >= tracks.Length) return;
+
+        // Se o GlobalAudioManager estiver ativo, toca através da mesa de som oficial (AudioMixer)
+        if (GlobalAudioManager.Instance != null)
+        {
+            GlobalAudioManager.Instance.PlayMusic(tracks[index].clip);
+            currentTrackIndex = index;
+            return;
+        }
+
         if (index == currentTrackIndex) return; // já tocando
 
         if (fadeDuration < 0) fadeDuration = defaultFadeDuration;
@@ -123,6 +145,11 @@ public class MusicManager : MonoBehaviour
     /// <summary>Para a música com fade out.</summary>
     public void Stop(float fadeDuration = -1f)
     {
+        if (GlobalAudioManager.Instance != null)
+        {
+            GlobalAudioManager.Instance.StopMusic();
+        }
+
         if (fadeDuration < 0) fadeDuration = defaultFadeDuration;
         if (fadeCoroutine != null) StopCoroutine(fadeCoroutine);
         fadeCoroutine = StartCoroutine(FadeOutAll(fadeDuration));
@@ -133,16 +160,26 @@ public class MusicManager : MonoBehaviour
     public void SetVolume(float volume)
     {
         masterVolume = Mathf.Clamp01(volume);
+        if (GlobalAudioManager.Instance != null)
+        {
+            GlobalAudioManager.Instance.defaultVolume = masterVolume;
+        }
+
         AudioSource active = usingSourceA ? sourceA : sourceB;
-        if (active.isPlaying)
+        if (active != null && active.isPlaying)
             active.volume = masterVolume * GetCurrentTrackVolume();
     }
 
     /// <summary>Pausa/retoma a música atual.</summary>
     public void SetPaused(bool paused)
     {
-        if (paused) { sourceA.Pause(); sourceB.Pause(); }
-        else        { sourceA.UnPause(); sourceB.UnPause(); }
+        if (GlobalAudioManager.Instance != null)
+        {
+            GlobalAudioManager.Instance.SetPaused(paused);
+        }
+
+        if (sourceA != null) { if (paused) sourceA.Pause(); else sourceA.UnPause(); }
+        if (sourceB != null) { if (paused) sourceB.Pause(); else sourceB.UnPause(); }
     }
 
     private float duckMultiplier = 1.0f;
@@ -153,6 +190,12 @@ public class MusicManager : MonoBehaviour
     /// </summary>
     public void SetMusicDucking(float targetMultiplier, float duration = 1.0f)
     {
+        // Aplica ducking no GlobalAudioManager (que toca no mixer oficial do jogo)
+        if (GlobalAudioManager.Instance != null)
+        {
+            GlobalAudioManager.Instance.SetMusicDucking(targetMultiplier, duration);
+        }
+
         if (duckCoroutine != null) StopCoroutine(duckCoroutine);
         duckCoroutine = StartCoroutine(AnimateDucking(Mathf.Clamp01(targetMultiplier), duration));
     }

@@ -1,10 +1,23 @@
 using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.SceneManagement;
+using System.Collections;
 
 public class GlobalAudioManager : MonoBehaviour
 {
-    public static GlobalAudioManager Instance { get; private set; }
+    private static GlobalAudioManager _instance;
+    public static GlobalAudioManager Instance
+    {
+        get
+        {
+            if (_instance == null)
+            {
+                _instance = Object.FindFirstObjectByType<GlobalAudioManager>();
+            }
+            return _instance;
+        }
+        private set => _instance = value;
+    }
 
     [Header("Mesa de Som Global (Audio Mixer)")]
     public AudioMixer mainMixer;
@@ -13,18 +26,28 @@ public class GlobalAudioManager : MonoBehaviour
 
     [Header("Música Padrão")]
     public AudioClip defaultMusic; 
+    [Range(0f, 1f)] public float defaultVolume = 0.35f;
 
     private AudioSource bgmSource;
+    private float duckMultiplier = 1.0f;
+    private Coroutine duckCoroutine;
 
     private void Awake()
     {
-        if (Instance != null && Instance != this)
+        if (_instance != null && _instance != this)
         {
             Destroy(gameObject);
             return;
         }
-        Instance = this;
+        _instance = this;
         DontDestroyOnLoad(gameObject);
+
+        // Garante que o MusicManager exista neste mesmo objeto para atender scripts legados (ex: Merchant)
+        if (MusicManager.instance == null)
+        {
+            MusicManager mm = GetComponent<MusicManager>();
+            if (mm == null) mm = gameObject.AddComponent<MusicManager>();
+        }
 
         SetupBGM();
         LoadSavedVolume();
@@ -42,7 +65,8 @@ public class GlobalAudioManager : MonoBehaviour
 
     private void Start()
     {
-        if (SceneManager.GetActiveScene().name == "MainMenu" && defaultMusic != null)
+        // Toca a música padrão em qualquer cena que iniciar o jogo (MainMenu, Base, GameScene)
+        if (defaultMusic != null && !IsPlaying())
         {
             PlayMusic(defaultMusic);
         }
@@ -50,17 +74,23 @@ public class GlobalAudioManager : MonoBehaviour
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        if (scene.name == "MainMenu")
+        // Reseta qualquer ducking pendente (ex: do Mercador) ao mudar de cena
+        duckMultiplier = 1.0f;
+        if (duckCoroutine != null)
         {
-            if (defaultMusic != null && (bgmSource == null || !bgmSource.isPlaying))
-            {
-                PlayMusic(defaultMusic);
-            }
+            StopCoroutine(duckCoroutine);
+            duckCoroutine = null;
         }
-        else
+
+        if (bgmSource != null && bgmSource.isPlaying)
         {
-            // Saiu do menu principal: para imediatamente a música para não vazar nas outras cenas (Base, GameScene)
-            StopMusic();
+            bgmSource.volume = defaultVolume;
+        }
+
+        // Garante que a trilha sonora continue tocando em todas as cenas do jogo (MainMenu, Base, GameScene)
+        if (defaultMusic != null && !IsPlaying())
+        {
+            PlayMusic(defaultMusic);
         }
     }
 
@@ -69,11 +99,11 @@ public class GlobalAudioManager : MonoBehaviour
         bgmSource = gameObject.GetComponent<AudioSource>();
         if (bgmSource == null)
         {
-            bgmSource = gameObject.gameObject.AddComponent<AudioSource>();
+            bgmSource = gameObject.AddComponent<AudioSource>();
         }
         bgmSource.loop = true;
         bgmSource.playOnAwake = false;
-        bgmSource.volume = 0.35f; // Volume padrão moderado
+        bgmSource.volume = defaultVolume;
 
         if (bgmGroup != null) bgmSource.outputAudioMixerGroup = bgmGroup;
     }
@@ -95,11 +125,12 @@ public class GlobalAudioManager : MonoBehaviour
 
     public void PlayMusic(AudioClip musicClip)
     {
-        if (bgmSource == null || musicClip == null) return;
+        if (bgmSource == null) SetupBGM();
+        if (musicClip == null) return;
         if (bgmSource.clip == musicClip && bgmSource.isPlaying) return;
 
         bgmSource.clip = musicClip;
-        bgmSource.volume = 0.35f;
+        bgmSource.volume = defaultVolume * duckMultiplier;
         bgmSource.Play();
     }
 
@@ -109,5 +140,48 @@ public class GlobalAudioManager : MonoBehaviour
         {
             bgmSource.Stop();
         }
+    }
+
+    public bool IsPlaying()
+    {
+        return bgmSource != null && bgmSource.isPlaying;
+    }
+
+    public void SetPaused(bool paused)
+    {
+        if (bgmSource == null) return;
+        if (paused) bgmSource.Pause();
+        else bgmSource.UnPause();
+    }
+
+    /// <summary>
+    /// Ducking de áudio (reduz ou restaura o volume da música suavemente, ex: perto do Mercador).
+    /// </summary>
+    public void SetMusicDucking(float targetMultiplier, float duration = 1.0f)
+    {
+        if (duckCoroutine != null) StopCoroutine(duckCoroutine);
+        duckCoroutine = StartCoroutine(AnimateDucking(Mathf.Clamp01(targetMultiplier), duration));
+    }
+
+    private IEnumerator AnimateDucking(float target, float duration)
+    {
+        float start = duckMultiplier;
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            duckMultiplier = Mathf.Lerp(start, target, elapsed / duration);
+            if (bgmSource != null)
+            {
+                bgmSource.volume = defaultVolume * duckMultiplier;
+            }
+            yield return null;
+        }
+        duckMultiplier = target;
+        if (bgmSource != null)
+        {
+            bgmSource.volume = defaultVolume * duckMultiplier;
+        }
+        duckCoroutine = null;
     }
 }
