@@ -96,9 +96,61 @@ public class CraftingManager : MonoBehaviour
             allRecipes.Add(axeRecipe);
         }
 
+        // Receitas de Expansão da Câmara de Infusão e Chassi Térmico
+        EnsureInfusionRecipe("recipe_camara_infusao_1", "Câmara de Infusão Expandida I",
+            "Aprimora o analisador do traje para permitir infusões combinadas de até 3 itens simultâneos.",
+            "equip_camara_infusao_1",
+            new List<CraftingIngredient>
+            {
+                new CraftingIngredient { itemId = "shard_splinter_t1", quantity = 3 },
+                new CraftingIngredient { itemId = "cristal_explosivo", quantity = 2 }
+            });
+
+        EnsureInfusionRecipe("recipe_camara_infusao_2", "Câmara de Infusão Expandida II",
+            "Sintoniza a matriz quântica do traje para permitir fusões massivas de até 4 itens simultâneos.",
+            "equip_camara_infusao_2",
+            new List<CraftingIngredient>
+            {
+                new CraftingIngredient { itemId = "prisma_t2", quantity = 2 },
+                new CraftingIngredient { itemId = "cristal_explosivo", quantity = 2 }
+            });
+
+        EnsureInfusionRecipe("recipe_capacidade_infusao_1", "Chassi Térmico Modular I",
+            "Aumenta o limite de sobreaquecimento do traje, permitindo até 8 infusões ativas na mesma run.",
+            "equip_capacidade_infusao_1",
+            new List<CraftingIngredient>
+            {
+                new CraftingIngredient { itemId = "shard_splinter_t1", quantity = 3 },
+                new CraftingIngredient { itemId = "prisma_t2", quantity = 1 }
+            });
+
+        EnsureInfusionRecipe("recipe_capacidade_infusao_2", "Chassi Térmico Modular II",
+            "Dissipação criogênica avançada. Permite até 10 infusões ativas simultâneas na mesma run.",
+            "equip_capacidade_infusao_2",
+            new List<CraftingIngredient>
+            {
+                new CraftingIngredient { itemId = "prisma_t2", quantity = 2 },
+                new CraftingIngredient { itemId = "sentinel_core_t3", quantity = 1 }
+            });
+
         RegisterBlueprintRecipes();
 
         Debug.Log($"[CRAFTING] CraftingManager inicializado com {allRecipes.Count} receitas.");
+    }
+
+    private void EnsureInfusionRecipe(string recipeId, string title, string description, string equipId, List<CraftingIngredient> ingredients)
+    {
+        if (!allRecipes.Exists(r => r != null && r.recipeId == recipeId))
+        {
+            CraftingRecipe r = ScriptableObject.CreateInstance<CraftingRecipe>();
+            r.recipeId = recipeId;
+            r.recipeName = title;
+            r.description = description;
+            r.ingredients = ingredients;
+            r.resultType = CraftingResultType.Equipment;
+            r.resultEquipment = EquipmentManager.Instance != null ? EquipmentManager.Instance.GetEquipmentData(equipId) : null;
+            allRecipes.Add(r);
+        }
     }
 
     public void RegisterBlueprintRecipes()

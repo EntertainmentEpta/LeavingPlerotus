@@ -37,10 +37,58 @@ public class InfusionManager : MonoBehaviour
     [Tooltip("Custo fixo de Essência cobrado para realizar a cirurgia de remoção.")]
     public int surgeryEssenceCost = 150;
 
+    [Header("Limites de Câmara e Capacidade do Traje")]
+    [Tooltip("Limite padrão de itens na câmara de infusão ao iniciar a run (sem upgrades).")]
+    public int baseChamberLimit = 2;
+
+    [Tooltip("Capacidade máxima padrão de infusões ativas no traje por run (sem upgrades).")]
+    public int baseCapacityLimit = 6;
+
+    /// <summary>
+    /// Retorna o limite atual da câmara de infusão (2 base, 3 com Expansão I, 4 com Expansão II).
+    /// </summary>
+    public int GetMaxChamberItems()
+    {
+        int limit = baseChamberLimit;
+        if (EquipmentManager.Instance != null)
+        {
+            if (EquipmentManager.Instance.IsOwned("equip_camara_infusao_2") || EquipmentManager.Instance.IsEquipped("equip_camara_infusao_2"))
+                limit = 4;
+            else if (EquipmentManager.Instance.IsOwned("equip_camara_infusao_1") || EquipmentManager.Instance.IsEquipped("equip_camara_infusao_1"))
+                limit = 3;
+        }
+        return limit;
+    }
+
+    /// <summary>
+    /// Retorna a capacidade máxima de infusões ativas no traje por run (6 base, 8 com Chassi I, 10 com Chassi II).
+    /// </summary>
+    public int GetMaxInfusionCapacity()
+    {
+        int limit = baseCapacityLimit;
+        if (EquipmentManager.Instance != null)
+        {
+            if (EquipmentManager.Instance.IsOwned("equip_capacidade_infusao_2") || EquipmentManager.Instance.IsEquipped("equip_capacidade_infusao_2"))
+                limit = 10;
+            else if (EquipmentManager.Instance.IsOwned("equip_capacidade_infusao_1") || EquipmentManager.Instance.IsEquipped("equip_capacidade_infusao_1"))
+                limit = 8;
+        }
+        return limit;
+    }
+
+    /// <summary>Quantidade de infusões ativas no momento.</summary>
+    public int CurrentInfusionCount => infusedItems != null ? infusedItems.Count : 0;
+
+    /// <summary>Verifica se há capacidade no traje para mais infusões.</summary>
+    public bool HasInfusionCapacity(int incomingCount = 1)
+    {
+        return (CurrentInfusionCount + incomingCount) <= GetMaxInfusionCapacity();
+    }
+
     // Peso total acumulado de todos os itens já infundidos (Ptotal)
     private float totalInfusionWeight = 0f;
     
-    // HistÃ³rico de itens infundidos
+    // Histórico de itens infundidos
     [HideInInspector]
     public System.Collections.Generic.List<ItemData> infusedItems = new System.Collections.Generic.List<ItemData>();
 
@@ -162,6 +210,13 @@ public class InfusionManager : MonoBehaviour
         {
             Debug.LogWarning($"[INFUSÃO] {data.itemName} é Lendário (T4) e já foi infundido nesta run! (Limite = 1)");
             return InfusionResult.LegendaryLimit;
+        }
+
+        // Regra de Capacidade do Traje / Limite de Sobreaquecimento
+        if (!HasInfusionCapacity(1))
+        {
+            Debug.LogWarning($"[INFUSÃO] Bloqueado! Capacidade do traje atingida ({CurrentInfusionCount}/{GetMaxInfusionCapacity()}).");
+            return InfusionResult.CapacityLimit;
         }
 
         if (!inventory.HasItem(data.itemId, request.itemCount))
@@ -363,7 +418,14 @@ public class InfusionManager : MonoBehaviour
 
         if (validItems.Count == 0) return false;
 
-        // CÃ¡lculo da Sinergia
+        // Regra de Capacidade do Traje / Limite de Sobreaquecimento
+        if (!HasInfusionCapacity(validItems.Count))
+        {
+            Debug.LogWarning($"[INFUSÃO MULTIPLA] Bloqueado! Capacidade insuficiente no traje para +{validItems.Count} infusões ({CurrentInfusionCount}/{GetMaxInfusionCapacity()}).");
+            return false;
+        }
+
+        // Cálculo da Sinergia
         SynergyResult result = SynergyInfusionCalculator.Instance.EvaluateInfusion(itemIDsToInfuse);
 
         // AplicaÃ§Ã£o do Desconto
@@ -753,7 +815,8 @@ public enum InfusionResult
     MissingItems,
     NotEnoughEssence,
     LegendaryLimit,
-    MissingComponents
+    MissingComponents,
+    CapacityLimit
 }
 
 /// <summary>Pedido de infusão já resolvido (item, fluxo, unidades consumidas e multiplicador).</summary>

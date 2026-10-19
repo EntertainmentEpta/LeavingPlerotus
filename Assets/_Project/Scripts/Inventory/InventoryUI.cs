@@ -108,6 +108,7 @@ public class InventoryUI : MonoBehaviour
     // Módulo Visual do Histórico de Infusões
     private GameObject infusionHistoryPanelObj;
     private RectTransform infusionHistoryContent;
+    private TextMeshProUGUI infusionHistoryHeader;
 
     private Vector3 lastInventoryPanelPosition;
     private Vector3 lastPreviewPanelPosition;
@@ -1179,16 +1180,16 @@ public class InventoryUI : MonoBehaviour
         headerRt.sizeDelta = new Vector2(0f, 20f);
 
         headerObj.AddComponent<CanvasRenderer>();
-        TextMeshProUGUI headerTmp = headerObj.AddComponent<TextMeshProUGUI>();
-        if (customFont != null) headerTmp.font = customFont;
-        headerTmp.text = "INFUSÕES";
-        headerTmp.fontSize = 10f;
-        headerTmp.fontStyle = FontStyles.Bold;
-        headerTmp.color = new Color(0.5f, 0.75f, 1f, 0.85f);
-        headerTmp.alignment = TextAlignmentOptions.Center;
-        headerTmp.raycastTarget = false;
-        headerTmp.enableAutoSizing = false;
-        headerTmp.overflowMode = TextOverflowModes.Ellipsis;
+        infusionHistoryHeader = headerObj.AddComponent<TextMeshProUGUI>();
+        if (customFont != null) infusionHistoryHeader.font = customFont;
+        infusionHistoryHeader.text = "INFUSÕES";
+        infusionHistoryHeader.fontSize = 10f;
+        infusionHistoryHeader.fontStyle = FontStyles.Bold;
+        infusionHistoryHeader.color = new Color(0.5f, 0.75f, 1f, 0.85f);
+        infusionHistoryHeader.alignment = TextAlignmentOptions.Center;
+        infusionHistoryHeader.raycastTarget = false;
+        infusionHistoryHeader.enableAutoSizing = false;
+        infusionHistoryHeader.overflowMode = TextOverflowModes.Ellipsis;
 
         // === Área de Conteúdo com VerticalLayoutGroup ===
         GameObject contentObj = new GameObject("HistoryContent");
@@ -1322,10 +1323,18 @@ public class InventoryUI : MonoBehaviour
         InfusionManager infMgr = Object.FindFirstObjectByType<InfusionManager>();
         if (infMgr != null)
         {
+            if (infusionHistoryHeader != null)
+            {
+                infusionHistoryHeader.text = $"INFUSÕES ({infMgr.CurrentInfusionCount}/{infMgr.GetMaxInfusionCapacity()})";
+            }
             UpdateInfusionHistory(infMgr.GetInfusionHistory());
         }
         else
         {
+            if (infusionHistoryHeader != null)
+            {
+                infusionHistoryHeader.text = "INFUSÕES";
+            }
             UpdateInfusionHistory(null);
         }
     }
@@ -1591,6 +1600,10 @@ public class InventoryUI : MonoBehaviour
 
     public void ToggleItemSelection(InventorySlotUI slot, string itemId)
     {
+        int maxChamber = 2;
+        InfusionManager infMgr = Object.FindFirstObjectByType<InfusionManager>();
+        if (infMgr != null) maxChamber = infMgr.GetMaxChamberItems();
+
         if (selectedSlots.Contains(slot))
         {
             // Deseleciona
@@ -1599,13 +1612,19 @@ public class InventoryUI : MonoBehaviour
         }
         else
         {
-            // Seleciona (Limita a 4 itens)
-            if (selectedSlots.Count >= 4)
+            // Seleciona respeitando o limite atual da câmara (2 base, 3 ou 4 com upgrades)
+            if (selectedSlots.Count >= maxChamber)
             {
                 // Remove o primeiro para dar espaço ao novo
                 InventorySlotUI oldest = selectedSlots[0];
                 if (oldest != null) oldest.SetSelected(false);
                 selectedSlots.RemoveAt(0);
+
+                if (EptinhoPopupController.instancia != null)
+                {
+                    string upgradeTip = maxChamber < 4 ? " Forje a expansão da câmara no Robozinho para mais slots!" : "";
+                    EptinhoPopupController.instancia.MostrarPopupAviso($"Câmara de Infusão suporta até {maxChamber} itens!{upgradeTip}");
+                }
             }
             selectedSlots.Add(slot);
         }
@@ -1636,12 +1655,16 @@ public class InventoryUI : MonoBehaviour
     {
         if (mergeButtonObj == null) return;
 
-        if (selectedSlots.Count > 0 && selectedSlots.Count <= 4)
+        int maxChamber = 2;
+        InfusionManager infMgr = Object.FindFirstObjectByType<InfusionManager>();
+        if (infMgr != null) maxChamber = infMgr.GetMaxChamberItems();
+
+        if (selectedSlots.Count > 0 && selectedSlots.Count <= maxChamber)
         {
             mergeButtonObj.SetActive(true);
             if (mergeButtonText != null)
             {
-                string countLabel = selectedSlots.Count == 1 ? "1 ITEM" : $"{selectedSlots.Count} ITENS";
+                string countLabel = selectedSlots.Count == 1 ? "1 ITEM" : $"{selectedSlots.Count}/{maxChamber} ITENS";
                 mergeButtonText.text = $"INFUNDIR ({countLabel})";
             }
         }
@@ -1703,7 +1726,11 @@ public class InventoryUI : MonoBehaviour
     }
     private void OnMergeButtonClicked()
     {
-        if (selectedSlots.Count == 0 || selectedSlots.Count > 4) return;
+        int maxChamber = 2;
+        InfusionManager infMgr = Object.FindFirstObjectByType<InfusionManager>();
+        if (infMgr != null) maxChamber = infMgr.GetMaxChamberItems();
+
+        if (selectedSlots.Count == 0 || selectedSlots.Count > maxChamber) return;
 
         System.Collections.Generic.List<string> ids = new System.Collections.Generic.List<string>();
         foreach(var s in selectedSlots) ids.Add(s.currentItemId);

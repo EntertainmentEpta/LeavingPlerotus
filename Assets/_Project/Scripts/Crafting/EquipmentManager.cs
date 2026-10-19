@@ -111,6 +111,12 @@ public class EquipmentManager : MonoBehaviour
         EnsureBlueprintEquipment("equip_sonda_anomalia", "Sonda de Fissura Mineral", "Revela a localização de Salas de Anomalia e veios raros no bioma.", EquipmentEffectType.AnomalySonar, 1.0f);
         EnsureBlueprintEquipment("equip_arma_ancestral", "O Catalisador Ancestral", "Aumenta o dano base em 25% e amplifica dano crítico contra o núcleo de Plerotus.", EquipmentEffectType.AncestralCatalyst, 1.25f);
 
+        // Melhorias da Câmara de Infusão e Chassi Térmico
+        EnsureBlueprintEquipment("equip_camara_infusao_1", "Câmara de Infusão Expandida I", "Aprimora o analisador do traje para permitir infusões combinadas de até 3 itens simultâneos.", EquipmentEffectType.InfusionChamberExpansion, 3.0f);
+        EnsureBlueprintEquipment("equip_camara_infusao_2", "Câmara de Infusão Expandida II", "Sintoniza a matriz quântica do traje para permitir fusões massivas de até 4 itens simultâneos.", EquipmentEffectType.InfusionChamberExpansion, 4.0f);
+        EnsureBlueprintEquipment("equip_capacidade_infusao_1", "Chassi Térmico Modular I", "Aumenta o limite de sobreaquecimento do traje, permitindo até 8 infusões ativas na mesma run.", EquipmentEffectType.InfusionCapacityExpansion, 8.0f);
+        EnsureBlueprintEquipment("equip_capacidade_infusao_2", "Chassi Térmico Modular II", "Dissipação criogênica avançada. Permite até 10 infusões ativas simultâneas na mesma run.", EquipmentEffectType.InfusionCapacityExpansion, 10.0f);
+
         BuildLookup();
 
         // Re-aplica efeitos de equipamentos equipados (após carregar o save)

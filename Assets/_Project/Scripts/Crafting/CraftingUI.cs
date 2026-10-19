@@ -320,7 +320,8 @@ public class CraftingUI : MonoBehaviour
             if (IsWeaponRecipe(r)) continue; // Armas exclusivas na aba Armas!
 
             // Se for receita de blueprint de escritura ancestral, só exibe no Robozinho se já foi desbloqueada
-            if (r.resultEquipment != null && r.resultEquipment.equipmentId.StartsWith("equip_") && r.resultEquipment.equipmentId != "equip_detector_barreiras")
+            bool isInfusionUpgrade = r.resultEquipment != null && (r.resultEquipment.equipmentId.StartsWith("equip_camara_infusao") || r.resultEquipment.equipmentId.StartsWith("equip_capacidade_infusao"));
+            if (r.resultEquipment != null && r.resultEquipment.equipmentId.StartsWith("equip_") && r.resultEquipment.equipmentId != "equip_detector_barreiras" && !isInfusionUpgrade)
             {
                 if (LoreManager.Instance != null && !LoreManager.Instance.IsBlueprintUnlocked(r.resultEquipment.equipmentId))
                 {

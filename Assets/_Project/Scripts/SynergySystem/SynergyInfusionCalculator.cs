@@ -8,6 +8,9 @@ public class SynergyResult
 {
     public float totalEssenceDiscount = 0f;
     public List<StatModifier> extraModifiers = new List<StatModifier>();
+    public List<string> triggeredRecipeNames = new List<string>();
+    public HashSet<string> usedItemIDs = new HashSet<string>();
+    public bool hasSynergy => (triggeredRecipeNames != null && triggeredRecipeNames.Count > 0) || totalEssenceDiscount > 0f || (extraModifiers != null && extraModifiers.Count > 0);
 }
 
 /// <summary>
@@ -123,6 +126,21 @@ public class SynergyInfusionCalculator : MonoBehaviour
             {
                 // Combo validado! Adiciona os bônus da receita ao resultado final
                 result.totalEssenceDiscount += recipe.EssenceDiscountPercentage;
+                if (!string.IsNullOrEmpty(recipe.DisplayName) && !result.triggeredRecipeNames.Contains(recipe.DisplayName))
+                {
+                    result.triggeredRecipeNames.Add(recipe.DisplayName);
+                }
+
+                if (recipe.SynergyRequirements != null)
+                {
+                    foreach (var req in recipe.SynergyRequirements)
+                    {
+                        if (req != null && !string.IsNullOrEmpty(req.NodeID))
+                        {
+                            result.usedItemIDs.Add(req.NodeID);
+                        }
+                    }
+                }
                 
                 if (recipe.StatModifiers != null)
                 {

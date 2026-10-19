@@ -544,7 +544,8 @@ public class InfusionUI : MonoBehaviour
 
         // FIX: OpenPanel() → ClearSelection() desativa os botões. Sem reativar aqui,
         // o botão INFUNDIR ficava travado (interactable = false) e nunca disparava o clique.
-        if (btnInfundir != null) { btnInfundir.interactable = true; UpdateButtonVisuals(btnInfundir); }
+        bool hasCap = infusionManager == null || infusionManager.HasInfusionCapacity(1);
+        if (btnInfundir != null) { btnInfundir.interactable = hasCap; UpdateButtonVisuals(btnInfundir); }
         if (btnReciclar != null) { btnReciclar.interactable = count == 1; UpdateButtonVisuals(btnReciclar); }
     }
 
@@ -614,10 +615,14 @@ public class InfusionUI : MonoBehaviour
         }
 
         // -- SINERGIA PREVIEW --
-        SynergyResult previewResult = SynergyInfusionCalculator.Instance.EvaluateInfusion(ids);
-        if (previewResult != null && (previewResult.totalEssenceDiscount > 0f || (previewResult.extraModifiers != null && previewResult.extraModifiers.Count > 0)))
+        SynergyResult previewResult = SynergyInfusionCalculator.Instance != null ? SynergyInfusionCalculator.Instance.EvaluateInfusion(ids) : null;
+        if (previewResult != null && (previewResult.hasSynergy || previewResult.totalEssenceDiscount > 0f || (previewResult.extraModifiers != null && previewResult.extraModifiers.Count > 0)))
         {
-            descString += "\n<color=#FFD700><b>★ SINERGIA ATIVADA!</b></color>\n";
+            string recipeNames = (previewResult.triggeredRecipeNames != null && previewResult.triggeredRecipeNames.Count > 0)
+                ? string.Join(", ", previewResult.triggeredRecipeNames)
+                : "COMBINAÇÃO ESPECIAL";
+
+            descString += $"\n<color=#FFD700><b>★ SINERGIA DETECTADA: {recipeNames.ToUpper()}!</b></color>\n";
             if (previewResult.totalEssenceDiscount > 0f)
             {
                 descString += $"  <color=#00FFAA>• Desconto de Essência:</color> -{Mathf.RoundToInt(previewResult.totalEssenceDiscount * 100f)}%\n";
@@ -631,26 +636,54 @@ public class InfusionUI : MonoBehaviour
                     if (mod.multiplierValue != 0f) descString += $"  <color=#00FFAA>• Bônus Sinergia: +{mod.multiplierValue * 100f}%</color> {FormatterName(mod.statName)}\n";
                 }
             }
+
+            // Aviso caso algum item selecionado não faça parte da receita de sinergia
+            if (previewResult.hasSynergy && previewResult.usedItemIDs != null && previewResult.usedItemIDs.Count < ids.Count)
+            {
+                int unusedCount = ids.Count - previewResult.usedItemIDs.Count;
+                descString += $"\n<color=#FF8800><i>⚠ Atenção: {unusedCount} item(ns) não fazem parte da receita de sinergia e fornecerão apenas atributos base normais.</i></color>\n";
+            }
+        }
+
+        if (infusionManager != null)
+        {
+            int curInf = infusionManager.CurrentInfusionCount;
+            int maxCap = infusionManager.GetMaxInfusionCapacity();
+            string capColor = curInf >= maxCap ? "#FF5555" : "#00FFAA";
+            descString += $"\n<size=85%><color=#8888AA>CAPACIDADE DO TRAJE:</color> <color={capColor}><b>{curInf}/{maxCap}</b></color></size>";
         }
 
         int discountedCost = previewResult != null ? UnityEngine.Mathf.RoundToInt(totalCost * (1f - previewResult.totalEssenceDiscount)) : totalCost;
 
         if (itemRarity != null) itemRarity.text = rarityString.Trim();
         if (itemStatsDescription != null) itemStatsDescription.text = descString;
+
+        bool hasCapacity = infusionManager == null || infusionManager.HasInfusionCapacity(1);
         if (btnInfundir != null)
         {
             TMPro.TextMeshProUGUI txt = btnInfundir.GetComponentInChildren<TMPro.TextMeshProUGUI>();
-            if (txt != null) 
+            if (!hasCapacity)
             {
-                if (previewResult != null && previewResult.totalEssenceDiscount > 0f)
+                btnInfundir.interactable = false;
+                if (txt != null)
+                    txt.text = $"<b>TRAJE SOBRECARREGADO</b>\n<color=#FF5555><size=80%>CAPACIDADE MÁXIMA ATINGIDA</size></color>";
+            }
+            else
+            {
+                btnInfundir.interactable = true;
+                if (txt != null) 
                 {
-                    txt.text = $"<b>INFUNDIR COMBINADO</b>\n<color=#00FFAA>{discountedCost} ESSÊNCIAS</color> <size=65%><color=#FF6666>(-{Mathf.RoundToInt(previewResult.totalEssenceDiscount * 100f)}%)</color></size>";
-                }
-                else
-                {
-                    txt.text = $"<b>INFUNDIR COMBINADO</b>\n<color=#FFD700>{totalCost} ESSÊNCIAS</color>";
+                    if (previewResult != null && previewResult.totalEssenceDiscount > 0f)
+                    {
+                        txt.text = $"<b>INFUNDIR COMBINADO</b>\n<color=#00FFAA>{discountedCost} ESSÊNCIAS</color> <size=65%><color=#FF6666>(-{Mathf.RoundToInt(previewResult.totalEssenceDiscount * 100f)}%)</color></size>";
+                    }
+                    else
+                    {
+                        txt.text = $"<b>INFUNDIR COMBINADO</b>\n<color=#FFD700>{totalCost} ESSÊNCIAS</color>";
+                    }
                 }
             }
+            UpdateButtonVisuals(btnInfundir);
         }
         if (recycleValueText != null) recycleValueText.text = "+" + totalRecycle;
     }
@@ -753,7 +786,7 @@ public class InfusionUI : MonoBehaviour
             }
         }
         
-        // BotÃƒÂ£o Infundir
+        // Botão Infundir
         if (btnInfundir != null) 
         {
             btnInfundir.interactable = true;
@@ -769,9 +802,19 @@ public class InfusionUI : MonoBehaviour
             }
             else
             {
+                bool hasCapacity = infusionManager == null || infusionManager.HasInfusionCapacity(1);
                 TextMeshProUGUI btnTxt = btnInfundir.GetComponentInChildren<TextMeshProUGUI>();
-                if (btnTxt != null)
-                    btnTxt.text = $"<b>INFUNDIR</b>\n<color=#FFD700><size=88%>-{data.infusionEssenceCost} ESSÊNCIAS</size></color>";
+                if (!hasCapacity)
+                {
+                    btnInfundir.interactable = false;
+                    if (btnTxt != null)
+                        btnTxt.text = $"<b>TRAJE SOBRECARREGADO</b>\n<color=#FF5555><size=80%>CAPACIDADE MÁXIMA ATINGIDA</size></color>";
+                }
+                else
+                {
+                    if (btnTxt != null)
+                        btnTxt.text = $"<b>INFUNDIR</b>\n<color=#FFD700><size=88%>-{data.infusionEssenceCost} ESSÊNCIAS</size></color>";
+                }
             }
 
             UpdateButtonVisuals(btnInfundir);
@@ -885,7 +928,12 @@ public class InfusionUI : MonoBehaviour
         if (infusionManager.InfuseMultipleItems(selectedItemIds))
             PlayInfusionSuccessFX(false);
         else
-            ShowInfusionFeedback("Infusão bloqueada! Essência insuficiente.");
+        {
+            if (!infusionManager.HasInfusionCapacity(1))
+                ShowInfusionFeedback("Capacidade do traje esgotada! Melhore o traje no Robozinho.");
+            else
+                ShowInfusionFeedback("Infusão bloqueada! Essência insuficiente.");
+        }
     }
 
     private void HandleInfusionResult(InfusionResult result, int cost)
@@ -896,6 +944,7 @@ public class InfusionUI : MonoBehaviour
             case InfusionResult.Fused:            PlayInfusionSuccessFX(true);  break;
             case InfusionResult.NotEnoughEssence: ShowInfusionFeedback($"Essência insuficiente! Precisa de {cost}."); break;
             case InfusionResult.LegendaryLimit:   ShowInfusionFeedback("Lendário já infundido nesta run!"); break;
+            case InfusionResult.CapacityLimit:    ShowInfusionFeedback("Capacidade do traje esgotada! Melhore o traje no Robozinho."); break;
             case InfusionResult.MissingItems:     ShowInfusionFeedback("Você não tem itens suficientes."); break;
             default:                              ShowInfusionFeedback("Não foi possível infundir."); break;
         }
@@ -935,13 +984,32 @@ public class InfusionUI : MonoBehaviour
         bool fused = request.mode == InfusionMode.Fused;
         int cost = infusionManager != null ? infusionManager.GetInfusionCost(request) : request.data.infusionEssenceCost;
 
+        string buffPreview = BuildBuffPreview(request.data, request.stackMultiplier);
+        if (infusionManager != null)
+        {
+            int curInf = infusionManager.CurrentInfusionCount;
+            int maxCap = infusionManager.GetMaxInfusionCapacity();
+            string capColor = curInf >= maxCap ? "#FF5555" : "#00FFAA";
+            buffPreview += $"\n<size=85%><color=#8888AA>CAPACIDADE DO TRAJE:</color> <color={capColor}><b>{curInf}/{maxCap}</b></color></size>";
+        }
+
         if (itemStatsDescription != null)
-            itemStatsDescription.text = BuildBuffPreview(request.data, request.stackMultiplier);
+            itemStatsDescription.text = buffPreview;
 
         if (btnInfundir == null) return;
         TextMeshProUGUI txt = btnInfundir.GetComponentInChildren<TextMeshProUGUI>();
         if (txt == null) return;
 
+        bool hasCapacity = infusionManager == null || infusionManager.HasInfusionCapacity(1);
+        if (!hasCapacity)
+        {
+            btnInfundir.interactable = false;
+            txt.text = $"<b>TRAJE SOBRECARREGADO</b>\n<color=#FF5555><size=80%>CAPACIDADE MÁXIMA ATINGIDA</size></color>";
+            UpdateButtonVisuals(btnInfundir);
+            return;
+        }
+
+        btnInfundir.interactable = true;
         string label = fused ? $"FUNDIR ×{request.stackMultiplier:0.##}" : "INFUNDIR";
         string units = fused ? $" <size=60%>(-{request.itemCount} un.)</size>" : "";
         string inflaTag = cost > request.data.infusionEssenceCost
@@ -949,6 +1017,7 @@ public class InfusionUI : MonoBehaviour
             : "";
 
         txt.text = $"<b>{label}</b>\n<color=#FFD700><size=88%>-{cost} ESSÊNCIAS</size></color>{units}{inflaTag}";
+        UpdateButtonVisuals(btnInfundir);
     }
 
     /// <summary>Lista os buffs já escalados pelo mesmo ScaleBuff usado na aplicação real.</summary>
