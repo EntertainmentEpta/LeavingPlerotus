@@ -49,7 +49,7 @@ public class RoomController : MonoBehaviour
     [Tooltip("Categoria da sala (Combat = combate normal, Contemplation = sala pacífica sem combate, SafeRoom = sala inicial, Merchant = mercador).")]
     public RoomCategory roomCategory = RoomCategory.Combat;
     [HideInInspector] public bool doorsAreLocked = false;
-    public bool isCleared { get; private set; } = false;
+    public bool isCleared { get; set; } = false;
 
     /// <summary>Disparado quando uma sala de combate é limpa e as portas destravam.</summary>
     public static event System.Action<RoomController> OnRoomCleared;
@@ -217,14 +217,34 @@ public class RoomController : MonoBehaviour
 
     void Start()
     {
-        EnsureValidSpawnAreas();
-
-        if (gameObject.name.ToLower().Contains("3way") || gameObject.name.ToLower().Contains("treeway"))
+        string lowerName = gameObject.name.ToLower();
+        if (lowerName.Contains("3way") || lowerName.Contains("treeway") ||
+            lowerName.Contains("anomaly") || lowerName.Contains("anomalia") ||
+            lowerName.Contains("deadend") || lowerName.Contains("beco") ||
+            lowerName.Contains("semsaida") || GetComponent<AnomalyRoomController>() != null)
         {
+            isSafeRoom = true;
             roomCategory = RoomCategory.Contemplation;
+            doorsAreLocked = false;
+            isCleared = true;
+            if (doors != null)
+            {
+                foreach (GameObject d in doors) if (d) d.SetActive(false);
+            }
         }
 
-        if (isSafeRoom || roomCategory != RoomCategory.Combat) return;
+        if (isSafeRoom || roomCategory != RoomCategory.Combat || GetComponent<AnomalyRoomController>() != null)
+        {
+            doorsAreLocked = false;
+            isCleared = true;
+            if (doors != null)
+            {
+                foreach (GameObject d in doors) if (d) d.SetActive(false);
+            }
+            return;
+        }
+
+        EnsureValidSpawnAreas();
         totalWavesThisRoom = Random.Range(minWaves, maxWaves + 1);
 
         doorsAreLocked = false;
@@ -818,6 +838,11 @@ public class RoomController : MonoBehaviour
     /// </summary>
     public void EnsureValidSpawnAreas()
     {
+        if (isSafeRoom || roomCategory != RoomCategory.Combat || GetComponent<AnomalyRoomController>() != null)
+        {
+            return;
+        }
+
         if (spawnAreas != null)
         {
             spawnAreas.RemoveAll(a => a == null);

@@ -17,16 +17,24 @@ public class ScripturePickup : MonoBehaviour
     public KeyCode interactKey = KeyCode.E;
     public float interactionRadius = 2.5f;
 
-    [Header("Efeitos Visuais / Sonoros")]
+    [Header("Efeitos & Áudio")]
     public GameObject collectVfxPrefab;
     public AudioClip collectSound;
-    [Range(0f, 1f)] public float soundVolume = 0.8f;
+    public float soundVolume = 0.85f;
+
+    [Header("Animação")]
+    public float bobSpeed = 2.4f;
+    public float bobHeight = 0.12f;
+    public float rotateSpeed = 40f;
 
     private bool isCollected = false;
     private bool playerInRange = false;
+    private Vector3 basePosition;
 
     void Start()
     {
+        basePosition = transform.position;
+
         // Se scriptureData não foi arrastado, busca via LoreManager
         if (scriptureData == null && LoreManager.Instance != null && !string.IsNullOrEmpty(scriptureIdFallback))
         {
@@ -39,13 +47,24 @@ public class ScripturePickup : MonoBehaviour
         {
             col = gameObject.AddComponent<SphereCollider>();
             col.isTrigger = true;
-            col.radius = interactionRadius;
+            col.radius = Mathf.Max(interactionRadius, 3.0f);
+        }
+        else
+        {
+            col.isTrigger = true;
+            col.radius = Mathf.Max(col.radius, 3.0f);
         }
     }
 
     void Update()
     {
-        if (isCollected || autoCollectOnTrigger || !playerInRange) return;
+        if (isCollected) return;
+
+        // Flutuação suave e rotação mística
+        transform.Rotate(Vector3.up, rotateSpeed * Time.deltaTime, Space.World);
+        transform.position = basePosition + Vector3.up * (Mathf.Sin(Time.time * bobSpeed) * bobHeight);
+
+        if (autoCollectOnTrigger || !playerInRange) return;
 
         if (Input.GetKeyDown(interactKey))
         {
@@ -60,9 +79,18 @@ public class ScripturePickup : MonoBehaviour
         if (other.CompareTag("Player") || other.GetComponent<PlayerHealth>() != null)
         {
             playerInRange = true;
+
             if (autoCollectOnTrigger)
             {
                 Collect();
+            }
+            else
+            {
+                if (EptinhoPopupController.instancia != null)
+                {
+                    string title = scriptureData != null ? scriptureData.title : "Escritura Ancestral";
+                    EptinhoPopupController.instancia.MostrarPopupAviso($"📜 <color=#4DEEEA>{title.ToUpper()}</color>\nPressione <color=#FFE500>[E]</color> para catalogar a página do diário.");
+                }
             }
         }
     }

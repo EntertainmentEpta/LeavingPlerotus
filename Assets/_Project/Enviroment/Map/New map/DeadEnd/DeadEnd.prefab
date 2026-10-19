@@ -45,32 +45,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4c3de5da2575fa14c868522b314ae650, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RoomController
-  isSafeRoom: 0
-  roomCategory: 0
+  isSafeRoom: 1
+  roomCategory: 2
   doorsAreLocked: 0
   roomIndex: 1
-  enemyPoolConfig: {fileID: 11400000, guid: c6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1, type: 2}
-  mobMenorPrefabs:
-  - {fileID: 8934992465927708091, guid: 56182097e246d7b4b895b2c1feb0d2ba, type: 3}
-  - {fileID: 4268998290841704769, guid: 54907d67b9c4ae344968f4a78411c6ac, type: 3}
-  - {fileID: 326464074420430212, guid: 75587e19386eb024c8b895034e0d087d, type: 3}
-  atiradorPrefabs:
-  - {fileID: 6455373743372300023, guid: 566d2c0cfd6c0f64fb1b03e316183aa5, type: 3}
-  - {fileID: 6393874332621996799, guid: 7e7c3ed779af1c546bc02b3423ebde95, type: 3}
-  - {fileID: 3359006950562635497, guid: 5e5b6987e167aa04eb10ca7764b6880b, type: 3}
-  tanquePrefabs:
-  - {fileID: 748345383327806496, guid: 1a7976a1e55d949409c9a7bb2c781cac, type: 3}
-  - {fileID: 4138484601771036003, guid: 3756182d398618847b5cad2c2be8caff, type: 3}
-  - {fileID: 4042323132166325984, guid: 20c57f383987e644681aab5eeb9b2c34, type: 3}
-  elitePrefabs:
-  - {fileID: 2219830635270719724, guid: d8bf9856a9590de499ed775858ed6a48, type: 3}
-  suportePrefabs:
-  - {fileID: 626950691794527064, guid: 7a104b6634733f34b98f0afa73d3eba7, type: 3}
-  - {fileID: 5661634700527789902, guid: f9613e6db495cb64b8bf4f44589c7230, type: 3}
-  minWaves: 1
-  maxWaves: 3
+  enemyPoolConfig: {fileID: 0}
+  mobMenorPrefabs: []
+  atiradorPrefabs: []
+  tanquePrefabs: []
+  elitePrefabs: []
+  suportePrefabs: []
+  minWaves: 0
+  maxWaves: 0
   timeBetweenWaves: 2
-  minEnemiesPerWave: 6
+  minEnemiesPerWave: 0
   mobCapFraction: 0.7
   spawnAreas: []
   spawnIndicatorPrefab: {fileID: 0}
@@ -84,10 +72,8 @@ MonoBehaviour:
     prefab: {fileID: 0}
     itemData: {fileID: 0}
     weight: 1
-  doors:
-  - {fileID: 0}
-  - {fileID: 9076500435564911417}
-  showSpawnLog: 1
+  doors: []
+  showSpawnLog: 0
 --- !u!1 &2601561935923540629
 GameObject:
   m_ObjectHideFlags: 0

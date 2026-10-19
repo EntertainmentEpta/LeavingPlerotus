@@ -290,6 +290,8 @@ public class LevelGenerator : MonoBehaviour
 
     IEnumerator GenerationLoop(int roomCount)
     {
+        List<ConnectionPoint> unplaceableOutputs = new List<ConnectionPoint>();
+
         while (roomCount < maxMainRooms && openOutputs.Count > 0)
         {
             // Pega uma saída aleatória da fila
@@ -451,12 +453,23 @@ public class LevelGenerator : MonoBehaviour
             }
 
             if (!outputPlaced)
-                Debug.LogWarning($"[LevelGenerator] ⚠️ Saída '{currentOutput.gameObject.name}' descartada: nenhuma transição sem sobreposição.");
+            {
+                // Libera a saída e preserva para ser selada por um Beco sem saída (DeadEnd)
+                currentOutput.isOccupied = false;
+                unplaceableOutputs.Add(currentOutput);
+                Debug.LogWarning($"[LevelGenerator] ⚠️ Saída '{currentOutput.gameObject.name}' não pôde expandir caminho principal. Preservada para ser selada por DeadEnd.");
+            }
 
             yield return null;
         }
 
-        Debug.Log("[LevelGenerator] Caminho principal concluído. Processando saídas restantes...");
+        // Devolve todas as saídas não expandidas para a lista para serem obrigatoriamente fechadas
+        if (unplaceableOutputs.Count > 0)
+        {
+            openOutputs.AddRange(unplaceableOutputs);
+        }
+
+        Debug.Log($"[LevelGenerator] Caminho principal concluído ({roomCount} salas). Processando {openOutputs.Count} saídas restantes...");
         yield return StartCoroutine(ProcessRemainingOutputs());
     }
 
@@ -529,6 +542,25 @@ public class LevelGenerator : MonoBehaviour
         List<ConnectionPoint> deadEnds = new List<ConnectionPoint>(openOutputs);
         openOutputs.Clear();
 
+        // Varre a cena para coletar qualquer ponto de saída (Saida) que tenha ficado desocupado
+        // (por exemplo em salas 3-Way, 4-Way ou ramificações não expandidas)
+        ConnectionPoint[] allSceneCPs = FindObjectsByType<ConnectionPoint>(FindObjectsSortMode.None);
+        foreach (var cp in allSceneCPs)
+        {
+            if (cp != null && cp.pointType == ConnectionPoint.PointType.Saida && !cp.isOccupied)
+            {
+                // Protege a saída West / Nave da Safe Room inicial
+                if (cp.gameObject.name.Contains("West") || cp.gameObject.name.Contains("Nave")) continue;
+                string rootName = cp.transform.root != null ? cp.transform.root.gameObject.name : "";
+                if (rootName.Contains("Safe") && (cp.gameObject.name.Contains("West") || cp.gameObject.name.Contains("Nave"))) continue;
+
+                if (!deadEnds.Contains(cp))
+                {
+                    deadEnds.Add(cp);
+                }
+            }
+        }
+
         bool canSpawnMerchantInRun = (RunManager.instance == null || (!RunManager.instance.hasSpawnedMerchantThisRun && !RunManager.instance.hasCompletedPactThisRun));
         PlayerHealth pHealthCheck = Object.FindFirstObjectByType<PlayerHealth>();
         if (pHealthCheck != null && pHealthCheck.hasPactCorrupted) canSpawnMerchantInRun = false;
@@ -536,6 +568,8 @@ public class LevelGenerator : MonoBehaviour
 
         for (int i = 0; i < deadEnds.Count; i++)
         {
+            if (deadEnds[i] == null || deadEnds[i].isOccupied) continue;
+
             bool isLast = (i == deadEnds.Count - 1);
 
             if (canSpawnMerchantInRun && !merchantRoomSpawned && (Random.value < merchantRoomChance || isLast))
@@ -544,16 +578,11 @@ public class LevelGenerator : MonoBehaviour
                 {
                     merchantRoomSpawned = true;
                     canSpawnMerchantInRun = false;
-                }
-                else
-                {
-                    TrySpawnDeadEndOrAnomaly(deadEnds[i]);
+                    continue;
                 }
             }
-            else
-            {
-                TrySpawnDeadEndOrAnomaly(deadEnds[i]);
-            }
+
+            TrySpawnDeadEndOrAnomaly(deadEnds[i]);
         }
 
         // 3. Garantia Absoluta: se ExitRoom ainda não foi conectada, força conexão à saída mais distante disponível
@@ -608,6 +637,20 @@ public class LevelGenerator : MonoBehaviour
                         Destroy(forcedExit);
                     }
                 }
+            }
+        }
+
+        // 4. Varredura final de segurança: NENHUMA saída pode ficar aberta para o vazio
+        ConnectionPoint[] finalSweepCPs = FindObjectsByType<ConnectionPoint>(FindObjectsSortMode.None);
+        foreach (var cp in finalSweepCPs)
+        {
+            if (cp != null && cp.pointType == ConnectionPoint.PointType.Saida && !cp.isOccupied)
+            {
+                if (cp.gameObject.name.Contains("West") || cp.gameObject.name.Contains("Nave")) continue;
+                string rootName = cp.transform.root != null ? cp.transform.root.gameObject.name : "";
+                if (rootName.Contains("Safe") && (cp.gameObject.name.Contains("West") || cp.gameObject.name.Contains("Nave"))) continue;
+
+                TrySpawnDeadEnd(cp);
             }
         }
 
@@ -786,6 +829,8 @@ public class LevelGenerator : MonoBehaviour
 
     bool TrySpawnDeadEndOrAnomaly(ConnectionPoint targetOutput)
     {
+        if (targetOutput == null || targetOutput.isOccupied) return false;
+
         // Se ainda não gerou a Sala de Anomalia e passou na chance, tenta gerar
         if (!anomalyRoomSpawned && Random.value < anomalyRoomChance)
         {
@@ -796,24 +841,149 @@ public class LevelGenerator : MonoBehaviour
             }
         }
 
-        return TrySpawnSpecialRoom(GetRandomDeadEndPrefab(), targetOutput, "Dead End", useTransition: false);
+        return TrySpawnDeadEnd(targetOutput);
+    }
+
+    bool TrySpawnDeadEnd(ConnectionPoint targetOutput)
+    {
+        if (targetOutput == null || targetOutput.isOccupied) return false;
+
+        List<GameObject> candidates = new List<GameObject>();
+        if (deadEndPrefabs != null)
+        {
+            candidates.AddRange(deadEndPrefabs.Where(p => p != null));
+        }
+        if (deadEndPrefab != null && !candidates.Contains(deadEndPrefab))
+        {
+            candidates.Add(deadEndPrefab);
+        }
+
+        if (candidates.Count == 0)
+        {
+            Debug.LogError("[LevelGenerator] ❌ Nenhum prefab de DeadEnd configurado!");
+            return false;
+        }
+
+        List<GameObject> shuffled = ShuffledCopy(candidates);
+
+        // 1. Tenta encaixe direto sem transição
+        foreach (GameObject p in shuffled)
+        {
+            if (TrySpawnSpecialRoom(p, targetOutput, "Beco Sem Saída", useTransition: false))
+            {
+                SanitizeDeadEndRoom(targetOutput.transform.root.gameObject);
+                return true;
+            }
+        }
+
+        // 2. Tenta com transição (caso o espaço seja estreito ou precise de extensão)
+        foreach (GameObject p in shuffled)
+        {
+            if (TrySpawnSpecialRoom(p, targetOutput, "Beco Sem Saída (com transição)", useTransition: true))
+            {
+                SanitizeDeadEndRoom(targetOutput.transform.root.gameObject);
+                return true;
+            }
+        }
+
+        // 3. Fechamento obrigatório de segurança: anexa diretamente o primeiro prefab
+        // Garante que NENHUMA saída (especialmente em 3-way rooms) fique aberta para o vazio
+        GameObject forcedPrefab = shuffled[0];
+        GameObject forcedRoom = Instantiate(forcedPrefab);
+        forcedRoom.name = "[DeadEnd_Capped] " + forcedPrefab.name;
+        ConnectionPoint forcedEntrada = GetInputPoint(forcedRoom, targetOutput.connectionTag, targetOutput.transform);
+
+        if (forcedEntrada != null)
+        {
+            AlignRooms(targetOutput.transform, forcedEntrada.transform);
+            targetOutput.isOccupied = true;
+            forcedEntrada.isOccupied = true;
+            RegisterRoomBounds(forcedRoom);
+            SanitizeDeadEndRoom(forcedRoom);
+            Debug.Log($"[LevelGenerator] 🛡️ Beco '{forcedPrefab.name}' selou a saída aberta '{targetOutput.gameObject.name}'.");
+            return true;
+        }
+        else
+        {
+            Destroy(forcedRoom);
+            Debug.LogError($"[LevelGenerator] ❌ Falha crítica ao fechar socket '{targetOutput.gameObject.name}' com dead-end.");
+            return false;
+        }
+    }
+
+    void SanitizeDeadEndRoom(GameObject room)
+    {
+        if (room == null) return;
+        RoomController rc = room.GetComponent<RoomController>();
+        if (rc != null)
+        {
+            rc.isSafeRoom = true;
+            rc.roomCategory = RoomController.RoomCategory.Contemplation;
+            rc.minWaves = 0;
+            rc.maxWaves = 0;
+            rc.minEnemiesPerWave = 0;
+            rc.enemyPoolConfig = null;
+            rc.doorsAreLocked = false;
+            rc.isCleared = true;
+            if (rc.doors != null)
+            {
+                foreach (var d in rc.doors)
+                {
+                    if (d != null)
+                    {
+                        d.SetActive(false);
+                        Collider c = d.GetComponent<Collider>();
+                        if (c != null) c.enabled = false;
+                    }
+                }
+                rc.doors = new GameObject[0];
+            }
+            if (rc.spawnAreas != null)
+            {
+                rc.spawnAreas.Clear();
+            }
+        }
+
+        // Desativa quaisquer colisores invisíveis de barreira de porta
+        Collider[] allCols = room.GetComponentsInChildren<Collider>(true);
+        foreach (var col in allCols)
+        {
+            if (col.gameObject.name.Contains("Barrier_CP") || col.gameObject.name.Contains("DoorBarrier"))
+            {
+                col.gameObject.SetActive(false);
+                col.enabled = false;
+            }
+        }
+
+        // Destrói pontos de spawn de mobs se existirem
+        Transform[] allChildren = room.GetComponentsInChildren<Transform>(true);
+        foreach (var child in allChildren)
+        {
+            if (child != null && child.gameObject.name.Contains("AutoSpawnArea"))
+            {
+                Destroy(child.gameObject);
+            }
+        }
     }
 
     bool TrySpawnAnomalyRoom(ConnectionPoint targetOutput)
     {
-        if (targetOutput == null) return false;
+        if (targetOutput == null || targetOutput.isOccupied) return false;
 
         // 1. Tenta usar o prefab dedicado se fornecido
         if (anomalyRoomPrefab != null)
         {
             if (TrySpawnSpecialRoom(anomalyRoomPrefab, targetOutput, "Sala de Anomalia", useTransition: false))
             {
+                AnomalyRoomController arc = FindFirstObjectByType<AnomalyRoomController>();
+                if (arc != null) ConfigureAnomalyRoom(arc.gameObject);
+
                 NotifyAnomalyRoomSpawned(targetOutput.transform.position);
                 return true;
             }
         }
 
-        // 2. Fallback procedural inteligente: converte um DeadEnd em Sala de Anomalia
+        // 2. Fallback procedural: converte um DeadEnd em Sala de Anomalia
         GameObject deadEndPrefabToUse = GetRandomDeadEndPrefab();
         if (deadEndPrefabToUse == null) return false;
 
@@ -839,15 +1009,76 @@ public class LevelGenerator : MonoBehaviour
         entrada.isOccupied = true;
         RegisterRoomBounds(room);
 
-        // Adiciona controlador de anomalia dinamicamente
+        // Configura sala 100% segura e contemplativa (sem mobs, sem barreiras travadas)
+        ConfigureAnomalyRoom(room);
+
+        NotifyAnomalyRoomSpawned(room.transform.position);
+        Debug.Log("[LevelGenerator] 🌌 Sala de Anomalia biológica gerada com sucesso!");
+        return true;
+    }
+
+    void ConfigureAnomalyRoom(GameObject room)
+    {
+        if (room == null) return;
+
+        // 1. Garante componente AnomalyRoomController
         if (room.GetComponent<AnomalyRoomController>() == null)
         {
             room.AddComponent<AnomalyRoomController>();
         }
 
-        NotifyAnomalyRoomSpawned(room.transform.position);
-        Debug.Log("[LevelGenerator] 🌌 Sala de Anomalia biológica gerada com sucesso!");
-        return true;
+        // 2. Configura RoomController como seguro / contemplação
+        RoomController rc = room.GetComponent<RoomController>();
+        if (rc != null)
+        {
+            rc.isSafeRoom = true;
+            rc.roomCategory = RoomController.RoomCategory.Contemplation;
+            rc.minWaves = 0;
+            rc.maxWaves = 0;
+            rc.minEnemiesPerWave = 0;
+            rc.enemyPoolConfig = null;
+            rc.doorsAreLocked = false;
+            rc.isCleared = true;
+
+            if (rc.doors != null)
+            {
+                foreach (var d in rc.doors)
+                {
+                    if (d != null)
+                    {
+                        d.SetActive(false);
+                        Collider c = d.GetComponent<Collider>();
+                        if (c != null) c.enabled = false;
+                    }
+                }
+                rc.doors = new GameObject[0];
+            }
+            if (rc.spawnAreas != null)
+            {
+                rc.spawnAreas.Clear();
+            }
+        }
+
+        // 3. Remove barreiras invisíveis de entrada (evita parede invisível)
+        Collider[] allCols = room.GetComponentsInChildren<Collider>(true);
+        foreach (var col in allCols)
+        {
+            if (col.gameObject.name.Contains("Barrier_CP") || col.gameObject.name.Contains("DoorBarrier"))
+            {
+                col.gameObject.SetActive(false);
+                col.enabled = false;
+            }
+        }
+
+        // 4. Remove quaisquer AutoSpawnArea para NUNCA spawnar inimigos
+        Transform[] allChildren = room.GetComponentsInChildren<Transform>(true);
+        foreach (var child in allChildren)
+        {
+            if (child != null && child.gameObject.name.Contains("AutoSpawnArea"))
+            {
+                Destroy(child.gameObject);
+            }
+        }
     }
 
     private void NotifyAnomalyRoomSpawned(Vector3 position)
@@ -1262,61 +1493,82 @@ public class LevelGenerator : MonoBehaviour
     {
         if (FindFirstObjectByType<ScripturePickup>() != null) return;
 
-        GameObject pagePrefab = Resources.Load<GameObject>("Lore/ScripturePagePickup") ?? 
-                                Resources.Load<GameObject>("Scriptures/ScripturePickup");
-
         // Escolhe o melhor local: Sala de Anomalia ou Dead End distante
         Vector3 spawnPos = Vector3.zero;
         bool foundSpot = false;
+        RoomController targetRoom = null;
 
         RoomController[] rooms = FindObjectsByType<RoomController>(FindObjectsSortMode.None);
-        var specialRooms = rooms.Where(r => r != null && (r.gameObject.name.Contains("Anomaly") || r.gameObject.name.Contains("DeadEnd") || r.gameObject.name.Contains("Z Room"))).ToList();
+        var specialRooms = rooms.Where(r => r != null && (r.gameObject.name.Contains("Anomaly") || r.gameObject.name.Contains("DeadEnd") || r.gameObject.name.Contains("semsaida") || r.gameObject.name.Contains("Z Room"))).ToList();
 
         if (specialRooms.Count > 0)
         {
-            RoomController targetRoom = specialRooms[Random.Range(0, specialRooms.Count)];
-            spawnPos = targetRoom.transform.position + Vector3.up * 0.2f;
-            foundSpot = true;
+            targetRoom = specialRooms[Random.Range(0, specialRooms.Count)];
         }
         else if (rooms.Length > 2)
         {
-            RoomController targetRoom = rooms[Random.Range(1, rooms.Length)];
-            spawnPos = targetRoom.transform.position + Vector3.up * 0.2f;
-            foundSpot = true;
+            targetRoom = rooms[Random.Range(1, rooms.Length)];
+        }
+
+        if (targetRoom != null)
+        {
+            Vector3 center = targetRoom.transform.position;
+            // Raycast para encontrar o chão FÍSICO exato do quarto, garantindo que o item nunca fique sob o mapa
+            Vector3 rayStart = new Vector3(center.x, roomFloorY + 10f, center.z);
+            RaycastHit hit;
+            if (Physics.Raycast(rayStart, Vector3.down, out hit, 30f))
+            {
+                spawnPos = hit.point + Vector3.up * 0.45f;
+                foundSpot = true;
+            }
+            else
+            {
+                spawnPos = center + Vector3.up * 0.8f;
+                foundSpot = true;
+            }
         }
 
         if (foundSpot)
         {
-            if (pagePrefab != null)
-            {
-                Instantiate(pagePrefab, spawnPos, Quaternion.identity);
-            }
-            else
-            {
-                GameObject pageGo = new GameObject("ScripturePickup_FloorPage");
-                pageGo.transform.position = spawnPos;
-                ScripturePickup sp = pageGo.AddComponent<ScripturePickup>();
-                sp.autoCollectOnTrigger = false;
-                sp.interactKey = KeyCode.E;
-                sp.interactionRadius = 2.5f;
+            GameObject pageGo = new GameObject("ScripturePickup_FloorPage");
+            pageGo.transform.position = spawnPos;
+            ScripturePickup sp = pageGo.AddComponent<ScripturePickup>();
+            sp.autoCollectOnTrigger = false;
+            sp.interactKey = KeyCode.E;
+            sp.interactionRadius = 3.2f;
+            sp.bobHeight = 0.15f;
+            sp.bobSpeed = 2.2f;
 
-                if (LoreManager.Instance != null)
+            if (LoreManager.Instance != null)
+            {
+                sp.scriptureData = LoreManager.Instance.GetNextUndiscoveredScripture();
+            }
+
+            // Modelo visual 3D (Livro/Página de Lore ancestral)
+            GameObject bookModelPrefab = Resources.Load<GameObject>("Lore/Book");
+            if (bookModelPrefab != null)
+            {
+                GameObject bookVisual = Instantiate(bookModelPrefab, pageGo.transform);
+                bookVisual.transform.localPosition = Vector3.zero;
+                bookVisual.transform.localRotation = Quaternion.Euler(-15f, 0f, 15f);
+                bookVisual.transform.localScale = Vector3.one * 15f;
+                foreach (var c in bookVisual.GetComponentsInChildren<Collider>())
                 {
-                    sp.scriptureData = LoreManager.Instance.GetNextUndiscoveredScripture();
+                    Destroy(c);
                 }
-
-                // Luz vertical mística / beacon para avistar de longe
-                GameObject lightGo = new GameObject("BeaconLight");
-                lightGo.transform.SetParent(pageGo.transform, false);
-                lightGo.transform.localPosition = Vector3.up * 0.5f;
-                Light l = lightGo.AddComponent<Light>();
-                l.type = LightType.Point;
-                l.color = new Color(0.2f, 0.95f, 1f);
-                l.range = 5f;
-                l.intensity = 2.2f;
             }
 
-            Debug.Log($"[LevelGenerator] 📜 Página de escritura spawnada no chão da dungeon em {spawnPos}!");
+            // Luz vertical mística / beacon para avistar de longe
+            GameObject lightGo = new GameObject("BeaconLight");
+            lightGo.transform.SetParent(pageGo.transform, false);
+            lightGo.transform.localPosition = Vector3.up * 0.4f;
+            Light l = lightGo.AddComponent<Light>();
+            l.type = LightType.Point;
+            l.color = new Color(0.2f, 0.95f, 1f);
+            l.range = 6.5f;
+            l.intensity = 2.8f;
+
+            Debug.Log($"[LevelGenerator] 📜 Página de escritura spawnada com sucesso no chão físico da dungeon em {spawnPos} (Sala: {targetRoom.gameObject.name})!");
         }
     }
 
