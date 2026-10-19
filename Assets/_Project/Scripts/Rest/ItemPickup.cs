@@ -54,9 +54,117 @@ public class ItemPickup : MonoBehaviour
     private Vector3 initialScale;
     private bool baseScaleSaved = false;
 
+    private static readonly Dictionary<string, string> NameToItemIdMap = new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase)
+    {
+        { "Lanternas", "arvore_vagens" },
+        { "Arvore_vagens", "arvore_vagens" },
+        { "Ovocristal", "ovo_cristal_crawler" },
+        { "Ovocristalcrawler", "ovo_cristal_crawler" },
+        { "Quebradiço", "caracol_geodo" },
+        { "Quebradico", "caracol_geodo" },
+        { "Caracol", "caracol_geodo" },
+        { "Fly", "vagalume_cristalizado" },
+        { "Vagalume", "vagalume_cristalizado" },
+        { "Melacotus", "melocactus" },
+        { "Melocactus", "melocactus" },
+        { "Lotus", "lithos" },
+        { "Lithos", "lithos" },
+        { "Cristal", "po_de_cristal" },
+        { "Peixe", "peixe_lagoa" }
+    };
+
+    public void EnsureItemData()
+    {
+        if (interactable == null)
+            interactable = GetComponent<Interactable>() ?? gameObject.AddComponent<Interactable>();
+
+        if (interactable.itemData != null)
+            return;
+
+        string cleanName = gameObject.name.Replace("(Clone)", "").Trim();
+        string targetId = null;
+
+        foreach (var kvp in NameToItemIdMap)
+        {
+            if (cleanName.IndexOf(kvp.Key, System.StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                targetId = kvp.Value;
+                break;
+            }
+        }
+
+        if (string.IsNullOrEmpty(targetId))
+        {
+            targetId = cleanName.ToLower();
+        }
+
+        ItemData resolved = null;
+        if (ItemDatabase.Instance != null)
+        {
+            resolved = ItemDatabase.Instance.GetItemData(targetId);
+        }
+
+        if (resolved == null)
+        {
+            resolved = Resources.Load<ItemData>($"ItemData/{targetId}");
+        }
+
+        if (resolved != null)
+        {
+            interactable.itemData = resolved;
+            if (string.IsNullOrEmpty(interactable.objetoNome))
+            {
+                interactable.objetoNome = resolved.itemName;
+            }
+            if (resolved.returnsToBase)
+            {
+                forceCategory = resolved.enemySource;
+            }
+            Debug.Log($"[ITEM PICKUP] ItemData resolvido dinamicamente para '{gameObject.name}' -> {resolved.itemId} ({resolved.itemName})");
+        }
+    }
+
+    private void SnapToGround()
+    {
+        bool isFly = (interactable != null && interactable.itemData != null && (interactable.itemData.itemId == "vagalume_cristalizado" || interactable.itemData.itemId == "fly")) ||
+                     (gameObject.name.ToLower().Contains("fly") && !gameObject.name.ToLower().Contains("peixe"));
+        if (isFly) return;
+
+        Vector3 rayStart = transform.position + Vector3.up * 1.5f;
+        RaycastHit[] hits = Physics.RaycastAll(rayStart, Vector3.down, 6.0f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
+        float bestDist = float.MaxValue;
+        Vector3 bestPoint = Vector3.zero;
+        bool found = false;
+
+        foreach (var h in hits)
+        {
+            if (h.collider == null) continue;
+            if (h.transform.IsChildOf(transform)) continue;
+            if (h.collider.CompareTag("Player") || h.collider.CompareTag("Enemy")) continue;
+
+            string n = h.collider.gameObject.name.ToLower();
+            if (n.Contains("crystal") || n.Contains("prop") || h.collider.CompareTag("Prop")) continue;
+            if (h.collider.isTrigger && !n.Contains("water")) continue;
+
+            float d = Mathf.Abs(h.point.y - transform.position.y);
+            if (d < bestDist)
+            {
+                bestDist = d;
+                bestPoint = h.point;
+                found = true;
+            }
+        }
+
+        if (found)
+        {
+            transform.position = new Vector3(transform.position.x, bestPoint.y + 0.05f, transform.position.z);
+        }
+    }
+
     void Awake()
     {
-        interactable = GetComponent<Interactable>();
+        interactable = GetComponent<Interactable>() ?? gameObject.AddComponent<Interactable>();
+        EnsureItemData();
         EnsureTriggerCollider();
 
         if (glowObject != null && !IsVisualRendererObject(glowObject)) 
@@ -109,6 +217,7 @@ public class ItemPickup : MonoBehaviour
         spawnTime = Time.time;
         if (lifetime > 0) Destroy(gameObject, lifetime);
 
+        EnsureItemData();
         EnsureTriggerCollider();
 
         if (!IsMapResource())
@@ -122,6 +231,7 @@ public class ItemPickup : MonoBehaviour
             InitializeItem();
         }
 
+        SnapToGround();
         EnsurePromptUI();
     }
 
@@ -265,9 +375,10 @@ public class ItemPickup : MonoBehaviour
         }
     }
 
-    private void InitializeItem()
+    public void InitializeItem()
     {
         if (isInitialized) return;
+        EnsureItemData();
         isInitialized = true;
 
         if (interactable == null || interactable.itemData == null) return;
@@ -301,9 +412,10 @@ public class ItemPickup : MonoBehaviour
     {
         if (source == "Fauna")
         {
-            bool isFish = (interactable != null && interactable.itemData != null && interactable.itemData.itemId == "peixe_lagoa");
-            bool isFly = (interactable != null && interactable.itemData != null && (interactable.itemData.itemId == "vagalume_cristalizado" || interactable.itemData.itemId == "fly")) ||
-                         gameObject.name.ToLower().Contains("fly") || gameObject.name.ToLower().Contains("vagalume");
+            bool isFish = (interactable != null && interactable.itemData != null && interactable.itemData.itemId == "peixe_lagoa") ||
+                          gameObject.name.ToLower().Contains("peixe");
+            bool isFly = !isFish && (((interactable != null && interactable.itemData != null && (interactable.itemData.itemId == "vagalume_cristalizado" || interactable.itemData.itemId == "fly")) ||
+                         gameObject.name.ToLower().Contains("fly") || gameObject.name.ToLower().Contains("vagalume")));
 
             if (isFish)
             {
@@ -673,6 +785,8 @@ public class ItemPickup : MonoBehaviour
     private void TryCollect(GameObject player)
     {
         if (interactable == null || interactable.foiCatalogado) return;
+
+        EnsureItemData();
 
         if (interactable.itemData == null)
         {

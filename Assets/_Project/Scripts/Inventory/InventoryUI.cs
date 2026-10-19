@@ -1600,6 +1600,25 @@ public class InventoryUI : MonoBehaviour
 
     public void ToggleItemSelection(InventorySlotUI slot, string itemId)
     {
+        if (slot != null && slot.isSyntheticBag)
+        {
+            if (EptinhoPopupController.instancia != null)
+            {
+                EptinhoPopupController.instancia.MostrarPopupAviso("Recursos da Bolsa Sintética são permanentes e não podem ser infundidos!");
+            }
+            return;
+        }
+
+        ItemData data = ItemDatabase.Instance != null ? ItemDatabase.Instance.GetItemData(itemId) : null;
+        if (data != null && data.returnsToBase)
+        {
+            if (EptinhoPopupController.instancia != null)
+            {
+                EptinhoPopupController.instancia.MostrarPopupAviso("Recursos da Bolsa Sintética são permanentes e não podem ser infundidos!");
+            }
+            return;
+        }
+
         int maxChamber = 2;
         InfusionManager infMgr = Object.FindFirstObjectByType<InfusionManager>();
         if (infMgr != null) maxChamber = infMgr.GetMaxChamberItems();
@@ -1733,9 +1752,15 @@ public class InventoryUI : MonoBehaviour
         if (selectedSlots.Count == 0 || selectedSlots.Count > maxChamber) return;
 
         System.Collections.Generic.List<string> ids = new System.Collections.Generic.List<string>();
-        foreach(var s in selectedSlots) ids.Add(s.currentItemId);
+        foreach (var s in selectedSlots)
+        {
+            if (s != null && !string.IsNullOrEmpty(s.currentItemId))
+                ids.Add(s.currentItemId);
+        }
 
-        InfusionUI telaDeUpgrades = Object.FindFirstObjectByType<InfusionUI>(FindObjectsInactive.Include);
+        if (ids.Count == 0) return;
+
+        InfusionUI telaDeUpgrades = InfusionUI.EnsureInstance();
         if (telaDeUpgrades != null)
         {
             bool abriu = telaDeUpgrades.OpenPanel();
@@ -1743,6 +1768,10 @@ public class InventoryUI : MonoBehaviour
             {
                 telaDeUpgrades.SelectMultipleItems(ids);
             }
+        }
+        else
+        {
+            Debug.LogError("[INVENTORY UI] Não foi possível carregar ou abrir InfusionUI!");
         }
     }
 }

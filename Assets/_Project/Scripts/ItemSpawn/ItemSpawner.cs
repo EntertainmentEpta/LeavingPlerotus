@@ -76,7 +76,16 @@ public class ItemSpawner : MonoBehaviour
             GameObject item = GetRandomItem(allItems);
 
             if (item != null)
-                Instantiate(item, point.transform.position, Quaternion.identity);
+            {
+                GameObject spawned = Instantiate(item, point.transform.position, Quaternion.identity);
+                if (collectableItems != null && collectableItems.Any(ci => ci.prefab == item))
+                {
+                    ItemPickup pickup = spawned.GetComponent<ItemPickup>();
+                    if (pickup == null) pickup = spawned.AddComponent<ItemPickup>();
+                    pickup.EnsureItemData();
+                    pickup.InitializeItem();
+                }
+            }
         }
     }
 }

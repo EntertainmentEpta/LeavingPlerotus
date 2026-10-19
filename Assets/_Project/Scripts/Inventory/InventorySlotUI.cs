@@ -21,6 +21,7 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
 
     // Dados do slot
     public string currentItemId;
+    public bool isSyntheticBag = false;
     private int currentQuantity;
     private ItemData currentItemData;
     private bool isOccupied = false;
@@ -432,6 +433,15 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
 
         if (isOccupied && !string.IsNullOrEmpty(currentItemId))
         {
+            if (isSyntheticBag || (currentItemData != null && currentItemData.returnsToBase))
+            {
+                if (EptinhoPopupController.instancia != null)
+                {
+                    EptinhoPopupController.instancia.MostrarPopupAviso("Recursos da Bolsa Sintética são permanentes e não podem ser infundidos!");
+                }
+                return;
+            }
+
             if (InventoryUI.Instance != null)
             {
                 InventoryUI.Instance.ToggleItemSelection(this, currentItemId);

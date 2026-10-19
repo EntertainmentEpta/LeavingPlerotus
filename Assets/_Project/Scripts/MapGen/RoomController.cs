@@ -963,18 +963,22 @@ public class RoomController : MonoBehaviour
         if (!foundGround)
         {
             Vector3 rayStart = new Vector3(x, floorY + 3.5f, z);
-            RaycastHit[] hits = Physics.RaycastAll(rayStart, Vector3.down, 8.0f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            RaycastHit[] hits = Physics.RaycastAll(rayStart, Vector3.down, 8.0f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
             float bestDist = float.MaxValue;
             RaycastHit bestHit = default;
             bool hitFound = false;
 
             foreach (var h in hits)
             {
-                if (h.collider == null || h.collider.isTrigger) continue;
-                if (h.collider.CompareTag("Player")) continue;
+                if (h.collider == null) continue;
+                if (h.collider.CompareTag("Player") || h.collider.CompareTag("Enemy")) continue;
 
                 string hitName = h.collider.gameObject.name.ToLower();
                 if (hitName.Contains("crystal") || hitName.Contains("prop") || h.collider.CompareTag("Prop"))
+                    continue;
+
+                // Aceita colisor se não for trigger OU se for a superfície da água (Water)
+                if (h.collider.isTrigger && !hitName.Contains("water"))
                     continue;
 
                 float dist = Mathf.Abs(h.point.y - floorY);
@@ -1023,6 +1027,15 @@ public class RoomController : MonoBehaviour
                 new CollectibleSpawnEntry() { itemName = "Ovos de Cristal Crawler", prefab = Resources.Load<GameObject>("SpawnItems/Ovocristal") ?? Resources.Load<GameObject>("SpawnItems/Ovocristal.prefab"), itemData = Resources.Load<ItemData>("ItemData/ovo_cristal_crawler"), weight = 1.0f }
             };
         }
+        foreach (var entry in faunaSpawnEntries)
+        {
+            if (entry != null && entry.itemData == null && !string.IsNullOrEmpty(entry.itemName))
+            {
+                if (entry.itemName.Contains("Vagalume")) entry.itemData = Resources.Load<ItemData>("ItemData/vagalume_cristalizado");
+                else if (entry.itemName.Contains("Caracol") || entry.itemName.Contains("Quebradiço")) entry.itemData = Resources.Load<ItemData>("ItemData/caracol_geodo");
+                else if (entry.itemName.Contains("Ovos") || entry.itemName.Contains("Crawler")) entry.itemData = Resources.Load<ItemData>("ItemData/ovo_cristal_crawler");
+            }
+        }
 
         // 2. FLORA
         if (floraSpawnEntries == null || floraSpawnEntries.Count == 0)
@@ -1034,6 +1047,15 @@ public class RoomController : MonoBehaviour
                 new CollectibleSpawnEntry() { itemName = "Árvore de Vagens (Lanternas)", prefab = Resources.Load<GameObject>("SpawnItems/Lanternas"), itemData = Resources.Load<ItemData>("ItemData/arvore_vagens"), weight = 1.0f }
             };
         }
+        foreach (var entry in floraSpawnEntries)
+        {
+            if (entry != null && entry.itemData == null && !string.IsNullOrEmpty(entry.itemName))
+            {
+                if (entry.itemName.Contains("Melocactus")) entry.itemData = Resources.Load<ItemData>("ItemData/melocactus");
+                else if (entry.itemName.Contains("Lotus") || entry.itemName.Contains("Lithos")) entry.itemData = Resources.Load<ItemData>("ItemData/lithos");
+                else if (entry.itemName.Contains("Vagens") || entry.itemName.Contains("Lanternas")) entry.itemData = Resources.Load<ItemData>("ItemData/arvore_vagens");
+            }
+        }
 
         // 3. MINÉRIOS
         if (mineralSpawnEntries == null || mineralSpawnEntries.Count == 0)
@@ -1042,6 +1064,13 @@ public class RoomController : MonoBehaviour
             {
                 new CollectibleSpawnEntry() { itemName = "Cristal (Pó de Cristal)", prefab = Resources.Load<GameObject>("SpawnItems/Cristal"), itemData = Resources.Load<ItemData>("ItemData/po_de_cristal"), weight = 1.0f }
             };
+        }
+        foreach (var entry in mineralSpawnEntries)
+        {
+            if (entry != null && entry.itemData == null && !string.IsNullOrEmpty(entry.itemName))
+            {
+                if (entry.itemName.Contains("Cristal")) entry.itemData = Resources.Load<ItemData>("ItemData/po_de_cristal");
+            }
         }
 
         // 4. FAUNA AQUÁTICA EXCLUSIVA (PEIXE LAMPIÃO / LAKE ROOM)
@@ -1188,7 +1217,7 @@ public class RoomController : MonoBehaviour
 
             if (faunaPrefabToInstantiate != null)
             {
-                bool isFly = faunaEntry.itemName.ToLower().Contains("vagalume") || faunaPrefabToInstantiate.name.ToLower().Contains("fly");
+                bool isFly = (faunaEntry.itemName.ToLower().Contains("vagalume") || faunaPrefabToInstantiate.name.ToLower().Contains("fly")) && !faunaEntry.itemName.ToLower().Contains("peixe");
                 Vector3 pos = GetSeparatedRandomPositionForCollectible(spawnedPositions, false, isFly, 7f);
                 spawnedPositions.Add(pos);
                 GameObject obj = Instantiate(faunaPrefabToInstantiate, pos, Quaternion.identity);

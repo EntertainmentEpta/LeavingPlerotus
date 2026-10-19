@@ -54,16 +54,81 @@ public class InfusionUI : MonoBehaviour
     private static readonly Color HEADER_ACCENT = new Color(0.40f, 0.70f, 1.0f, 1f);
     private static readonly Color CARD_SLOT_BG = new Color(0.06f, 0.08f, 0.13f, 0.95f);
 
+    private static InfusionUI _instance;
+    public static InfusionUI Instance
+    {
+        get
+        {
+            if (_instance == null)
+            {
+                _instance = EnsureInstance();
+            }
+            return _instance;
+        }
+        private set { _instance = value; }
+    }
+
+    public static InfusionUI EnsureInstance()
+    {
+        if (_instance != null) return _instance;
+
+        InfusionUI existing = Object.FindFirstObjectByType<InfusionUI>(FindObjectsInactive.Include);
+        if (existing != null)
+        {
+            _instance = existing;
+            return existing;
+        }
+
+        GameObject prefab = Resources.Load<GameObject>("PainelUpgrades") ?? 
+                            Resources.Load<GameObject>("UI/PainelUpgrades");
+        if (prefab != null)
+        {
+            Canvas targetCanvas = InventoryUI.CanvasInstance;
+            if (targetCanvas == null)
+            {
+                Canvas[] canvases = Object.FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+                foreach (var c in canvases)
+                {
+                    if (c.isRootCanvas && c.renderMode != RenderMode.WorldSpace)
+                    {
+                        targetCanvas = c;
+                        break;
+                    }
+                }
+            }
+
+            GameObject instance = Object.Instantiate(prefab, targetCanvas != null ? targetCanvas.transform : null);
+            instance.name = "PainelUpgrades";
+            existing = instance.GetComponentInChildren<InfusionUI>(true);
+            if (existing != null)
+            {
+                existing.painelUpgrades = instance;
+                _instance = existing;
+            }
+            return existing;
+        }
+
+        Debug.LogError("[INFUSION UI] Falha ao carregar PainelUpgrades do Resources!");
+        return null;
+    }
+
     void Awake()
     {
-        // Tenta carregar Oswald Bold SDF do Resources se nÃƒÂ£o estiver atribuÃƒÂ­da
+        _instance = this;
+
+        // Tenta carregar Oswald Bold SDF do Resources se não estiver atribuída
         if (customFont == null)
         {
             customFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/Oswald Bold SDF");
         }
 
-        // Auto-estilizaÃƒÂ§ÃƒÂ£o e reforÃƒÂ§o da UI
+        // Auto-estilização e reforço da UI
         ApplyThemeAndEnhancements();
+    }
+
+    void OnDestroy()
+    {
+        if (_instance == this) _instance = null;
     }
 
     void Start()
@@ -405,8 +470,20 @@ public class InfusionUI : MonoBehaviour
             infusionManager = FindFirstObjectByType<InfusionManager>();
         }
 
+        if (painelUpgrades == null)
+        {
+            painelUpgrades = gameObject;
+        }
+
         if (painelUpgrades != null) 
         {
+            Transform p = painelUpgrades.transform.parent;
+            while (p != null)
+            {
+                if (!p.gameObject.activeSelf) p.gameObject.SetActive(true);
+                p = p.parent;
+            }
+
             painelUpgrades.SetActive(true);
             painelUpgrades.transform.SetAsLastSibling();
             
@@ -414,13 +491,16 @@ public class InfusionUI : MonoBehaviour
             if (c == null) 
             {
                 c = painelUpgrades.AddComponent<Canvas>();
+            }
+            if (painelUpgrades.GetComponent<GraphicRaycaster>() == null)
+            {
                 painelUpgrades.AddComponent<GraphicRaycaster>();
             }
             c.overrideSorting = true;
             c.sortingOrder = 999; 
 
             // Animação de Abertura
-            if(openAnimCoroutine != null) StopCoroutine(openAnimCoroutine);
+            if (openAnimCoroutine != null) StopCoroutine(openAnimCoroutine);
             openAnimCoroutine = StartCoroutine(AnimatePanelOpen());
         }
 
