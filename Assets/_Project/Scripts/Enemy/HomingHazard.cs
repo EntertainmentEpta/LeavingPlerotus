@@ -56,6 +56,52 @@ public class HomingHazard : MonoBehaviour
     public Color explosionColor = new Color(1f, 0.4f, 0.05f, 1f);
     public Color shockwaveRingColor = new Color(1f, 0.65f, 0.2f, 1f);
 
+    [Header("Reação em Cadeia de Caveiras")]
+    [Tooltip("Ativa o efeito dominó/cascata onde a explosão de uma caveira detona as caveiras vizinhas.")]
+    public bool enableChainExplosion = true;
+
+    [Tooltip("Multiplicador do raio de detecção para a reação em cadeia.")]
+    public float chainReactionRadiusMultiplier = 1.15f;
+
+    [Tooltip("Atraso mínimo em segundos para a explosão em cascata (efeito dominó).")]
+    public float minChainDelay = 0.06f;
+
+    [Tooltip("Atraso máximo em segundos para a explosão em cascata dependendo da distância.")]
+    public float maxChainDelay = 0.16f;
+
+    private static readonly System.Collections.Generic.List<HomingHazard> activeSkulls = new System.Collections.Generic.List<HomingHazard>();
+    private bool isChainDetonating = false;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStaticSkullsDomain()
+    {
+        activeSkulls.Clear();
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    private static void ResetStaticSkullsScene()
+    {
+        activeSkulls.Clear();
+    }
+
+    private void OnEnable()
+    {
+        if (!activeSkulls.Contains(this))
+        {
+            activeSkulls.Add(this);
+        }
+    }
+
+    private void OnDisable()
+    {
+        activeSkulls.Remove(this);
+    }
+
+    private void OnDestroy()
+    {
+        activeSkulls.Remove(this);
+    }
+
     private Transform playerTransform;
     private Rigidbody rb;
     private float bobOffset;
@@ -350,6 +396,12 @@ public class HomingHazard : MonoBehaviour
             }
         }
 
+        // 2.1 Reação em Cadeia de Caveiras (Efeito Dominó)
+        if (enableChainExplosion)
+        {
+            TriggerNearbySkullsChainReaction(explosionCenter);
+        }
+
         // 3. Som de Explosão 3D Potente com variação de pitch
         PlayExplosionAudio(explosionCenter);
 
@@ -379,6 +431,102 @@ public class HomingHazard : MonoBehaviour
         fxRunner.Run(explosionRadius, explosionColor, shockwaveRingColor);
 
         Destroy(gameObject);
+    }
+
+    public bool CanBeChainDetonated()
+    {
+        return currentState != HazardState.Exploded && !isChainDetonating && gameObject.activeInHierarchy;
+    }
+
+    public void TriggerChainExplosion(float delay)
+    {
+        if (!CanBeChainDetonated()) return;
+        isChainDetonating = true;
+        StartCoroutine(ChainExplodeRoutine(delay));
+    }
+
+    private System.Collections.IEnumerator ChainExplodeRoutine(float delay)
+    {
+        // 1. Interrompe movimentação imediatamente para travar a caveira no lugar
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero;
+        }
+        currentState = HazardState.Fusing;
+        fusingAnchorPos = transform.position;
+
+        // 2. Visual instantâneo: acende a caveira em cor incandescente de sobrecarga
+        ArmFuseVisualsInstant();
+
+        // 3. Aguarda o delay cascata (efeito dominó sonoro e visual)
+        if (delay > 0f)
+        {
+            yield return new WaitForSeconds(delay);
+        }
+
+        if (currentState != HazardState.Exploded)
+        {
+            Explode();
+        }
+    }
+
+    private void ArmFuseVisualsInstant()
+    {
+        if (cachedMaterials != null)
+        {
+            Color blastWarnColor = new Color(1f, 0.35f, 0.05f);
+            for (int i = 0; i < cachedMaterials.Length; i++)
+            {
+                if (cachedMaterials[i] != null && cachedMaterials[i].HasProperty("_Color"))
+                {
+                    cachedMaterials[i].color = blastWarnColor;
+                }
+            }
+        }
+
+        if (internalPointLight != null)
+        {
+            internalPointLight.enabled = true;
+            internalPointLight.color = Color.red;
+            internalPointLight.intensity = 6.5f;
+        }
+    }
+
+    private void TriggerNearbySkullsChainReaction(Vector3 center)
+    {
+        float chainRadius = explosionRadius * chainReactionRadiusMultiplier;
+
+        // 1. Percorre o registro estático de caveiras ativas (ultra rápido, O(N), sem GC)
+        for (int i = 0; i < activeSkulls.Count; i++)
+        {
+            HomingHazard otherSkull = activeSkulls[i];
+            if (otherSkull != null && otherSkull != this && otherSkull.CanBeChainDetonated())
+            {
+                float dist = Vector3.Distance(center, otherSkull.transform.position);
+                if (dist <= chainRadius)
+                {
+                    float distNorm = Mathf.Clamp01(dist / chainRadius);
+                    float delay = Mathf.Lerp(minChainDelay, maxChainDelay, distNorm);
+                    Debug.Log($"[HomingHazard] 💥 Reação em Cadeia! Caveira {otherSkull.name} detonada pela explosão de {gameObject.name} (dist: {dist:F1}m, delay: {delay:F2}s).");
+                    otherSkull.TriggerChainExplosion(delay);
+                }
+            }
+        }
+
+        // 2. Fallback de OverlapSphere para garantir que colisores soltos/filhos também sejam detectados
+        Collider[] hitColliders = Physics.OverlapSphere(center, chainRadius);
+        foreach (var col in hitColliders)
+        {
+            if (col == null) continue;
+            HomingHazard otherSkull = col.GetComponent<HomingHazard>() ?? col.GetComponentInParent<HomingHazard>();
+            if (otherSkull != null && otherSkull != this && otherSkull.CanBeChainDetonated())
+            {
+                float dist = Vector3.Distance(center, otherSkull.transform.position);
+                float distNorm = Mathf.Clamp01(dist / chainRadius);
+                float delay = Mathf.Lerp(minChainDelay, maxChainDelay, distNorm);
+                otherSkull.TriggerChainExplosion(delay);
+            }
+        }
     }
 
     private void ApplyPlayerKnockback(GameObject playerObj, Vector3 center)
