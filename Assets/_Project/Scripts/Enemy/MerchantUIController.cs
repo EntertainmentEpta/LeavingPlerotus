@@ -78,7 +78,23 @@ public class MerchantUIController : MonoBehaviour
     private PlayerInventory playerInventory;
 
     private bool hasMadePact = false;
-    public bool HasMadePactInRun { get; private set; } = false;
+    public bool HasMadePactInRun
+    {
+        get
+        {
+            if (RunManager.instance != null && RunManager.instance.hasCompletedPactThisRun) return true;
+            if (playerHealth != null && playerHealth.hasPactCorrupted) return true;
+            return hasMadePact;
+        }
+        private set
+        {
+            hasMadePact = value;
+            if (RunManager.instance != null && value)
+            {
+                RunManager.instance.hasCompletedPactThisRun = true;
+            }
+        }
+    }
 
     // Estado de Animação e Revelação da Carta 3D
     private bool isRevealingPactCard = false;
@@ -92,6 +108,11 @@ public class MerchantUIController : MonoBehaviour
     {
         HasMadePactInRun = false;
         hasMadePact = false;
+        if (RunManager.instance != null)
+        {
+            RunManager.instance.hasCompletedPactThisRun = false;
+            RunManager.instance.hasSpawnedMerchantThisRun = false;
+        }
         isRevealingPactCard = false;
         pendingPactIndex = -1;
     }
@@ -100,6 +121,11 @@ public class MerchantUIController : MonoBehaviour
     {
         HasMadePactInRun = true;
         hasMadePact = true;
+        if (RunManager.instance != null)
+        {
+            RunManager.instance.hasCompletedPactThisRun = true;
+            RunManager.instance.hasSpawnedMerchantThisRun = true;
+        }
 
         if (QuestManager.Instance != null)
         {
@@ -433,6 +459,12 @@ public class MerchantUIController : MonoBehaviour
 
     public void ShowTarotCards()
     {
+        if (HasMadePactInRun)
+        {
+            EptinhoPopupController.instancia?.MostrarPopupAviso("Você já fez um Pacto de Sangue nesta run!");
+            return;
+        }
+
         if (mainMenuPanel != null) mainMenuPanel.SetActive(false);
         if (tarotCardsPanel != null) tarotCardsPanel.SetActive(true);
 
@@ -710,6 +742,11 @@ public class MerchantUIController : MonoBehaviour
         if (tarotCardsPanel != null) tarotCardsPanel.SetActive(false);
         if (removalListPanel != null) removalListPanel.SetActive(false);
 
+        if (btnPactoDeSangue != null)
+        {
+            btnPactoDeSangue.interactable = !HasMadePactInRun;
+        }
+
         AddHoverEffectToButtons();
 
         if (enablePactCamera)
@@ -798,6 +835,11 @@ public class MerchantUIController : MonoBehaviour
         if (isRevealingPactCard)
         {
             ConfirmRevealedPactAndClose();
+            return;
+        }
+        if (HasMadePactInRun)
+        {
+            EptinhoPopupController.instancia?.MostrarPopupAviso("Você já fez um Pacto de Sangue nesta run!");
             return;
         }
         if (playerHealth == null) return;

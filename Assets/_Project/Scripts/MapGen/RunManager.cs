@@ -59,6 +59,18 @@ public class RunManager : MonoBehaviour
     /// </summary>
     [HideInInspector] public bool forceBossNextRun = false;
 
+    // ==================== MERCADOR — ENCONTRO ÚNICO POR RUN ====================
+
+    /// <summary>
+    /// Trava global: o Mercador e a Sala do Mercador só podem aparecer UMA vez por run inteira.
+    /// </summary>
+    [HideInInspector] public bool hasSpawnedMerchantThisRun = false;
+
+    /// <summary>
+    /// Trava global: impede realizar mais de 1 Pacto de Sangue na mesma run.
+    /// </summary>
+    [HideInInspector] public bool hasCompletedPactThisRun = false;
+
     // =====================================================
 
     void Awake()
@@ -103,7 +115,11 @@ public class RunManager : MonoBehaviour
         geobionteDefeatCount = 0;
         geobionteAbsorbedThisLevel = false;
 
-        Debug.Log($"[RunManager] 🆕 Nova run iniciada. Sala 1 | Round {currentLevel}.");
+        // Reset do Mercador (permite 1 encontro e 1 pacto por run)
+        hasSpawnedMerchantThisRun = false;
+        hasCompletedPactThisRun = false;
+
+        Debug.Log($"[RunManager] 🆕 Nova run iniciada. Sala 1 | Round {currentLevel}. Mercador resetado para novo encontro único.");
         UpdateEndlessUI();
 
         RunStatsManager.Instance?.StartRunTracking(isEndlessMode);

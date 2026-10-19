@@ -529,16 +529,26 @@ public class LevelGenerator : MonoBehaviour
         List<ConnectionPoint> deadEnds = new List<ConnectionPoint>(openOutputs);
         openOutputs.Clear();
 
+        bool canSpawnMerchantInRun = (RunManager.instance == null || (!RunManager.instance.hasSpawnedMerchantThisRun && !RunManager.instance.hasCompletedPactThisRun));
+        PlayerHealth pHealthCheck = Object.FindFirstObjectByType<PlayerHealth>();
+        if (pHealthCheck != null && pHealthCheck.hasPactCorrupted) canSpawnMerchantInRun = false;
+        if (MerchantUIController.HasInstance && MerchantUIController.Instance.HasMadePactInRun) canSpawnMerchantInRun = false;
+
         for (int i = 0; i < deadEnds.Count; i++)
         {
             bool isLast = (i == deadEnds.Count - 1);
 
-            if (!merchantRoomSpawned && (Random.value < merchantRoomChance || isLast))
+            if (canSpawnMerchantInRun && !merchantRoomSpawned && (Random.value < merchantRoomChance || isLast))
             {
                 if (TrySpawnMerchantRoom(deadEnds[i]))
+                {
                     merchantRoomSpawned = true;
+                    canSpawnMerchantInRun = false;
+                }
                 else
+                {
                     TrySpawnDeadEndOrAnomaly(deadEnds[i]);
+                }
             }
             else
             {
@@ -719,10 +729,24 @@ public class LevelGenerator : MonoBehaviour
     {
         if (merchantRoomPrefab == null || merchantPrefab == null) return false;
 
-        // Se o pacto já foi realizado nesta run, impede a criação da Sala do Mercador
+        // Se o Mercador já apareceu ou já teve a sala gerada nesta run inteira:
+        if (RunManager.instance != null && (RunManager.instance.hasSpawnedMerchantThisRun || RunManager.instance.hasCompletedPactThisRun))
+        {
+            Debug.Log("[LevelGenerator] 🚫 O Mercador já foi gerado nesta run (limite estrito: 1x por run). Sala cancelada.");
+            return false;
+        }
+
+        // Se o pacto já foi realizado nesta run (via MerchantUIController ou PlayerHealth):
         if (MerchantUIController.HasInstance && MerchantUIController.Instance.HasMadePactInRun)
         {
             Debug.Log("[LevelGenerator] 🚫 Pacto já realizado nesta run. Sala do Mercador cancelada.");
+            return false;
+        }
+
+        PlayerHealth p = Object.FindFirstObjectByType<PlayerHealth>();
+        if (p != null && p.hasPactCorrupted)
+        {
+            Debug.Log("[LevelGenerator] 🚫 Sangue já corrompido por pacto nesta run. Sala do Mercador cancelada.");
             return false;
         }
 
@@ -751,7 +775,12 @@ public class LevelGenerator : MonoBehaviour
         if (spawnPoint != null)
             Instantiate(merchantPrefab, spawnPoint.position, spawnPoint.rotation);
 
-        Debug.Log("[LevelGenerator] ✅ Sala do Mercador criada.");
+        if (RunManager.instance != null)
+        {
+            RunManager.instance.hasSpawnedMerchantThisRun = true;
+        }
+
+        Debug.Log("[LevelGenerator] ✅ Sala do Mercador criada (única da run inteira).");
         return true;
     }
 
