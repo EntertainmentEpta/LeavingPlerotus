@@ -351,16 +351,22 @@ public class JournalBookUI : MonoBehaviour
             }
             else
             {
-                // Lore pura (anotações de sobrevivência)
-                if (rightPageHeaderTMP != null) rightPageHeaderTMP.text = "<color=#8B5A00>[OBSERVAÇÃO AMBIENTAL]</color>";
+                // Lore pura (anotações técnicas e observações de sobrevivência da expedição)
+                if (rightPageHeaderTMP != null) rightPageHeaderTMP.text = "<color=#8B5A00>[ANÁLISE DE CAMPO DA EXPEDIÇÃO]</color>";
                 if (rightPageTitleTMP != null)
                 {
-                    rightPageTitleTMP.text = "DADOS DA EXPEDIÇÃO";
+                    string header = !string.IsNullOrEmpty(scripture.fieldAnalysisHeader) 
+                        ? scripture.fieldAnalysisHeader.ToUpper() 
+                        : "DADOS DA EXPEDIÇÃO";
+                    rightPageTitleTMP.text = header;
                     rightPageTitleTMP.color = new Color(0.22f, 0.18f, 0.14f);
                 }
                 if (rightPageBodyTMP != null)
                 {
-                    rightPageBodyTMP.text = "<i>\"O parasita consome os minerais orgânicos e replica padrões geométricos nas carapaças das criaturas. Cada criatura abatida devolve à terra os elementos catalisadores para novas aberrações.\"</i>\n\n<b>Classificação:</b> Bioma Sílica / Plerotus Profundo.";
+                    string notes = !string.IsNullOrEmpty(scripture.fieldAnalysisNotes)
+                        ? scripture.fieldAnalysisNotes
+                        : "<i>\"O organismo assimila os minerais orgânicos e replica padrões geométricos nas carapaças das criaturas. Cada criatura abatida devolve à terra os elementos catalisadores para novas aberrações.\"</i>\n\n<b>Classificação:</b> Bioma Sílica / Plerotus Profundo.";
+                    rightPageBodyTMP.text = notes;
                     rightPageBodyTMP.color = new Color(0.20f, 0.16f, 0.12f);
                 }
 
@@ -371,7 +377,10 @@ public class JournalBookUI : MonoBehaviour
 
                 if (rightPageRecipeTMP != null)
                 {
-                    rightPageRecipeTMP.text = "<b>DICA DE SOBREVIVÊNCIA:</b>\nEquipe armas adaptadas e conserve fluido vital contra os perigos biológicos.";
+                    string tip = !string.IsNullOrEmpty(scripture.tacticalSurvivalTip)
+                        ? scripture.tacticalSurvivalTip
+                        : "Equipe armas adaptadas e conserve fluido vital contra os perigos biológicos de Plerotus.";
+                    rightPageRecipeTMP.text = $"<b>RECOMENDAÇÃO TÁTICA:</b>\n{tip}";
                     rightPageRecipeTMP.color = new Color(0.25f, 0.22f, 0.18f);
                 }
                 if (rightPageStatusTMP != null)

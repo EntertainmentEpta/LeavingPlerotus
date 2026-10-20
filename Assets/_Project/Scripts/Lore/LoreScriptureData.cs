@@ -17,7 +17,7 @@ public class LoreScriptureData : ScriptableObject
     public string title;
 
     [TextArea(4, 10)]
-    [Tooltip("Trecho do quebra-cabeça ancestral deixado pela civilização")]
+    [Tooltip("Trecho do diário de campo ou quebra-cabeça ancestral deixado pela expedição")]
     public string excerptLore;
 
     [Header("Blueprint do Robozinho de Síntese")]
@@ -36,4 +36,16 @@ public class LoreScriptureData : ScriptableObject
 
     [Tooltip("Ingredientes de base necessários para o Robozinho forjar")]
     public List<CraftingIngredient> ingredients = new List<CraftingIngredient>();
+
+    [Header("Anotações de Campo Complementares (Exibidas na Página Direita)")]
+    [Tooltip("Título da anotação técnica/geológica na página direita (quando não tiver blueprint)")]
+    public string fieldAnalysisHeader = "ANÁLISE DE CAMPO";
+
+    [TextArea(3, 8)]
+    [Tooltip("Conteúdo descritivo complementar da anotação de campo")]
+    public string fieldAnalysisNotes = "";
+
+    [TextArea(2, 4)]
+    [Tooltip("Dica tática ou recomendação de sobrevivência")]
+    public string tacticalSurvivalTip = "";
 }
