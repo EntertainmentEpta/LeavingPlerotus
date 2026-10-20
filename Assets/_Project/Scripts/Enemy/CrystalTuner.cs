@@ -328,7 +328,11 @@ public class CrystalTuner : MonoBehaviour
         for (int i = targets.Count - 1; i >= 0; i--)
         {
             var td = targets[i];
-            if (td.obj == null || !td.obj.activeSelf ||
+            DummyHealth targetDh = td.obj != null ? GetTargetComponent<DummyHealth>(td.obj) : null;
+            ShardSwarmHealth targetSsh = td.obj != null ? GetTargetComponent<ShardSwarmHealth>(td.obj) : null;
+            bool isDead = (targetDh != null && targetDh.CurrentHealth <= 0) || (targetSsh != null && targetSsh.CurrentHealth <= 0);
+
+            if (td.obj == null || !td.obj.activeSelf || isDead ||
                 Vector3.Distance(transform.position, td.obj.transform.position) > disconnectRange)
             {
                 RemoveBuffs(td.obj);
@@ -361,7 +365,15 @@ public class CrystalTuner : MonoBehaviour
             if (candidate == gameObject) continue;
             if (GetTargetComponent<CrystalTuner>(candidate) != null) continue;
             if (GetTargetComponent<HomingHazard>(candidate) != null) continue;
-            if (GetTargetComponent<DummyHealth>(candidate) == null && GetTargetComponent<ShardSwarmHealth>(candidate) == null) continue;
+            DummyHealth candDh = GetTargetComponent<DummyHealth>(candidate);
+
+            ShardSwarmHealth candSsh = GetTargetComponent<ShardSwarmHealth>(candidate);
+
+            if (candDh == null && candSsh == null) continue;
+
+            if (candDh != null && candDh.CurrentHealth <= 0) continue;
+
+            if (candSsh != null && candSsh.CurrentHealth <= 0) continue;
 
             // Já é alvo?
             bool alreadyTargeted = false;

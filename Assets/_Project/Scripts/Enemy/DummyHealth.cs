@@ -306,15 +306,15 @@ public class DummyHealth : MonoBehaviour
 
     private void Die()
     {
-        onDeath?.Invoke();
+        try { onDeath?.Invoke(); } catch (System.Exception ex) { Debug.LogError($"[DummyHealth] Erro em onDeath: {ex}"); }
 
-        RunStatsManager.Instance?.RecordEnemyKilled();
+        try { RunStatsManager.Instance?.RecordEnemyKilled(); } catch (System.Exception ex) { Debug.LogError($"[DummyHealth] Erro em RecordEnemyKilled: {ex}"); }
 
         // Se um override foi definido (ex: Geobionte usa fuga ao invés de morte),
         // chama o callback e retorna sem executar a lógica padrão.
         if (onDeathOverride != null)
         {
-            onDeathOverride.Invoke();
+            try { onDeathOverride.Invoke(); } catch (System.Exception ex) { Debug.LogError($"[DummyHealth] Erro em onDeathOverride: {ex}"); }
             return;
         }
 
@@ -325,65 +325,95 @@ public class DummyHealth : MonoBehaviour
         }
 
         // --- SISTEMA DE PACTOS DO JOGADOR ---
-        PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
-        if (playerHealth != null)
+        try
         {
-            playerHealth.lastKillTime = Time.time;        // Checa Vampirismo (GDD §4.1 - Carta O Parasita)
-            if (playerHealth != null && playerHealth.currentHealth > 0 && playerHealth.hasVampirism)
+            PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
+            if (playerHealth != null)
             {
-                Debug.Log("[DUMMY] Inimigo morreu! Curando Player (Vampirismo).");
-                playerHealth.Heal(5); // Cura fixa de 5 (ajustável se quiser balancear)
-                playerHealth.lastKillTime = Time.time; // Reseta a degeneração!
+                playerHealth.lastKillTime = Time.time;        // Checa Vampirismo (GDD §4.1 - Carta O Parasita)
+                if (playerHealth != null && playerHealth.currentHealth > 0 && playerHealth.hasVampirism)
+                {
+                    Debug.Log("[DUMMY] Inimigo morreu! Curando Player (Vampirismo).");
+                    playerHealth.Heal(5); // Cura fixa de 5 (ajustável se quiser balancear)
+                    playerHealth.lastKillTime = Time.time; // Reseta a degeneração!
+                }
             }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[DummyHealth] Erro em pactos de jogador: {ex}");
         }
         // ------------------------------------
 
         // Chama o sistema de drops se existir
         // Busca em filhos e pais também — cobre hierarquias mais complexas de prefab
-        EnemyDrops drops = GetComponent<EnemyDrops>()
-                        ?? GetComponentInChildren<EnemyDrops>()
-                        ?? GetComponentInParent<EnemyDrops>();
-        if (drops != null)
+        try
         {
-            Debug.Log("[DROPS] EnemyDrops encontrado, chamando OnDeath()...");
-            drops.OnDeath();
+            EnemyDrops drops = GetComponent<EnemyDrops>()
+                            ?? GetComponentInChildren<EnemyDrops>()
+                            ?? GetComponentInParent<EnemyDrops>();
+            if (drops != null)
+            {
+                Debug.Log("[DROPS] EnemyDrops encontrado, chamando OnDeath()...");
+                drops.OnDeath();
+            }
+            else
+            {
+                Debug.LogWarning("[DROPS] EnemyDrops NÃO encontrado em " + gameObject.name + "! Adicionando fallback em runtime.");
+                drops = gameObject.AddComponent<EnemyDrops>();
+                drops.OnDeath();
+            }
         }
-        else
+        catch (System.Exception ex)
         {
-            Debug.LogWarning("[DROPS] EnemyDrops NÃO encontrado em " + gameObject.name + "! Adicionando fallback em runtime.");
-            drops = gameObject.AddComponent<EnemyDrops>();
-            drops.OnDeath();
+            Debug.LogError($"[DummyHealth] Erro ao disparar EnemyDrops em {gameObject.name}: {ex}");
         }
 
         // --- RECOMPENSA DE COMBATE DA SINFONIA DO CAOS ---
-        if (isElite && playerHealth != null && playerHealth.hasChaosSymphony)
+        try
         {
-            playerHealth.Heal(8);
-            playerHealth.TriggerEliteKillAdrenaline(5f);
-            Debug.Log("[CAOS] Inimigo Elite abatido! +8 Vida e Adrenalina concedidas ao jogador!");
+            PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
+            if (isElite && playerHealth != null && playerHealth.hasChaosSymphony)
+            {
+                playerHealth.Heal(8);
+                playerHealth.TriggerEliteKillAdrenaline(5f);
+                Debug.Log("[CAOS] Inimigo Elite abatido! +8 Vida e Adrenalina concedidas ao jogador!");
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[DummyHealth] Erro em recompensa da Sinfonia do Caos: {ex}");
         }
 
         // --- SISTEMA DE RENASCIMENTO ELITE (10% base / 100% com cheat / +25% com Sinfonia do Caos) ---
-        bool canReborn = (!isElite && !hasRebornAsElite &&
-                          GetComponent<EliteVariantConfig>() == null &&
-                          !gameObject.name.ToLower().Contains("elite") &&
-                          !gameObject.name.ToLower().Contains("boss") &&
-                          !gameObject.name.ToLower().Contains("geobionte") &&
-                          !gameObject.name.ToLower().Contains("sentinel") &&
-                          GetComponent<Geobionte_AI>() == null);
-
-        float effectiveRebirthChance = eliteRebirthChance;
-        if (playerHealth != null && playerHealth.hasChaosSymphony)
+        bool shouldReborn = false;
+        try
         {
-            effectiveRebirthChance = Mathf.Clamp01(effectiveRebirthChance + 0.25f);
+            PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
+            bool canReborn = (!isElite && !hasRebornAsElite &&
+                              GetComponent<EliteVariantConfig>() == null &&
+                              !gameObject.name.ToLower().Contains("elite") &&
+                              !gameObject.name.ToLower().Contains("boss") &&
+                              !gameObject.name.ToLower().Contains("geobionte") &&
+                              !gameObject.name.ToLower().Contains("sentinel") &&
+                              GetComponent<Geobionte_AI>() == null);
+
+            float effectiveRebirthChance = eliteRebirthChance;
+            if (playerHealth != null && playerHealth.hasChaosSymphony)
+            {
+                effectiveRebirthChance = Mathf.Clamp01(effectiveRebirthChance + 0.25f);
+            }
+
+            shouldReborn = canReborn && (forceEliteRebirth || Random.value <= effectiveRebirthChance);
+            if (shouldReborn)
+            {
+                TriggerEliteRebirth();
+                return;
+            }
         }
-
-        bool shouldReborn = canReborn && (forceEliteRebirth || Random.value <= effectiveRebirthChance);
-
-        if (shouldReborn)
+        catch (System.Exception ex)
         {
-            TriggerEliteRebirth();
-            return;
+            Debug.LogError($"[DummyHealth] Erro ao calcular renascimento Elite em {gameObject.name}: {ex}");
         }
 
         Destroy(gameObject);
@@ -500,7 +530,9 @@ public class DummyHealth : MonoBehaviour
         GameObject rebornEnemy = Object.Instantiate(prefabToSpawn, spawnPos, spawnRot);
         rebornEnemy.name = cleanName + "_RebornElite";
 
-        bool hasDedicatedVariant = (rebornEnemy.GetComponent<EliteVariantConfig>() != null || rebornEnemy.name.ToLower().Contains("elite"));
+        bool hasDedicatedVariant = (sourcePrefabOrInstance != null &&
+                                    sourcePrefabOrInstance.GetComponent<EliteVariantConfig>() != null &&
+                                    !sourcePrefabOrInstance.name.Contains("_RebornElite"));
 
         DummyHealth dh = rebornEnemy.GetComponent<DummyHealth>() ?? rebornEnemy.GetComponentInChildren<DummyHealth>();
         if (dh != null)
@@ -510,8 +542,8 @@ public class DummyHealth : MonoBehaviour
             if (!hasDedicatedVariant)
             {
                 dh.maxHealth = Mathf.RoundToInt(dh.maxHealth * 1.6f);
-                dh.SetHealth(dh.maxHealth);
             }
+            dh.SetHealth(dh.maxHealth);
         }
 
         ShardSwarmHealth ssh = rebornEnemy.GetComponent<ShardSwarmHealth>() ?? rebornEnemy.GetComponentInChildren<ShardSwarmHealth>();
@@ -522,8 +554,8 @@ public class DummyHealth : MonoBehaviour
             if (!hasDedicatedVariant)
             {
                 ssh.maxHealth = Mathf.RoundToInt(ssh.maxHealth * 1.6f);
-                ssh.SetHealth(ssh.maxHealth);
             }
+            ssh.SetHealth(ssh.maxHealth);
         }
 
         if (rebornEnemy.GetComponent<EliteVariantConfig>() == null)

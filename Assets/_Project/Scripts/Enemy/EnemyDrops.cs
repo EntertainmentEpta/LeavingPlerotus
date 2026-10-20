@@ -67,22 +67,50 @@ public class EnemyDrops : MonoBehaviour
 
     void SpawnDrops()
     {
-        Debug.Log("[ENEMY DROPS] SpawnDrops chamado para " + gameObject.name);
-        
-        Vector3 basePosition = transform.position + Vector3.up * spawnHeight;
-
-        // --- SISTEMA DE PACTOS DO JOGADOR ---
-        bool hasGreed = false;
-        bool doubleEssence = false;
-        bool hasChaos = false;
-        PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
-        if (playerHealth != null)
+        try
         {
-            if (playerHealth.hasGreedPact) hasGreed = true;
-            if (playerHealth.hasDoubleLoot) doubleEssence = true;
-            if (playerHealth.hasChaosSymphony) hasChaos = true;
-        }
-        // ------------------------------------
+            Debug.Log("[ENEMY DROPS] SpawnDrops chamado para " + gameObject.name);
+            
+            Vector3 basePosition = transform.position;
+            RaycastHit[] groundHits = Physics.RaycastAll(transform.position + Vector3.up * 1.5f, Vector3.down, 15f);
+            float bestGroundY = float.MinValue;
+            bool foundGround = false;
+            foreach (var h in groundHits)
+            {
+                if (h.collider == null || h.collider.isTrigger) continue;
+                if (h.collider.transform.root == transform.root) continue;
+                if (h.collider.CompareTag("Enemy") || h.collider.CompareTag("Player")) continue;
+                if (h.collider.GetComponentInParent<DummyHealth>() != null) continue;
+                if (h.collider.GetComponentInParent<ShardSwarmHealth>() != null) continue;
+
+                if (h.point.y <= transform.position.y + 0.8f && h.point.y > bestGroundY)
+                {
+                    bestGroundY = h.point.y;
+                    foundGround = true;
+                }
+            }
+
+            if (foundGround)
+            {
+                basePosition = new Vector3(transform.position.x, bestGroundY + 0.35f, transform.position.z);
+            }
+            else
+            {
+                basePosition = transform.position + Vector3.up * Mathf.Min(spawnHeight, 0.4f);
+            }
+
+            // --- SISTEMA DE PACTOS DO JOGADOR ---
+            bool hasGreed = false;
+            bool doubleEssence = false;
+            bool hasChaos = false;
+            PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
+            if (playerHealth != null)
+            {
+                if (playerHealth.hasGreedPact) hasGreed = true;
+                if (playerHealth.hasDoubleLoot) doubleEssence = true;
+                if (playerHealth.hasChaosSymphony) hasChaos = true;
+            }
+            // ------------------------------------
 
         // 1. Sempre spawna essência com inflação por sala
         // Fórmula GDD §1.1: E(n) = d × (1 + α × n)  onde α = 0,05
@@ -330,6 +358,11 @@ public class EnemyDrops : MonoBehaviour
         {
             Debug.LogWarning("[ENEMY DROPS] lootPool está vazio! Adicione opções no Inspector.");
         }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[ENEMY DROPS] Falha ao processar SpawnDrops em {gameObject.name}: {ex}");
+        }
     }
 
     GameObject SpawnDrop(GameObject prefab, Vector3 position)
@@ -346,7 +379,10 @@ public class EnemyDrops : MonoBehaviour
         GameObject drop = Instantiate(prefabToSpawn, position, Quaternion.identity);
 
         // Se o drop nao tiver CharacteristicItemPickup nem ItemPickup, recupera ou anexa dinamicamente
-        if (drop.GetComponent<CharacteristicItemPickup>() == null && drop.GetComponent<ItemPickup>() == null)
+        // Ignora objetos com EssencePickup para não interferir na física e coleta de essência
+        if (drop.GetComponent<EssencePickup>() == null &&
+            drop.GetComponent<CharacteristicItemPickup>() == null && 
+            drop.GetComponent<ItemPickup>() == null)
         {
             var childPickup = drop.GetComponentInChildren<CharacteristicItemPickup>(true);
             if (childPickup == null)

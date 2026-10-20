@@ -889,7 +889,9 @@ public class RoomController : MonoBehaviour
         if (rebornEnemy.GetComponent<NavMeshBoundaryConstraint>() == null)
             rebornEnemy.AddComponent<NavMeshBoundaryConstraint>();
 
-        bool hasDedicatedVariant = (rebornEnemy.GetComponent<EliteVariantConfig>() != null || rebornEnemy.name.ToLower().Contains("elite"));
+        bool hasDedicatedVariant = (sourcePrefabOrInstance != null &&
+                                    sourcePrefabOrInstance.GetComponent<EliteVariantConfig>() != null &&
+                                    !sourcePrefabOrInstance.name.Contains("_RebornElite"));
 
         // 4. Configura propriedades de Elite no DummyHealth
         DummyHealth dh = rebornEnemy.GetComponent<DummyHealth>() ?? rebornEnemy.GetComponentInChildren<DummyHealth>();
@@ -902,8 +904,8 @@ public class RoomController : MonoBehaviour
             if (!hasDedicatedVariant)
             {
                 dh.maxHealth = Mathf.RoundToInt(dh.maxHealth * 1.6f);
-                dh.SetHealth(dh.maxHealth);
             }
+            dh.SetHealth(dh.maxHealth);
         }
 
         ShardSwarmHealth ssh = rebornEnemy.GetComponent<ShardSwarmHealth>() ?? rebornEnemy.GetComponentInChildren<ShardSwarmHealth>();
@@ -916,8 +918,8 @@ public class RoomController : MonoBehaviour
             if (!hasDedicatedVariant)
             {
                 ssh.maxHealth = Mathf.RoundToInt(ssh.maxHealth * 1.6f);
-                ssh.SetHealth(ssh.maxHealth);
             }
+            ssh.SetHealth(ssh.maxHealth);
         }
 
         // Aura procedural se não tiver
