@@ -144,32 +144,39 @@ public class CheatConsole : MonoBehaviour
 
     void Update()
     {
-        // Se a lista secreta está aberta e o usuário aperta ESC ou F1, fecha ela
-        if (isSecretPanelOpen && (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.F1)))
+        bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+        bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+
+        // Se a lista secreta está aberta e o usuário aperta ESC, fecha ela
+        if (isSecretPanelOpen && Input.GetKeyDown(KeyCode.Escape))
         {
             CloseSecretCheatPanel();
             return;
         }
 
-        // Atalho secreto direto: F1 abre/fecha a lista secreta a qualquer momento!
-        if (Input.GetKeyDown(KeyCode.F1))
+        // Atalho secreto de Desenvolvedor: Ctrl + Shift + F1 abre/fecha a lista secreta
+        if (ctrl && shift && Input.GetKeyDown(KeyCode.F1))
         {
             ToggleSecretCheatPanel();
             return;
         }
 
-        // Se o console está aberto e o jogador aperta ESC ou Ponto e Vírgula ';', fecha o console
-        if (isConsoleActive && (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.Semicolon)))
+        // Se o console está aberto e o jogador aperta ESC, fecha o console
+        if (isConsoleActive && Input.GetKeyDown(KeyCode.Escape))
         {
-            Debug.Log("🔍 CHEAT: Tecla de fechamento pressionada!");
+            Debug.Log("🔍 CHEAT: Tecla ESC pressionada! Fechando console.");
             ToggleConsole();
             return;
         }
 
-        // Ligar / Alternar o console com Barra '/', Divisão ou Ponto e Vírgula ';'
-        if (Input.GetKeyDown(KeyCode.Slash) || Input.GetKeyDown(KeyCode.KeypadDivide) || Input.GetKeyDown(KeyCode.Semicolon))
+        // Abrir / Alternar o console com atalho exclusivo do desenvolvedor:
+        // Ctrl + Shift + C  OU  Ctrl + /  OU  Ctrl + ;
+        bool openConsoleTriggered = (ctrl && shift && Input.GetKeyDown(KeyCode.C)) ||
+                                    (ctrl && (Input.GetKeyDown(KeyCode.Slash) || Input.GetKeyDown(KeyCode.KeypadDivide) || Input.GetKeyDown(KeyCode.Semicolon)));
+
+        if (openConsoleTriggered)
         {
-            Debug.Log("🔍 CHEAT: Tecla de atalho do console pressionada!");
+            Debug.Log("🔍 CHEAT: Atalho secreto do console acionado pelo desenvolvedor!");
             if (consoleInput == null)
             {
                 FindConsoleInput();
@@ -401,7 +408,7 @@ public class CheatConsole : MonoBehaviour
         sr.sizeDelta = Vector2.zero;
 
         TextMeshProUGUI subTxt = subObj.AddComponent<TextMeshProUGUI>();
-        subTxt.text = "Atalho: Pressione <color=#FFE066>[F1]</color> ou <color=#FFE066>[ESC]</color> para fechar | Clique em <color=#00FF99>[EXECUTAR]</color> para testar qualquer cheat direto!";
+        subTxt.text = "Atalho: Pressione <color=#FFE066>[Ctrl+Shift+F1]</color> ou <color=#FFE066>[ESC]</color> para fechar | Clique em <color=#00FF99>[EXECUTAR]</color> para testar qualquer cheat direto!";
         subTxt.fontSize = 12f;
         subTxt.color = new Color(0.7f, 0.8f, 0.9f);
         subTxt.alignment = TextAlignmentOptions.Left;
@@ -1109,11 +1116,7 @@ public class CheatConsole : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning($"💻 CHEAT RECUSADO: A palavra '{command}' não é reconhecida. Digite 'help' ou aperte [F1] para abrir o Painel Secreto de Comandos.");
-            if (EptinhoPopupController.instancia != null)
-            {
-                EptinhoPopupController.instancia.MostrarPopupAviso($"Comando '{command}' não reconhecido!\n(Pressione F1 para a Lista Secreta)");
-            }
+            Debug.LogWarning($"💻 Console: Comando '{command}' não reconhecido.");
         }
 
         // Depois de tentar o cheat, fecha o console pro jogo voltar ao normal (se solicitado e estiver ativo)

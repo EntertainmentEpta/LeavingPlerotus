@@ -105,16 +105,6 @@ public class SynergyMapPrototype : MonoBehaviour
             }
         }
 
-        // Atalho para destravar/revelar todas as sinergias no mapa via tecla U
-        if (_isOpen)
-        {
-            bool unlockPressed = (Keyboard.current != null && Keyboard.current[Key.U].wasPressedThisFrame) || Input.GetKeyDown(KeyCode.U);
-            if (unlockPressed)
-            {
-                RevealAllSynergiesAction();
-            }
-        }
-
         // Fallback para Input clássico
         if (!toggleRequested && Input.GetKeyDown(KeyCode.M))
         {
@@ -316,34 +306,6 @@ public class SynergyMapPrototype : MonoBehaviour
         _counterText.fontSize = 15f;
         _counterText.alignment = TextAlignmentOptions.Center;
         _counterText.color = new Color(0.55f, 0.75f, 0.95f);
-
-        // Botão Revelar Todas [U]
-        GameObject revealBtn = CreateUIObject("BtnRevealAll", headerObj.transform);
-        RectTransform revRt = revealBtn.GetComponent<RectTransform>();
-        revRt.anchorMin = new Vector2(1f, 0.5f);
-        revRt.anchorMax = new Vector2(1f, 0.5f);
-        revRt.pivot = new Vector2(1f, 0.5f);
-        revRt.sizeDelta = new Vector2(230f, 44f);
-        revRt.anchoredPosition = new Vector2(-255f, 0f);
-
-        Image revBg = revealBtn.AddComponent<Image>();
-        revBg.color = new Color(0.15f, 0.22f, 0.35f, 0.95f);
-
-        Outline revOutline = revealBtn.AddComponent<Outline>();
-        revOutline.effectColor = new Color(0.3f, 0.9f, 0.7f, 0.8f);
-        revOutline.effectDistance = new Vector2(1.5f, -1.5f);
-
-        Button rBtn = revealBtn.AddComponent<Button>();
-        rBtn.onClick.AddListener(RevealAllSynergiesAction);
-
-        GameObject revTxtObj = CreateUIObject("Text", revealBtn.transform);
-        StretchFull(revTxtObj);
-        TextMeshProUGUI revTxt = revTxtObj.AddComponent<TextMeshProUGUI>();
-        revTxt.text = "★ REVELAR TODAS (U)";
-        revTxt.fontSize = 13f;
-        revTxt.fontStyle = FontStyles.Bold;
-        revTxt.alignment = TextAlignmentOptions.Center;
-        revTxt.color = new Color(0.5f, 1.0f, 0.85f);
 
         // Botão Fechar [X]
         GameObject closeBtn = CreateUIObject("BtnClose", headerObj.transform);

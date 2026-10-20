@@ -40,12 +40,15 @@ public class DevCheatConsole : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(toggleKey1) || Input.GetKeyDown(toggleKey2))
+        bool devCombo = (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) &&
+                        (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift));
+
+        if (devCombo && (Input.GetKeyDown(toggleKey1) || Input.GetKeyDown(toggleKey2)))
         {
             ToggleConsole();
         }
 
-        if (Input.GetKeyDown(KeyCode.F8))
+        if (devCombo && Input.GetKeyDown(KeyCode.F8))
         {
             UnlockAllLoreAndScriptures();
         }
