@@ -3,13 +3,14 @@ using TMPro;
 
 /// <summary>
 /// Exibe os atributos do jogador na tela em tempo real.
-/// Funciona com o sistema de atributos separados (Offensive + Defensive).
+/// Funciona com o sistema de atributos separados (Offensive + Defensive + Health).
 /// </summary>
 public class AttributeDisplayOnScreenSplit : MonoBehaviour
 {
     [Header("References")]
     public PlayerAttributesOffensive offensiveAttributes;
     public PlayerAttributesDefensive defensiveAttributes;
+    public PlayerHealth playerHealth;
     
     [Header("UI Settings")]
     public bool showDisplay = true;
@@ -22,7 +23,7 @@ public class AttributeDisplayOnScreenSplit : MonoBehaviour
     
     [Tooltip("Altura do painel")]
     [Range(200f, 800f)]
-    public float panelHeight = 500f;
+    public float panelHeight = 550f;
     
     [Tooltip("Tamanho da fonte")]
     [Range(10f, 30f)]
@@ -58,6 +59,11 @@ public class AttributeDisplayOnScreenSplit : MonoBehaviour
         if (defensiveAttributes == null)
         {
             defensiveAttributes = GetComponent<PlayerAttributesDefensive>();
+        }
+
+        if (playerHealth == null)
+        {
+            playerHealth = GetComponent<PlayerHealth>();
         }
         
         // Criar UI
@@ -168,6 +174,7 @@ public class AttributeDisplayOnScreenSplit : MonoBehaviour
     void UpdateDisplayText()
     {
         if (displayText == null) return;
+        if (playerHealth == null) playerHealth = GetComponent<PlayerHealth>();
         
         string text = "<b><color=#FFD700>═══ PLAYER ATTRIBUTES ═══</color></b>\n\n";
         
@@ -190,20 +197,33 @@ public class AttributeDisplayOnScreenSplit : MonoBehaviour
         
         text += "\n";
         
-        // Atributos Defensivos
-        if (defensiveAttributes != null)
+        // Atributos Defensivos & Vida
+        if (defensiveAttributes != null || playerHealth != null)
         {
-            text += "<b><color=#4169E1>🛡️ DEFENSIVE</color></b>\n";
-            text += $"  Armor Regen: <color=#00FF00>{defensiveAttributes.armorRegen:F2}x</color>\n";
-            text += $"  Dodge Chance: <color=#FFFF00>{defensiveAttributes.dodgeChance:F1}%</color>\n";
-            text += $"  Damage Negation: <color=#FFA500>{defensiveAttributes.damageNegation:F1}%</color>\n";
-            text += $"  Thorns: <color=#8B4513>{defensiveAttributes.thorns}</color>\n";
+            text += "<b><color=#4169E1>🛡️ DEFENSIVE & VITAL</color></b>\n";
+            if (playerHealth != null)
+            {
+                text += $"  Max Health: <color=#00FF88>{playerHealth.maxHealth}</color> (Atual: {playerHealth.currentHealth})\n";
+                text += $"  Max Armor: <color=#00BFFF>{playerHealth.maxArmor}</color> (Atual: {playerHealth.CurrentArmor})\n";
+            }
+            if (defensiveAttributes != null)
+            {
+                text += $"  Armor Regen: <color=#00FF00>{defensiveAttributes.armorRegen:F2}x</color>\n";
+                text += $"  Dodge Chance: <color=#FFFF00>{defensiveAttributes.dodgeChance:F1}%</color>\n";
+                text += $"  Damage Negation: <color=#FFA500>{defensiveAttributes.damageNegation:F1}%</color>\n";
+                text += $"  Thorns: <color=#8B4513>{defensiveAttributes.thorns}</color>\n";
+                if (defensiveAttributes.healthRegen > 0f)
+                    text += $"  Health Regen: <color=#00FF88>+{defensiveAttributes.healthRegen:F1}/s</color>\n";
+            }
             
-            text += "\n<b><color=#32CD32>⚡ MOBILITY</color></b>\n";
-            text += $"  Speed: <color=#00FF00>{defensiveAttributes.speedMultiplier:F2}x</color>\n";
-            text += $"  Dash Cooldown: <color=#00BFFF>{defensiveAttributes.dashCooldownMultiplier:F2}x</color>\n";
-            text += $"  Dash Counts: <color=#FFD700>{defensiveAttributes.dashCounts}</color>\n";
-            text += $"  Dash i-frames: <color=#FF69B4>{defensiveAttributes.dashInvulnerability:F2}s</color>\n";
+            if (defensiveAttributes != null)
+            {
+                text += "\n<b><color=#32CD32>⚡ MOBILITY</color></b>\n";
+                text += $"  Speed: <color=#00FF00>{defensiveAttributes.speedMultiplier:F2}x</color>\n";
+                text += $"  Dash Cooldown: <color=#00BFFF>{defensiveAttributes.dashCooldownMultiplier:F2}x</color>\n";
+                text += $"  Dash Counts: <color=#FFD700>{defensiveAttributes.dashCounts}</color>\n";
+                text += $"  Dash i-frames: <color=#FF69B4>{defensiveAttributes.dashInvulnerability:F2}s</color>\n";
+            }
         }
         else
         {

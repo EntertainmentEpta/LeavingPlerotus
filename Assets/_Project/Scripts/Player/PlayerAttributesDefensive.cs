@@ -65,6 +65,16 @@ public class PlayerAttributesDefensive : MonoBehaviour
     {
         switch (attributeName.ToLower())
         {
+            // Vida & Armadura (repassa para PlayerHealth se chamado aqui)
+            case "maxarmor":
+            case "armor":
+                GetComponent<PlayerHealth>()?.ModifyAttribute("maxarmor", value, isMultiplier);
+                break;
+            case "maxhealth":
+            case "health":
+                GetComponent<PlayerHealth>()?.ModifyAttribute("maxhealth", value, isMultiplier);
+                break;
+
             // Defensivos
             case "armorregen":
                 armorRegen = isMultiplier ? armorRegen * value : armorRegen + value;
@@ -74,14 +84,40 @@ public class PlayerAttributesDefensive : MonoBehaviour
                 break;
             case "dodgechance":
             case "dodge":
-                dodgeChance = Mathf.Clamp(isMultiplier ? dodgeChance * value : dodgeChance + value, 0f, 100f);
+                if (isMultiplier)
+                {
+                    float bonus = (value > 1.0f) ? (value - 1f) * 100f : value * 100f;
+                    dodgeChance = Mathf.Clamp(dodgeChance + bonus, 0f, 100f);
+                }
+                else
+                {
+                    dodgeChance = Mathf.Clamp(dodgeChance + value, 0f, 100f);
+                }
                 break;
             case "damagenegation":
             case "negation":
-                damageNegation = Mathf.Clamp(isMultiplier ? damageNegation * value : damageNegation + value, 0f, 100f);
+                if (isMultiplier)
+                {
+                    float bonus = (value > 1.0f) ? (value - 1f) * 100f : value * 100f;
+                    damageNegation = Mathf.Clamp(damageNegation + bonus, 0f, 100f);
+                }
+                else
+                {
+                    damageNegation = Mathf.Clamp(damageNegation + value, 0f, 100f);
+                }
                 break;
             case "thorns":
-                thorns = Mathf.Max(0, isMultiplier ? Mathf.RoundToInt(thorns * value) : thorns + Mathf.RoundToInt(value));
+                if (isMultiplier)
+                {
+                    if (thorns > 0)
+                        thorns = Mathf.Max(0, Mathf.RoundToInt(thorns * value));
+                    else
+                        thorns = Mathf.Max(1, Mathf.RoundToInt((value - 1f) * 50f));
+                }
+                else
+                {
+                    thorns = Mathf.Max(0, thorns + Mathf.RoundToInt(value));
+                }
                 break;
                 
             // Mobilidade
@@ -119,6 +155,16 @@ public class PlayerAttributesDefensive : MonoBehaviour
     {
         switch (attributeName.ToLower())
         {
+            // Vida & Armadura
+            case "maxarmor":
+            case "armor":
+                PlayerHealth phA = GetComponent<PlayerHealth>();
+                return phA != null ? phA.maxArmor : 0f;
+            case "maxhealth":
+            case "health":
+                PlayerHealth phH = GetComponent<PlayerHealth>();
+                return phH != null ? phH.maxHealth : 0f;
+
             // Defensivos
             case "armorregen": return armorRegen;
             case "healthregen": return healthRegen;
@@ -153,6 +199,7 @@ public class PlayerAttributesDefensive : MonoBehaviour
         dodgeChance = 0f;
         damageNegation = 0f;
         thorns = 0;
+        healthRegen = 0f;
         
         // Mobilidade
         dashCooldownMultiplier = 1.0f;

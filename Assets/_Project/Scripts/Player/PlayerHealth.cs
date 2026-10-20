@@ -711,7 +711,7 @@ public class PlayerHealth : MonoBehaviour
                 // Cura o player com o novo bônus e garante que currentHealth respeita o novo limite
                 currentHealth = Mathf.Clamp(currentHealth + (maxHealth - oldHealth), 1, maxHealth);
                 UpdateHealthBar();
-                Debug.Log($"[PLAYER HEALTH] Vida Maxima aumentada: {oldHealth} -> {maxHealth}");
+                Debug.Log($"❤️ [PLAYER HEALTH] Vida Maxima aumentada: {oldHealth} -> {maxHealth} (+{maxHealth - oldHealth}) | Atual: {currentHealth}/{maxHealth}");
                 break;
 
             case "maxarmor":
@@ -721,7 +721,7 @@ public class PlayerHealth : MonoBehaviour
                 
                 currentArmor = Mathf.Clamp(currentArmor + (maxArmor - oldArmor), 0, maxArmor);
                 UpdateArmorBar();
-                Debug.Log($"[PLAYER HEALTH] Armadura Maxima aumentada: {oldArmor} -> {maxArmor}");
+                Debug.Log($"🛡️ [PLAYER HEALTH] Armadura Maxima aumentada: {oldArmor} -> {maxArmor} (+{maxArmor - oldArmor}) | Atual: {currentArmor}/{maxArmor}");
                 break;
 
             default:

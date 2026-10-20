@@ -719,7 +719,7 @@ public class InfusionUI : MonoBehaviour
                     {
                         string signal = buff.value > 0 ? "+" : "";
                         string tipoMultiplier = buff.isMultiplier ? "%" : "";
-                        float displayVal = buff.isMultiplier ? (buff.value * 100f) : buff.value;
+                        float displayVal = buff.isMultiplier ? Mathf.Round((buff.value - 1f) * 100f) : buff.value;
                         descString += $"  <color=#00FFAA>• {signal}{displayVal}{tipoMultiplier}</color> {FormatterName(buff.attributeType.ToString())}\n";
                     }
                 }
@@ -916,7 +916,7 @@ public class InfusionUI : MonoBehaviour
                 {
                     string signal = buff.value > 0 ? "+" : "";
                     string tipoMultiplier = buff.isMultiplier ? "%" : "";
-                    float displayVal = buff.isMultiplier ? (buff.value * 100f) : buff.value;
+                    float displayVal = buff.isMultiplier ? Mathf.Round((buff.value - 1f) * 100f) : buff.value;
                     
                     desc += $"<color=#00FFAA><b>• {signal}{displayVal}{tipoMultiplier}</b></color>  <color=#EEEEEE>{FormatterName(buff.attributeType.ToString())}</color>\n";
                 }
@@ -1106,6 +1106,10 @@ public class InfusionUI : MonoBehaviour
         if (QuestManager.Instance != null)
         {
             QuestManager.Instance.AdvanceQuest(QuestType.Interact, "infusion_completed", 1);
+        }
+        if (EptinhoPopupController.instancia != null)
+        {
+            EptinhoPopupController.instancia.MostrarPopupAviso(fused ? "Fusao Concluida! Traje amplificado!" : "Infusao Concluida! Traje aprimorado com sucesso!");
         }
     }
 

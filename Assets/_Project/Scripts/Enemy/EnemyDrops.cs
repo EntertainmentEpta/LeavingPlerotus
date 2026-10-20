@@ -27,7 +27,7 @@ public class EnemyDrops : MonoBehaviour
     [Header("Item Característico (Roleta)")]
     [Tooltip("Chance do inimigo dropar ALGUM item da lista (0-1)")]
     [Range(0f, 1f)]
-    public float globalDropChance = 0.3f;
+    public float globalDropChance = 0.38f;
     [Tooltip("Quantidade de itens dropados se der drop (da opção sorteada)")]
     public int itemAmount = 1;
     [Tooltip("Lista de possíveis drops (T1, T2, T3...). Apenas 1 será sorteado.")]
@@ -158,20 +158,20 @@ public class EnemyDrops : MonoBehaviour
         else if (isTankOrStructure)
         {
             // Totem e Tanques: chance saudável e calibrada (~28%)
-            effectiveDropChance = Mathf.Clamp(effectiveDropChance, 0.20f, 0.30f);
+            effectiveDropChance = Mathf.Clamp(effectiveDropChance, 0.32f, 0.45f);
         }
         else if (isSupport)
         {
-            effectiveDropChance = Mathf.Clamp(effectiveDropChance, 0.20f, 0.28f);
+            effectiveDropChance = Mathf.Clamp(effectiveDropChance, 0.30f, 0.40f);
         }
         else if (isRanged)
         {
-            effectiveDropChance = Mathf.Clamp(effectiveDropChance, 0.20f, 0.28f);
+            effectiveDropChance = Mathf.Clamp(effectiveDropChance, 0.30f, 0.40f);
         }
         else
         {
             // Mobs menores (SharpBlur, Aranha): ajustado de 10% para 25% para não sumir
-            effectiveDropChance = Mathf.Clamp(effectiveDropChance, 0.20f, 0.30f);
+            effectiveDropChance = Mathf.Clamp(effectiveDropChance, 0.32f, 0.45f);
         }
 
         // --- PACTO DE GANÂNCIA: Sorte aumentada significativamente em vez de duplicar drop! ---
