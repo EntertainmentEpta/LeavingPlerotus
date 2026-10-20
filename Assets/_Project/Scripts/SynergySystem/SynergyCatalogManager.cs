@@ -137,6 +137,33 @@ public class SynergyCatalogManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Destrava/descobre todas as 10 receitas de sinergias do jogo imediatamente (para teste/mapa).
+    /// </summary>
+    public void DiscoverAllSynergies()
+    {
+        foreach (var recipe in SynergyDatabase.AllRecipes)
+        {
+            DiscoverNode(recipe.id);
+        }
+        Debug.Log("✨ [SYNERGY CATALOG] Todas as sinergias foram catalogadas com sucesso!");
+    }
+
+    /// <summary>
+    /// Reseta todas as sinergias descobertas.
+    /// </summary>
+    public void ResetAllSynergies()
+    {
+        discoveredSet.Clear();
+        discoveredNodeIDs.Clear();
+        if (SaveManager.instance != null && SaveManager.instance.CachedData != null)
+        {
+            SaveManager.instance.CachedData.discoveredSynergies = new List<string>();
+            SaveManager.instance.SavePersistentData();
+        }
+        Debug.Log("🔄 [SYNERGY CATALOG] Todas as sinergias foram resetadas!");
+    }
+
+    /// <summary>
     /// Retorna a lista de IDs descobertos (somente leitura).
     /// </summary>
     public IReadOnlyList<string> GetDiscoveredIDs()

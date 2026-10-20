@@ -325,10 +325,35 @@ public class CheatConsole : MonoBehaviour
             if (DevCheatConsole.Instance != null)
             {
                 DevCheatConsole.Instance.UnlockAllEquipment();
+            }
+            if (SynergyCatalogManager.Instance != null)
+            {
+                SynergyCatalogManager.Instance.DiscoverAllSynergies();
             }
             if (EptinhoPopupController.instancia != null)
             {
                 EptinhoPopupController.instancia.MostrarPopupAviso("Todas as Melhorias Destravadas!");
+            }
+        }
+        else if (string.Equals(command, "sinergias", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "synergies", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "synergy", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "unlocksynergies", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "mapasinergias", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "mapa", System.StringComparison.OrdinalIgnoreCase))
+        {
+            Debug.Log("💻 CHEAT APROVADO: Destravando todas as 10 sinergias para o mapa!");
+            if (SynergyCatalogManager.Instance != null)
+            {
+                SynergyCatalogManager.Instance.DiscoverAllSynergies();
+            }
+            if (SynergyMapPrototype.Instance != null && SynergyMapPrototype.Instance.IsOpen)
+            {
+                SynergyMapPrototype.Instance.RefreshConstellation();
+            }
+            if (EptinhoPopupController.instancia != null)
+            {
+                EptinhoPopupController.instancia.MostrarPopupAviso("✨ Todas as 10 Sinergias Alquímicas Catalogadas!\nPressione [M] para abrir o Mapa Cósmico.");
             }
         }
         else if (string.Equals(command, "unlocklore", System.StringComparison.OrdinalIgnoreCase) ||
