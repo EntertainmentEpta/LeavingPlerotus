@@ -236,6 +236,17 @@ public class DevCheatConsole : MonoBehaviour
                 EptinhoPopupController.instancia.MostrarPopupAviso($"Modo Todos os Mobs: {status}");
             }
         }
+        else if (cmd == "rebirth" || cmd == "eliterebirth" || cmd == "rebirthelite" || cmd == "forcerebirth" || cmd == "renascer")
+        {
+            DummyHealth.forceEliteRebirth = !DummyHealth.forceEliteRebirth;
+            ShardSwarmHealth.forceEliteRebirth = DummyHealth.forceEliteRebirth;
+            string status = DummyHealth.forceEliteRebirth ? "ATIVADO (100% ao matar)" : "DESATIVADO (10% normal)";
+            Log($"<color=#FFA500>[ELITE REBIRTH]</color> Renascimento Elite Forçado: {status}");
+            if (EptinhoPopupController.instancia != null)
+            {
+                EptinhoPopupController.instancia.MostrarPopupAviso($"RENASCIMENTO ELITE: {status}");
+            }
+        }
         else if (cmd == "unlockmap" || cmd == "unlockenemies" || cmd == "6")
         {
             if (SaveManager.instance != null)

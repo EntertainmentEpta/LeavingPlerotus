@@ -26,6 +26,19 @@ public class ShardSwarmHealth : MonoBehaviour
     public int maxHealth = 100;
     public int CurrentHealth { get; private set; }
 
+    [Header("Elite Rebirth")]
+    [Tooltip("Indica se este mob já é uma unidade elite.")]
+    public bool isElite = false;
+    [Tooltip("Indica se este mob já passou pelo ciclo de renascimento elite (evita renascer infinitamente).")]
+    public bool hasRebornAsElite = false;
+    [Tooltip("Chance deste mob renascer como Elite ao morrer (0.10 = 10%).")]
+    [Range(0f, 1f)]
+    public float eliteRebirthChance = 0.10f;
+    [HideInInspector] public GameObject originalPrefab;
+    [HideInInspector] public RoomController owningRoom;
+
+    public static bool forceEliteRebirth = false;
+
     [Header("Referências UI")]
     public Slider healthBarSlider;
     private Image healthBarFill;
@@ -68,6 +81,11 @@ public class ShardSwarmHealth : MonoBehaviour
         }
 
         CurrentHealth = maxHealth;
+
+        if (GetComponent<EliteVariantConfig>() != null || gameObject.name.ToLower().Contains("elite"))
+        {
+            isElite = true;
+        }
 
         dummyRenderer = GetComponentInChildren<Renderer>();
         if (dummyRenderer != null)
@@ -269,7 +287,105 @@ public class ShardSwarmHealth : MonoBehaviour
             drops.OnDeath();
         }
 
+        // --- SISTEMA DE RENASCIMENTO ELITE (10% base / 100% com cheat) ---
+        bool canReborn = (!isElite && !hasRebornAsElite &&
+                          GetComponent<EliteVariantConfig>() == null &&
+                          !gameObject.name.ToLower().Contains("elite") &&
+                          !gameObject.name.ToLower().Contains("boss") &&
+                          !gameObject.name.ToLower().Contains("geobionte") &&
+                          !gameObject.name.ToLower().Contains("sentinel"));
+
+        bool shouldReborn = canReborn && (forceEliteRebirth || DummyHealth.forceEliteRebirth || Random.value <= eliteRebirthChance);
+
+        if (shouldReborn)
+        {
+            TriggerEliteRebirth();
+            return;
+        }
+
         Destroy(gameObject);
+    }
+
+    private void TriggerEliteRebirth()
+    {
+        Debug.Log($"[ELITE REBIRTH] ★ {gameObject.name} iniciou o ciclo de renascimento Elite!");
+        ShowRebirthFloatingText(transform.position);
+
+        RoomController rc = FindRoomController();
+        if (rc != null && rc.gameObject.activeInHierarchy)
+        {
+            rc.enemiesPendingSpawn++;
+            rc.activeEnemies.Remove(gameObject);
+            rc.StartCoroutine(rc.RebirthAsEliteRoutine(transform.position, transform.rotation, originalPrefab != null ? originalPrefab : gameObject, gameObject.name));
+        }
+        else if (RunManager.instance != null && RunManager.instance.gameObject.activeInHierarchy)
+        {
+            RunManager.instance.StartCoroutine(DummyHealth.RebirthFallbackRoutine(transform.position, transform.rotation, originalPrefab != null ? originalPrefab : gameObject, gameObject.name));
+        }
+
+        Destroy(gameObject);
+    }
+
+    public void ShowRebirthFloatingText(Vector3 position)
+    {
+        if (floatingDamageTextPrefab == null)
+        {
+            DummyHealth[] others = FindObjectsByType<DummyHealth>(FindObjectsSortMode.None);
+            foreach (var other in others)
+            {
+                if (other != null && other.floatingDamageTextPrefab != null)
+                {
+                    floatingDamageTextPrefab = other.floatingDamageTextPrefab;
+                    break;
+                }
+            }
+        }
+
+        if (floatingDamageTextPrefab != null)
+        {
+            GameObject textObject = Instantiate(floatingDamageTextPrefab, position + textOffset, Quaternion.identity);
+            FloatingDamageText dmgScript = textObject.GetComponent<FloatingDamageText>();
+            if (dmgScript != null)
+            {
+                dmgScript.SetCustomMessage("★ ELITE RENASCIDO! ★", new Color(1f, 0.55f, 0f, 1f), 1.5f);
+            }
+        }
+    }
+
+    public RoomController FindRoomController()
+    {
+        if (owningRoom != null) return owningRoom;
+
+        RoomController[] allRooms = FindObjectsByType<RoomController>(FindObjectsSortMode.None);
+        foreach (var r in allRooms)
+        {
+            if (r != null && r.combatActive && r.activeEnemies.Contains(gameObject))
+            {
+                owningRoom = r;
+                return r;
+            }
+        }
+        RoomController closest = null;
+        float minDist = 50f;
+        foreach (var r in allRooms)
+        {
+            if (r != null && r.combatActive)
+            {
+                float d = Vector3.Distance(r.transform.position, transform.position);
+                if (d < minDist)
+                {
+                    minDist = d;
+                    closest = r;
+                }
+            }
+        }
+        if (closest != null)
+        {
+            owningRoom = closest;
+            return closest;
+        }
+
+        return null;
     }
 
     private void Update()

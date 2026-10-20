@@ -24,6 +24,19 @@ public class DummyHealth : MonoBehaviour
     public bool debugLogDamage = false;
     public int CurrentHealth { get; private set; }
 
+    [Header("Elite Rebirth")]
+    [Tooltip("Indica se este mob já é uma unidade elite.")]
+    public bool isElite = false;
+    [Tooltip("Indica se este mob já passou pelo ciclo de renascimento elite (evita renascer infinitamente).")]
+    public bool hasRebornAsElite = false;
+    [Tooltip("Chance deste mob renascer como Elite ao morrer (0.10 = 10%).")]
+    [Range(0f, 1f)]
+    public float eliteRebirthChance = 0.10f;
+    [HideInInspector] public GameObject originalPrefab;
+    [HideInInspector] public RoomController owningRoom;
+
+    public static bool forceEliteRebirth = false;
+
     [Header("Referências UI")]
     public Slider healthBarSlider;
     // A imagem que realmente tem a cor (dentro do Slider)
@@ -94,6 +107,11 @@ public class DummyHealth : MonoBehaviour
             float hpMultiplier = 1f + (RunManager.instance.currentLevel - 3) * 0.15f; // +15% HP por level acima do 3
             maxHealth = Mathf.RoundToInt(maxHealth * hpMultiplier);
             CurrentHealth = maxHealth;
+        }
+
+        if (GetComponent<EliteVariantConfig>() != null || gameObject.name.ToLower().Contains("elite"))
+        {
+            isElite = true;
         }
 
         dummyRenderer = GetComponentInChildren<Renderer>();
@@ -337,9 +355,183 @@ public class DummyHealth : MonoBehaviour
             drops.OnDeath();
         }
 
+        // --- SISTEMA DE RENASCIMENTO ELITE (10% base / 100% com cheat) ---
+        bool canReborn = (!isElite && !hasRebornAsElite &&
+                          GetComponent<EliteVariantConfig>() == null &&
+                          !gameObject.name.ToLower().Contains("elite") &&
+                          !gameObject.name.ToLower().Contains("boss") &&
+                          !gameObject.name.ToLower().Contains("geobionte") &&
+                          !gameObject.name.ToLower().Contains("sentinel") &&
+                          GetComponent<Geobionte_AI>() == null);
 
+        bool shouldReborn = canReborn && (forceEliteRebirth || Random.value <= eliteRebirthChance);
+
+        if (shouldReborn)
+        {
+            TriggerEliteRebirth();
+            return;
+        }
 
         Destroy(gameObject);
+    }
+
+    private void TriggerEliteRebirth()
+    {
+        Debug.Log($"[ELITE REBIRTH] ★ {gameObject.name} iniciou o ciclo de renascimento Elite!");
+        ShowRebirthFloatingText(transform.position);
+
+        RoomController rc = FindRoomController();
+        if (rc != null && rc.gameObject.activeInHierarchy)
+        {
+            rc.enemiesPendingSpawn++;
+            rc.activeEnemies.Remove(gameObject);
+            rc.StartCoroutine(rc.RebirthAsEliteRoutine(transform.position, transform.rotation, originalPrefab != null ? originalPrefab : gameObject, gameObject.name));
+        }
+        else if (RunManager.instance != null && RunManager.instance.gameObject.activeInHierarchy)
+        {
+            RunManager.instance.StartCoroutine(RebirthFallbackRoutine(transform.position, transform.rotation, originalPrefab != null ? originalPrefab : gameObject, gameObject.name));
+        }
+
+        Destroy(gameObject);
+    }
+
+    public void ShowRebirthFloatingText(Vector3 position)
+    {
+        if (floatingDamageTextPrefab == null)
+        {
+            DummyHealth[] others = FindObjectsByType<DummyHealth>(FindObjectsSortMode.None);
+            foreach (var other in others)
+            {
+                if (other != this && other.floatingDamageTextPrefab != null)
+                {
+                    floatingDamageTextPrefab = other.floatingDamageTextPrefab;
+                    break;
+                }
+            }
+        }
+
+        if (floatingDamageTextPrefab != null)
+        {
+            GameObject textObject = Instantiate(floatingDamageTextPrefab, position + textOffset, Quaternion.identity);
+            FloatingDamageText dmgScript = textObject.GetComponent<FloatingDamageText>();
+            if (dmgScript != null)
+            {
+                dmgScript.SetCustomMessage("★ ELITE RENASCIDO! ★", new Color(1f, 0.55f, 0f, 1f), 1.5f);
+            }
+        }
+    }
+
+    public RoomController FindRoomController()
+    {
+        if (owningRoom != null) return owningRoom;
+
+        RoomController[] allRooms = FindObjectsByType<RoomController>(FindObjectsSortMode.None);
+        foreach (var r in allRooms)
+        {
+            if (r != null && r.combatActive && r.activeEnemies.Contains(gameObject))
+            {
+                owningRoom = r;
+                return r;
+            }
+        }
+        RoomController closest = null;
+        float minDist = 50f;
+        foreach (var r in allRooms)
+        {
+            if (r != null && r.combatActive)
+            {
+                float d = Vector3.Distance(r.transform.position, transform.position);
+                if (d < minDist)
+                {
+                    minDist = d;
+                    closest = r;
+                }
+            }
+        }
+        if (closest != null)
+        {
+            owningRoom = closest;
+            return closest;
+        }
+
+        return null;
+    }
+
+    public static IEnumerator RebirthFallbackRoutine(Vector3 spawnPos, Quaternion spawnRot, GameObject sourcePrefabOrInstance, string originalName)
+    {
+        yield return new WaitForSeconds(0.6f);
+        if (sourcePrefabOrInstance == null) yield break;
+
+        string cleanName = originalName.Replace("(Clone)", "").Trim();
+        GameObject prefabToSpawn = sourcePrefabOrInstance;
+
+        EnemyPoolConfig pool = Resources.Load<EnemyPoolConfig>("DefaultEnemyPool");
+        if (pool != null)
+        {
+            EnemySpawnSetup setup = pool.GetMutationSetup(sourcePrefabOrInstance);
+            if (setup != null && setup.variantPrefab != null) prefabToSpawn = setup.variantPrefab;
+            else
+            {
+                foreach (var s in pool.mutationSetups)
+                {
+                    if (s != null && s.basePrefab != null && s.variantPrefab != null && s.basePrefab.name.Equals(cleanName, System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        prefabToSpawn = s.variantPrefab;
+                        break;
+                    }
+                }
+            }
+        }
+
+        GameObject rebornEnemy = Object.Instantiate(prefabToSpawn, spawnPos, spawnRot);
+        rebornEnemy.name = cleanName + "_RebornElite";
+
+        bool hasDedicatedVariant = (rebornEnemy.GetComponent<EliteVariantConfig>() != null || rebornEnemy.name.ToLower().Contains("elite"));
+
+        DummyHealth dh = rebornEnemy.GetComponent<DummyHealth>() ?? rebornEnemy.GetComponentInChildren<DummyHealth>();
+        if (dh != null)
+        {
+            dh.isElite = true;
+            dh.hasRebornAsElite = true;
+            if (!hasDedicatedVariant)
+            {
+                dh.maxHealth = Mathf.RoundToInt(dh.maxHealth * 1.6f);
+                dh.SetHealth(dh.maxHealth);
+            }
+        }
+
+        ShardSwarmHealth ssh = rebornEnemy.GetComponent<ShardSwarmHealth>() ?? rebornEnemy.GetComponentInChildren<ShardSwarmHealth>();
+        if (ssh != null)
+        {
+            ssh.isElite = true;
+            ssh.hasRebornAsElite = true;
+            if (!hasDedicatedVariant)
+            {
+                ssh.maxHealth = Mathf.RoundToInt(ssh.maxHealth * 1.6f);
+                ssh.SetHealth(ssh.maxHealth);
+            }
+        }
+
+        if (rebornEnemy.GetComponent<EliteVariantConfig>() == null)
+        {
+            EliteVariantConfig aura = rebornEnemy.AddComponent<EliteVariantConfig>();
+            aura.variantName = cleanName + " Elite";
+            aura.useProceduralAura = true;
+            aura.auraColor = new Color(1f, 0.45f, 0f, 1f);
+            aura.auraRadius = 0.85f;
+            aura.auraWidth = 0.09f;
+        }
+
+        if (!hasDedicatedVariant)
+        {
+            rebornEnemy.transform.localScale *= 1.25f;
+        }
+
+        EnemyDrops drops = rebornEnemy.GetComponent<EnemyDrops>() ?? rebornEnemy.GetComponentInChildren<EnemyDrops>();
+        if (drops != null)
+        {
+            drops.isEliteDrops = true;
+        }
     }
 
     private void Update()

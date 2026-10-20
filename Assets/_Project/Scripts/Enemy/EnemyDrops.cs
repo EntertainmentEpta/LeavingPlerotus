@@ -24,6 +24,10 @@ public class EnemyDrops : MonoBehaviour
         public float weight = 10f;
     }
 
+    [Header("Elite Drop Settings")]
+    [Tooltip("Se ativado, usa a tabela de drops calibrada de Elite (Tier 2: 80%, Tier 3: 40%, Tier 4: 20%).")]
+    public bool isEliteDrops = false;
+
     [Header("Item Característico (Roleta)")]
     [Tooltip("Chance do inimigo dropar ALGUM item da lista (0-1)")]
     [Range(0f, 1f)]
@@ -121,7 +125,14 @@ public class EnemyDrops : MonoBehaviour
             Debug.LogWarning("[ENEMY DROPS] essencePrefab está NULL! Configure no Inspector.");
         }
 
-        // 2. Chance de dropar ALGUM item característico calibrada por Classe
+        // 2. SISTEMA DE DROPS DE ELITE (GDD: Tier 2: 80%, Tier 3: 40%, Tier 4: 20%)
+        if (IsEliteMob())
+        {
+            SpawnEliteDrops(basePosition, hasGreed);
+            return;
+        }
+
+        // 3. Chance de dropar ALGUM item característico calibrada por Classe
         float effectiveDropChance = globalDropChance;
         string objName = gameObject.name.ToLower();
 
@@ -314,7 +325,33 @@ public class EnemyDrops : MonoBehaviour
 
     GameObject SpawnDrop(GameObject prefab, Vector3 position)
     {
-        GameObject drop = Instantiate(prefab, position, Quaternion.identity);
+        if (prefab == null) return null;
+
+        // Se o prefab atribuido for um objeto filho (ex: Visual), recupera a raiz com o pickup
+        GameObject prefabToSpawn = prefab;
+        if (prefabToSpawn.transform.parent != null)
+        {
+            prefabToSpawn = prefabToSpawn.transform.root.gameObject;
+        }
+
+        GameObject drop = Instantiate(prefabToSpawn, position, Quaternion.identity);
+
+        // Se o drop nao tiver CharacteristicItemPickup nem ItemPickup, recupera ou anexa dinamicamente
+        if (drop.GetComponent<CharacteristicItemPickup>() == null && drop.GetComponent<ItemPickup>() == null)
+        {
+            var childPickup = drop.GetComponentInChildren<CharacteristicItemPickup>(true);
+            if (childPickup == null)
+            {
+                var pickup = drop.AddComponent<CharacteristicItemPickup>();
+                pickup.itemId = prefabToSpawn.name.Replace("(Clone)", "").Trim();
+                pickup.itemName = pickup.itemId;
+                SphereCollider col = drop.GetComponent<SphereCollider>();
+                if (col == null) col = drop.AddComponent<SphereCollider>();
+                col.isTrigger = true;
+                col.radius = 1.2f;
+                Debug.LogWarning($"[ENEMY DROPS] Drop '{drop.name}' sem pickup! Componente adicionado: {pickup.itemId}");
+            }
+        }
 
         // Configura rigidbody para não ter drift
         Rigidbody rb = drop.GetComponent<Rigidbody>();
@@ -330,5 +367,108 @@ public class EnemyDrops : MonoBehaviour
         }
 
         return drop;
+    }
+
+    public bool IsEliteMob()
+    {
+        if (isEliteDrops) return true;
+        if (GetComponent<EliteVariantConfig>() != null) return true;
+        if (health != null && health.isElite) return true;
+        ShardSwarmHealth ssh = GetComponent<ShardSwarmHealth>();
+        if (ssh != null && ssh.isElite) return true;
+        string n = gameObject.name.ToLower();
+        if (n.Contains("elite") || n.Contains("rebornelite")) return true;
+        return false;
+    }
+
+    private int GetItemTier(GameObject prefab)
+    {
+        if (prefab == null) return 1;
+        string name = prefab.name.ToLower();
+        if (name.Contains("_t4") || name.Contains("t4") || name.Contains("tier4") || name.Contains("heart") || name.Contains("rotor") || name.Contains("catalyst") || name.Contains("bomb") || name.Contains("matrix") || name.Contains("beacon") || name.Contains("monolith") || name.Contains("osso")) return 4;
+        if (name.Contains("_t3") || name.Contains("t3") || name.Contains("tier3") || name.Contains("core") || name.Contains("amulet") || name.Contains("essence") || name.Contains("fang") || name.Contains("tail") || name.Contains("prism") || name.Contains("ancient") || name.Contains("cerebro") || name.Contains("sight")) return 3;
+        if (name.Contains("_t2") || name.Contains("t2") || name.Contains("tier2") || name.Contains("plate") || name.Contains("silk") || name.Contains("rune") || name.Contains("claw") || name.Contains("lens") || name.Contains("carved") || name.Contains("cora") || name.Contains("espinhos") || name.Contains("bra")) return 2;
+        if (name.Contains("_t1") || name.Contains("t1") || name.Contains("tier1") || name.Contains("chip") || name.Contains("dust") || name.Contains("leg") || name.Contains("scale") || name.Contains("coin") || name.Contains("garras") || name.Contains("stone") || name.Contains("splinter")) return 1;
+        return 1;
+    }
+
+    private void SpawnEliteDrops(Vector3 basePosition, bool hasGreed)
+    {
+        if (lootPool == null || lootPool.Count == 0) return;
+
+        List<GameObject> t2Items = new List<GameObject>();
+        List<GameObject> t3Items = new List<GameObject>();
+        List<GameObject> t4Items = new List<GameObject>();
+
+        foreach (var loot in lootPool)
+        {
+            if (loot == null || loot.itemPrefab == null) continue;
+            int tier = GetItemTier(loot.itemPrefab);
+            if (tier == 2) t2Items.Add(loot.itemPrefab);
+            else if (tier == 3) t3Items.Add(loot.itemPrefab);
+            else if (tier == 4) t4Items.Add(loot.itemPrefab);
+        }
+
+        // Fallbacks se o lootPool tiver organização não padrão
+        if (t2Items.Count == 0 && lootPool.Count > 1 && lootPool[1].itemPrefab != null) 
+            t2Items.Add(lootPool[1].itemPrefab);
+        if (t3Items.Count == 0 && lootPool.Count > 2 && lootPool[2].itemPrefab != null) 
+            t3Items.Add(lootPool[2].itemPrefab);
+        if (t4Items.Count == 0 && lootPool.Count > 3 && lootPool[3].itemPrefab != null) 
+            t4Items.Add(lootPool[3].itemPrefab);
+
+        // Chances solicitadas pelo usuário: Tier 2: 80%, Tier 3: 40%, Tier 4: 20%
+        float t2Chance = hasGreed ? 0.95f : 0.80f;
+        float t3Chance = hasGreed ? 0.60f : 0.40f;
+        float t4Chance = hasGreed ? 0.35f : 0.20f;
+
+        bool droppedAny = false;
+
+        // 1. Rolagem Tier 4 (20%)
+        if (t4Items.Count > 0 && Random.value <= t4Chance)
+        {
+            GameObject selectedT4 = t4Items[Random.Range(0, t4Items.Count)];
+            Vector3 offset = Random.insideUnitSphere * spawnRadius;
+            offset.y = 0;
+            SpawnDrop(selectedT4, basePosition + offset);
+            droppedAny = true;
+            Debug.Log($"[ELITE DROPS] ★ ROLAGEM TIER 4 SUCESSO! ({t4Chance * 100:F0}%): {selectedT4.name}");
+        }
+
+        // 2. Rolagem Tier 3 (40%)
+        if (t3Items.Count > 0 && Random.value <= t3Chance)
+        {
+            GameObject selectedT3 = t3Items[Random.Range(0, t3Items.Count)];
+            Vector3 offset = Random.insideUnitSphere * spawnRadius;
+            offset.y = 0;
+            SpawnDrop(selectedT3, basePosition + offset);
+            droppedAny = true;
+            Debug.Log($"[ELITE DROPS] ★ ROLAGEM TIER 3 SUCESSO! ({t3Chance * 100:F0}%): {selectedT3.name}");
+        }
+
+        // 3. Rolagem Tier 2 (80%)
+        if (t2Items.Count > 0 && Random.value <= t2Chance)
+        {
+            GameObject selectedT2 = t2Items[Random.Range(0, t2Items.Count)];
+            Vector3 offset = Random.insideUnitSphere * spawnRadius;
+            offset.y = 0;
+            SpawnDrop(selectedT2, basePosition + offset);
+            droppedAny = true;
+            Debug.Log($"[ELITE DROPS] ★ ROLAGEM TIER 2 SUCESSO! ({t2Chance * 100:F0}%): {selectedT2.name}");
+        }
+
+        // 4. Proteção contra azar (garante ao menos 1 item T2+ se todas as rolagens falharem)
+        if (!droppedAny)
+        {
+            GameObject fallback = t2Items.Count > 0 ? t2Items[Random.Range(0, t2Items.Count)] :
+                                 (t3Items.Count > 0 ? t3Items[0] : (t4Items.Count > 0 ? t4Items[0] : null));
+            if (fallback != null)
+            {
+                Vector3 offset = Random.insideUnitSphere * spawnRadius;
+                offset.y = 0;
+                SpawnDrop(fallback, basePosition + offset);
+                Debug.Log($"[ELITE DROPS] Proteção de azar ativada: Drop Tier 2 garantido ({fallback.name})");
+            }
+        }
     }
 }

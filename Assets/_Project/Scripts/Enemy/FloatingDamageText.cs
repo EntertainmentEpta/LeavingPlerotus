@@ -251,6 +251,39 @@ public class FloatingDamageText : MonoBehaviour
             ApplyParticleText();
         }
     }
+
+    /// <summary>
+    /// Exibe uma mensagem especial (ex: "★ ELITE RENASCIDO! ★") com cor e escala customizadas.
+    /// </summary>
+    public void SetCustomMessage(string message, Color color, float sizeMultiplier = 1.3f)
+    {
+        pendingText = message;
+        currentDamageValue = 0;
+        isCriticalHit = false;
+        isPoisonDamage = false;
+
+        if (textMesh != null)
+        {
+            textMesh.text = message;
+            textMesh.color = color;
+            startColor = color;
+        }
+
+        transform.localScale = initialLocalScale * sizeMultiplier;
+        lifetime = 2.0f;
+        timer = lifetime;
+
+        if (particleText != null)
+        {
+            particleText.UpdateText(
+                newText: message,
+                newSize: particleBaseSize * sizeMultiplier,
+                newColor1: color,
+                newColor2: new Color(color.r * 0.7f, color.g * 0.5f, 0f, 1f),
+                newLifetimeMultiplier: 1.5f
+            );
+        }
+    }
     
     /// <summary>
     /// Configura o texto como dano crítico com visual aprimorado.

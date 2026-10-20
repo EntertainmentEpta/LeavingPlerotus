@@ -67,6 +67,7 @@ public class CheatConsole : MonoBehaviour
         new CheatEntry { category = "👾 INIMIGOS, SPAWNS & BOSS", command = "bosssolo", aliases = "soloboss, bosstest, solo", description = "Teleporta para o Boss em modo Solo (sem minions nem spawners).", executePayload = "bosssolo" },
         new CheatEntry { category = "👾 INIMIGOS, SPAWNS & BOSS", command = "allmobs", aliases = "spawnall, mobs, bichos, showcase", description = "Spawna 1 de cada tipo de mob na sala atual imediatamente.", executePayload = "allmobs" },
         new CheatEntry { category = "👾 INIMIGOS, SPAWNS & BOSS", command = "togglemobs", aliases = "normalmobs", description = "Alterna entre spawn normal e modo Todos os Mobs.", executePayload = "togglemobs" },
+        new CheatEntry { category = "👾 INIMIGOS, SPAWNS & BOSS", command = "rebirth", aliases = "eliterebirth, rebirthelite, renascer", description = "Alterna o Modo Renascimento Elite 100% (todo mob morto renasce Elite com drops T2-T4).", executePayload = "rebirth" },
         new CheatEntry { category = "👾 INIMIGOS, SPAWNS & BOSS", command = "endless", aliases = "-", description = "Alterna o Modo Endless (fases infinitas sem encerrar no chefe).", executePayload = "endless" },
 
         // ⚡ Miscelânea & Sistema
@@ -825,6 +826,22 @@ public class CheatConsole : MonoBehaviour
             string statusText = RoomController.forceAllMobsMode ? "Modo Todos os Mobs: ATIVADO!" : "Modo Todos os Mobs: DESATIVADO (Normal)";
             Debug.Log($"💻 CHEAT: {statusText}");
 
+            if (EptinhoPopupController.instancia != null)
+            {
+                EptinhoPopupController.instancia.MostrarPopupAviso(statusText);
+            }
+        }
+        else if (string.Equals(command, "rebirth", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "eliterebirth", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "rebirthelite", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "forcerebirth", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "renascer", System.StringComparison.OrdinalIgnoreCase))
+        {
+            DummyHealth.forceEliteRebirth = !DummyHealth.forceEliteRebirth;
+            ShardSwarmHealth.forceEliteRebirth = DummyHealth.forceEliteRebirth;
+            string status = DummyHealth.forceEliteRebirth ? "ATIVADO (100% de chance ao matar)" : "DESATIVADO (10% normal)";
+            string statusText = $"RENASCIMENTO ELITE: {status}";
+            Debug.Log($"💻 CHEAT: {statusText}");
             if (EptinhoPopupController.instancia != null)
             {
                 EptinhoPopupController.instancia.MostrarPopupAviso(statusText);

@@ -155,10 +155,21 @@ public class RoomController : MonoBehaviour
 
     private int   totalWavesThisRoom = 1;
     private int   currentWave        = 0;
-    private int   enemiesPendingSpawn = 0;
-    private List<GameObject> activeEnemies = new List<GameObject>();
+    [HideInInspector] public int   enemiesPendingSpawn = 0;
+    [HideInInspector] public List<GameObject> activeEnemies = new List<GameObject>();
     private bool  hasTriggered  = false;
-    private bool  combatActive  = false;
+    [HideInInspector] public bool  combatActive  = false;
+
+    public bool ContainsActiveEnemy(GameObject enemy) => activeEnemies != null && activeEnemies.Contains(enemy);
+
+    public void RegisterRebornPending(GameObject dyingEnemy)
+    {
+        enemiesPendingSpawn++;
+        if (dyingEnemy != null && activeEnemies != null)
+        {
+            activeEnemies.Remove(dyingEnemy);
+        }
+    }
 
     private enum EnemyClass { Elite, Tanque, Atirador, MobMenor, Suporte }
 
@@ -710,8 +721,184 @@ public class RoomController : MonoBehaviour
         if (magicStone != null && spawnAreas != null && spawnAreas.Count > 0 && spawnAreas[0] != null)
             magicStone.SetRoomBounds(spawnAreas[0]);
 
+        // Configura rastreamento de sala e prefab de origem para o sistema de Renascimento Elite
+        bool isInitialElite = (prefabToSpawn != prefab) || 
+                              (newEnemy.GetComponent<EliteVariantConfig>() != null) || 
+                              newEnemy.name.ToLower().Contains("elite");
+
+        DummyHealth dh = newEnemy.GetComponent<DummyHealth>() ?? newEnemy.GetComponentInChildren<DummyHealth>();
+        if (dh != null)
+        {
+            dh.originalPrefab = prefab;
+            dh.owningRoom = this;
+            if (isInitialElite) dh.isElite = true;
+        }
+
+        ShardSwarmHealth ssh = newEnemy.GetComponent<ShardSwarmHealth>() ?? newEnemy.GetComponentInChildren<ShardSwarmHealth>();
+        if (ssh != null)
+        {
+            ssh.originalPrefab = prefab;
+            ssh.owningRoom = this;
+            if (isInitialElite) ssh.isElite = true;
+        }
+
+        if (isInitialElite)
+        {
+            EnemyDrops drops = newEnemy.GetComponent<EnemyDrops>() ?? newEnemy.GetComponentInChildren<EnemyDrops>();
+            if (drops != null) drops.isEliteDrops = true;
+        }
+
         activeEnemies.Add(newEnemy);
         enemiesPendingSpawn--;
+    }
+
+    /// <summary>
+    /// Corrotina disparada quando um inimigo morre e rola a chance de Renascer como Elite.
+    /// Mantém enemiesPendingSpawn ativo para evitar que as portas destranquem prematuramente.
+    /// </summary>
+    public IEnumerator RebirthAsEliteRoutine(Vector3 spawnPos, Quaternion spawnRot, GameObject sourcePrefabOrInstance, string originalName)
+    {
+        // 1. Spawna indicador visual no chão durante o breve delay
+        GameObject indicator = null;
+        if (spawnIndicatorPrefab != null)
+        {
+            Vector3 indicatorPos = new Vector3(spawnPos.x, spawnPos.y + 0.05f, spawnPos.z);
+            indicator = Instantiate(spawnIndicatorPrefab, indicatorPos, Quaternion.identity);
+        }
+
+        yield return new WaitForSeconds(0.6f);
+
+        if (indicator != null) Destroy(indicator);
+
+        // 2. Determina o prefab ou cria a variante Elite
+        GameObject prefabToSpawn = null;
+        EnemyPoolConfig pool = enemyPoolConfig != null ? enemyPoolConfig : Resources.Load<EnemyPoolConfig>("DefaultEnemyPool");
+        string cleanName = originalName.Replace("(Clone)", "").Trim();
+
+        if (pool != null)
+        {
+            EnemySpawnSetup setup = pool.GetMutationSetup(sourcePrefabOrInstance);
+            if (setup != null && setup.variantPrefab != null)
+            {
+                prefabToSpawn = setup.variantPrefab;
+            }
+            else
+            {
+                foreach (var s in pool.mutationSetups)
+                {
+                    if (s != null && s.basePrefab != null && s.variantPrefab != null)
+                    {
+                        if (s.basePrefab.name.Equals(cleanName, System.StringComparison.OrdinalIgnoreCase))
+                        {
+                            prefabToSpawn = s.variantPrefab;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (prefabToSpawn == null && sourcePrefabOrInstance != null)
+            {
+                foreach (var p in pool.GetAllUniquePrefabs())
+                {
+                    if (p != null && p.name.Equals(cleanName, System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        prefabToSpawn = p;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (prefabToSpawn == null)
+        {
+            if (cleanName.ToLower().Contains("spider"))
+                prefabToSpawn = Resources.Load<GameObject>("Spider_Elite") ?? (pool != null ? pool.mutationSetups.Find(m => m.variantPrefab != null && m.variantPrefab.name.Contains("Spider"))?.variantPrefab : null);
+            else if (cleanName.ToLower().Contains("goblin"))
+                prefabToSpawn = Resources.Load<GameObject>("Goblin_Elite") ?? (pool != null ? pool.mutationSetups.Find(m => m.variantPrefab != null && m.variantPrefab.name.Contains("Goblin"))?.variantPrefab : null);
+            else if (cleanName.ToLower().Contains("magicstone"))
+                prefabToSpawn = Resources.Load<GameObject>("MagicStone_Elite") ?? (pool != null ? pool.mutationSetups.Find(m => m.variantPrefab != null && m.variantPrefab.name.Contains("MagicStone"))?.variantPrefab : null);
+        }
+
+        if (prefabToSpawn == null)
+        {
+            prefabToSpawn = sourcePrefabOrInstance;
+        }
+
+        if (prefabToSpawn == null)
+        {
+            enemiesPendingSpawn = Mathf.Max(0, enemiesPendingSpawn - 1);
+            yield break;
+        }
+
+        // 3. Instancia o Reborn Elite
+        GameObject rebornEnemy = Instantiate(prefabToSpawn, spawnPos, spawnRot);
+        rebornEnemy.name = cleanName + "_RebornElite";
+
+        if (rebornEnemy.GetComponent<NavMeshBoundaryConstraint>() == null)
+            rebornEnemy.AddComponent<NavMeshBoundaryConstraint>();
+
+        bool hasDedicatedVariant = (rebornEnemy.GetComponent<EliteVariantConfig>() != null || rebornEnemy.name.ToLower().Contains("elite"));
+
+        // 4. Configura propriedades de Elite no DummyHealth
+        DummyHealth dh = rebornEnemy.GetComponent<DummyHealth>() ?? rebornEnemy.GetComponentInChildren<DummyHealth>();
+        if (dh != null)
+        {
+            dh.isElite = true;
+            dh.hasRebornAsElite = true;
+            dh.owningRoom = this;
+
+            if (!hasDedicatedVariant)
+            {
+                dh.maxHealth = Mathf.RoundToInt(dh.maxHealth * 1.6f);
+                dh.SetHealth(dh.maxHealth);
+            }
+        }
+
+        ShardSwarmHealth ssh = rebornEnemy.GetComponent<ShardSwarmHealth>() ?? rebornEnemy.GetComponentInChildren<ShardSwarmHealth>();
+        if (ssh != null)
+        {
+            ssh.isElite = true;
+            ssh.hasRebornAsElite = true;
+            ssh.owningRoom = this;
+
+            if (!hasDedicatedVariant)
+            {
+                ssh.maxHealth = Mathf.RoundToInt(ssh.maxHealth * 1.6f);
+                ssh.SetHealth(ssh.maxHealth);
+            }
+        }
+
+        // Aura procedural se não tiver
+        if (rebornEnemy.GetComponent<EliteVariantConfig>() == null)
+        {
+            EliteVariantConfig aura = rebornEnemy.AddComponent<EliteVariantConfig>();
+            aura.variantName = cleanName + " Elite";
+            aura.useProceduralAura = true;
+            aura.auraColor = new Color(1f, 0.45f, 0f, 1f);
+            aura.auraRadius = 0.85f;
+            aura.auraWidth = 0.09f;
+        }
+
+        if (!hasDedicatedVariant)
+        {
+            rebornEnemy.transform.localScale *= 1.25f;
+        }
+
+        EnemyDrops drops = rebornEnemy.GetComponent<EnemyDrops>() ?? rebornEnemy.GetComponentInChildren<EnemyDrops>();
+        if (drops != null)
+        {
+            drops.isEliteDrops = true;
+        }
+
+        MagicStone_AI magicStone = rebornEnemy.GetComponent<MagicStone_AI>();
+        if (magicStone != null && spawnAreas != null && spawnAreas.Count > 0 && spawnAreas[0] != null)
+            magicStone.SetRoomBounds(spawnAreas[0]);
+
+        activeEnemies.Add(rebornEnemy);
+        enemiesPendingSpawn = Mathf.Max(0, enemiesPendingSpawn - 1);
+
+        Debug.Log($"[ELITE REBIRTH] ★ {rebornEnemy.name} renasceu como Elite em {spawnPos}!");
     }
 
 
