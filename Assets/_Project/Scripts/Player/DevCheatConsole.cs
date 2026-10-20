@@ -247,6 +247,21 @@ public class DevCheatConsole : MonoBehaviour
                 EptinhoPopupController.instancia.MostrarPopupAviso($"RENASCIMENTO ELITE: {status}");
             }
         }
+        else if (cmd == "sinfonia" || cmd == "chaos" || cmd == "pactchaos" || cmd == "pactcaos")
+        {
+            PlayerHealth ph = Object.FindFirstObjectByType<PlayerHealth>();
+            if (ph != null)
+            {
+                ph.hasChaosSymphony = !ph.hasChaosSymphony;
+                ph.hasDoubleLoot = ph.hasChaosSymphony;
+                string status = ph.hasChaosSymphony ? "ATIVADA (+20% Drops, +Elites, Rebirth 35%)" : "DESATIVADA";
+                Log($"<color=#00FF99>[PACTO]</color> A Sinfonia do Caos: {status}");
+                if (EptinhoPopupController.instancia != null)
+                {
+                    EptinhoPopupController.instancia.MostrarPopupAviso($"A SINFONIA DO CAOS: {status}");
+                }
+            }
+        }
         else if (cmd == "unlockmap" || cmd == "unlockenemies" || cmd == "6")
         {
             if (SaveManager.instance != null)

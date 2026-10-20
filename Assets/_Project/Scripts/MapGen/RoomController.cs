@@ -681,15 +681,36 @@ public class RoomController : MonoBehaviour
         // verificamos se existe uma variante configurada e rolamos a mutationChance.
         // O custo em pontos NAO muda — a variante é gratuita em termos de budget.
         GameObject prefabToSpawn = prefab;
+        PlayerHealth playerRef = Object.FindFirstObjectByType<PlayerHealth>();
+        bool hasChaos = (playerRef != null && playerRef.hasChaosSymphony);
+
         if (enemyPoolConfig != null)
         {
             EnemySpawnSetup setup = enemyPoolConfig.GetMutationSetup(prefab);
-            if (setup != null && setup.variantPrefab != null &&
-                UnityEngine.Random.value <= setup.mutationChance)
+            if (setup != null && setup.variantPrefab != null)
             {
-                prefabToSpawn = setup.variantPrefab;
-                if (showSpawnLog)
-                    Debug.Log($"[ROOM {roomIndex}] MUTACAO! {prefab.name} → {setup.variantPrefab.name} ({setup.mutationChance * 100:F0}% de chance)");
+                float mutChance = setup.mutationChance;
+                if (hasChaos)
+                {
+                    mutChance = Mathf.Min(0.85f, mutChance + 0.35f); // +35% de chance de virar variante elite
+                }
+
+                if (UnityEngine.Random.value <= mutChance)
+                {
+                    prefabToSpawn = setup.variantPrefab;
+                    if (showSpawnLog)
+                        Debug.Log($"[ROOM {roomIndex}] MUTACAO! {prefab.name} → {setup.variantPrefab.name} ({mutChance * 100:F0}% de chance)");
+                }
+            }
+        }
+
+        // Se o mob não possui variante configurada, com a Sinfonia do Caos ele tem 30% de chance de spawnar como Elite Procedural
+        bool forceProceduralElite = false;
+        if (hasChaos && prefabToSpawn == prefab && !prefab.name.ToLower().Contains("boss") && !prefab.name.ToLower().Contains("geobionte"))
+        {
+            if (UnityEngine.Random.value <= 0.30f)
+            {
+                forceProceduralElite = true;
             }
         }
         // ────────────────────────────────────────────────────────────────────
@@ -721,17 +742,39 @@ public class RoomController : MonoBehaviour
         if (magicStone != null && spawnAreas != null && spawnAreas.Count > 0 && spawnAreas[0] != null)
             magicStone.SetRoomBounds(spawnAreas[0]);
 
-        // Configura rastreamento de sala e prefab de origem para o sistema de Renascimento Elite
         bool isInitialElite = (prefabToSpawn != prefab) || 
                               (newEnemy.GetComponent<EliteVariantConfig>() != null) || 
-                              newEnemy.name.ToLower().Contains("elite");
+                              newEnemy.name.ToLower().Contains("elite") ||
+                              forceProceduralElite;
+
+        if (forceProceduralElite)
+        {
+            if (newEnemy.GetComponent<EliteVariantConfig>() == null)
+            {
+                EliteVariantConfig aura = newEnemy.AddComponent<EliteVariantConfig>();
+                aura.variantName = newEnemy.name.Replace("(Clone)", "").Trim() + " Elite";
+                aura.useProceduralAura = true;
+                aura.auraColor = new Color(1f, 0.45f, 0f, 1f);
+                aura.auraRadius = 0.85f;
+                aura.auraWidth = 0.09f;
+            }
+            newEnemy.transform.localScale *= 1.25f;
+        }
 
         DummyHealth dh = newEnemy.GetComponent<DummyHealth>() ?? newEnemy.GetComponentInChildren<DummyHealth>();
         if (dh != null)
         {
             dh.originalPrefab = prefab;
             dh.owningRoom = this;
-            if (isInitialElite) dh.isElite = true;
+            if (isInitialElite)
+            {
+                dh.isElite = true;
+                if (forceProceduralElite)
+                {
+                    dh.maxHealth = Mathf.RoundToInt(dh.maxHealth * 1.6f);
+                    dh.SetHealth(dh.maxHealth);
+                }
+            }
         }
 
         ShardSwarmHealth ssh = newEnemy.GetComponent<ShardSwarmHealth>() ?? newEnemy.GetComponentInChildren<ShardSwarmHealth>();
@@ -739,7 +782,15 @@ public class RoomController : MonoBehaviour
         {
             ssh.originalPrefab = prefab;
             ssh.owningRoom = this;
-            if (isInitialElite) ssh.isElite = true;
+            if (isInitialElite)
+            {
+                ssh.isElite = true;
+                if (forceProceduralElite)
+                {
+                    ssh.maxHealth = Mathf.RoundToInt(ssh.maxHealth * 1.6f);
+                    ssh.SetHealth(ssh.maxHealth);
+                }
+            }
         }
 
         if (isInitialElite)

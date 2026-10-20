@@ -287,7 +287,16 @@ public class ShardSwarmHealth : MonoBehaviour
             drops.OnDeath();
         }
 
-        // --- SISTEMA DE RENASCIMENTO ELITE (10% base / 100% com cheat) ---
+        // --- RECOMPENSA DE COMBATE DA SINFONIA DO CAOS ---
+        PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
+        if (isElite && playerHealth != null && playerHealth.hasChaosSymphony)
+        {
+            playerHealth.Heal(8);
+            playerHealth.TriggerEliteKillAdrenaline(5f);
+            Debug.Log("[CAOS] Inimigo Elite abatido! +8 Vida e Adrenalina concedidas ao jogador!");
+        }
+
+        // --- SISTEMA DE RENASCIMENTO ELITE (10% base / 100% com cheat / +25% com Sinfonia do Caos) ---
         bool canReborn = (!isElite && !hasRebornAsElite &&
                           GetComponent<EliteVariantConfig>() == null &&
                           !gameObject.name.ToLower().Contains("elite") &&
@@ -295,7 +304,13 @@ public class ShardSwarmHealth : MonoBehaviour
                           !gameObject.name.ToLower().Contains("geobionte") &&
                           !gameObject.name.ToLower().Contains("sentinel"));
 
-        bool shouldReborn = canReborn && (forceEliteRebirth || DummyHealth.forceEliteRebirth || Random.value <= eliteRebirthChance);
+        float effectiveRebirthChance = eliteRebirthChance;
+        if (playerHealth != null && playerHealth.hasChaosSymphony)
+        {
+            effectiveRebirthChance = Mathf.Clamp01(effectiveRebirthChance + 0.25f);
+        }
+
+        bool shouldReborn = canReborn && (forceEliteRebirth || DummyHealth.forceEliteRebirth || Random.value <= effectiveRebirthChance);
 
         if (shouldReborn)
         {

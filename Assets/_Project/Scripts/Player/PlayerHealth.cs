@@ -628,6 +628,36 @@ public class PlayerHealth : MonoBehaviour
         UpdateArmorBar();
     }
 
+    private Coroutine adrenalineCoroutine = null;
+
+    /// <summary>
+    /// Bônus da Sinfonia do Caos: ao abater um inimigo Elite, o jogador ganha um surto de velocidade de movimento e ataque por alguns segundos.
+    /// </summary>
+    public void TriggerEliteKillAdrenaline(float duration = 5f)
+    {
+        if (adrenalineCoroutine != null)
+        {
+            StopCoroutine(adrenalineCoroutine);
+        }
+        adrenalineCoroutine = StartCoroutine(EliteAdrenalineRoutine(duration));
+    }
+
+    private IEnumerator EliteAdrenalineRoutine(float duration)
+    {
+        PlayerAttributesDefensive defStats = GetComponent<PlayerAttributesDefensive>() ?? GetComponentInChildren<PlayerAttributesDefensive>();
+        PlayerAttributesOffensive offStats = GetComponent<PlayerAttributesOffensive>() ?? GetComponentInChildren<PlayerAttributesOffensive>();
+
+        if (defStats != null) defStats.speedMultiplier *= 1.15f;
+        if (offStats != null) offStats.attackSpeedMelee *= 1.20f;
+
+        yield return new WaitForSeconds(duration);
+
+        if (defStats != null) defStats.speedMultiplier /= 1.15f;
+        if (offStats != null) offStats.attackSpeedMelee /= 1.20f;
+
+        adrenalineCoroutine = null;
+    }
+
     private void UpdateHealthBar()
     {
         if (healthFillImage != null)

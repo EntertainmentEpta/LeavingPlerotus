@@ -213,8 +213,8 @@ public class MerchantUIController : MonoBehaviour
         },
         new PactData {
             name = "A SINFONIA DO CAOS",
-            description = "<color=#00ff99>✦ Dobro de loot, o dobro de essência e maior sorte.</color>\n<color=#ff4455>✖ Inimigos de elite mais fortes e em maior quantidade.</color>",
-            healthCostPercent = 0.35f
+            description = "<color=#00ff99>✦ Fartura Caótica: +20% na chance geral de drops de itens e +100% Essência.</color>\n<color=#ff4455>✖ Hostilidade Titânica: Inimigos têm +30% de chance de nascer Elite e +25% de renascer como Elite ao morrer.</color>",
+            healthCostPercent = 0.25f
         }
     };
 

@@ -68,6 +68,7 @@ public class CheatConsole : MonoBehaviour
         new CheatEntry { category = "👾 INIMIGOS, SPAWNS & BOSS", command = "allmobs", aliases = "spawnall, mobs, bichos, showcase", description = "Spawna 1 de cada tipo de mob na sala atual imediatamente.", executePayload = "allmobs" },
         new CheatEntry { category = "👾 INIMIGOS, SPAWNS & BOSS", command = "togglemobs", aliases = "normalmobs", description = "Alterna entre spawn normal e modo Todos os Mobs.", executePayload = "togglemobs" },
         new CheatEntry { category = "👾 INIMIGOS, SPAWNS & BOSS", command = "rebirth", aliases = "eliterebirth, rebirthelite, renascer", description = "Alterna o Modo Renascimento Elite 100% (todo mob morto renasce Elite com drops T2-T4).", executePayload = "rebirth" },
+        new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "sinfonia", aliases = "chaos, pactchaos, pactcaos", description = "Alterna o Pacto A Sinfonia do Caos (+20% drops, +Elites, +35% renascer elite).", executePayload = "sinfonia" },
         new CheatEntry { category = "👾 INIMIGOS, SPAWNS & BOSS", command = "endless", aliases = "-", description = "Alterna o Modo Endless (fases infinitas sem encerrar no chefe).", executePayload = "endless" },
 
         // ⚡ Miscelânea & Sistema
@@ -845,6 +846,25 @@ public class CheatConsole : MonoBehaviour
             if (EptinhoPopupController.instancia != null)
             {
                 EptinhoPopupController.instancia.MostrarPopupAviso(statusText);
+            }
+        }
+        else if (string.Equals(command, "sinfonia", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "chaos", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "pactchaos", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "pactcaos", System.StringComparison.OrdinalIgnoreCase))
+        {
+            PlayerHealth ph = Object.FindFirstObjectByType<PlayerHealth>();
+            if (ph != null)
+            {
+                ph.hasChaosSymphony = !ph.hasChaosSymphony;
+                ph.hasDoubleLoot = ph.hasChaosSymphony;
+                string status = ph.hasChaosSymphony ? "ATIVADA (+20% Drops, +Elites, Rebirth 35%)" : "DESATIVADA";
+                string statusText = $"A SINFONIA DO CAOS: {status}";
+                Debug.Log($"💻 CHEAT: {statusText}");
+                if (EptinhoPopupController.instancia != null)
+                {
+                    EptinhoPopupController.instancia.MostrarPopupAviso(statusText);
+                }
             }
         }
         else if (string.Equals(command, "recursos", System.StringComparison.OrdinalIgnoreCase) ||

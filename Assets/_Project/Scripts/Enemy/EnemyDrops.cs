@@ -74,11 +74,13 @@ public class EnemyDrops : MonoBehaviour
         // --- SISTEMA DE PACTOS DO JOGADOR ---
         bool hasGreed = false;
         bool doubleEssence = false;
+        bool hasChaos = false;
         PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
         if (playerHealth != null)
         {
             if (playerHealth.hasGreedPact) hasGreed = true;
             if (playerHealth.hasDoubleLoot) doubleEssence = true;
+            if (playerHealth.hasChaosSymphony) hasChaos = true;
         }
         // ------------------------------------
 
@@ -128,7 +130,7 @@ public class EnemyDrops : MonoBehaviour
         // 2. SISTEMA DE DROPS DE ELITE (GDD: Tier 2: 80%, Tier 3: 40%, Tier 4: 20%)
         if (IsEliteMob())
         {
-            SpawnEliteDrops(basePosition, hasGreed);
+            SpawnEliteDrops(basePosition, hasGreed || hasChaos);
             return;
         }
 
@@ -190,6 +192,13 @@ public class EnemyDrops : MonoBehaviour
         {
             effectiveDropChance = Mathf.Clamp01(effectiveDropChance * 2.5f);
             Debug.Log($"[ENEMY DROPS] A Ganância ativa! Chance de drop amplificada para {effectiveDropChance * 100:F0}%");
+        }
+
+        // --- PACTO A SINFONIA DO CAOS: +20% na chance geral de drop! ---
+        if (hasChaos)
+        {
+            effectiveDropChance = Mathf.Clamp01(effectiveDropChance + 0.20f);
+            Debug.Log($"[ENEMY DROPS] A Sinfonia do Caos ativa: +20% na chance geral de drop! (Total: {effectiveDropChance * 100:F0}%)");
         }
 
         if (lootPool != null && lootPool.Count > 0 && Random.value <= effectiveDropChance)
