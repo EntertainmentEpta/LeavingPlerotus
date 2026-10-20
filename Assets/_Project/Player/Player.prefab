@@ -2011,7 +2011,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerUltimate
   ultimateKey: 117
-  ultimateCooldown: 2
+  ultimateCooldown: 30
   forwardLeapImpulse: 6
   grantInvulnerability: 1
   navMeshLandingSearchRadius: 4
@@ -2330,7 +2330,7 @@ MonoBehaviour:
   enableSlowMotionOnUlt: 0
   slowMotionTimeScale: 0.25
   slowMotionDuration: 1
-  slamDamage: 1000
+  slamDamage: 260
   shockwaveRadius: 5
   knockbackForce: 12
   upwardKnockbackForce: 0.4

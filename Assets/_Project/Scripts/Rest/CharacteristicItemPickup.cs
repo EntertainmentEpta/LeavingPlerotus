@@ -21,17 +21,35 @@ public class CharacteristicItemPickup : MonoBehaviour
     public float bobHeight = 0.2f;
 
     [Header("Coleta")]
-    public float pickupDelay = 0.5f;
+    public float pickupDelay = 0.15f;
     public float lifetime = 60f; // Itens duram mais que essência
 
     private Vector3 startPosition;
     private float spawnTime;
     private bool canBePickedUp = false;
+    private Transform playerTransform;
 
     void Start()
     {
         startPosition = transform.position;
         spawnTime = Time.time;
+
+        // Garante alcance confortável para o colisor
+        SphereCollider sc = GetComponent<SphereCollider>();
+        if (sc != null && sc.radius < 1.0f)
+        {
+            sc.radius = 1.25f;
+        }
+
+        // Snap vertical no solo para ancorar flutuação perfeita
+        if (Physics.Raycast(transform.position + Vector3.up * 1.5f, Vector3.down, out RaycastHit hit, 10f))
+        {
+            startPosition = new Vector3(transform.position.x, hit.point.y + 0.45f, transform.position.z);
+            transform.position = startPosition;
+        }
+
+        GameObject p = GameObject.FindGameObjectWithTag("Player");
+        if (p != null) playerTransform = p.transform;
 
         ConvertCubesToSpheres();
 
@@ -176,6 +194,26 @@ public class CharacteristicItemPickup : MonoBehaviour
             }
         }
 
+        // Proximidade passiva: se o player estiver encostando, coleta sem depender de trigger inicial
+        if (canBePickedUp)
+        {
+            if (playerTransform == null)
+            {
+                GameObject p = GameObject.FindGameObjectWithTag("Player");
+                if (p != null) playerTransform = p.transform;
+            }
+
+            if (playerTransform != null)
+            {
+                float dist = Vector3.Distance(transform.position, playerTransform.position);
+                if (dist <= 1.8f)
+                {
+                    CollectItem(playerTransform.gameObject);
+                    return;
+                }
+            }
+        }
+
         // Rotação e movimento de flutuação
         transform.Rotate(Vector3.up, rotateSpeed * Time.deltaTime);
         
@@ -183,11 +221,16 @@ public class CharacteristicItemPickup : MonoBehaviour
         transform.position = new Vector3(transform.position.x, newY, transform.position.z);
     }
 
-    void OnTriggerEnter(Collider other)
-    {
-        if (!canBePickedUp) return;
+    void OnTriggerEnter(Collider other) => CheckAndCollect(other);
+    void OnTriggerStay(Collider other)  => CheckAndCollect(other);
 
-        if (other.CompareTag("Player"))
+    void CheckAndCollect(Collider other)
+    {
+        if (!canBePickedUp || other == null) return;
+
+        if (other.CompareTag("Player") ||
+            other.GetComponentInParent<PlayerHealth>() != null ||
+            other.GetComponentInParent<PlayerInventory>() != null)
         {
             CollectItem(other.gameObject);
         }

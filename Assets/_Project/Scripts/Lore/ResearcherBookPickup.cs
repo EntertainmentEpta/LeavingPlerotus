@@ -51,7 +51,18 @@ public class ResearcherBookPickup : MonoBehaviour
             return;
         }
 
+        // Garante que o caderno nunca fique afundado no piso
+        if (Physics.Raycast(transform.position + Vector3.up * 1.5f, Vector3.down, out RaycastHit hit, 5f))
+        {
+            transform.position = new Vector3(transform.position.x, hit.point.y + 0.35f, transform.position.z);
+        }
+
         EnsureCollider();
+
+        if (promptUI == null)
+        {
+            BuildDefaultPromptUI();
+        }
     }
 
     private void EnsureCollider()
@@ -63,6 +74,54 @@ public class ResearcherBookPickup : MonoBehaviour
             sphere.isTrigger = true;
             sphere.radius = interactionDistance;
         }
+    }
+
+    private void BuildDefaultPromptUI()
+    {
+        promptUI = new GameObject("BookPrompt_WorldCanvas");
+        promptUI.transform.SetParent(transform, false);
+        promptUI.transform.localPosition = new Vector3(0, 1.0f, 0);
+
+        Canvas canvas = promptUI.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.WorldSpace;
+        canvas.sortingOrder = 50;
+
+        RectTransform canvasRt = promptUI.GetComponent<RectTransform>();
+        canvasRt.sizeDelta = new Vector2(420, 90);
+        canvasRt.localScale = Vector3.one * 0.0075f;
+
+        promptCanvasGroup = promptUI.AddComponent<CanvasGroup>();
+        promptCanvasGroup.alpha = 0f;
+
+        GameObject bgObj = new GameObject("Background");
+        bgObj.transform.SetParent(promptUI.transform, false);
+        RectTransform bgRt = bgObj.AddComponent<RectTransform>();
+        bgRt.anchorMin = Vector2.zero;
+        bgRt.anchorMax = Vector2.one;
+        bgRt.sizeDelta = Vector2.zero;
+        UnityEngine.UI.Image bgImg = bgObj.AddComponent<UnityEngine.UI.Image>();
+        bgImg.color = new Color(0.08f, 0.08f, 0.12f, 0.90f);
+
+        GameObject textObj = new GameObject("PromptText");
+        textObj.transform.SetParent(promptUI.transform, false);
+        RectTransform textRt = textObj.AddComponent<RectTransform>();
+        textRt.anchorMin = Vector2.zero;
+        textRt.anchorMax = Vector2.one;
+        textRt.sizeDelta = Vector2.zero;
+
+        promptTextMesh = textObj.AddComponent<TextMeshProUGUI>();
+        promptTextMesh.fontSize = 24f;
+        promptTextMesh.alignment = TextAlignmentOptions.Center;
+        promptTextMesh.fontStyle = FontStyles.Bold;
+        promptTextMesh.color = Color.white;
+        promptTextMesh.enableWordWrapping = false;
+
+        TMP_FontAsset font = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF")
+                          ?? TMP_Settings.defaultFontAsset;
+        if (font != null) promptTextMesh.font = font;
+
+        UpdatePromptText();
+        promptUI.SetActive(false);
     }
 
     private void SetupPromptUI()
@@ -83,14 +142,14 @@ public class ResearcherBookPickup : MonoBehaviour
 
     private KeyCode GetCurrentInteractKey()
     {
-        string savedKey = PlayerPrefs.GetString("KeyInteract", "E");
+        string savedKey = PlayerPrefs.GetString("KeyInteract", "F");
         try
         {
             return (KeyCode)System.Enum.Parse(typeof(KeyCode), savedKey);
         }
         catch
         {
-            return KeyCode.E;
+            return KeyCode.F;
         }
     }
 
@@ -98,8 +157,7 @@ public class ResearcherBookPickup : MonoBehaviour
     {
         if (promptTextMesh != null)
         {
-            KeyCode currentKey = GetCurrentInteractKey();
-            promptTextMesh.text = $"[ <color=#FFE500>{currentKey}</color> ]  <color=#FFE500><b>{promptActionText}</b></color>";
+            promptTextMesh.text = $"[ <color=#FFE500>F</color> ]  <color=#FFFFFF><b>Aperte <color=#FFE500>F</color> para recolher o Caderno</b></color>";
         }
     }
 

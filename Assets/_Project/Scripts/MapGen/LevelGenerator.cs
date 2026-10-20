@@ -135,7 +135,7 @@ public class LevelGenerator : MonoBehaviour
 
     [Header("Lore e Escrituras")]
     [Tooltip("Chance balanceada de uma página de escritura ancestral aparecer na dungeon nesta fase (35%). Evita que todo beco tenha escritura.")]
-    [Range(0f, 1f)] public float scriptureSpawnChance = 0.35f;
+    [Range(0f, 1f)] public float scriptureSpawnChance = 0.45f;
 
     [Header("Configurações")]
     [Tooltip("Delay extra após a geração antes de notificar o GameManager (para assets carregarem).")]
@@ -298,11 +298,26 @@ public class LevelGenerator : MonoBehaviour
     // LOOP DE GERAÇÃO
     // =========================================================
 
+    public int GetTargetCombatRoomCount()
+    {
+        if (RunManager.instance != null && RunManager.instance.roomsPerLevel != null)
+        {
+            int lvl = RunManager.instance.currentLevel;
+            if (lvl >= 1 && lvl <= RunManager.instance.roomsPerLevel.Length)
+            {
+                return RunManager.instance.roomsPerLevel[lvl - 1];
+            }
+        }
+        return maxMainRooms;
+    }
+
     IEnumerator GenerationLoop(int roomCount)
     {
         List<ConnectionPoint> unplaceableOutputs = new List<ConnectionPoint>();
+        int targetCombatRooms = GetTargetCombatRoomCount();
+        Debug.Log($"[LevelGenerator] 🗺️ Iniciando geração: Meta de Salas de Combate = {targetCombatRooms} (Round {RunManager.instance?.currentLevel ?? 1}).");
 
-        while (roomCount < maxMainRooms && openOutputs.Count > 0)
+        while (roomCount < targetCombatRooms && openOutputs.Count > 0)
         {
             // Pega uma saída aleatória da fila
             int idx = Random.Range(0, openOutputs.Count);
@@ -419,48 +434,7 @@ public class LevelGenerator : MonoBehaviour
                 break;
             }
 
-            if (!outputPlaced)
-            {
-                // Fallback: Tenta conectar uma mainRoom DIRETA na saída (sem corredor de transição)
-                GameObject roomPrefab = GetCompatibleRoomPrefab(currentOutput.connectionTag);
-                if (roomPrefab != null)
-                {
-                    GameObject directRoom = Instantiate(roomPrefab);
-                    ConnectionPoint directEntrada = GetInputPoint(directRoom, currentOutput.connectionTag, currentOutput.transform);
-                    if (directEntrada != null)
-                    {
-                        AlignRooms(currentOutput.transform, directEntrada.transform);
-                        if (!HasOverlapWithExistingRooms(directRoom, excludeRoom: sourceRoom))
-                        {
-                            currentOutput.isOccupied = true;
-                            directEntrada.isOccupied = true;
-                            RegisterRoomBounds(directRoom);
 
-                            roomCount++;
-                            roomSequenceCounter++;
-                            string prefabName = roomPrefab.name;
-                            if (!roomCounts.ContainsKey(prefabName)) roomCounts[prefabName] = 0;
-                            roomCounts[prefabName]++;
-
-                            RoomController roomCtrl = directRoom.GetComponentInChildren<RoomController>();
-                            if (roomCtrl != null)
-                                roomCtrl.Initialize(roomSequenceCounter);
-
-                            RegisterOutputPoints(directRoom, isStartRoom: false);
-                            Debug.Log($"[LevelGenerator] ✅ Sala '{prefabName}' adicionada via conexão direta (#{roomCount}). Saídas abertas: {openOutputs.Count}");
-                            outputPlaced = true;
-                        }
-                        else
-                        {
-                            Destroy(directRoom);
-                        }
-                    }
-                    else
-                    {
-                        Destroy(directRoom);
-                    }
-                }
-            }
 
             if (!outputPlaced)
             {
@@ -890,57 +864,52 @@ public class LevelGenerator : MonoBehaviour
             candidates.Add(deadEndPrefab);
         }
 
-        if (candidates.Count == 0)
+        if (candidates.Count > 0)
         {
-            Debug.LogError("[LevelGenerator] ❌ Nenhum prefab de DeadEnd configurado!");
-            return false;
-        }
+            List<GameObject> shuffled = ShuffledCopy(candidates);
 
-        List<GameObject> shuffled = ShuffledCopy(candidates);
-
-        // 1. Tenta encaixe direto sem transição
-        foreach (GameObject p in shuffled)
-        {
-            if (TrySpawnSpecialRoom(p, targetOutput, "Beco Sem Saída", useTransition: false))
+            // Tenta encaixe direto sem transição (becos nunca usam transição para não alongar nem colidir)
+            foreach (GameObject p in shuffled)
             {
-                SanitizeDeadEndRoom(targetOutput.transform.root.gameObject);
-                return true;
+                if (TrySpawnSpecialRoom(p, targetOutput, "Beco Sem Saída", useTransition: false))
+                {
+                    SanitizeDeadEndRoom(targetOutput.transform.root.gameObject);
+                    return true;
+                }
             }
         }
 
-        // 2. Tenta com transição (caso o espaço seja estreito ou precise de extensão)
-        foreach (GameObject p in shuffled)
+        // Se nenhum prefab de beco cabe sem sobrepor outras salas da dungeon,
+        // sela a porta de forma limpa no socket sem criar sobreposição!
+        SealDoorwayCleanly(targetOutput);
+        return true;
+    }
+
+    void SealDoorwayCleanly(ConnectionPoint cp)
+    {
+        if (cp == null) return;
+        cp.isOccupied = true;
+
+        GameObject capObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        capObj.name = "[Door_Capped_Barrier] " + cp.gameObject.name;
+        capObj.transform.position = cp.transform.position + cp.transform.forward * 0.4f;
+        capObj.transform.rotation = cp.transform.rotation;
+        capObj.transform.localScale = new Vector3(4.0f, 4.0f, 0.6f);
+
+        Renderer r = capObj.GetComponent<Renderer>();
+        if (r != null)
         {
-            if (TrySpawnSpecialRoom(p, targetOutput, "Beco Sem Saída (com transição)", useTransition: true))
-            {
-                SanitizeDeadEndRoom(targetOutput.transform.root.gameObject);
-                return true;
-            }
+            Shader litShader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            Material m = new Material(litShader);
+            m.color = new Color(0.12f, 0.12f, 0.15f);
+            r.material = m;
         }
 
-        // 3. Fechamento obrigatório de segurança: anexa diretamente o primeiro prefab
-        // Garante que NENHUMA saída (especialmente em 3-way rooms) fique aberta para o vazio
-        GameObject forcedPrefab = shuffled[0];
-        GameObject forcedRoom = Instantiate(forcedPrefab);
-        forcedRoom.name = "[DeadEnd_Capped] " + forcedPrefab.name;
-        ConnectionPoint forcedEntrada = GetInputPoint(forcedRoom, targetOutput.connectionTag, targetOutput.transform);
+        Collider col = capObj.GetComponent<Collider>();
+        if (col != null) col.isTrigger = false;
 
-        if (forcedEntrada != null)
-        {
-            AlignRooms(targetOutput.transform, forcedEntrada.transform);
-            targetOutput.isOccupied = true;
-            forcedEntrada.isOccupied = true;
-            RegisterRoomBounds(forcedRoom);
-            SanitizeDeadEndRoom(forcedRoom);
-            Debug.Log($"[LevelGenerator] 🛡️ Beco '{forcedPrefab.name}' selou a saída aberta '{targetOutput.gameObject.name}'.");
-            return true;
-        }
-        else
-        {
-            Destroy(forcedRoom);
-            Debug.LogError($"[LevelGenerator] ❌ Falha crítica ao fechar socket '{targetOutput.gameObject.name}' com dead-end.");
-            return false;
-        }
+        RegisterRoomBounds(capObj);
+        Debug.Log($"[LevelGenerator] 🛡️ Saída '{cp.gameObject.name}' selada de forma limpa (sem sobrepor salas vizinhas).");
     }
 
     void SanitizeDeadEndRoom(GameObject room)
@@ -1496,7 +1465,7 @@ public class LevelGenerator : MonoBehaviour
         if (playerSpawnPoint != null)
         {
             spawnPos = playerSpawnPoint.position + playerSpawnPoint.forward * 3.5f;
-            spawnPos.y = roomFloorY + 0.1f;
+            spawnPos.y = roomFloorY + 0.45f;
         }
 
         if (pickupPrefab != null)

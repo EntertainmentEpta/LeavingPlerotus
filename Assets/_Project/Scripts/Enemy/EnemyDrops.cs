@@ -352,12 +352,18 @@ public class EnemyDrops : MonoBehaviour
             if (childPickup == null)
             {
                 var pickup = drop.AddComponent<CharacteristicItemPickup>();
-                pickup.itemId = prefabToSpawn.name.Replace("(Clone)", "").Trim();
-                pickup.itemName = pickup.itemId;
+                string resolvedId = prefabToSpawn.name.Replace("(Clone)", "").Trim();
+                if (resolvedId.Equals("Visual", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    if (gameObject.name.ToLower().Contains("goblin"))
+                        resolvedId = "goblin_coin_t1";
+                }
+                pickup.itemId = resolvedId;
+                pickup.itemName = resolvedId;
                 SphereCollider col = drop.GetComponent<SphereCollider>();
                 if (col == null) col = drop.AddComponent<SphereCollider>();
                 col.isTrigger = true;
-                col.radius = 1.2f;
+                col.radius = 1.25f;
                 Debug.LogWarning($"[ENEMY DROPS] Drop '{drop.name}' sem pickup! Componente adicionado: {pickup.itemId}");
             }
         }

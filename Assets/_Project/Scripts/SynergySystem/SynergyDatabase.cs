@@ -205,7 +205,7 @@ public static class SynergyDatabase
             recipeIngredientsText = "• Goblin T1 (Multi-Tiro / Moeda)\n• SharpBlur T1 (Dano Base / Lasca)",
             essenceDiscount = 0.15f,
             themeColor = new Color(1f, 0.45f, 0.15f), // Laranja Solar
-            mapPosition = new Vector2(450f, 0f),
+            mapPosition = new Vector2(520f, 0f),
             requirementSlots = new List<string[]>
             {
                 new[] { "goblin_coin_t1", "goblin_ear_t1", "goblin_t1" },
@@ -228,7 +228,7 @@ public static class SynergyDatabase
             recipeIngredientsText = "• Golem T1 (Armor Máxima / Lasca)\n• Sentinela T2/T4 (Placagem / Pata Sentinela)",
             essenceDiscount = 0.20f,
             themeColor = new Color(0.35f, 0.65f, 1f), // Azul Titânio
-            mapPosition = new Vector2(318f, 318f),
+            mapPosition = new Vector2(450f, 260f),
             requirementSlots = new List<string[]>
             {
                 new[] { "golem_chip_t1", "01go", "golem_t1" },
@@ -252,7 +252,7 @@ public static class SynergyDatabase
             recipeIngredientsText = "• Cristalus T2 (Pó Entorpecente / Slow)\n• SharpBlur T3 (Bisturi de Ametista / Crit)",
             essenceDiscount = 0.20f,
             themeColor = new Color(0.2f, 0.9f, 1f), // Ciano Glacial
-            mapPosition = new Vector2(0f, 450f),
+            mapPosition = new Vector2(260f, 450f),
             requirementSlots = new List<string[]>
             {
                 new[] { "02cl", "cristalus_t2" },
@@ -275,7 +275,7 @@ public static class SynergyDatabase
             recipeIngredientsText = "• Aranha T2 (Glândula Elástica / Dash CD)\n• Pedra Mágica T2 (Cristal Ilusório / Esquiva)",
             essenceDiscount = 0.20f,
             themeColor = new Color(0.75f, 0.35f, 1f), // Roxo Espectral
-            mapPosition = new Vector2(-318f, 318f),
+            mapPosition = new Vector2(0f, 520f),
             requirementSlots = new List<string[]>
             {
                 new[] { "spider_silk_t2", "aranha_t2" },
@@ -299,7 +299,7 @@ public static class SynergyDatabase
             recipeIngredientsText = "• Totem T2 (Pilar Repulsor / Knockback)\n• Watcher T2 (Prisma Ocular / Alcance Melee)",
             essenceDiscount = 0.15f,
             themeColor = new Color(0.3f, 0.5f, 0.95f), // Azul Índigo Vórtice
-            mapPosition = new Vector2(-450f, 0f),
+            mapPosition = new Vector2(-260f, 450f),
             requirementSlots = new List<string[]>
             {
                 new[] { "totem_carved_t2", "totem_t2" },
@@ -322,7 +322,7 @@ public static class SynergyDatabase
             recipeIngredientsText = "• Tuner T2 (Ressonador Acústico / Quicar)\n• Shard Swarm T2 (Carambola / Dano Crítico)",
             essenceDiscount = 0.20f,
             themeColor = new Color(1f, 0.9f, 0.2f), // Amarelo Relâmpago
-            mapPosition = new Vector2(-318f, -318f),
+            mapPosition = new Vector2(-450f, 260f),
             requirementSlots = new List<string[]>
             {
                 new[] { "tuner_lens_t2", "tuner_t2" },
@@ -346,7 +346,7 @@ public static class SynergyDatabase
             recipeIngredientsText = "• Peixe T1 (Espinho Cristalino / Retaliação)\n• Cristalus T1 (Membrana Cristalina / Regen)",
             essenceDiscount = 0.15f,
             themeColor = new Color(0.2f, 0.95f, 0.45f), // Verde Esmeralda
-            mapPosition = new Vector2(0f, -450f),
+            mapPosition = new Vector2(-520f, 0f),
             requirementSlots = new List<string[]>
             {
                 new[] { "01px", "peixe_escama_t1", "peixe_t1" },
@@ -369,7 +369,7 @@ public static class SynergyDatabase
             recipeIngredientsText = "• Totem T1 (Insígnia dos Crânios / +1 Dash)\n• Goblin T2 (Pavio Rápido / Dispersão)",
             essenceDiscount = 0.20f,
             themeColor = new Color(1f, 0.25f, 0.3f), // Vermelho Detonação
-            mapPosition = new Vector2(318f, -318f),
+            mapPosition = new Vector2(-450f, -260f),
             requirementSlots = new List<string[]>
             {
                 new[] { "totem_stone_t1", "totem_t1" },
@@ -408,6 +408,260 @@ public static class SynergyDatabase
             }
         });
 
+        // 11. Veneno Corrosivo (Peixe T3 + Aranha T3)
+        _allRecipes.Add(new SynergyRecipe
+        {
+            id = "combo_veneno_corrosivo",
+            name = "Veneno Corrosivo",
+            description = "Seus ataques aplicam toxina cáustica que dissolve 30% da armadura dos inimigos e causa dano contínuo.",
+            discoveryHint = "Funda a barbatana cortante do Peixe com a peçonha quelicerada da Aranha!",
+            recipeIngredientsText = "• Peixe T3 (Barbatana Venenosa)\n• Aranha T3 (Presa Cáustica)",
+            essenceDiscount = 0.20f,
+            themeColor = new Color(0.4f, 0.95f, 0.15f), // Verde Ácido
+            mapPosition = new Vector2(-260f, -450f),
+            requirementSlots = new List<string[]>
+            {
+                new[] { "Peixe_barbatana_t3", "peixe_t3", "03px" },
+                new[] { "spider_fang_t3", "spider_t3", "03sp", "aranha_t3" }
+            },
+            modifiers = new List<StatModifier>
+            {
+                new StatModifier { statName = "Thorns", baseValue = 15f, multiplierValue = 0f },
+                new StatModifier { statName = "BaseDamageMultiplier", baseValue = 0f, multiplierValue = 0.15f },
+                new StatModifier { statName = "SlowOnHit", baseValue = 0.20f, multiplierValue = 0f }
+            }
+        });
+
+        // 12. Baluarte de Obsidiana (Golem T2 + Pedra Mágica T1)
+        _allRecipes.Add(new SynergyRecipe
+        {
+            id = "combo_baluarte_obsidiana",
+            name = "Baluarte de Obsidiana",
+            description = "Reforça o chassi molecular: concede +40 de Armadura Máxima e 15% de resistência passiva a dano.",
+            discoveryHint = "Una a placa de rocha do Golem à poeira mineral da Pedra Mágica!",
+            recipeIngredientsText = "• Golem T2 (Placa de Rocha Reforçada)\n• Pedra Mágica T1 (Pó Arcano de Proteção)",
+            essenceDiscount = 0.15f,
+            themeColor = new Color(0.35f, 0.45f, 0.90f), // Azul Titânio Escuro
+            mapPosition = new Vector2(0f, -520f),
+            requirementSlots = new List<string[]>
+            {
+                new[] { "golem_plate_t2", "02go", "golem_t2" },
+                new[] { "magic_dust_t1", "01ms", "pedra_magica_t1" }
+            },
+            modifiers = new List<StatModifier>
+            {
+                new StatModifier { statName = "MaxArmor", baseValue = 40f, multiplierValue = 0f },
+                new StatModifier { statName = "DamageNegation", baseValue = 0.15f, multiplierValue = 0f }
+            }
+        });
+
+        // 13. Impacto Sísmico (Golem T3 + Totem T3)
+        _allRecipes.Add(new SynergyRecipe
+        {
+            id = "combo_impacto_sismico",
+            name = "Impacto Sísmico",
+            description = "O Ultimate e golpes pesados geram réplicas sísmicas que arremessam e atordoam inimigos menores.",
+            discoveryHint = "Conecte o núcleo de alta densidade do Golem ao monólito milenar do Totem!",
+            recipeIngredientsText = "• Golem T3 (Núcleo de Alta Densidade)\n• Totem T3 (Monólito Sísmico Ancestral)",
+            essenceDiscount = 0.25f,
+            themeColor = new Color(0.90f, 0.40f, 0.15f), // Terracota Forjado
+            mapPosition = new Vector2(260f, -450f),
+            requirementSlots = new List<string[]>
+            {
+                new[] { "golem_core_t3", "03go", "golem_t3" },
+                new[] { "totem_ancient_t3", "totem_t3" }
+            },
+            modifiers = new List<StatModifier>
+            {
+                new StatModifier { statName = "Knockback", baseValue = 0f, multiplierValue = 0.50f },
+                new StatModifier { statName = "BaseDamageMultiplier", baseValue = 0f, multiplierValue = 0.20f }
+            }
+        });
+
+        // 14. Mira Focada do Vigia (Watcher T1 + SharpBlur T2)
+        _allRecipes.Add(new SynergyRecipe
+        {
+            id = "combo_mira_focada_vigia",
+            name = "Mira Focada do Vigia",
+            description = "Sincronia ocular perfeita: concede +15% de Chance Crítica e +20% de alcance para armas melee e tiros.",
+            discoveryHint = "Sintetize a lente focal do Vigia com o prisma cortante do SharpBlur!",
+            recipeIngredientsText = "• Watcher T1 (Lente Óptica Focal)\n• SharpBlur T2 (Prisma de Refração / Crit)",
+            essenceDiscount = 0.15f,
+            themeColor = new Color(1f, 0.80f, 0.10f), // Âmbar Dourado
+            mapPosition = new Vector2(450f, -260f),
+            requirementSlots = new List<string[]>
+            {
+                new[] { "watcher_lens_t1", "01cw", "watcher_t1" },
+                new[] { "SharpDrop2", "02sb", "sharp_shard_t2", "sharpblur_t2" }
+            },
+            modifiers = new List<StatModifier>
+            {
+                new StatModifier { statName = "CritChance", baseValue = 0.15f, multiplierValue = 0f },
+                new StatModifier { statName = "WeaponRangeMelee", baseValue = 0f, multiplierValue = 0.20f }
+            }
+        });
+
+        // 15. Eco Hipnótico (Tuner T1 + Cristalus T3)
+        _allRecipes.Add(new SynergyRecipe
+        {
+            id = "combo_eco_hipnotico",
+            name = "Eco Hipnótico",
+            description = "Acertos contínuos ressoam uma frequência que atrasa o tempo de ataque dos inimigos em 25%.",
+            discoveryHint = "Fundir o diapasão do Sintonizador com o cristal harmônico do Cristalus gera desaceleração sônica!",
+            recipeIngredientsText = "• Tuner T1 (Diapasão de Cristal)\n• Cristalus T3 (Prisma Ressonante)",
+            essenceDiscount = 0.20f,
+            themeColor = new Color(0.15f, 0.90f, 0.95f), // Ciano Sônico
+            mapPosition = new Vector2(290f, 0f),
+            requirementSlots = new List<string[]>
+            {
+                new[] { "tuner_shard_t1", "tuner_t1" },
+                new[] { "CristalusDrop3", "03cl", "cristalus_t3" }
+            },
+            modifiers = new List<StatModifier>
+            {
+                new StatModifier { statName = "SlowOnHit", baseValue = 0.25f, multiplierValue = 0f },
+                new StatModifier { statName = "AttackSpeedMelee", baseValue = 0f, multiplierValue = 0.15f }
+            }
+        });
+
+        // 16. Toxina Ardente (Peixe T2 + Goblin T3)
+        _allRecipes.Add(new SynergyRecipe
+        {
+            id = "combo_toxina_ardente",
+            name = "Toxina Ardente",
+            description = "Golpes liberam uma névoa cáustica que inflama inimigos próximos e aumenta a velocidade do jogador em +15%.",
+            discoveryHint = "Experimente combinar a guelra aquática do Peixe com o amuleto ígneo do Goblin!",
+            recipeIngredientsText = "• Peixe T2 (Guelra Bioluminescente)\n• Goblin T3 (Amuleto de Fólio Explosivo)",
+            essenceDiscount = 0.20f,
+            themeColor = new Color(1.0f, 0.35f, 0.20f), // Coral em Chamas
+            mapPosition = new Vector2(180f, 227f),
+            requirementSlots = new List<string[]>
+            {
+                new[] { "Peixe_guelra_t2", "peixe_t2", "02px" },
+                new[] { "goblin_amulet_t3", "goblin_t3" }
+            },
+            modifiers = new List<StatModifier>
+            {
+                new StatModifier { statName = "SpeedMultiplier", baseValue = 0f, multiplierValue = 0.15f },
+                new StatModifier { statName = "BaseDamageMultiplier", baseValue = 0f, multiplierValue = 0.15f }
+            }
+        });
+
+        // 17. Cintilação Espectral (Pedra Mágica T3 + Aranha T2)
+        _allRecipes.Add(new SynergyRecipe
+        {
+            id = "combo_cintilacao_espectral",
+            name = "Cintilação Espectral",
+            description = "O Dash torna-se etéreo, atravessando alvos, reduzindo a recarga da esquiva em 25% e concedendo +12% de Evasão.",
+            discoveryHint = "Una o cristal etéreo da Pedra Mágica aos fios tenazes da Aranha!",
+            recipeIngredientsText = "• Pedra Mágica T3 (Cristal de Fenda Etérea)\n• Aranha T2 (Glândula de Seda Flexível)",
+            essenceDiscount = 0.25f,
+            themeColor = new Color(0.85f, 0.25f, 1.0f), // Violeta Astral
+            mapPosition = new Vector2(-64f, 283f),
+            requirementSlots = new List<string[]>
+            {
+                new[] { "magic_essence_t3", "03ms", "pedra_magica_t3" },
+                new[] { "spider_silk_t2", "aranha_t2", "02sp" }
+            },
+            modifiers = new List<StatModifier>
+            {
+                new StatModifier { statName = "DashCooldownMultiplier", baseValue = 0f, multiplierValue = -0.25f },
+                new StatModifier { statName = "DodgeChance", baseValue = 0.12f, multiplierValue = 0f }
+            }
+        });
+
+        // 18. Frenesi de Estilhaços (Shard Swarm T3 + SharpBlur T1)
+        _allRecipes.Add(new SynergyRecipe
+        {
+            id = "combo_frenesi_estilhacos",
+            name = "Frenesi de Estilhaços",
+            description = "Acertos críticos liberam uma erupção de micro-cristais afiados, concedendo +35% de Dano Crítico e +20% Vel de Ataque.",
+            discoveryHint = "Combine o estilhaço carambola da Istar com a lâmina lascada do SharpBlur!",
+            recipeIngredientsText = "• Shard Swarm T3 (Prisma Fraturante de Istar)\n• SharpBlur T1 (Lasca Cortante Primordial)",
+            essenceDiscount = 0.20f,
+            themeColor = new Color(0.75f, 0.40f, 1.0f), // Diamante Ametista
+            mapPosition = new Vector2(-261f, 126f),
+            requirementSlots = new List<string[]>
+            {
+                new[] { "shard_refract_t3", "swarm_t3", "star_t3" },
+                new[] { "SharpDrop1", "01sb", "sharp_shard_t1", "sharpblur_t1" }
+            },
+            modifiers = new List<StatModifier>
+            {
+                new StatModifier { statName = "CritMultiplier", baseValue = 0f, multiplierValue = 0.35f },
+                new StatModifier { statName = "AttackSpeedMelee", baseValue = 0f, multiplierValue = 0.20f }
+            }
+        });
+
+        // 19. Fortaleza de Titânio (Sentinela T2 + Totem T2)
+        _allRecipes.Add(new SynergyRecipe
+        {
+            id = "combo_fortaleza_titanio",
+            name = "Fortaleza de Titânio",
+            description = "Blindagem impenetrável: +30 de Armadura Máxima e regeneração passiva de 2.0 pontos de armadura por segundo.",
+            discoveryHint = "Sintetize a couraça sentinela com a estela rúnica do Totem!",
+            recipeIngredientsText = "• Sentinela T2 (Placa Bismutada)\n• Totem T2 (Totem Esculpido Protetor)",
+            essenceDiscount = 0.20f,
+            themeColor = new Color(0.45f, 0.75f, 0.95f), // Aço Polido
+            mapPosition = new Vector2(-261f, -126f),
+            requirementSlots = new List<string[]>
+            {
+                new[] { "Bismutado_PlacaT2", "bismutado_placa_t2", "sentinela_t2" },
+                new[] { "totem_carved_t2", "totem_t2" }
+            },
+            modifiers = new List<StatModifier>
+            {
+                new StatModifier { statName = "MaxArmor", baseValue = 30f, multiplierValue = 0f },
+                new StatModifier { statName = "ArmorRegen", baseValue = 2.0f, multiplierValue = 0f }
+            }
+        });
+
+        // 20. Cataclismo Arcano (Bismutado T2 + Tuner T3)
+        _allRecipes.Add(new SynergyRecipe
+        {
+            id = "combo_cataclismo_arcano",
+            name = "Cataclismo Arcano",
+            description = "Detonações ressoam através das galerias: aumenta a área de dispersão em +30% e amplifica todo dano em +25%.",
+            discoveryHint = "Funda os rotores mecânicos do Bismutado com os prismas sônicos do Sintonizador!",
+            recipeIngredientsText = "• Bismutado T2 (Placa de Impacto Dinâmico)\n• Tuner T3 (Prisma Acústico Harmonizado)",
+            essenceDiscount = 0.25f,
+            themeColor = new Color(0.95f, 0.20f, 0.70f), // Magenta Cósmico
+            mapPosition = new Vector2(-64f, -283f),
+            requirementSlots = new List<string[]>
+            {
+                new[] { "Bismutado_PlacaT2", "bismutado_t2" },
+                new[] { "tuner_prism_t3", "tuner_t3" }
+            },
+            modifiers = new List<StatModifier>
+            {
+                new StatModifier { statName = "Spread", baseValue = 0f, multiplierValue = 0.30f },
+                new StatModifier { statName = "BaseDamageMultiplier", baseValue = 0f, multiplierValue = 0.25f }
+            }
+        });
+
+        // 21. Supercondutividade Alquímica (Cristalus T3 + Goblin T4)
+        _allRecipes.Add(new SynergyRecipe
+        {
+            id = "combo_supercondutividade_alquimica",
+            name = "Supercondutividade Alquímica",
+            description = "Explosões criam zonas de choque eletro-cristalino: +25% Multi-Tiro, +20% Lentidão e +20% Dano Global.",
+            discoveryHint = "A fusão suprema da química de bombas goblin com a pureza supercondutora do Cristalus!",
+            recipeIngredientsText = "• Cristalus T3 (Prisma Supercondutor)\n• Goblin T4 (Bomba de Fissão Alquímica)",
+            essenceDiscount = 0.30f,
+            themeColor = new Color(0.25f, 0.95f, 0.85f), // Ciano Eletrostático
+            mapPosition = new Vector2(180f, -227f),
+            requirementSlots = new List<string[]>
+            {
+                new[] { "CristalusDrop3", "03cl", "cristalus_t3" },
+                new[] { "goblin_bomb_t4", "goblin_t4" }
+            },
+            modifiers = new List<StatModifier>
+            {
+                new StatModifier { statName = "MultiShotChance", baseValue = 0.25f, multiplierValue = 0f },
+                new StatModifier { statName = "SlowOnHit", baseValue = 0.20f, multiplierValue = 0f },
+                new StatModifier { statName = "BaseDamageMultiplier", baseValue = 0f, multiplierValue = 0.20f }
+            }
+        });
         // 10. A ASCENSÃO: MODO DEUS (Combo dos Lendários T4)
         _allRecipes.Add(new SynergyRecipe
         {

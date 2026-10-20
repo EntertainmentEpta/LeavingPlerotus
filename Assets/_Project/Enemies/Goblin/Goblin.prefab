@@ -529,13 +529,13 @@ MonoBehaviour:
   globalDropChance: 0.18
   itemAmount: 1
   lootPool:
-  - itemPrefab: {fileID: 3089044448427026720, guid: cd5363bd7755ba74a85b266b7d99ef00, type: 3}
+  - itemPrefab: {fileID: 4609917713084158627, guid: cd5363bd7755ba74a85b266b7d99ef00, type: 3}
     weight: 60
-  - itemPrefab: {fileID: 6505549017638245554, guid: 769ebadc573a10d429b42596ae615992, type: 3}
+  - itemPrefab: {fileID: 8787886420827172540, guid: 769ebadc573a10d429b42596ae615992, type: 3}
     weight: 25
-  - itemPrefab: {fileID: 5476218115834836325, guid: d00579b0f66fc7446a2a50932fecb5a0, type: 3}
+  - itemPrefab: {fileID: 6393505171971684102, guid: d00579b0f66fc7446a2a50932fecb5a0, type: 3}
     weight: 10
-  - itemPrefab: {fileID: 956904379249230389, guid: f84164d1cf7cf324284c542bb4f7f0ce, type: 3}
+  - itemPrefab: {fileID: 9083762400421012204, guid: f84164d1cf7cf324284c542bb4f7f0ce, type: 3}
     weight: 5
   spawnHeight: 0.5
   spawnRadius: 0.5

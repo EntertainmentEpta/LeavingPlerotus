@@ -38,10 +38,12 @@ public class Espinho : MonoBehaviour
     /// Atribuída pelo PeixeAI no momento do Instantiate.
     /// </summary>
     [HideInInspector] public GameObject owner;
+    private float spawnTime;
 
     // ─────────────────────────────────────────────────────────────────
     void Awake()
     {
+        spawnTime = Time.time;
         if (orientHorizontally)
         {
             // Alinha o CapsuleCollider ao eixo Z (horizontal na direção do voo)
@@ -80,6 +82,7 @@ public class Espinho : MonoBehaviour
 
     void Start()
     {
+        spawnTime = Time.time;
         // Agenda a destruição pelo tempo de vida máximo
         Destroy(gameObject, maxLifetime);
     }
@@ -94,15 +97,24 @@ public class Espinho : MonoBehaviour
     // ── Colisão ─────────────────────────────────────────────────────
     void OnTriggerEnter(Collider other)
     {
-        // Ignora colisões com inimigos
-        if (other.CompareTag("Enemy")) return;
+        if (other == null) return;
+
+        // Ignora triggers que não sejam o jogador (evita sumir em RoomTriggerProxy, zonas de água, etc.)
+        if (other.isTrigger && !other.CompareTag("Player") && other.GetComponentInParent<PlayerHealth>() == null)
+            return;
+
+        // Ignora colisões com inimigos (qualquer mob com DummyHealth ou tag Enemy)
+        if (other.CompareTag("Enemy") || other.GetComponentInParent<DummyHealth>() != null) return;
 
         // Ignora outros Espinhos (os 3 tiros do spread nascem sobrepostos)
         if (other.GetComponentInParent<Espinho>() != null) return;
 
-        // Ignora colisão com o próprio dono (Peixe que atirou)
-        if (owner != null && (other.gameObject == owner || other.transform.IsChildOf(owner.transform)))
+        // Ignora colisão com o próprio dono (Peixe que atirou) ou suas partes
+        if (owner != null && (other.gameObject == owner || other.transform.IsChildOf(owner.transform) || other.transform.root == owner.transform.root))
             return;
+
+        // Período de graça mínimo de spawn (0.05s) para não colidir com o piso no nascimento
+        if (Time.time - spawnTime < 0.05f) return;
 
         // Verifica se atingiu o jogador
         PlayerHealth playerHealth = other.GetComponent<PlayerHealth>()
@@ -119,7 +131,7 @@ public class Espinho : MonoBehaviour
             return;
         }
 
-        // Colidiu com parede ou outro obstáculo — destrói o projétil
+        // Colidiu com parede ou outro obstáculo sólido
         Destroy(gameObject);
     }
 }

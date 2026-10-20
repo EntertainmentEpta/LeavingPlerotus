@@ -291,7 +291,12 @@ public class PeixeAI : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (player == null) return;
+        if (player == null)
+        {
+            GameObject p = GameObject.FindGameObjectWithTag("Player");
+            if (p != null) player = p.transform;
+            if (player == null) return;
+        }
 
         // Safety net: se foi jogado para fora dos limites, reposiciona
         float distFromSpawn = Vector3.Distance(transform.position, spawnPosition);
@@ -429,27 +434,50 @@ public class PeixeAI : MonoBehaviour
 
     void ShootEspinho()
     {
+        if (espinhoPrefab == null)
+        {
+            espinhoPrefab = Resources.Load<GameObject>("projétil") ?? Resources.Load<GameObject>("projtil");
+#if UNITY_EDITOR
+            if (espinhoPrefab == null)
+            {
+                espinhoPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Enemies/Peixe/projétil.prefab");
+            }
+#endif
+        }
         if (espinhoPrefab == null) return;
         Transform fp = firePoint != null ? firePoint : transform;
 
         // Mira no torso do jogador
         Vector3 targetPosition = player.position + new Vector3(0, playerHeightOffset, 0);
         Vector3 direction = (targetPosition - fp.position).normalized;
+        if (direction.sqrMagnitude < 0.0001f) direction = transform.forward;
 
         Quaternion centerRotation = Quaternion.LookRotation(direction);
 
         // Spread: tiro central + 2 tiros laterais
         float[] angles = { 0f, -spreadAngle, spreadAngle };
+        Collider[] peixeCols = GetComponentsInChildren<Collider>();
+
         foreach (float angle in angles)
         {
             Quaternion rot = Quaternion.AngleAxis(angle, Vector3.up) * centerRotation;
-            GameObject espinho = Instantiate(espinhoPrefab, fp.position, rot);
+            Vector3 spawnPos = fp.position + (rot * Vector3.forward) * 0.85f;
+            GameObject espinho = Instantiate(espinhoPrefab, spawnPos, rot);
 
             Espinho espinhoScript = espinho.GetComponent<Espinho>();
             if (espinhoScript != null)
             {
                 espinhoScript.owner = gameObject;
                 espinhoScript.speed = projectileSpeed;
+            }
+
+            Collider espCol = espinho.GetComponent<Collider>();
+            if (espCol != null && peixeCols != null)
+            {
+                foreach (var pCol in peixeCols)
+                {
+                    if (pCol != null) Physics.IgnoreCollision(pCol, espCol, true);
+                }
             }
         }
     }

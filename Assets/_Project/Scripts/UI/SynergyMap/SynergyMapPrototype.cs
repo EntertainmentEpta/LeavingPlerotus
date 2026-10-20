@@ -370,28 +370,57 @@ public class SynergyMapPrototype : MonoBehaviour
                                 $"Arraste o mouse para explorar  •  Passe o cursor sobre os nós para ver a receita";
         }
 
-        // 1. Desenha Linhas da Constelação
-        // Anel octogonal externo (1 a 8)
-        for (int i = 0; i < 8; i++)
+        // 1. Desenha Linhas da Constelação Cósmica Sagrada
+        List<SynergyRecipe> outerRecipes = new List<SynergyRecipe>();
+        List<SynergyRecipe> innerRecipes = new List<SynergyRecipe>();
+        List<SynergyRecipe> centerRecipes = new List<SynergyRecipe>();
+
+        foreach (var r in recipes)
         {
-            int nextIdx = (i + 1) % 8;
-            DrawConstellationLine(recipes[i], recipes[nextIdx], discoveredMap);
+            float dist = r.mapPosition.magnitude;
+            if (dist > 380f) outerRecipes.Add(r);
+            else if (dist > 150f) innerRecipes.Add(r);
+            else centerRecipes.Add(r);
         }
 
-        // Diagonais cruzadas e conexões sagradas com o santuário interno (9 e 10)
-        DrawConstellationLine(recipes[0], recipes[4], discoveredMap); // Leste - Oeste
-        DrawConstellationLine(recipes[2], recipes[6], discoveredMap); // Norte - Sul
-        DrawConstellationLine(recipes[1], recipes[5], discoveredMap); // Nordeste - Sudoeste
-        DrawConstellationLine(recipes[3], recipes[7], discoveredMap); // Noroeste - Sudeste
+        outerRecipes.Sort((a, b) => Mathf.Atan2(a.mapPosition.y, a.mapPosition.x).CompareTo(Mathf.Atan2(b.mapPosition.y, b.mapPosition.x)));
+        innerRecipes.Sort((a, b) => Mathf.Atan2(a.mapPosition.y, a.mapPosition.x).CompareTo(Mathf.Atan2(b.mapPosition.y, b.mapPosition.x)));
 
-        // Conexões centrais
-        if (recipes.Count >= 10)
+        for (int i = 0; i < outerRecipes.Count; i++)
         {
-            var berserker = recipes[8];
-            var ascensao = recipes[9];
-            DrawConstellationLine(berserker, ascensao, discoveredMap);
-            DrawConstellationLine(berserker, recipes[4], discoveredMap);
-            DrawConstellationLine(ascensao, recipes[0], discoveredMap);
+            int next = (i + 1) % outerRecipes.Count;
+            DrawConstellationLine(outerRecipes[i], outerRecipes[next], discoveredMap);
+        }
+
+        for (int i = 0; i < innerRecipes.Count; i++)
+        {
+            int next = (i + 1) % innerRecipes.Count;
+            DrawConstellationLine(innerRecipes[i], innerRecipes[next], discoveredMap);
+        }
+
+        foreach (var inn in innerRecipes)
+        {
+            SynergyRecipe closestOuter = null;
+            float minDist = float.MaxValue;
+            foreach (var outNode in outerRecipes)
+            {
+                float d = Vector2.Distance(inn.mapPosition, outNode.mapPosition);
+                if (d < minDist) { minDist = d; closestOuter = outNode; }
+            }
+            if (closestOuter != null) DrawConstellationLine(inn, closestOuter, discoveredMap);
+        }
+
+        if (centerRecipes.Count >= 2)
+        {
+            DrawConstellationLine(centerRecipes[0], centerRecipes[1], discoveredMap);
+            foreach (var c in centerRecipes)
+            {
+                foreach (var inn in innerRecipes)
+                {
+                    if (Vector2.Distance(c.mapPosition, inn.mapPosition) < 320f)
+                        DrawConstellationLine(c, inn, discoveredMap);
+                }
+            }
         }
 
         // 2. Instancia os Nós Cósmicos
