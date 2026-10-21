@@ -734,11 +734,34 @@ public class InfusionUI : MonoBehaviour
 
         // -- SINERGIA PREVIEW --
         SynergyResult previewResult = SynergyInfusionCalculator.Instance != null ? SynergyInfusionCalculator.Instance.EvaluateInfusion(ids) : null;
-        if (previewResult != null && (previewResult.hasSynergy || previewResult.totalEssenceDiscount > 0f || (previewResult.extraModifiers != null && previewResult.extraModifiers.Count > 0)))
+        bool hasSynergyCombo = previewResult != null && (previewResult.hasSynergy || previewResult.totalEssenceDiscount > 0f || (previewResult.extraModifiers != null && previewResult.extraModifiers.Count > 0));
+        if (hasSynergyCombo)
         {
             string recipeNames = (previewResult.triggeredRecipeNames != null && previewResult.triggeredRecipeNames.Count > 0)
                 ? string.Join(", ", previewResult.triggeredRecipeNames)
                 : "COMBINAÇÃO ESPECIAL";
+
+            if (itemTitle != null)
+            {
+                itemTitle.text = $"★ SINERGIA VÁLIDA: {recipeNames.ToUpper()} ★";
+                itemTitle.color = new Color(1f, 0.85f, 0.15f, 1f);
+            }
+
+            if (itemRarity != null)
+            {
+                itemRarity.text = "<mark=#FFD70044>  — ★ SINERGIA ALQUÍMICA —  </mark>";
+                itemRarity.color = new Color(1f, 0.85f, 0.15f, 1f);
+            }
+
+            if (cardBgImage != null)
+            {
+                cardBgImage.color = new Color(0.25f, 0.20f, 0.05f, 0.98f);
+                Outline cardOutline = cardBgImage.GetComponent<Outline>();
+                if (cardOutline != null)
+                {
+                    cardOutline.effectColor = new Color(1f, 0.85f, 0.15f, 1f);
+                }
+            }
 
             descString += $"\n<color=#FFD700><b>★ SINERGIA DETECTADA: {recipeNames.ToUpper()}!</b></color>\n";
             if (previewResult.totalEssenceDiscount > 0f)
@@ -791,7 +814,12 @@ public class InfusionUI : MonoBehaviour
                 btnInfundir.interactable = true;
                 if (txt != null) 
                 {
-                    if (previewResult != null && previewResult.totalEssenceDiscount > 0f)
+                    if (hasSynergyCombo)
+                    {
+                        string discountTag = previewResult.totalEssenceDiscount > 0f ? $" <size=65%><color=#FFD700>(-{Mathf.RoundToInt(previewResult.totalEssenceDiscount * 100f)}% OFF)</color></size>" : "";
+                        txt.text = $"<b>★ FUNDIR SINERGIA ★</b>\n<color=#00FFAA>{discountedCost} ESSÊNCIAS</color>{discountTag}";
+                    }
+                    else if (previewResult != null && previewResult.totalEssenceDiscount > 0f)
                     {
                         txt.text = $"<b>INFUNDIR COMBINADO</b>\n<color=#00FFAA>{discountedCost} ESSÊNCIAS</color> <size=65%><color=#FF6666>(-{Mathf.RoundToInt(previewResult.totalEssenceDiscount * 100f)}%)</color></size>";
                     }
@@ -1067,8 +1095,12 @@ public class InfusionUI : MonoBehaviour
         }
 
         // Fluxo de Sinergia (combinação de itens diferentes)
+        SynergyResult synCheck = SynergyInfusionCalculator.Instance != null ? SynergyInfusionCalculator.Instance.EvaluateInfusion(selectedItemIds) : null;
+        bool isSynergy = synCheck != null && synCheck.hasSynergy;
+        string synNames = (isSynergy && synCheck.triggeredRecipeNames != null) ? string.Join(", ", synCheck.triggeredRecipeNames) : "";
+
         if (infusionManager.InfuseMultipleItems(selectedItemIds))
-            PlayInfusionSuccessFX(false);
+            PlayInfusionSuccessFX(false, isSynergy, synNames);
         else
         {
             if (!infusionManager.HasInfusionCapacity(1))
@@ -1092,12 +1124,12 @@ public class InfusionUI : MonoBehaviour
         }
     }
 
-    private void PlayInfusionSuccessFX(bool fused)
+    private void PlayInfusionSuccessFX(bool fused, bool isSynergy = false, string synergyName = "")
     {
-        // Dourado = Simples | Ciano = Acumulado (×2)
-        Color fx = fused ? new Color(0f, 0.9f, 1f, 0.45f) : new Color(1f, 0.85f, 0f, 0.45f);
+        // Dourado = Sinergia | Ciano = Acumulado (×2) | Amarelo = Simples
+        Color fx = isSynergy ? new Color(1f, 0.85f, 0.1f, 0.75f) : (fused ? new Color(0f, 0.9f, 1f, 0.45f) : new Color(1f, 0.85f, 0f, 0.45f));
         StartCoroutine(ScreenFlash(fx));
-        StartCoroutine(ShockwaveRingFX(new Color(fx.r, fx.g, fx.b, 0.8f)));
+        StartCoroutine(ShockwaveRingFX(new Color(fx.r, fx.g, fx.b, 0.95f)));
         ClearSelection();
         if (InventoryUI.Instance != null)
         {
@@ -1109,7 +1141,14 @@ public class InfusionUI : MonoBehaviour
         }
         if (EptinhoPopupController.instancia != null)
         {
-            EptinhoPopupController.instancia.MostrarPopupAviso(fused ? "Fusao Concluida! Traje amplificado!" : "Infusao Concluida! Traje aprimorado com sucesso!");
+            if (isSynergy)
+            {
+                EptinhoPopupController.instancia.MostrarPopupAviso($"★ SINERGIA DESBLOQUEADA!\n'{synergyName}'\nRegistrada no Mapa Cósmico (M)!");
+            }
+            else
+            {
+                EptinhoPopupController.instancia.MostrarPopupAviso(fused ? "Fusao Concluida! Traje amplificado!" : "Infusao Concluida! Traje aprimorado com sucesso!");
+            }
         }
     }
 

@@ -1170,9 +1170,44 @@ public class CheatConsole : MonoBehaviour
                 }
             }
         }
+        else if (command.StartsWith("t4", System.StringComparison.OrdinalIgnoreCase))
+        {
+            string[] parts = command.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+            string sub = parts.Length > 1 ? parts[1].ToLower() : "";
+            PlayerInventory inv = Object.FindFirstObjectByType<PlayerInventory>();
+            PlayerEssence ess = Object.FindFirstObjectByType<PlayerEssence>();
+            if (ess != null) ess.AddEssence(5000);
+
+            if (sub == "dash" || sub == "explosive" || sub == "sharp")
+            {
+                if (inv != null) inv.AddItem("04sb", 1);
+                string msg = "T4 DASH (04sb) CONCEDIDO!\n+5000 Essência. Abra a câmara e infunda para Dash Explosivo (+50% alcance + AoE)!";
+                Debug.Log($"💻 CHEAT: {msg}");
+                if (EptinhoPopupController.instancia != null) EptinhoPopupController.instancia.MostrarPopupAviso(msg);
+            }
+            else if (sub == "aimbot" || sub == "gun" || sub == "watcher" || sub == "mira")
+            {
+                if (inv != null) inv.AddItem("03cw", 1);
+                string msg = "T4 PISTOLA AIMBOT (03cw) CONCEDIDO!\n+5000 Essência. Abra a câmara e infunda para Disparos Teleguiados!";
+                Debug.Log($"💻 CHEAT: {msg}");
+                if (EptinhoPopupController.instancia != null) EptinhoPopupController.instancia.MostrarPopupAviso(msg);
+            }
+            else
+            {
+                if (inv != null)
+                {
+                    inv.AddItem("04sb", 1);
+                    inv.AddItem("03cw", 1);
+                }
+                string msg = "ITENS T4 CONCEDIDOS (04sb Dash + 03cw Aimbot)!\n+5000 Essência para testar!";
+                Debug.Log($"💻 CHEAT: {msg}");
+                if (EptinhoPopupController.instancia != null) EptinhoPopupController.instancia.MostrarPopupAviso(msg);
+            }
+        }
         else if (command.StartsWith("fusao", System.StringComparison.OrdinalIgnoreCase) ||
                  command.StartsWith("combo", System.StringComparison.OrdinalIgnoreCase) ||
-                 command.StartsWith("synergy", System.StringComparison.OrdinalIgnoreCase))
+                 command.StartsWith("synergy", System.StringComparison.OrdinalIgnoreCase) ||
+                 command.StartsWith("sinergia", System.StringComparison.OrdinalIgnoreCase))
         {
             string[] parts = command.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
             int comboNum = 1;

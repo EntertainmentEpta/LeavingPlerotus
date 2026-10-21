@@ -81,7 +81,9 @@ public class GunProjectile : MonoBehaviour
 
         if (!IsValidHomingTarget(homingTarget)) return;
 
-        Vector3 directionToTarget = homingTarget.transform.position - transform.position;
+        Collider targetCol = homingTarget.GetComponentInChildren<Collider>();
+        Vector3 targetPos = targetCol != null ? targetCol.bounds.center : homingTarget.transform.position + Vector3.up * 0.9f;
+        Vector3 directionToTarget = targetPos - transform.position;
         if (directionToTarget.sqrMagnitude <= 0.0001f) return;
 
         Vector3 steeredDirection = Vector3.RotateTowards(

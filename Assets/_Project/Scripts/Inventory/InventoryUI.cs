@@ -1274,11 +1274,42 @@ public class InventoryUI : MonoBehaviour
             InfusionHistorySlotHover hover = iconContainer.AddComponent<InfusionHistorySlotHover>();
             hover.itemData = infusion.data;
             hover.tooltip = tooltip;
+            hover.isSynergy = infusion.isSynergy;
+            hover.synergyName = infusion.synergyName;
 
-            // Outline colorido pelo tier
+            // Outline colorido pelo tier ou dourado se for sinergia
             Outline slotOutline = iconContainer.AddComponent<Outline>();
-            slotOutline.effectColor = new Color(tierColor.r, tierColor.g, tierColor.b, 0.6f);
-            slotOutline.effectDistance = new Vector2(2f, -2f);
+            if (infusion.isSynergy)
+            {
+                slotBg.color = new Color(0.24f, 0.18f, 0.04f, 0.95f);
+                slotOutline.effectColor = new Color(1f, 0.82f, 0.15f, 0.95f);
+                slotOutline.effectDistance = new Vector2(3f, -3f);
+
+                // Badge de estrela no topo do slot
+                GameObject badgeObj = new GameObject("SynergyStar");
+                badgeObj.transform.SetParent(iconContainer.transform, false);
+                badgeObj.layer = uiLayer;
+                RectTransform bRt = badgeObj.AddComponent<RectTransform>();
+                bRt.anchorMin = new Vector2(1f, 1f);
+                bRt.anchorMax = new Vector2(1f, 1f);
+                bRt.pivot = new Vector2(1f, 1f);
+                bRt.anchoredPosition = new Vector2(2f, 2f);
+                bRt.sizeDelta = new Vector2(18f, 18f);
+
+                badgeObj.AddComponent<CanvasRenderer>();
+                TextMeshProUGUI bTxt = badgeObj.AddComponent<TextMeshProUGUI>();
+                if (customFont != null) bTxt.font = customFont;
+                bTxt.text = "★";
+                bTxt.fontSize = 13f;
+                bTxt.color = new Color(1f, 0.85f, 0.15f, 1f);
+                bTxt.alignment = TextAlignmentOptions.Center;
+                bTxt.raycastTarget = false;
+            }
+            else
+            {
+                slotOutline.effectColor = new Color(tierColor.r, tierColor.g, tierColor.b, 0.6f);
+                slotOutline.effectDistance = new Vector2(2f, -2f);
+            }
 
             // === Ícone do item ===
             GameObject iconObj = new GameObject("Icon");
@@ -1772,6 +1803,8 @@ public class InfusionHistorySlotHover : MonoBehaviour, UnityEngine.EventSystems.
 {
     public ItemData itemData;
     public InventoryTooltip tooltip;
+    public bool isSynergy = false;
+    public string synergyName = "";
 
     public void OnPointerEnter(UnityEngine.EventSystems.PointerEventData eventData)
     {
@@ -1799,6 +1832,11 @@ public class InfusionHistorySlotHover : MonoBehaviour, UnityEngine.EventSystems.
         if (itemData.tier == ItemTier.Legendary && itemData.tier4Effect != Tier4EffectType.None)
         {
             extra.AppendLine($"\n<color=#FFD700><b>★ EFEITO LENDÁRIO:</b> {itemData.tier4Effect}</color>");
+        }
+
+        if (isSynergy && !string.IsNullOrEmpty(synergyName))
+        {
+            extra.AppendLine($"\n<color=#FFD700><b>★ SINERGIA ATIVADA:</b> {synergyName.ToUpper()}</color>");
         }
 
         tooltip.Show(itemData, 1, extra.ToString().TrimEnd());

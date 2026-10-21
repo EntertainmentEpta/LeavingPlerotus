@@ -803,6 +803,9 @@ public class GunAttack : MonoBehaviour
             spawnPoint.position,
             Quaternion.LookRotation(direction, Vector3.up));
 
+        if (tier4EffectManager == null)
+            tier4EffectManager = GetComponentInParent<Tier4EffectManager>() ?? FindFirstObjectByType<Tier4EffectManager>();
+
         float range = GetEffectiveProjectileRange(attributes);
         bool homingEnabled = tier4EffectManager != null
             && tier4EffectManager.HasEffect(Tier4EffectType.HomingProjectiles);

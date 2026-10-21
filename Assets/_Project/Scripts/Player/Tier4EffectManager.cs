@@ -34,7 +34,7 @@ public class Tier4EffectManager : MonoBehaviour
 
     [Header("Tiro Teleguiado")]
     [Min(0.1f)] public float homingDetectionRadius = 30f;
-    [Min(1f)] public float homingTurnSpeed = 360f;
+    [Min(1f)] public float homingTurnSpeed = 720f;
     [Min(0.02f)] public float homingTargetRefreshInterval = 0.1f;
     public Color homingBatteryOrbTint = new Color(126f / 255f, 61f / 255f, 202f / 255f, 1f);
 
@@ -66,15 +66,17 @@ public class Tier4EffectManager : MonoBehaviour
         switch (effectType)
         {
             case Tier4EffectType.ExplosiveDash:
+                if (explosiveDashEffect == null)
+                {
+                    explosiveDashEffect = GetComponent<ExplosiveDashEffect>() 
+                        ?? GetComponentInChildren<ExplosiveDashEffect>()
+                        ?? gameObject.AddComponent<ExplosiveDashEffect>();
+                }
                 if (explosiveDashEffect != null)
                 {
                     explosiveDashEffect.ActivateEffect();
                     activeEffects.Add(effectType);
                     Debug.Log($"💎 [T4 EFFECT] {effectType} ATIVADO!");
-                }
-                else
-                {
-                    Debug.LogError("[Tier4EffectManager] ExplosiveDashEffect não encontrado no Player! Adicione o componente.");
                 }
                 break;
 

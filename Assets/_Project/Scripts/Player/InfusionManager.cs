@@ -95,6 +95,8 @@ public class InfusionManager : MonoBehaviour
     // Multiplicador M usado em cada infusão (alinhado por índice com infusedItems).
     // Permite que a Cirurgia de Remoção reverta exatamente o que foi aplicado (×1 ou ×2).
     private readonly List<float> infusedStackMultipliers = new List<float>();
+    // Registra o nome da sinergia ativada para cada item (se fez parte de uma sinergia)
+    private readonly List<string> infusedSynergyNames = new List<string>();
 
     void Start()
     {
@@ -167,6 +169,7 @@ public class InfusionManager : MonoBehaviour
         totalInfusionWeight = 0f;
         if (infusedItems != null) infusedItems.Clear();
         infusedStackMultipliers.Clear();
+        infusedSynergyNames.Clear();
         Debug.Log("[INFUSION MANAGER] Peso de inflaÃ§Ã£o e histÃ³rico de infusÃµes resetados para nova Run.");
     }
 
@@ -337,14 +340,17 @@ public class InfusionManager : MonoBehaviour
         }
     }
 
-    private void RegisterInfusion(ItemData data, float stackMultiplier)
+    private void RegisterInfusion(ItemData data, float stackMultiplier, string synergyName = "")
     {
         // Re-sincroniza caso infusedItems tenha sido limpo externamente (ex: PlayerHealth no respawn)
         while (infusedStackMultipliers.Count > infusedItems.Count) infusedStackMultipliers.RemoveAt(infusedStackMultipliers.Count - 1);
         while (infusedStackMultipliers.Count < infusedItems.Count) infusedStackMultipliers.Add(1f);
+        while (infusedSynergyNames.Count > infusedItems.Count) infusedSynergyNames.RemoveAt(infusedSynergyNames.Count - 1);
+        while (infusedSynergyNames.Count < infusedItems.Count) infusedSynergyNames.Add("");
 
         infusedItems.Add(data);
         infusedStackMultipliers.Add(stackMultiplier);
+        infusedSynergyNames.Add(synergyName ?? "");
 
         // Integração de Descoberta com o Catálogo do Eptinho (Fog of War de Atributos)
         if (CatalogoManager.instancia != null && data != null)
@@ -432,6 +438,10 @@ public class InfusionManager : MonoBehaviour
         essenceWallet.SpendEssence(discountedCost);
 
         bool success = false;
+        string recipesMsg = (result.hasSynergy && result.triggeredRecipeNames != null && result.triggeredRecipeNames.Count > 0)
+            ? string.Join(", ", result.triggeredRecipeNames)
+            : "";
+
         foreach (var data in validItems)
         {
             // Aplica stats base
@@ -442,12 +452,13 @@ public class InfusionManager : MonoBehaviour
             
             float addedWeight = data.GetTierWeight();
             totalInfusionWeight += addedWeight;
-            RegisterInfusion(data, 1f);
+            bool wasUsedInSynergy = result.hasSynergy && result.usedItemIDs != null && result.usedItemIDs.Contains(data.itemId);
+            RegisterInfusion(data, 1f, wasUsedInSynergy ? recipesMsg : "");
             ActivateTier4Effect(data);
             
             inventory.RemoveItem(data.itemId, 1);
             success = true;
-            Debug.Log($"[INFUSÃO] Sucesso! {data.itemName} infundido via mÃºltipla.");
+            Debug.Log($"[INFUSÃO] Sucesso! {data.itemName} infundido via múltipla. (Sinergia: {wasUsedInSynergy})");
         }
 
         // Aplicação dos Modificadores Extras
@@ -470,7 +481,11 @@ public class InfusionManager : MonoBehaviour
                 }
             }
 
-            string recipesMsg = string.Join(", ", result.triggeredRecipeNames);
+            if (SynergyMapPrototype.Instance != null && SynergyMapPrototype.Instance.IsOpen)
+            {
+                SynergyMapPrototype.Instance.RefreshConstellation();
+            }
+
             Debug.Log($"[INFUSÃO] ★ Sinergia(s) Alquímica(s) Catalogada(s): {recipesMsg}!");
 
             if (EptinhoPopupController.instancia != null)
@@ -488,37 +503,44 @@ public class InfusionManager : MonoBehaviour
     {
         if (System.Enum.TryParse(mod.statName, out AttributeType attrType))
         {
-            if (mod.baseValue != 0f) ApplyAttribute(new ItemAttributeParam { attributeType = attrType, value = mod.baseValue, isMultiplier = false });
-            if (mod.multiplierValue != 0f) ApplyAttribute(new ItemAttributeParam { attributeType = attrType, value = mod.multiplierValue, isMultiplier = true });
+            if (mod.baseValue != 0f)
+            {
+                float baseVal = mod.baseValue;
+                // Chance / Percentuais expressos em 0..1 (ex: 0.10f para 10%) convertidos para escala 0..100
+                if (attrType == AttributeType.CritChance || attrType == AttributeType.DodgeChance ||
+                    attrType == AttributeType.MultiShotChance || attrType == AttributeType.BounceChance ||
+                    attrType == AttributeType.DamageNegation)
+                {
+                    if (Mathf.Abs(baseVal) <= 1.0f)
+                    {
+                        baseVal *= 100f;
+                    }
+                }
+                ApplyAttribute(new ItemAttributeParam { attributeType = attrType, value = baseVal, isMultiplier = false });
+            }
+
+            if (mod.multiplierValue != 0f)
+            {
+                // No sistema do jogo, isMultiplier espera o multiplicador completo (ex: 1.15 para +15%, 0.80 para -20% cooldown)
+                float multFactor = mod.multiplierValue;
+                if (multFactor > -1f && multFactor < 1f)
+                {
+                    multFactor = 1f + multFactor;
+                }
+                ApplyAttribute(new ItemAttributeParam { attributeType = attrType, value = multFactor, isMultiplier = true });
+            }
+
+            Debug.Log($"✨ [SYNERGY] Modificador aplicado: {mod.statName} (Base: {mod.baseValue}, Mult: {mod.multiplierValue})");
         }
         else
         {
-            Debug.LogWarning($"[SYNERGY] Atributo {mod.statName} invÃ¡lido no StatModifier!");
+            Debug.LogWarning($"[SYNERGY] Atributo {mod.statName} inválido no StatModifier!");
         }
     }
+
     public bool InfuseSynergy(string item1Id, string item2Id)
     {
-        if (ItemDatabase.Instance == null || inventory == null) return false;
-
-        ItemData data1 = ItemDatabase.Instance.GetItemData(item1Id);
-        ItemData data2 = ItemDatabase.Instance.GetItemData(item2Id);
-
-        if (data1 == null || data2 == null) return false;
-
-        int cost1 = GetInflatedCost(data1);
-        int cost2 = GetInflatedCost(data2);
-        int totalCost = cost1 + cost2;
-
-        if (essenceWallet != null && essenceWallet.GetEssence() < totalCost)
-        {
-            Debug.Log("[INFUSÃO SINERGIA] Bloqueado! Sem essência suficiente.");
-            return false;
-        }
-
-        bool s1 = InfuseItem(item1Id);
-        bool s2 = InfuseItem(item2Id);
-
-        return s1 && s2;
+        return InfuseMultipleItems(new System.Collections.Generic.List<string> { item1Id, item2Id });
     }
     /// <summary>
     /// Retorna a lista de infusões ativas da arma e arsenal como uma lista de InfusedItem.
@@ -799,10 +821,13 @@ public class InfusionManager : MonoBehaviour
         var history = new System.Collections.Generic.List<InfusedItem>();
         for (int i = 0; i < infusedItems.Count; i++)
         {
+            string syn = (i < infusedSynergyNames.Count) ? infusedSynergyNames[i] : "";
             history.Add(new InfusedItem
             {
                 data = infusedItems[i],
-                stacks = 1
+                stacks = 1,
+                isSynergy = !string.IsNullOrEmpty(syn),
+                synergyName = syn
             });
         }
         return history;
@@ -850,5 +875,7 @@ public struct InfusedItem
 {
     public ItemData data;
     public int stacks;
+    public bool isSynergy;
+    public string synergyName;
 }
 
