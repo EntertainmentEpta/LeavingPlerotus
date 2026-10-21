@@ -71,6 +71,11 @@ public class CheatConsole : MonoBehaviour
         new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "sinfonia", aliases = "chaos, pactchaos, pactcaos", description = "Alterna o Pacto A Sinfonia do Caos (+20% drops, +Elites, +35% renascer elite).", executePayload = "sinfonia" },
         new CheatEntry { category = "👾 INIMIGOS, SPAWNS & BOSS", command = "endless", aliases = "-", description = "Alterna o Modo Endless (fases infinitas sem encerrar no chefe).", executePayload = "endless" },
 
+        // ⭐ Efeitos Lendários T4
+        new CheatEntry { category = "⭐ EFEITOS LENDÁRIOS T4", command = "t4 dash", aliases = "dash, dashboom", description = "Concede o item Tier 4 Dash Explosivo (04sb) para testar explosões ao dar dash.", executePayload = "t4 dash" },
+        new CheatEntry { category = "⭐ EFEITOS LENDÁRIOS T4", command = "t4 aimbot", aliases = "aimbot, homing, autoaim", description = "Concede o item Tier 4 Pistola Teleguiada (03cw) para tiros perseguirem inimigos.", executePayload = "t4 aimbot" },
+        new CheatEntry { category = "⭐ EFEITOS LENDÁRIOS T4", command = "t4", aliases = "allt4, tier4", description = "Concede todos os itens lendários Tier 4 de uma vez no inventário.", executePayload = "t4" },
+
         // 🧪 Teste Rápido de Fusões & Sinergias (Sem Reiniciar)
         new CheatEntry { category = "🧪 TESTE DE FUSÕES (SEM REINICIAR)", command = "clearinv", aliases = "limparinv, emptyinv", description = "Esvazia todos os 10 slots da mochila instantaneamente para novos testes.", executePayload = "clearinv" },
         new CheatEntry { category = "🧪 TESTE DE FUSÕES (SEM REINICIAR)", command = "fusao 1", aliases = "combo 1", description = "Chuva de Lâminas (Goblin + SharpBlur).", executePayload = "fusao 1" },
@@ -172,8 +177,8 @@ public class CheatConsole : MonoBehaviour
             return;
         }
 
-        // Atalho secreto de Desenvolvedor: Ctrl + Shift + F1 abre/fecha a lista secreta
-        if (ctrl && shift && Input.GetKeyDown(KeyCode.F1))
+        // Atalho secreto de Desenvolvedor: F1 (direto ou com Ctrl + Shift) abre/fecha a lista visual secreta
+        if (Input.GetKeyDown(KeyCode.F1) || (ctrl && shift && Input.GetKeyDown(KeyCode.F1)))
         {
             ToggleSecretCheatPanel();
             return;
@@ -187,14 +192,16 @@ public class CheatConsole : MonoBehaviour
             return;
         }
 
-        // Abrir / Alternar o console com atalho exclusivo do desenvolvedor:
-        // Ctrl + Shift + C  OU  Ctrl + /  OU  Ctrl + ;
-        bool openConsoleTriggered = (ctrl && shift && Input.GetKeyDown(KeyCode.C)) ||
+        // Abrir / Alternar o console de texto:
+        // Tecla ` (BackQuote / Aspas / Crase ao lado do 1) OU F12 OU Ctrl + Shift + C OU Ctrl + / OU Ctrl + ;
+        bool openConsoleTriggered = Input.GetKeyDown(KeyCode.BackQuote) ||
+                                    Input.GetKeyDown(KeyCode.F12) ||
+                                    (ctrl && shift && Input.GetKeyDown(KeyCode.C)) ||
                                     (ctrl && (Input.GetKeyDown(KeyCode.Slash) || Input.GetKeyDown(KeyCode.KeypadDivide) || Input.GetKeyDown(KeyCode.Semicolon)));
 
         if (openConsoleTriggered)
         {
-            Debug.Log("🔍 CHEAT: Atalho secreto do console acionado pelo desenvolvedor!");
+            Debug.Log("🔍 CHEAT: Atalho do console acionado!");
             if (consoleInput == null)
             {
                 FindConsoleInput();
