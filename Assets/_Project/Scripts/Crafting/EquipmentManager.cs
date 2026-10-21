@@ -119,6 +119,22 @@ public class EquipmentManager : MonoBehaviour
 
         BuildLookup();
 
+        // Garante que o Monitor Telemétrico de Atributos do Robozinho esteja registrado
+        const string ATTRIBUTE_MONITOR_ID = "equip_monitor_atributos";
+        if (GetEquipmentData(ATTRIBUTE_MONITOR_ID) == null)
+        {
+            EquipmentData monitorData = ScriptableObject.CreateInstance<EquipmentData>();
+            monitorData.equipmentId   = ATTRIBUTE_MONITOR_ID;
+            monitorData.equipmentName = "Monitor Telemétrico do Traje";
+            monitorData.description   = "Módulo de telemetria biológica e armamentista acoplado ao visor. Exibe no HUD em tempo real velocidade de locomoção, dano, armadura e infusões ativas. Pressione F5 para alternar.";
+            monitorData.effectType    = EquipmentEffectType.AttributeDisplayModule;
+            monitorData.effectValue   = 1.0f;
+            monitorData.maxStack      = 1;
+
+            allEquipmentDefinitions.Add(monitorData);
+            BuildLookup();
+        }
+
         // Re-aplica efeitos de equipamentos equipados (após carregar o save)
         ReapplyAllEquippedEffects();
 
@@ -400,6 +416,10 @@ public class EquipmentManager : MonoBehaviour
             case EquipmentEffectType.BarrierCounterDisplay:
                 BarrierCounterUI.EnsureExistsAndSetVisible(true);
                 break;
+
+            case EquipmentEffectType.AttributeDisplayModule:
+                AttributeDisplayOnScreenSplit.EnsureExistsAndSetVisible(true);
+                break;
         }
     }
 
@@ -523,6 +543,10 @@ public class EquipmentManager : MonoBehaviour
 
             case EquipmentEffectType.BarrierCounterDisplay:
                 BarrierCounterUI.EnsureExistsAndSetVisible(false);
+                break;
+
+            case EquipmentEffectType.AttributeDisplayModule:
+                AttributeDisplayOnScreenSplit.EnsureExistsAndSetVisible(false);
                 break;
         }
     }

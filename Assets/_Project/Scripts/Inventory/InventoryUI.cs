@@ -1268,7 +1268,12 @@ public class InventoryUI : MonoBehaviour
             Image slotBg = iconContainer.AddComponent<Image>();
             Color tierColor = infusion.data.GetTierColor();
             slotBg.color = new Color(tierColor.r * 0.25f + 0.04f, tierColor.g * 0.25f + 0.04f, tierColor.b * 0.25f + 0.06f, 0.9f);
-            slotBg.raycastTarget = false;
+            slotBg.raycastTarget = true; // Permite hover com mouse para ver características
+
+            // Adiciona listener de hover para exibir características e buffs do item no tooltip
+            InfusionHistorySlotHover hover = iconContainer.AddComponent<InfusionHistorySlotHover>();
+            hover.itemData = infusion.data;
+            hover.tooltip = tooltip;
 
             // Outline colorido pelo tier
             Outline slotOutline = iconContainer.AddComponent<Outline>();
@@ -1293,40 +1298,7 @@ public class InventoryUI : MonoBehaviour
             iconImg.raycastTarget = false;
             iconImg.preserveAspect = true;
 
-            // === Badge de Stacks (só se stacks >= 2) ===
-            if (infusion.stacks >= 2)
-            {
-                GameObject badgeObj = new GameObject("StackBadge");
-                badgeObj.transform.SetParent(iconContainer.transform, false);
-                badgeObj.layer = uiLayer;
-
-                RectTransform badgeRt = badgeObj.AddComponent<RectTransform>();
-                // Canto inferior direito
-                badgeRt.anchorMin = new Vector2(1f, 0f);
-                badgeRt.anchorMax = new Vector2(1f, 0f);
-                badgeRt.pivot = new Vector2(1f, 0f);
-                badgeRt.anchoredPosition = new Vector2(-2f, 2f);
-                badgeRt.sizeDelta = new Vector2(28f, 18f);
-
-                badgeObj.AddComponent<CanvasRenderer>();
-                TextMeshProUGUI stackText = badgeObj.AddComponent<TextMeshProUGUI>();
-                if (customFont != null) stackText.font = customFont;
-                stackText.text = "x" + infusion.stacks;
-                stackText.fontSize = 14f;
-                stackText.fontStyle = FontStyles.Bold;
-                stackText.color = new Color(1f, 0.92f, 0f, 1f); // Amarelo vibrante
-                stackText.alignment = TextAlignmentOptions.BottomRight;
-                stackText.raycastTarget = false;
-                stackText.enableAutoSizing = false;
-                stackText.overflowMode = TextOverflowModes.Overflow;
-
-                // Outline para legibilidade sobre qualquer fundo
-                stackText.outlineWidth = 0.25f;
-                stackText.outlineColor = new Color32(0, 0, 0, 200);
-
-                // Garante que o badge fique na frente do ícone
-                badgeObj.transform.SetAsLastSibling();
-            }
+            // Infusão não usa badge 'x2' conforme solicitado pelo design
         }
     }
 
@@ -1789,5 +1761,77 @@ public class InventoryUI : MonoBehaviour
         {
             Debug.LogError("[INVENTORY UI] Não foi possível carregar ou abrir InfusionUI!");
         }
+    }
+}
+
+
+/// <summary>
+/// Componente de hover nos itens do histórico de infusão para exibir características e buffs do item.
+/// </summary>
+public class InfusionHistorySlotHover : MonoBehaviour, UnityEngine.EventSystems.IPointerEnterHandler, UnityEngine.EventSystems.IPointerExitHandler
+{
+    public ItemData itemData;
+    public InventoryTooltip tooltip;
+
+    public void OnPointerEnter(UnityEngine.EventSystems.PointerEventData eventData)
+    {
+        if (itemData == null || tooltip == null) return;
+
+        System.Text.StringBuilder extra = new System.Text.StringBuilder();
+        extra.AppendLine("<color=#80C0FF><b>PROPRIEDADES INFUNDIDAS:</b></color>");
+        
+        if (itemData.itemAttributes != null && itemData.itemAttributes.Count > 0)
+        {
+            foreach (var buff in itemData.itemAttributes)
+            {
+                float displayVal = buff.isMultiplier ? (buff.value - 1f) * 100f : buff.value;
+                string signal = displayVal > 0 ? "+" : "";
+                string suffix = buff.isMultiplier ? "%" : "";
+                string statName = FormatStatName(buff.attributeType.ToString());
+                extra.AppendLine($"<color=#00FFAA>• {signal}{displayVal:0.##}{suffix}</color> <color=#EEEEEE>{statName}</color>");
+            }
+        }
+        else
+        {
+            extra.AppendLine("<color=#AAAAAA><i>Composto catalisador padrão sem atributos base.</i></color>");
+        }
+
+        if (itemData.tier == ItemTier.Legendary && itemData.tier4Effect != Tier4EffectType.None)
+        {
+            extra.AppendLine($"\n<color=#FFD700><b>★ EFEITO LENDÁRIO:</b> {itemData.tier4Effect}</color>");
+        }
+
+        tooltip.Show(itemData, 1, extra.ToString().TrimEnd());
+    }
+
+    public void OnPointerExit(UnityEngine.EventSystems.PointerEventData eventData)
+    {
+        if (tooltip != null)
+        {
+            tooltip.Hide();
+        }
+    }
+
+    private string FormatStatName(string stat)
+    {
+        string s = stat.ToLower();
+        if (s.Contains("damage")) return "Poder de Dano";
+        if (s.Contains("attackspeed")) return "Velocidade de Ataque";
+        if (s.Contains("critchance")) return "Chance de Crítico";
+        if (s.Contains("critmultiplier")) return "Dano Crítico";
+        if (s.Contains("weaponrange")) return "Alcance da Arma";
+        if (s.Contains("knockback")) return "Força de Impacto";
+        if (s.Contains("piercing")) return "Perfuração";
+        if (s.Contains("health")) return "Vida Máxima";
+        if (s.Contains("armorregen")) return "Regen. de Armadura";
+        if (s.Contains("armor")) return "Armadura Máxima";
+        if (s.Contains("dodge")) return "Esquiva";
+        if (s.Contains("damagenegation")) return "Negação de Dano";
+        if (s.Contains("thorns")) return "Espinhos";
+        if (s.Contains("speed")) return "Velocidade de Movimento";
+        if (s.Contains("dashcooldown")) return "Recarga do Dash";
+        if (s.Contains("dashcounts")) return "Cargas de Dash";
+        if (s.Contains("dashinvulnerability")) return "Tempo de Invulnerabilidade";
+        return stat;
     }
 }

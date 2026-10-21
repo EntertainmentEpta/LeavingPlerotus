@@ -64,6 +64,20 @@ public class CraftingManager : MonoBehaviour
             Debug.Log($"[CRAFTING] Mesclou {loaded.Length} receitas do Resources. Total: {allRecipes.Count}");
         }
 
+        // Garante que a receita gratuita do Monitor Telemétrico de Atributos esteja disponível no Robozinho
+        if (!allRecipes.Exists(r => r != null && r.recipeId == "recipe_monitor_atributos"))
+        {
+            CraftingRecipe monitorRecipe = ScriptableObject.CreateInstance<CraftingRecipe>();
+            monitorRecipe.recipeId     = "recipe_monitor_atributos";
+            monitorRecipe.recipeName   = "Monitor Telemétrico do Traje";
+            monitorRecipe.description  = "Módulo de diagnóstico gratuito do Robozinho. Exibe em tempo real no HUD a velocidade exata, dano, armadura e infusões ativas do explorador.";
+            monitorRecipe.ingredients  = new List<CraftingIngredient>(); // 0 Ingredientes = 100% GRATUITO!
+            monitorRecipe.resultType   = CraftingResultType.Equipment;
+            monitorRecipe.resultEquipment = EquipmentManager.Instance != null ? EquipmentManager.Instance.GetEquipmentData("equip_monitor_atributos") : null;
+
+            allRecipes.Add(monitorRecipe);
+        }
+
         // Garante que a receita gratuita do Detector de Barreiras esteja disponível no Crafting
         if (!allRecipes.Exists(r => r != null && r.recipeId == "recipe_detector_barreiras"))
         {

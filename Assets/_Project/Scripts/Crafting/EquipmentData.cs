@@ -24,6 +24,7 @@ public enum EquipmentEffectType
     DashInvulnerabilityBoost, // Aumenta o tempo de invulnerabilidade do dash
     MagnetRangeBoost,        // Aumenta o raio de atração de essências
     BarrierCounterDisplay,   // Exibe o contador de salas/barreiras na UI (Detector de Barreiras)
+    AttributeDisplayModule,  // Exibe o monitor telemétrico de atributos do traje em tempo real (F5)
     UnlockSynergyMap,        // Desbloqueia o Mapa de Sinergias no Oráculo Eptinho
     UnlockProjectileWeapon,  // Desbloqueia a Arma de Projétil para a run
     RepairLabDoor,           // Conserta a porta do Laboratório na Base

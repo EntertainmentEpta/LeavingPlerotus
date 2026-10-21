@@ -848,7 +848,12 @@ public class ItemPickup : MonoBehaviour
                 bool added = playerInv.AddItem(interactable.itemData.itemId, 1);
                 if (!added)
                 {
-                    Debug.Log("[ITEM] Inventário cheio! Não coletou: " + interactable.NomeDisplay);
+                    Debug.Log("[ITEM] Inventário cheio (10/10)! Descartando: " + interactable.NomeDisplay);
+                    if (EptinhoPopupController.instancia != null)
+                    {
+                        EptinhoPopupController.instancia.MostrarPopupAviso($"Mochila cheia (10/10)! {interactable.NomeDisplay} descartado.");
+                    }
+                    Destroy(gameObject);
                     return;
                 }
             }

@@ -35,11 +35,26 @@ public class PlayerInventory : MonoBehaviour
     [Tooltip("Lista de slots de itens da run (cada slot = 1 item individual)")]
     [SerializeField] private List<string> itemSlots = new List<string>();
 
+    public const int MAX_INVENTORY_CAPACITY = 10;
+
+    void Awake()
+    {
+        maxSlots = MAX_INVENTORY_CAPACITY;
+        if (itemSlots.Count > maxSlots)
+        {
+            itemSlots.RemoveRange(maxSlots, itemSlots.Count - maxSlots);
+        }
+    }
+
     void Start()
     {
+        maxSlots = MAX_INVENTORY_CAPACITY;
+        if (itemSlots.Count > maxSlots)
+        {
+            itemSlots.RemoveRange(maxSlots, itemSlots.Count - maxSlots);
+        }
+
         // Garante que sistemas de inventário existam em qualquer cena.
-        // O PlayerInventory vive no Player.prefab (DontDestroyOnLoad),
-        // mas ItemDatabase e InventoryUI podem não estar na cena atual.
         EnsureItemDatabaseExists();
         EnsureInventoryUIExists();
     }
@@ -226,15 +241,12 @@ public class PlayerInventory : MonoBehaviour
     /// </summary>
     public void IncreaseMaxSlots(int amount)
     {
-        if (amount <= 0)
+        // Mantém travado em 10 slots conforme a regra de inventário
+        maxSlots = MAX_INVENTORY_CAPACITY;
+        if (itemSlots.Count > maxSlots)
         {
-            Debug.LogWarning("[INVENTORY] IncreaseMaxSlots recebeu valor inválido: " + amount);
-            return;
+            itemSlots.RemoveRange(maxSlots, itemSlots.Count - maxSlots);
         }
-
-        int oldMax = maxSlots;
-        maxSlots += amount;
-        Debug.Log("[INVENTORY] Capacidade aumentada! " + oldMax + " -> " + maxSlots + " slots");
         onInventoryChanged?.Invoke();
     }
 
@@ -244,13 +256,12 @@ public class PlayerInventory : MonoBehaviour
     /// </summary>
     public void SetMaxSlots(int newMax)
     {
-        if (newMax < 1)
+        // Limita estritamente ao teto de 10 slots
+        maxSlots = Mathf.Clamp(newMax, 1, MAX_INVENTORY_CAPACITY);
+        if (itemSlots.Count > maxSlots)
         {
-            Debug.LogWarning("[INVENTORY] SetMaxSlots recebeu valor inválido: " + newMax);
-            return;
+            itemSlots.RemoveRange(maxSlots, itemSlots.Count - maxSlots);
         }
-
-        maxSlots = newMax;
         Debug.Log("[INVENTORY] Capacidade definida para " + maxSlots + " slots");
         onInventoryChanged?.Invoke();
     }

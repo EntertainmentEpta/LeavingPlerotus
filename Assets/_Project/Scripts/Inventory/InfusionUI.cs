@@ -803,7 +803,7 @@ public class InfusionUI : MonoBehaviour
             }
             UpdateButtonVisuals(btnInfundir);
         }
-        if (recycleValueText != null) recycleValueText.text = "+" + totalRecycle;
+        if (recycleValueText != null) recycleValueText.text = "";
     }
     public void SelectItem(string itemId)
     {
@@ -896,7 +896,7 @@ public class InfusionUI : MonoBehaviour
         }
 
         if (recycleValueText != null)
-            recycleValueText.text = $"<color=#FFD700>+{data.recycleEssenceValue}</color> <size=65%>ESSÊNCIAS</size>";
+            recycleValueText.text = "<color=#AAAAAA><size=75%>(Descarta o item do inventário)</size></color>";
 
         // Descrição e Atributos Formatados com Estilo Sci-Fi Astronauta (com Fog of War de Descoberta)
         if (itemStatsDescription != null)
@@ -968,7 +968,7 @@ public class InfusionUI : MonoBehaviour
             btnReciclar.interactable = true;
             TextMeshProUGUI recTxt = btnReciclar.GetComponentInChildren<TextMeshProUGUI>();
             if (recTxt != null) 
-                recTxt.text = $"<b>RECICLAR</b>\n<color=#FFD700><size=88%>+{data.recycleEssenceValue} ESSÃƒÅ NCIAS</size></color>";
+                recTxt.text = "<b>DESCARTAR</b>\n<color=#FFAA77><size=75%>(JOGAR FORA)</size></color>";
             
             UpdateButtonVisuals(btnReciclar);
         }

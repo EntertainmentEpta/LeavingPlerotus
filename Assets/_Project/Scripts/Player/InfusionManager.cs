@@ -124,17 +124,13 @@ public class InfusionManager : MonoBehaviour
         ItemData data = ItemDatabase.Instance.GetItemData(itemId);
         if (data == null) return false;
 
-        // Verifica se tem o item no inventÃ¡rio antes de destruir
-        if (inventory.HasItem(itemId, 1))
+        // Verifica se tem o item no inventário antes de destruir
+        if (inventory != null && inventory.HasItem(itemId, 1))
         {
-            // DÃ¡ essÃªncia
-            if (essenceWallet != null)
-                essenceWallet.AddEssence(data.recycleEssenceValue);
-            
-            // Remove 1 do inventÃ¡rio
+            // Remove 1 do inventário SEM dar essência (apenas joga fora conforme solicitado)
             inventory.RemoveItem(itemId, 1);
             
-            Debug.Log($"[INFUSÃƒO] Item Reciclado: {data.itemName} -> +{data.recycleEssenceValue} EssÃªncias");
+            Debug.Log($"[INFUSÃO] Item Descartado (Jogado fora): {data.itemName}");
             return true;
         }
 
@@ -277,22 +273,11 @@ public class InfusionManager : MonoBehaviour
         ItemData data = ItemDatabase.Instance.GetItemData(itemId);
         if (data == null) return request;
 
-        bool hasStack = inventory.GetItemCount(itemId) >= FUSION_ITEM_COUNT;
-        bool canFuse = data.tier != ItemTier.Legendary;
-
+        // Infusão padrão sempre infunde exatamente 1 item (sem x2 automático)
         request.data = data;
-        if ((explicitFusion || hasStack) && canFuse)
-        {
-            request.mode = InfusionMode.Fused;
-            request.itemCount = FUSION_ITEM_COUNT;
-            request.stackMultiplier = fusionStackMultiplier;
-        }
-        else
-        {
-            request.mode = InfusionMode.Simple;
-            request.itemCount = 1;
-            request.stackMultiplier = 1f;
-        }
+        request.mode = InfusionMode.Simple;
+        request.itemCount = 1;
+        request.stackMultiplier = 1f;
 
         return request;
     }
@@ -814,12 +799,10 @@ public class InfusionManager : MonoBehaviour
         var history = new System.Collections.Generic.List<InfusedItem>();
         for (int i = 0; i < infusedItems.Count; i++)
         {
-            float mult = i < infusedStackMultipliers.Count ? infusedStackMultipliers[i] : 1f;
-            int stacks = Mathf.RoundToInt(mult); // ×1 → 1, ×2 → 2
             history.Add(new InfusedItem
             {
                 data = infusedItems[i],
-                stacks = stacks
+                stacks = 1
             });
         }
         return history;
