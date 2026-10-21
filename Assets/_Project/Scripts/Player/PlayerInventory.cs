@@ -233,6 +233,16 @@ public class PlayerInventory : MonoBehaviour
     }
 
     /// <summary>
+    /// Limpa todos os itens do inventário de run. Útil para reset de testes rápidos sem reiniciar a run.
+    /// </summary>
+    public void ClearInventory()
+    {
+        itemSlots.Clear();
+        onInventoryChanged?.Invoke();
+        Debug.Log("[INVENTORY] Todos os itens da mochila foram limpos!");
+    }
+
+    /// <summary>
     /// Aumenta a capacidade máxima de slots do inventário.
     /// Use para upgrades na base, compras de expansão, etc.
     /// 

@@ -37,6 +37,8 @@ public class PlayerHealth : MonoBehaviour
     
     public TextMeshProUGUI armorText;
     public TextMeshProUGUI percentageText; // O texto de %
+    [Header("Blindagem Modular (Placas)")]
+    public ModularArmorHUD modularArmorHUD;
 
     [Header("Mercador UI (Overlay & Sangue Escuro)")]
     public Image mercadorHealthFillImage; // Mercador_HealthFill (Filled)
@@ -108,6 +110,10 @@ public class PlayerHealth : MonoBehaviour
         FullHeal();
         
         // Buscar PlayerAttributesDefensive
+        if (modularArmorHUD == null)
+        {
+            modularArmorHUD = GetComponent<ModularArmorHUD>() ?? gameObject.AddComponent<ModularArmorHUD>();
+        }
         playerAttributes = GetComponent<PlayerAttributesDefensive>();
         if (playerAttributes == null)
         {
@@ -711,6 +717,11 @@ public class PlayerHealth : MonoBehaviour
             if (armorBarImage != null) armorBarImage.fillAmount = (float)currentArmor / maxArmor;
             if (armorText != null) armorText.text = currentArmor + "/" + maxArmor;
         }
+
+        if (modularArmorHUD != null)
+        {
+            modularArmorHUD.UpdatePlates(currentArmor, maxArmor, canRegenArmor);
+        }
     }
 
     public void SetArmorToZero()
@@ -751,6 +762,10 @@ public class PlayerHealth : MonoBehaviour
                 
                 currentArmor = Mathf.Clamp(currentArmor + (maxArmor - oldArmor), 0, maxArmor);
                 UpdateArmorBar();
+                if (modularArmorHUD != null && maxArmor > oldArmor)
+                {
+                    modularArmorHUD.OnMaxArmorIncreased(oldArmor, maxArmor);
+                }
                 Debug.Log($"🛡️ [PLAYER HEALTH] Armadura Maxima aumentada: {oldArmor} -> {maxArmor} (+{maxArmor - oldArmor}) | Atual: {currentArmor}/{maxArmor}");
                 break;
 

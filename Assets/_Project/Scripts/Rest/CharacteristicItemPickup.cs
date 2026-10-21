@@ -38,6 +38,7 @@ public class CharacteristicItemPickup : MonoBehaviour
     private float spawnTime;
     private bool canBePickedUp = false;
     private Transform playerTransform;
+    private bool isCollected = false;
 
     void Start()
     {
@@ -336,6 +337,13 @@ public class CharacteristicItemPickup : MonoBehaviour
 
     void CollectItem(GameObject player)
     {
+        if (isCollected) return;
+        isCollected = true;
+
+        // Desativa colisores e este script imediatamente para impedir coletas concorrentes
+        Collider[] allCols = GetComponentsInChildren<Collider>();
+        for (int i = 0; i < allCols.Length; i++) allCols[i].enabled = false;
+        this.enabled = false;
         // Tenta encontrar o inventário do player (mesmo padrão do EssencePickup)
         PlayerInventory inventory = player.GetComponent<PlayerInventory>();
         

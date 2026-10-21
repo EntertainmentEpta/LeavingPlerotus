@@ -292,6 +292,41 @@ public class DevCheatConsole : MonoBehaviour
         {
             UnlockAllLoreAndScriptures();
         }
+        else if (cmd == "clearinv" || cmd == "limparinv" || cmd == "emptyinv" || cmd == "limparmochila")
+        {
+            PlayerInventory inv = Object.FindFirstObjectByType<PlayerInventory>();
+            if (inv != null)
+            {
+                inv.ClearInventory();
+                Log("<color=#00F0FF>[CHEAT OK]</color> Mochila esvaziada (0/10 slots)! Pronta para novos testes.");
+                if (EptinhoPopupController.instancia != null)
+                {
+                    EptinhoPopupController.instancia.MostrarPopupAviso("MOCHILA LIMPA (0/10 SLOTS)!");
+                }
+            }
+        }
+        else if (cmd.StartsWith("fusao") || cmd.StartsWith("combo") || cmd.StartsWith("synergy"))
+        {
+            string[] parts = cmd.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+            int comboNum = 1;
+            if (parts.Length > 1) int.TryParse(parts[1], out comboNum);
+            CheatConsole.GiveSynergyComboItems(comboNum);
+            Log($"<color=#00F0FF>[CHEAT OK]</color> Itens da fusão #{comboNum} colocados na mochila!");
+        }
+        else if (cmd.StartsWith("giveitem") || cmd.StartsWith("item"))
+        {
+            string[] parts = cmd.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length > 1)
+            {
+                string itemId = parts[1].Trim();
+                PlayerInventory inv = Object.FindFirstObjectByType<PlayerInventory>();
+                if (inv != null)
+                {
+                    bool ok = inv.AddItem(itemId, 1);
+                    Log(ok ? $"<color=#00F0FF>[CHEAT OK]</color> Item {itemId} concedido!" : "<color=#FF5555>[ERRO]</color> Mochila cheia!");
+                }
+            }
+        }
         else if (cmd == "help" || cmd == "?")
         {
             Log("Comandos disponíveis:");

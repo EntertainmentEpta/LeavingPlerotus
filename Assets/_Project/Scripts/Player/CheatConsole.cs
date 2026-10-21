@@ -71,6 +71,22 @@ public class CheatConsole : MonoBehaviour
         new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "sinfonia", aliases = "chaos, pactchaos, pactcaos", description = "Alterna o Pacto A Sinfonia do Caos (+20% drops, +Elites, +35% renascer elite).", executePayload = "sinfonia" },
         new CheatEntry { category = "👾 INIMIGOS, SPAWNS & BOSS", command = "endless", aliases = "-", description = "Alterna o Modo Endless (fases infinitas sem encerrar no chefe).", executePayload = "endless" },
 
+        // 🧪 Teste Rápido de Fusões & Sinergias (Sem Reiniciar)
+        new CheatEntry { category = "🧪 TESTE DE FUSÕES (SEM REINICIAR)", command = "clearinv", aliases = "limparinv, emptyinv", description = "Esvazia todos os 10 slots da mochila instantaneamente para novos testes.", executePayload = "clearinv" },
+        new CheatEntry { category = "🧪 TESTE DE FUSÕES (SEM REINICIAR)", command = "fusao 1", aliases = "combo 1", description = "Chuva de Lâminas (Goblin + SharpBlur).", executePayload = "fusao 1" },
+        new CheatEntry { category = "🧪 TESTE DE FUSÕES (SEM REINICIAR)", command = "fusao 2", aliases = "combo 2", description = "Parede Intransponível (+30 Armadura / Golem + Sentinela).", executePayload = "fusao 2" },
+        new CheatEntry { category = "🧪 TESTE DE FUSÕES (SEM REINICIAR)", command = "fusao 3", aliases = "combo 3", description = "Corte Congelante (Cristalus + SharpBlur).", executePayload = "fusao 3" },
+        new CheatEntry { category = "🧪 TESTE DE FUSÕES (SEM REINICIAR)", command = "fusao 4", aliases = "combo 4", description = "Assassino Fantasma (Aranha + Pedra Mágica).", executePayload = "fusao 4" },
+        new CheatEntry { category = "🧪 TESTE DE FUSÕES (SEM REINICIAR)", command = "fusao 5", aliases = "combo 5", description = "Domínio de Espaço (Totem + Watcher).", executePayload = "fusao 5" },
+        new CheatEntry { category = "🧪 TESTE DE FUSÕES (SEM REINICIAR)", command = "fusao 6", aliases = "combo 6", description = "Tempestade Focada (Tuner + Shard Swarm).", executePayload = "fusao 6" },
+        new CheatEntry { category = "🧪 TESTE DE FUSÕES (SEM REINICIAR)", command = "fusao 7", aliases = "combo 7", description = "Aura Espinhosa (Peixe + Cristalus).", executePayload = "fusao 7" },
+        new CheatEntry { category = "🧪 TESTE DE FUSÕES (SEM REINICIAR)", command = "fusao 8", aliases = "combo 8", description = "Fuga Explosiva (Totem + Goblin).", executePayload = "fusao 8" },
+        new CheatEntry { category = "🧪 TESTE DE FUSÕES (SEM REINICIAR)", command = "fusao 9", aliases = "combo 9", description = "Berserker Imortal (4 Itens: Golem T4 + Bismutado + Istar + Aranha).", executePayload = "fusao 9" },
+        new CheatEntry { category = "🧪 TESTE DE FUSÕES (SEM REINICIAR)", command = "fusao 10", aliases = "combo 10", description = "Veneno Corrosivo (Peixe + Aranha).", executePayload = "fusao 10" },
+        new CheatEntry { category = "🧪 TESTE DE FUSÕES (SEM REINICIAR)", command = "fusao 11", aliases = "combo 11", description = "Baluarte de Obsidiana (+40 Armadura / Golem T2 + Pedra Mágica).", executePayload = "fusao 11" },
+        new CheatEntry { category = "🧪 TESTE DE FUSÕES (SEM REINICIAR)", command = "fusao 18", aliases = "combo 18", description = "Fortaleza de Titânio (+30 Armadura / Sentinela + Totem).", executePayload = "fusao 18" },
+        new CheatEntry { category = "🧪 TESTE DE FUSÕES (SEM REINICIAR)", command = "fusao 21", aliases = "combo 21", description = "A Ascensão: Modo Deus (+100 Armadura / 4x Lendários T4).", executePayload = "fusao 21" },
+
         // ⚡ Miscelânea & Sistema
         new CheatEntry { category = "⚡ MISCELÂNEA & SISTEMA", command = "help", aliases = "ajuda, comandos, commands, secret, ?", description = "Abre esta lista secreta de comandos do desenvolvedor [F1].", executePayload = "help" },
         new CheatEntry { category = "⚡ MISCELÂNEA & SISTEMA", command = "reset", aliases = "novojogo, newgame, resetall, resetsave", description = "Reinicia a jornada do zero, limpando o save persistente.", executePayload = "reset" },
@@ -1137,6 +1153,49 @@ public class CheatConsole : MonoBehaviour
                 EptinhoPopupController.instancia.MostrarPopupAviso(msg);
             }
         }
+        else if (string.Equals(command, "clearinv", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "limparinv", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "limparmochila", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "emptyinv", System.StringComparison.OrdinalIgnoreCase))
+        {
+            PlayerInventory inv = Object.FindFirstObjectByType<PlayerInventory>();
+            if (inv != null)
+            {
+                inv.ClearInventory();
+                string msg = "MOCHILA ESVAZIADA (0/10 SLOTS)!\nPronta para novos testes de fusão!";
+                Debug.Log($"💻 CHEAT: {msg}");
+                if (EptinhoPopupController.instancia != null)
+                {
+                    EptinhoPopupController.instancia.MostrarPopupAviso(msg);
+                }
+            }
+        }
+        else if (command.StartsWith("fusao", System.StringComparison.OrdinalIgnoreCase) ||
+                 command.StartsWith("combo", System.StringComparison.OrdinalIgnoreCase) ||
+                 command.StartsWith("synergy", System.StringComparison.OrdinalIgnoreCase))
+        {
+            string[] parts = command.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+            int comboNum = 1;
+            if (parts.Length > 1) int.TryParse(parts[1], out comboNum);
+            GiveSynergyComboItems(comboNum);
+        }
+        else if (command.StartsWith("giveitem", System.StringComparison.OrdinalIgnoreCase) ||
+                 command.StartsWith("item", System.StringComparison.OrdinalIgnoreCase))
+        {
+            string[] parts = command.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length > 1)
+            {
+                string itemId = parts[1].Trim();
+                PlayerInventory inv = Object.FindFirstObjectByType<PlayerInventory>();
+                if (inv != null)
+                {
+                    bool ok = inv.AddItem(itemId, 1);
+                    string msg = ok ? $"ITEM CONCEDIDO: {itemId}!" : $"FALHA: Mochila cheia (10/10)!";
+                    Debug.Log($"💻 CHEAT: {msg}");
+                    if (EptinhoPopupController.instancia != null) EptinhoPopupController.instancia.MostrarPopupAviso(msg);
+                }
+            }
+        }
         else if (string.Equals(command, "reset", System.StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(command, "novojogo", System.StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(command, "newgame", System.StringComparison.OrdinalIgnoreCase) ||
@@ -1160,6 +1219,123 @@ public class CheatConsole : MonoBehaviour
         if (closeConsoleAfter && isConsoleActive)
         {
             ToggleConsole(); 
+        }
+    }
+
+    public static void GiveSynergyComboItems(int comboNum)
+    {
+        PlayerInventory inv = Object.FindFirstObjectByType<PlayerInventory>();
+        if (inv == null)
+        {
+            Debug.LogWarning("💻 CHEAT: PlayerInventory não encontrado!");
+            return;
+        }
+
+        // Limpa a mochila primeiro para que os itens caibam sem conflito
+        inv.ClearInventory();
+
+        string comboName = "";
+        string[] itemsToGive = null;
+
+        switch (comboNum)
+        {
+            case 1:
+                comboName = "Chuva de Lâminas (Goblin + SharpBlur)";
+                itemsToGive = new[] { "goblin_coin_t1", "01sb" };
+                break;
+            case 2:
+                comboName = "Parede Intransponível (+30 Armadura / Golem + Sentinela)";
+                itemsToGive = new[] { "golem_chip_t1", "bismutado_placa_t2" };
+                break;
+            case 3:
+                comboName = "Corte Congelante (Cristalus + SharpBlur)";
+                itemsToGive = new[] { "02cl", "03sb" };
+                break;
+            case 4:
+                comboName = "Assassino Fantasma (Aranha + Pedra Mágica)";
+                itemsToGive = new[] { "spider_silk_t2", "magic_rune_t2" };
+                break;
+            case 5:
+                comboName = "Domínio de Espaço (Totem + Watcher)";
+                itemsToGive = new[] { "totem_carved_t2", "02cw" };
+                break;
+            case 6:
+                comboName = "Tempestade Focada (Tuner + Shard Swarm)";
+                itemsToGive = new[] { "tuner_lens_t2", "shard_resonant_t2" };
+                break;
+            case 7:
+                comboName = "Aura Espinhosa (Peixe + Cristalus)";
+                itemsToGive = new[] { "peixe_escama_t1", "01cl" };
+                break;
+            case 8:
+                comboName = "Fuga Explosiva (Totem + Goblin)";
+                itemsToGive = new[] { "totem_stone_t1", "goblin_braço_t2" };
+                break;
+            case 9:
+                comboName = "Berserker Imortal (4 Itens: Golem T4 + Bismutado + Istar + Aranha)";
+                itemsToGive = new[] { "golem_heart_t4", "bismutado_glândula_t3", "shard_splinter_t1", "spider_leg_t1" };
+                break;
+            case 10:
+                comboName = "Veneno Corrosivo (Peixe + Aranha)";
+                itemsToGive = new[] { "Peixe_barbatana_t3", "spider_fang_t3" };
+                break;
+            case 11:
+                comboName = "Baluarte de Obsidiana (+40 Armadura / Golem T2 + Pedra Mágica)";
+                itemsToGive = new[] { "golem_plate_t2", "magic_dust_t1" };
+                break;
+            case 12:
+                comboName = "Impacto Sísmico (Golem + Totem)";
+                itemsToGive = new[] { "golem_core_t3", "totem_ancient_t3" };
+                break;
+            case 13:
+                comboName = "Mira Focada do Vigia (Watcher + SharpBlur)";
+                itemsToGive = new[] { "watcher_lens_t1", "02sb" };
+                break;
+            case 14:
+                comboName = "Eco Hipnótico (Tuner + Cristalus)";
+                itemsToGive = new[] { "tuner_shard_t1", "03cl" };
+                break;
+            case 15:
+                comboName = "Toxina Ardente (Peixe + Goblin)";
+                itemsToGive = new[] { "Peixe_guelra_t2", "goblin_amulet_t3" };
+                break;
+            case 16:
+                comboName = "Cintilação Espectral (Pedra Mágica + Aranha)";
+                itemsToGive = new[] { "magic_essence_t3", "spider_silk_t2" };
+                break;
+            case 17:
+                comboName = "Frenesi de Estilhaços (Shard Swarm + SharpBlur)";
+                itemsToGive = new[] { "shard_refract_t3", "01sb" };
+                break;
+            case 18:
+                comboName = "Fortaleza de Titânio (+30 Armadura / Sentinela + Totem)";
+                itemsToGive = new[] { "bismutado_placa_t2", "totem_carved_t2" };
+                break;
+            case 19:
+                comboName = "Cataclismo Arcano (Bismutado + Tuner)";
+                itemsToGive = new[] { "bismutado_t2", "tuner_prism_t3" };
+                break;
+            case 20:
+                comboName = "Supercondutividade Alquímica (Cristalus + Goblin)";
+                itemsToGive = new[] { "03cl", "goblin_bomb_t4" };
+                break;
+            case 21:
+            default:
+                comboName = "A Ascensão: Modo Deus (+100 Armadura / 4x Lendários T4)";
+                itemsToGive = new[] { "golem_heart_t4", "goblin_bomb_t4", "watcher_beacon_t4", "sentinel_leg_t4" };
+                break;
+        }
+
+        foreach (var item in itemsToGive)
+        {
+            inv.AddItem(item, 1);
+        }
+
+        string popup = $"FUSÃO #{comboNum} PRONTA!\n{comboName}\nPressione [ I ] para fundir!";
+        Debug.Log($"💻 CHEAT: {popup}");
+        if (EptinhoPopupController.instancia != null)
+        {
+            EptinhoPopupController.instancia.MostrarPopupAviso(popup);
         }
     }
 }

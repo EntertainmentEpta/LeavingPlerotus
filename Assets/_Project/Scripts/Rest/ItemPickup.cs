@@ -47,6 +47,7 @@ public class ItemPickup : MonoBehaviour
     private bool canBePickedUp = false;
     private GameObject playerNearby = null;
     private bool isInitialized = false;
+    private bool isCollected = false;
 
     private CanvasGroup autoPromptCanvasGroup;
     private TextMeshProUGUI autoPromptTMP;
@@ -807,7 +808,13 @@ public class ItemPickup : MonoBehaviour
     /// </summary>
     private void TryCollect(GameObject player)
     {
-        if (interactable == null || interactable.foiCatalogado) return;
+        if (isCollected || interactable == null || interactable.foiCatalogado) return;
+        isCollected = true;
+
+        // Desativa colisores e este script imediatamente para impedir coletas concorrentes
+        Collider[] allCols = GetComponentsInChildren<Collider>();
+        for (int i = 0; i < allCols.Length; i++) allCols[i].enabled = false;
+        this.enabled = false;
 
         EnsureItemData();
 
