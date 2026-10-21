@@ -68,19 +68,13 @@ public class DeathScreenUI : MonoBehaviour
     // Chamado pelo botão no Inspector
     public void OnReturnBaseClicked()
     {
+        PlayerHealth.shouldPlayWakeUpAnimation = true;
         Time.timeScale = 1f;
         if (RunStatsManager.Instance != null)
         {
             RunStatsManager.Instance.ResetStats();
         }
 
-        if (GameManager.instance != null)
-        {
-            GameManager.instance.ReturnToBase();
-        }
-        else
-        {
-            SceneManager.LoadScene("Base");
-        }
+        GameManager.EnsureInstance().ReturnToBase();
     }
 }

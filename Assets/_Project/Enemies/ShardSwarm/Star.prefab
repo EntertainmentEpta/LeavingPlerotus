@@ -15118,6 +15118,8 @@ MonoBehaviour:
   returnShotReverbPreset: 9
   zapSound: {fileID: 8300000, guid: b42e55eda9c9a8d4f84f078642069000, type: 3}
   zapSoundVolume: 0.9
+  hitSounds: []
+  hitSoundVolume: 0.7
 --- !u!114 &6288799467431216096
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -15130,12 +15132,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 182d9df1045b668438bf37c0018f5e08, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyDrops
-  essencePrefab: {fileID: 0}
-  essenceAmount: 10
-  essenceVariation: 3
-  globalDropChance: 0.3
+  essencePrefab: {fileID: 1526004001283604428, guid: aac8898d50c757240944683fe67b0d7c, type: 3}
+  essenceAmount: 20
+  essenceVariation: 4
+  globalDropChance: 0.35
   itemAmount: 1
-  lootPool: []
+  lootPool:
+  - itemPrefab: {fileID: 2386725423553547639, guid: fadb8518fec226e4f8da46868770d7ab, type: 3}
+    weight: 40
+  - itemPrefab: {fileID: 472676249650753938, guid: 3337efe9b0710d04dae49eb31b5d7ad0, type: 3}
+    weight: 35
+  - itemPrefab: {fileID: 1754924502174001934, guid: 8b323a7c549a9344d88c48a7aeabb7fb, type: 3}
+    weight: 20
+  - itemPrefab: {fileID: 2432034188845710544, guid: 1e06954331061f945a8696e4d94bdb19, type: 3}
+    weight: 5
   spawnHeight: 0.5
   spawnRadius: 0.5
   launchForce: 3

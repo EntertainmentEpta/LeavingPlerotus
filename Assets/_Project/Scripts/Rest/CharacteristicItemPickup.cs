@@ -21,23 +21,92 @@ public class CharacteristicItemPickup : MonoBehaviour
     public float bobHeight = 0.2f;
 
     [Header("Coleta")]
-    public float pickupDelay = 0.5f;
+    public float pickupDelay = 0.15f;
     public float lifetime = 60f; // Itens duram mais que essência
 
+    [Header("Atração Magnética (Estilo Essência)")]
+    [Tooltip("Distância máxima para começar a atrair o item ao jogador")]
+    public float attractDistance = 8.5f;
+    [Tooltip("Velocidade inicial de atração magnética")]
+    public float attractSpeed = 16f;
+    [Tooltip("Offset vertical do ponto de atração do jogador (1.0 = cintura/peito)")]
+    public float attractYOffset = 1.0f;
+
+    private bool isBeingAttracted = false;
+    private float currentAttractSpeed;
     private Vector3 startPosition;
     private float spawnTime;
     private bool canBePickedUp = false;
+    private Transform playerTransform;
+    private bool isCollected = false;
 
     void Start()
     {
         startPosition = transform.position;
         spawnTime = Time.time;
+        currentAttractSpeed = attractSpeed;
+
+        GameObject p = GameObject.FindGameObjectWithTag("Player");
+        if (p != null) playerTransform = p.transform;
+
+        // Garante alcance confortável para o colisor
+        SphereCollider sc = GetComponent<SphereCollider>();
+        if (sc != null && sc.radius < 1.0f)
+        {
+            sc.radius = 1.25f;
+        }
+
+        // Snap vertical no solo real ignorando o corpo e colisores do mob moribundo
+        SnapToFloor();
 
         ConvertCubesToSpheres();
 
         if (lifetime > 0)
         {
             Destroy(gameObject, lifetime);
+        }
+    }
+
+    private void SnapToFloor()
+    {
+        RaycastHit[] hits = Physics.RaycastAll(transform.position + Vector3.up * 2.0f, Vector3.down, 25f);
+        float bestGroundY = float.MinValue;
+        bool foundGround = false;
+
+        foreach (var hit in hits)
+        {
+            if (hit.collider == null || hit.collider.isTrigger) continue;
+            if (hit.collider.transform.root == transform.root) continue;
+            if (hit.collider.CompareTag("Enemy") || hit.collider.CompareTag("Player")) continue;
+            if (hit.collider.GetComponentInParent<DummyHealth>() != null) continue;
+            if (hit.collider.GetComponentInParent<ShardSwarmHealth>() != null) continue;
+
+            // Superfície física de chão/cenário abaixo do spawn
+            if (hit.point.y <= transform.position.y + 1.2f)
+            {
+                if (hit.point.y > bestGroundY)
+                {
+                    bestGroundY = hit.point.y;
+                    foundGround = true;
+                }
+            }
+        }
+
+        if (foundGround)
+        {
+            startPosition = new Vector3(transform.position.x, bestGroundY + 0.45f, transform.position.z);
+            transform.position = startPosition;
+        }
+        else
+        {
+            // Fallback se estiver sobre colisor atípico: ancora na altura do pé do jogador se disponível
+            float fallbackY = transform.position.y;
+            if (playerTransform != null && Mathf.Abs(playerTransform.position.y - transform.position.y) > 0.5f)
+            {
+                fallbackY = playerTransform.position.y + 0.45f;
+            }
+            startPosition = new Vector3(transform.position.x, fallbackY, transform.position.z);
+            transform.position = startPosition;
         }
     }
 
@@ -77,55 +146,74 @@ public class CharacteristicItemPickup : MonoBehaviour
 
     private void ApplyCleanMaterialToRenderers()
     {
-        Shader defaultShader = Shader.Find("Universal Render Pipeline/Lit");
-        if (defaultShader == null) defaultShader = Shader.Find("Standard");
-
-        Color tierColor = new Color(0.2f, 0.75f, 1.0f);
-        if (ItemDatabase.Instance != null && !string.IsNullOrEmpty(itemId))
+        try
         {
-            ItemData data = ItemDatabase.Instance.GetItemData(itemId);
-            if (data != null) tierColor = data.GetTierColor();
-        }
+            Shader defaultShader = Shader.Find("Universal Render Pipeline/Lit");
+            if (defaultShader == null) defaultShader = Shader.Find("Standard");
 
-        foreach (var r in GetComponentsInChildren<Renderer>(true))
-        {
-            if (r == null || r.gameObject.name.Contains("Text") || r.gameObject.name.Contains("Canvas") || r.gameObject.name.Contains("glow"))
-                continue;
-
-            Material mat = r.material;
-            if (mat == null || mat.name.Contains("Default") || mat.name.Contains("Internal"))
+            Color tierColor = new Color(0.2f, 0.75f, 1.0f);
+            if (ItemDatabase.Instance != null && !string.IsNullOrEmpty(itemId))
             {
-                mat = new Material(defaultShader);
-                r.material = mat;
+                ItemData data = ItemDatabase.Instance.GetItemData(itemId);
+                if (data != null) tierColor = data.GetTierColor();
             }
 
-            mat.color = tierColor;
-            mat.EnableKeyword("_EMISSION");
-            mat.SetColor("_EmissionColor", tierColor * 0.7f);
+            foreach (var r in GetComponentsInChildren<Renderer>(true))
+            {
+                if (r == null || r.gameObject.name.Contains("Text") || r.gameObject.name.Contains("Canvas") || r.gameObject.name.Contains("glow"))
+                    continue;
+
+                try
+                {
+                    Material mat = null;
+                    if (r.sharedMaterial != null)
+                    {
+                        mat = r.material;
+                    }
+
+                    if (mat == null || mat.name.Contains("Default") || mat.name.Contains("Internal"))
+                    {
+                        mat = new Material(defaultShader);
+                        r.material = mat;
+                    }
+
+                    mat.color = tierColor;
+                    mat.EnableKeyword("_EMISSION");
+                    mat.SetColor("_EmissionColor", tierColor * 0.7f);
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogWarning($"[ITEM PICKUP] Fallback de material em {r.gameObject.name}: {ex.Message}");
+                }
+            }
+
+            cachedPointLight = GetComponentInChildren<Light>(true);
+            if (cachedPointLight == null)
+            {
+                GameObject lightGo = new GameObject("TierGlowLight");
+                lightGo.transform.SetParent(transform, false);
+                lightGo.transform.localPosition = Vector3.up * 0.2f;
+                cachedPointLight = lightGo.AddComponent<Light>();
+                cachedPointLight.type = LightType.Point;
+            }
+
+            cachedPointLight.color = tierColor;
+            cachedPointLight.intensity = minLightIntensity;
+            cachedPointLight.range = lightRange;
+            cachedPointLight.enabled = true;
+
+            // Aplica a cor do Tier em Sistemas de Partículas (Rays, Small Stars, CFXR3)
+            ParticleSystem[] particleSystems = GetComponentsInChildren<ParticleSystem>(true);
+            foreach (var ps in particleSystems)
+            {
+                if (ps == null) continue;
+                var main = ps.main;
+                main.startColor = tierColor;
+            }
         }
-
-        cachedPointLight = GetComponentInChildren<Light>(true);
-        if (cachedPointLight == null)
+        catch (System.Exception ex)
         {
-            GameObject lightGo = new GameObject("TierGlowLight");
-            lightGo.transform.SetParent(transform, false);
-            lightGo.transform.localPosition = Vector3.up * 0.2f;
-            cachedPointLight = lightGo.AddComponent<Light>();
-            cachedPointLight.type = LightType.Point;
-        }
-
-        cachedPointLight.color = tierColor;
-        cachedPointLight.intensity = minLightIntensity;
-        cachedPointLight.range = lightRange;
-        cachedPointLight.enabled = true;
-
-        // Aplica a cor do Tier em Sistemas de Partículas (Rays, Small Stars, CFXR3)
-        ParticleSystem[] particleSystems = GetComponentsInChildren<ParticleSystem>(true);
-        foreach (var ps in particleSystems)
-        {
-            if (ps == null) continue;
-            var main = ps.main;
-            main.startColor = tierColor;
+            Debug.LogWarning($"[ITEM PICKUP] Erro em ApplyCleanMaterialToRenderers: {ex.Message}");
         }
     }
 
@@ -163,7 +251,7 @@ public class CharacteristicItemPickup : MonoBehaviour
 
     void Update()
     {
-        // Animação sutil de respiração e oscilação de luz (0.8 a 1.2)
+        // Animação sutil de respiração e oscilação de luz
         UpdatePulseEffect();
         UpdateLightPulse();
 
@@ -176,18 +264,72 @@ public class CharacteristicItemPickup : MonoBehaviour
             }
         }
 
-        // Rotação e movimento de flutuação
-        transform.Rotate(Vector3.up, rotateSpeed * Time.deltaTime);
-        
-        float newY = startPosition.y + Mathf.Sin(Time.time * bobSpeed) * bobHeight;
-        transform.position = new Vector3(transform.position.x, newY, transform.position.z);
+        if (playerTransform == null)
+        {
+            GameObject p = GameObject.FindGameObjectWithTag("Player");
+            if (p != null) playerTransform = p.transform;
+        }
+
+        // Checa se o player está no raio de atração magnética
+        if (canBePickedUp && playerTransform != null)
+        {
+            float currentAttractDist = attractDistance;
+            PlayerAttributesDefensive defStats = playerTransform.GetComponent<PlayerAttributesDefensive>();
+            if (defStats != null)
+            {
+                currentAttractDist *= defStats.magnetRangeMultiplier;
+            }
+
+            float distToPlayer = Vector3.Distance(transform.position, playerTransform.position);
+            if (!isBeingAttracted && distToPlayer <= currentAttractDist)
+            {
+                isBeingAttracted = true;
+            }
+        }
+
+        // Atração magnética fluida e acelerada em direção ao jogador (estilo Essência)
+        if (isBeingAttracted && playerTransform != null && canBePickedUp)
+        {
+            currentAttractSpeed = Mathf.Min(currentAttractSpeed + 28f * Time.deltaTime, 26f);
+            Vector3 targetPos = playerTransform.position + Vector3.up * attractYOffset;
+
+            transform.position = Vector3.MoveTowards(transform.position, targetPos, currentAttractSpeed * Time.deltaTime);
+
+            float distToTarget = Vector3.Distance(transform.position, targetPos);
+
+            // Encolhe suavemente ao se aproximar do centro para efeito de absorção física
+            if (distToTarget < 1.2f && baseScaleSaved)
+            {
+                float tScale = Mathf.Clamp01(distToTarget / 1.2f);
+                transform.localScale = Vector3.Lerp(Vector3.zero, initialScale, tScale);
+            }
+
+            // Absorve ao encostar no player
+            if (distToTarget < 0.45f)
+            {
+                CollectItem(playerTransform.gameObject);
+                return;
+            }
+        }
+        else
+        {
+            // Rotação e movimento de flutuação no chão
+            transform.Rotate(Vector3.up, rotateSpeed * Time.deltaTime);
+            float newY = startPosition.y + Mathf.Sin(Time.time * bobSpeed) * bobHeight;
+            transform.position = new Vector3(transform.position.x, newY, transform.position.z);
+        }
     }
 
-    void OnTriggerEnter(Collider other)
-    {
-        if (!canBePickedUp) return;
+    void OnTriggerEnter(Collider other) => CheckAndCollect(other);
+    void OnTriggerStay(Collider other)  => CheckAndCollect(other);
 
-        if (other.CompareTag("Player"))
+    void CheckAndCollect(Collider other)
+    {
+        if (!canBePickedUp || other == null) return;
+
+        if (other.CompareTag("Player") ||
+            other.GetComponentInParent<PlayerHealth>() != null ||
+            other.GetComponentInParent<PlayerInventory>() != null)
         {
             CollectItem(other.gameObject);
         }
@@ -195,6 +337,13 @@ public class CharacteristicItemPickup : MonoBehaviour
 
     void CollectItem(GameObject player)
     {
+        if (isCollected) return;
+        isCollected = true;
+
+        // Desativa colisores e este script imediatamente para impedir coletas concorrentes
+        Collider[] allCols = GetComponentsInChildren<Collider>();
+        for (int i = 0; i < allCols.Length; i++) allCols[i].enabled = false;
+        this.enabled = false;
         // Tenta encontrar o inventário do player (mesmo padrão do EssencePickup)
         PlayerInventory inventory = player.GetComponent<PlayerInventory>();
         
@@ -221,9 +370,14 @@ public class CharacteristicItemPickup : MonoBehaviour
         
         if (!added)
         {
-            // Inventário cheio — item permanece no chão
-            Debug.Log("[ITEM] Inventário cheio! Não coletou: " + itemName);
-            return; // NÃO destrói o item
+            // Inventário cheio (10/10 slots): o drop é destruído/descartado automaticamente
+            Debug.Log($"[ITEM] Mochila cheia (10/10 slots)! {itemName} foi descartado ao passar por cima.");
+            if (EptinhoPopupController.instancia != null)
+            {
+                EptinhoPopupController.instancia.MostrarPopupAviso($"Mochila cheia (10/10)! {itemName} descartado.");
+            }
+            Destroy(gameObject);
+            return;
         }
         
         Debug.Log("[ITEM] Coletou: " + itemName + " (ID: " + itemId + ")");
@@ -233,6 +387,9 @@ public class CharacteristicItemPickup : MonoBehaviour
         {
             SynergyCatalogManager.Instance.DiscoverNode(itemId);
         }
+
+        // Diálogo explicativo da mecânica de Sinergia e fusão de monstros
+        EptinhoStoryDialogs.TriggerFirstMonsterLoot();
 
         // VFX/SFX de coleta aqui se quiser
 

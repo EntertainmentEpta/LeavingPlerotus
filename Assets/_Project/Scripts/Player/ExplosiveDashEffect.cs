@@ -94,6 +94,7 @@ public class ExplosiveDashEffect : MonoBehaviour
 
     private void Update()
     {
+        if (dashScript == null) dashScript = GetComponentInParent<DashM>() ?? GetComponentInChildren<DashM>() ?? FindFirstObjectByType<DashM>();
         if (!isActive || dashScript == null) return;
 
         // Detecta a transição: estava dando dash → parou de dar dash
@@ -113,6 +114,8 @@ public class ExplosiveDashEffect : MonoBehaviour
     public void ActivateEffect()
     {
         isActive = true;
+        if (dashScript == null) dashScript = GetComponentInParent<DashM>() ?? GetComponentInChildren<DashM>() ?? FindFirstObjectByType<DashM>();
+        if (dashVFX == null) dashVFX = GetComponentInParent<PlayerDashVFX>() ?? GetComponentInChildren<PlayerDashVFX>() ?? FindFirstObjectByType<PlayerDashVFX>();
 
         // Aplicar multiplicador de duração no DashM
         if (dashScript != null)
@@ -175,7 +178,7 @@ public class ExplosiveDashEffect : MonoBehaviour
             bool hitEnemy = false;
 
             // Tenta aplicar dano no DummyHealth (inimigos comuns)
-            DummyHealth dummy = hitObj.GetComponent<DummyHealth>() ?? hitObj.GetComponentInParent<DummyHealth>();
+            DummyHealth dummy = hitObj.GetComponent<DummyHealth>() ?? hitObj.GetComponentInParent<DummyHealth>() ?? hitObj.GetComponentInChildren<DummyHealth>();
             if (dummy != null)
             {
                 dummy.TakeDamage(explosionDamage);
@@ -205,16 +208,21 @@ public class ExplosiveDashEffect : MonoBehaviour
             }
         }
 
-        // 2. VFX da explosão
+        // 2. VFX da explosão com múltiplos fallbacks garantidos
         if (VFXManager.Instance != null)
         {
-            VFXManager.Play(explosionVFXType, lastDashEndPosition, Quaternion.identity, explosionVFXScale);
+            GameObject vfx = VFXManager.Play(explosionVFXType, lastDashEndPosition, Quaternion.identity, explosionVFXScale);
+            if (vfx == null)
+            {
+                vfx = VFXManager.Play(VFXType.WWExplosionVariant1, lastDashEndPosition, Quaternion.identity, explosionVFXScale);
+                if (vfx == null)
+                {
+                    VFXManager.Play(VFXType.BossJumpShockwave, lastDashEndPosition, Quaternion.identity, explosionVFXScale);
+                }
+            }
         }
 
-        if (enemiesHit > 0)
-        {
-            Debug.Log($"💥 [ExplosiveDash] EXPLOSÃO! {enemiesHit} inimigo(s) atingido(s) | Dano: {explosionDamage} | Raio: {explosionRadius}");
-        }
+        Debug.Log($"💥 [ExplosiveDash] Detonação no final do Dash! Inimigos atingidos: {enemiesHit} | Dano: {explosionDamage} | Raio: {explosionRadius}");
     }
 
     /// <summary>

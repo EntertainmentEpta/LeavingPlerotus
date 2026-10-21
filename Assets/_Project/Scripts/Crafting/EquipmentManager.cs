@@ -103,6 +103,38 @@ public class EquipmentManager : MonoBehaviour
             BuildLookup();
         }
 
+        // Registra definições canônicas de Blueprints do Robozinho (Escrituras)
+        EnsureBlueprintEquipment("equip_filtro_acido", "Filtro Químico de Decomposição", "Reduz em 40% o dano de veneno e poças ácidas em Plerotus.", EquipmentEffectType.AcidPoisonResist, 0.40f);
+        EnsureBlueprintEquipment("equip_quebra_casca", "Solenoide de Quebra-Casca", "Aumenta em 20% o dano contra armadura e couraça pesada de monstros (Golems e Peixe).", EquipmentEffectType.ShellBreakerArmorDmg, 0.20f);
+        EnsureBlueprintEquipment("equip_anti_hifas", "Agente de Diluição de Hifas", "Reduz a intensidade e duração de lentidão (Slow) e teias em 30%.", EquipmentEffectType.SlowResistance, 0.30f);
+        EnsureBlueprintEquipment("equip_estabilizador_sintonia", "Estabilizador de Frequência", "Inibe o bônus de cadência e regeneração de inimigos sintonizados.", EquipmentEffectType.TunerDisruptor, 1.0f);
+        EnsureBlueprintEquipment("equip_sonda_anomalia", "Sonda de Fissura Mineral", "Revela a localização de Salas de Anomalia e veios raros no bioma.", EquipmentEffectType.AnomalySonar, 1.0f);
+        EnsureBlueprintEquipment("equip_arma_ancestral", "O Catalisador Ancestral", "Aumenta o dano base em 25% e amplifica dano crítico contra o núcleo de Plerotus.", EquipmentEffectType.AncestralCatalyst, 1.25f);
+
+        // Melhorias da Câmara de Infusão e Chassi Térmico
+        EnsureBlueprintEquipment("equip_camara_infusao_1", "Câmara de Infusão Expandida I", "Aprimora o analisador do traje para permitir infusões combinadas de até 3 itens simultâneos.", EquipmentEffectType.InfusionChamberExpansion, 3.0f);
+        EnsureBlueprintEquipment("equip_camara_infusao_2", "Câmara de Infusão Expandida II", "Sintoniza a matriz quântica do traje para permitir fusões massivas de até 4 itens simultâneos.", EquipmentEffectType.InfusionChamberExpansion, 4.0f);
+        EnsureBlueprintEquipment("equip_capacidade_infusao_1", "Chassi Térmico Modular I", "Aumenta o limite de sobreaquecimento do traje, permitindo até 8 infusões ativas na mesma run.", EquipmentEffectType.InfusionCapacityExpansion, 8.0f);
+        EnsureBlueprintEquipment("equip_capacidade_infusao_2", "Chassi Térmico Modular II", "Dissipação criogênica avançada. Permite até 10 infusões ativas simultâneas na mesma run.", EquipmentEffectType.InfusionCapacityExpansion, 10.0f);
+
+        BuildLookup();
+
+        // Garante que o Monitor Telemétrico de Atributos do Robozinho esteja registrado
+        const string ATTRIBUTE_MONITOR_ID = "equip_monitor_atributos";
+        if (GetEquipmentData(ATTRIBUTE_MONITOR_ID) == null)
+        {
+            EquipmentData monitorData = ScriptableObject.CreateInstance<EquipmentData>();
+            monitorData.equipmentId   = ATTRIBUTE_MONITOR_ID;
+            monitorData.equipmentName = "Monitor Telemétrico do Traje";
+            monitorData.description   = "Módulo de telemetria biológica e armamentista acoplado ao visor. Exibe no HUD em tempo real velocidade de locomoção, dano, armadura e infusões ativas. Pressione F5 para alternar.";
+            monitorData.effectType    = EquipmentEffectType.AttributeDisplayModule;
+            monitorData.effectValue   = 1.0f;
+            monitorData.maxStack      = 1;
+
+            allEquipmentDefinitions.Add(monitorData);
+            BuildLookup();
+        }
+
         // Re-aplica efeitos de equipamentos equipados (após carregar o save)
         ReapplyAllEquippedEffects();
 
@@ -384,6 +416,10 @@ public class EquipmentManager : MonoBehaviour
             case EquipmentEffectType.BarrierCounterDisplay:
                 BarrierCounterUI.EnsureExistsAndSetVisible(true);
                 break;
+
+            case EquipmentEffectType.AttributeDisplayModule:
+                AttributeDisplayOnScreenSplit.EnsureExistsAndSetVisible(true);
+                break;
         }
     }
 
@@ -508,6 +544,10 @@ public class EquipmentManager : MonoBehaviour
             case EquipmentEffectType.BarrierCounterDisplay:
                 BarrierCounterUI.EnsureExistsAndSetVisible(false);
                 break;
+
+            case EquipmentEffectType.AttributeDisplayModule:
+                AttributeDisplayOnScreenSplit.EnsureExistsAndSetVisible(false);
+                break;
         }
     }
 
@@ -547,5 +587,40 @@ public class EquipmentManager : MonoBehaviour
         }
         
         OnEquipmentStateChanged?.Invoke();
+    }
+
+    private void EnsureBlueprintEquipment(string id, string name, string desc, EquipmentEffectType effect, float value)
+    {
+        if (GetEquipmentData(id) != null) return;
+
+        EquipmentData data = ScriptableObject.CreateInstance<EquipmentData>();
+        data.equipmentId   = id;
+        data.equipmentName = name;
+        data.description   = desc;
+        data.effectType    = effect;
+        data.effectValue   = value;
+        data.maxStack      = 1;
+
+        allEquipmentDefinitions.Add(data);
+    }
+
+    // ─── GETTERS DE STATUS DOS BLUEPRINTS DE ESCRITURAS ──────────────────────
+    public bool HasAcidPoisonResist => IsEquipped("equip_filtro_acido") || IsEffectActive(EquipmentEffectType.AcidPoisonResist);
+    public bool HasShellBreaker => IsEquipped("equip_quebra_casca") || IsEffectActive(EquipmentEffectType.ShellBreakerArmorDmg);
+    public bool HasSlowResistance => IsEquipped("equip_anti_hifas") || IsEffectActive(EquipmentEffectType.SlowResistance);
+    public bool HasTunerDisruptor => IsEquipped("equip_estabilizador_sintonia") || IsEffectActive(EquipmentEffectType.TunerDisruptor);
+    public bool HasAnomalySonar => IsEquipped("equip_sonda_anomalia") || IsEffectActive(EquipmentEffectType.AnomalySonar);
+    public bool HasAncestralCatalyst => IsEquipped("equip_arma_ancestral") || IsEffectActive(EquipmentEffectType.AncestralCatalyst);
+
+    public bool IsEffectActive(EquipmentEffectType type)
+    {
+        if (SaveManager.instance == null || SaveManager.instance.CachedData == null) return false;
+        List<string> equippedIds = SaveManager.instance.GetAllEquippedEquipmentIds();
+        foreach (string id in equippedIds)
+        {
+            EquipmentData data = GetEquipmentData(id);
+            if (data != null && data.effectType == type) return true;
+        }
+        return false;
     }
 }

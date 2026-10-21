@@ -14,17 +14,17 @@ public class PlayerM : MonoBehaviour
     public KeyCode keyRight = KeyCode.D;
 
     [Header("Movement Settings")]
-    public float walkSpeed = 5f;
-    public float sprintSpeed = 10f;
-    public float rotationSpeed = 10f;
-    public float acceleration = 15f; 
+    public float walkSpeed = 6f;
+    public float sprintSpeed = 11f;
+    public float rotationSpeed = 12f;
+    public float acceleration = 25f; 
 
     [Header("Hitbox Window Settings (O Ajuste Fino)")]
     [Tooltip("Velocidade FÍSICA durante o impacto. 0 = O boneco para no lugar. 5 = O boneco desliza.")]
-    public float hitboxMoveSpeed = 0f; 
+    public float hitboxMoveSpeed = 4.5f; 
 
     [Tooltip("Rotação durante o impacto. 0 = Não vira. 2 = Vira devagar.")]
-    public float hitboxRotationSpeed = 0f;
+    public float hitboxRotationSpeed = 8f;
 
     [Tooltip("Velocidade da ANIMAÇÃO durante o impacto. 1 = Normal. 0.1 = Câmera Lenta (Matrix).")]
     public float hitboxAnimSpeed = 1f;
@@ -43,6 +43,10 @@ public class PlayerM : MonoBehaviour
     private Vector3 moveDirection;
     private float targetSpeed;
     private float currentRotationSpeed;
+    private bool isPlasmaActionLocked;
+    private Vector3 plasmaAimDirection;
+
+    public bool IsPlasmaActionLocked => isPlasmaActionLocked;
 
     [HideInInspector]
     public float debuffSpeedMultiplier = 1.0f;
@@ -96,6 +100,29 @@ public class PlayerM : MonoBehaviour
 
     private void Update()
     {
+        bool isUIBlocking = DialogManager.BlocksGameplayInput || 
+                            GamePause.IsPaused || 
+                            (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen()) || 
+                            (JournalBookUI.Instance != null && JournalBookUI.Instance.IsOpen);
+
+        if (isUIBlocking)
+        {
+            if (footstepSource != null && footstepSource.isPlaying)
+            {
+                footstepSource.Stop();
+                isFootstepPlaying = false;
+            }
+            if (rb != null)
+            {
+                rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            }
+            if (animator != null && animator.isActiveAndEnabled)
+            {
+                animator.SetFloat("Speed", 0f);
+            }
+            return;
+        }
+
         // Pressione K para imprimir diagnósticos de movimentação no console do Unity
         if (Input.GetKeyDown(KeyCode.K))
         {
@@ -118,6 +145,13 @@ public class PlayerM : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if ((CraftingUI.Instance != null && CraftingUI.Instance.IsOpen()) || 
+            (JournalBookUI.Instance != null && JournalBookUI.Instance.IsOpen))
+        {
+            if (rb != null) rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            return;
+        }
+
         PlayerUltimate ult = GetComponent<PlayerUltimate>() ?? GetComponentInChildren<PlayerUltimate>();
         if (ult != null && ult.IsUltimateActive())
         {
@@ -125,12 +159,40 @@ public class PlayerM : MonoBehaviour
             return;
         }
 
+        if (isPlasmaActionLocked)
+        {
+            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            return;
+        }
         if (dashScript != null && dashScript.isDashing) return;
         MovePlayer();
     }
 
+    public void SetPlasmaFiring(bool isFiring)
+    {
+        isPlasmaActionLocked = isFiring;
+        if (!isFiring) return;
+
+        moveDirection = Vector3.zero;
+        targetSpeed = 0f;
+        currentRotationSpeed = 0f;
+    }
+
+    public void SetPlasmaAimDirection(Vector3 direction)
+    {
+        plasmaAimDirection = Vector3.ProjectOnPlane(direction, Vector3.up).normalized;
+    }
+
     private void MyInput()
     {
+        if (isPlasmaActionLocked)
+        {
+            moveDirection = Vector3.zero;
+            targetSpeed = 0f;
+            currentRotationSpeed = 0f;
+            return;
+        }
+
         // === LÓGICA MANUAL DE MOVIMENTO (Substitui o GetAxisRaw) ===
         float horizontal = 0f;
         if (Input.GetKey(keyRight)) horizontal += 1f;
@@ -189,6 +251,13 @@ public class PlayerM : MonoBehaviour
 
     private void LookAtMoveDirection()
     {
+        if (isPlasmaActionLocked && plasmaAimDirection.sqrMagnitude > 0.0001f)
+        {
+            Quaternion aimRotation = Quaternion.LookRotation(plasmaAimDirection, Vector3.up);
+            transform.rotation = Quaternion.Slerp(transform.rotation, aimRotation, rotationSpeed * Time.deltaTime);
+            return;
+        }
+
         if (moveDirection != Vector3.zero)
         {
             Quaternion targetRotation = Quaternion.LookRotation(moveDirection);

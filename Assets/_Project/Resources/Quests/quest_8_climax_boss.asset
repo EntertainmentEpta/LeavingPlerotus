@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bb12d84630a0668428eacdd58e4325e8, type: 3}
+  m_Name: quest_8_climax_boss
+  m_EditorClassIdentifier: Assembly-CSharp::QuestData
+  questId: quest_8_climax_boss
+  questTitle: Ameaca no Coracao do Setor
+  questDescription: "Alcance os confins da camara de testes e derrote o Guardiao Cromatico para extrair o primeiro Nucleo da Nave."
+  questType: 0
+  targetId: boss_defeated
+  requiredAmount: 1
+  nextQuest: {fileID: 0}

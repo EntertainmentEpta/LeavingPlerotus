@@ -452,8 +452,25 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b15a40d39467544491bd1170076b8f8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CraftingTableInteraction
+  talkSounds:
+  - {fileID: 8300000, guid: 23ebf23e71cb27a45b7a2b4a08d5b7ad, type: 3}
+  - {fileID: 8300000, guid: 962d41a906b98d84aadf9bccd8d17ad9, type: 3}
+  - {fileID: 8300000, guid: 6bdbf27b07709b44cab1dc5d459497bd, type: 3}
+  - {fileID: 8300000, guid: 0b6f30343b508a740a64abe646abb6be, type: 3}
+  - {fileID: 8300000, guid: d809c6495745eb2409d94210be2f2680, type: 3}
+  - {fileID: 8300000, guid: 010af3f3e8bb66c499d08910450f518a, type: 3}
+  - {fileID: 8300000, guid: 998dddc982b13784697a3610d8bf1302, type: 3}
+  - {fileID: 8300000, guid: 28ae8fd86d5af0b46a6c1f93d8c995c2, type: 3}
+  - {fileID: 8300000, guid: da68b9b5cd884d04abd8f57bf2b049ec, type: 3}
+  - {fileID: 8300000, guid: c2ab4d8b335f60d42876a72a66ebb6df, type: 3}
+  synthesizeSuccessSound: {fileID: 8300000, guid: 48809fad0bc2bd24187038b881f81eab, type: 3}
+  synthesizeFailSound: {fileID: 8300000, guid: 92fd3c81bddfb8442b9cbf27db13c4c9, type: 3}
+  soundVolume: 1
+  actionText: Interagir
   promptUI: {fileID: 0}
-  roboSound: {fileID: 0}
+  promptTextMesh: {fileID: 0}
+  fadeSpeed: 6
+  robotModelTransform: {fileID: 0}
 --- !u!65 &8778183051336428040
 BoxCollider:
   m_ObjectHideFlags: 0

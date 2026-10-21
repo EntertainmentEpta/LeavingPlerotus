@@ -31,6 +31,14 @@ public class FloatingDamageText : MonoBehaviour
     [Range(1f, 3f)]
     public float criticalLifetimeMultiplier = 1.25f;
 
+    [Header("Poison Hit Settings")]
+    [Tooltip("Cor do texto para dano de veneno (modo Canvas TMP)")]
+    public Color poisonColor = new Color(0.18f, 0.95f, 0.22f, 1f);
+
+    [Tooltip("Multiplicador de tamanho para dano de veneno")]
+    [Range(0.5f, 2f)]
+    public float poisonSizeMultiplier = 0.95f;
+
     [Header("CFXR Particle Settings")]
     [Tooltip("Tamanho base da fonte nas partículas")]
     public float particleBaseSize = 0.32f;
@@ -49,6 +57,12 @@ public class FloatingDamageText : MonoBehaviour
 
     [Tooltip("Cor 2 (inferior) para dano crítico - Vinho profundo")]
     public Color particleColorCrit2 = new Color(0.42f, 0.02f, 0.08f, 1f);
+
+    [Tooltip("Cor 1 (superior) para dano de veneno - Verde Lima brilhante")]
+    public Color particleColorPoison1 = new Color(0.30f, 1.0f, 0.32f, 1f);
+
+    [Tooltip("Cor 2 (inferior) para dano de veneno - Verde Esmeralda/Tóxico")]
+    public Color particleColorPoison2 = new Color(0.06f, 0.65f, 0.14f, 1f);
 
     [Header("Endless & Strength Scaling")]
     [Tooltip("Permite que o tamanho da fonte e do número de dano escale com a força base do jogador e com o dano causado.")]
@@ -70,6 +84,7 @@ public class FloatingDamageText : MonoBehaviour
     private Color startColor;
     private float baseFontSize;
     private bool isCriticalHit = false;
+    private bool isPoisonDamage = false;
     private string pendingText = null;
 
     private Vector3 initialLocalScale = Vector3.one;
@@ -144,12 +159,22 @@ public class FloatingDamageText : MonoBehaviour
     }
 
     /// <summary>
-    /// Define o dano numérico e calcula o escalonamento infinito da fonte/escala com base no dano e na força do jogador.
+    /// Overload de compatibilidade para chamadas antigas.
     /// </summary>
-    public void SetDamage(int damage, bool isCritical = false, float strengthMult = -1f)
+    public void SetDamage(int damage, bool isCritical, float strengthMult)
+    {
+        SetDamage(damage, isCritical, false, strengthMult);
+    }
+
+    /// <summary>
+    /// Define o dano numérico e calcula o escalonamento infinito da fonte/escala com base no dano e na força do jogador.
+    /// Suporta Dano Normal (Branco), Crítico (Vermelho) e Veneno (Verde).
+    /// </summary>
+    public void SetDamage(int damage, bool isCritical = false, bool isPoison = false, float strengthMult = -1f)
     {
         currentDamageValue = damage;
         isCriticalHit = isCritical;
+        isPoisonDamage = isPoison;
         if (strengthMult > 0f)
         {
             customStrengthMultiplier = strengthMult;
@@ -165,6 +190,36 @@ public class FloatingDamageText : MonoBehaviour
                 textMesh.color = criticalColor;
                 startColor = criticalColor;
             }
+            else if (isPoison)
+            {
+                textMesh.color = poisonColor;
+                startColor = poisonColor;
+            }
+            else
+            {
+                textMesh.color = Color.white;
+                startColor = Color.white;
+            }
+        }
+
+        UpdateScaleAndVisuals();
+
+        if (particleText != null)
+        {
+            ApplyParticleText();
+        }
+    }
+
+    /// <summary>
+    /// Configura o texto para o estilo de dano de veneno (Verde).
+    /// </summary>
+    public void SetPoison(bool isPoison)
+    {
+        isPoisonDamage = isPoison;
+        if (isPoison && textMesh != null)
+        {
+            textMesh.color = poisonColor;
+            startColor = poisonColor;
         }
 
         UpdateScaleAndVisuals();
@@ -194,6 +249,39 @@ public class FloatingDamageText : MonoBehaviour
         if (particleText != null)
         {
             ApplyParticleText();
+        }
+    }
+
+    /// <summary>
+    /// Exibe uma mensagem especial (ex: "★ ELITE RENASCIDO! ★") com cor e escala customizadas.
+    /// </summary>
+    public void SetCustomMessage(string message, Color color, float sizeMultiplier = 1.3f)
+    {
+        pendingText = message;
+        currentDamageValue = 0;
+        isCriticalHit = false;
+        isPoisonDamage = false;
+
+        if (textMesh != null)
+        {
+            textMesh.text = message;
+            textMesh.color = color;
+            startColor = color;
+        }
+
+        transform.localScale = initialLocalScale * sizeMultiplier;
+        lifetime = 2.0f;
+        timer = lifetime;
+
+        if (particleText != null)
+        {
+            particleText.UpdateText(
+                newText: message,
+                newSize: particleBaseSize * sizeMultiplier,
+                newColor1: color,
+                newColor2: new Color(color.r * 0.7f, color.g * 0.5f, 0f, 1f),
+                newLifetimeMultiplier: 1.5f
+            );
         }
     }
     
@@ -239,10 +327,14 @@ public class FloatingDamageText : MonoBehaviour
             scaleMultiplier = 1.0f + strengthBonus + damageBonus;
         }
 
-        // Multiplicador se for acerto crítico
+        // Multiplicador se for acerto crítico ou veneno
         if (isCriticalHit)
         {
             scaleMultiplier *= criticalSizeMultiplier;
+        }
+        else if (isPoisonDamage)
+        {
+            scaleMultiplier *= poisonSizeMultiplier;
         }
 
         // Evita escala nula ou invisível caso haja debuffs extremos
@@ -288,9 +380,9 @@ public class FloatingDamageText : MonoBehaviour
     {
         if (particleText == null) return;
 
-        Color c1 = isCriticalHit ? particleColorCrit1 : particleColorNormal1;
-        Color c2 = isCriticalHit ? particleColorCrit2 : particleColorNormal2;
-        float s = isCriticalHit ? (particleBaseSize * criticalSizeMultiplier) : particleBaseSize;
+        Color c1 = isCriticalHit ? particleColorCrit1 : (isPoisonDamage ? particleColorPoison1 : particleColorNormal1);
+        Color c2 = isCriticalHit ? particleColorCrit2 : (isPoisonDamage ? particleColorPoison2 : particleColorNormal2);
+        float s = isCriticalHit ? (particleBaseSize * criticalSizeMultiplier) : (isPoisonDamage ? (particleBaseSize * poisonSizeMultiplier) : particleBaseSize);
         float lt = isCriticalHit ? (particleLifetimeMultiplier * criticalLifetimeMultiplier) : particleLifetimeMultiplier;
 
         particleText.UpdateText(

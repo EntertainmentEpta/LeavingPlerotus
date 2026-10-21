@@ -245,6 +245,14 @@ public class EptinhoPopupController : MonoBehaviour
     {
         if (popupUI == null) return;
 
+        // 0. Garante que o Canvas do Eptinho fique na frente de tudo (inclusive Inventário, que tem sortingOrder 100)
+        Canvas canvas = popupUI.GetComponent<Canvas>();
+        if (canvas != null)
+        {
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = 500;
+        }
+
         // 1. Estiliza o painel principal (PopupPanel) e desativa esticamento automático de filhotes
         Transform panel = popupUI.transform.Find("PopupPanel");
         if (panel != null)
@@ -281,6 +289,7 @@ public class EptinhoPopupController : MonoBehaviour
             if (panelImg != null)
             {
                 panelImg.color = panelColor;
+                panelImg.raycastTarget = false; // Não bloqueia cliques no inventário ou itens por trás
                 Outline outline = panel.GetComponent<Outline>();
                 if (outline == null) outline = panel.gameObject.AddComponent<Outline>();
                 outline.effectColor = borderColor; 
@@ -297,6 +306,7 @@ public class EptinhoPopupController : MonoBehaviour
 
             imagemDoItem.type = Image.Type.Simple;
             imagemDoItem.preserveAspect = true;
+            imagemDoItem.raycastTarget = false; // Não bloqueia cliques
 
             LayoutElement le = imagemDoItem.GetComponent<LayoutElement>();
             if (le == null) le = imagemDoItem.gameObject.AddComponent<LayoutElement>();
@@ -335,6 +345,7 @@ public class EptinhoPopupController : MonoBehaviour
             textoDoItem.fontSize = textFontSize;
             textoDoItem.alignment = TextAlignmentOptions.MidlineLeft;
             textoDoItem.textWrappingMode = TextWrappingModes.Normal;
+            textoDoItem.raycastTarget = false; // Não bloqueia cliques
 
             LayoutElement textLe = textoDoItem.GetComponent<LayoutElement>();
             if (textLe != null) textLe.ignoreLayout = true;
@@ -367,6 +378,33 @@ public class EptinhoPopupController : MonoBehaviour
                 }
             }
         }
+
+        // 4. Garante que nenhum elemento estático do popup intercepte raycasts do mouse
+        foreach (var graphic in popupUI.GetComponentsInChildren<Graphic>(true))
+        {
+            if (graphic.GetComponent<Button>() == null && graphic.GetComponentInParent<Button>() == null)
+            {
+                graphic.raycastTarget = false;
+            }
+        }
+    }
+
+    public static string SanitizeEmojis(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return text;
+        return text.Replace("📖", "[LORE]")
+                   .Replace("📜", "[REGISTRO]")
+                   .Replace("🐕", "")
+                   .Replace("⚙", "[PROJETO]")
+                   .Replace("🛠", "[ESQUEMA]")
+                   .Replace("✔", "[OK]")
+                   .Replace("✖", "[X]")
+                   .Replace("💡", "[DICA]")
+                   .Replace("🎁", "[ITEM]")
+                   .Replace("🔓", "[DESTRAVADO]")
+                   .Replace("💰", "[ORBS]")
+                   .Replace("⚡", "[ENERGIA]")
+                   .Replace("💻", "[CONSOLE]");
     }
 
     /// <summary>
@@ -376,6 +414,8 @@ public class EptinhoPopupController : MonoBehaviour
     private void AjustarTamanhoDoPainelDinamico(string mensagem)
     {
         if (!autoResizePanel || popupUI == null || textoDoItem == null) return;
+
+        mensagem = SanitizeEmojis(mensagem);
 
         Transform panel = popupUI.transform.Find("PopupPanel");
         if (panel == null) return;
@@ -516,6 +556,8 @@ public class EptinhoPopupController : MonoBehaviour
 
         // Aplica o estilo base
         EstilizarUIEmTempoReal();
+
+        mensagem = SanitizeEmojis(mensagem);
 
         if (textoDoItem != null)
         {

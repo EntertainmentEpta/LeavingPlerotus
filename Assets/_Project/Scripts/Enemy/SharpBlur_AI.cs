@@ -19,13 +19,15 @@ public class SharpBlur : MonoBehaviour
     [Tooltip("Distância média para iniciar a sequência de Dash")]
     public float dashTriggerDistance = 8f; 
     [Tooltip("Distância curta para dar um soco/ataque normal")]
-    public float meleeTriggerDistance = 2.5f;
+    public float meleeTriggerDistance = 3.0f;
+    [Tooltip("Tempo de recarga entre sequências de teleporte/dash para permitir aproximação e ataque corpo a corpo")]
+    public float dashCooldown = 3.5f;
 
     [Header("Configurações do Dash")]
     public float dashDistance = 9f;
     public float dashSpeed = 30f;
     public float pauseBetweenDashes = 0.25f;
-    public float endSequenceRest = 1.2f;
+    public float endSequenceRest = 1.0f;
 
     [Header("Configurações do Ataque Corpo a Corpo")]
     public float meleeDuration = 1f; // Tempo que dura a animação do soco
@@ -34,7 +36,7 @@ public class SharpBlur : MonoBehaviour
     [Header("Refinamentos Inteligencia")]
     public float anticipationTime = 0.2f; 
     [Range(0f, 1f)] public float leadPrediction = 0.5f;
-    public float retreatDistance = 4f;
+    public float retreatDistance = 3.5f;
 
     [Header("Dano")]
     public int dashDamage = 15;
@@ -46,22 +48,38 @@ public class SharpBlur : MonoBehaviour
     public Material hologramMaterial;
     [Range(0.1f, 1f)] public float hologramAlpha = 0.6f;
 
-    [Header("Áudio")]
+    [Header("Áudio — Movimentação (Teleporte / Dash)")]
     [Tooltip("Som da distorção de teleporte / dash do SharpBlur")]
     public AudioClip teleportSound;
     [Tooltip("Volume do som de teleporte")]
     [Range(0f, 1f)]
     public float teleportSoundVolume = 0.8f;
 
-    [Tooltip("Som do ataque (swoosh / swish de cristal)")]
+    [Header("Áudio — Ataque (Golpe)")]
+    [Tooltip("Som do ataque (swoosh / corte de cristal)")]
     public AudioClip meleeAttackSound;
     [Tooltip("Volume do som de ataque")]
     [Range(0f, 1f)]
-    public float meleeAttackSoundVolume = 0.8f;
+    public float meleeAttackSoundVolume = 0.9f;
+
+    [Header("Áudio — Dano Recebido (Hit)")]
+    [Tooltip("Sons reproduzidos quando o SharpBlur leva dano (golpe do player). NÃO colocar sons de ataque aqui.")]
+    public AudioClip[] hitSounds;
+    [Tooltip("Volume dos sons de dano recebido (hit)")]
+    [Range(0f, 1f)]
+    public float hitSoundVolume = 0.7f;
+
+    [Header("Áudio — Morte (Die)")]
+    [Tooltip("Sons reproduzidos quando o SharpBlur morre.")]
+    public AudioClip[] dieSounds;
+    [Tooltip("Volume dos sons de morte")]
+    [Range(0f, 1f)]
+    public float dieSoundVolume = 0.8f;
 
     // Adicionado o estado MeleeAttacking
     private enum State { Idle, Chasing, Dashing, MeleeAttacking, Resting }
     private State currentState = State.Idle;
+    private float nextDashAllowedTime = 0f;
 
     void Start()
     {
@@ -87,6 +105,32 @@ public class SharpBlur : MonoBehaviour
         rb.useGravity = false;
         rb.freezeRotation = true;
         rb.constraints |= RigidbodyConstraints.FreezePositionY;
+
+        // Registra callbacks de áudio de hit e morte
+        if (health != null)
+        {
+            if (hitSounds != null && hitSounds.Length > 0)
+                health.onDamageTaken += (damage, attacker) => PlayHitSound();
+
+            if (dieSounds != null && dieSounds.Length > 0)
+                health.onDeath += PlayDieSound;
+        }
+    }
+
+    private void PlayHitSound()
+    {
+        if (hitSounds == null || hitSounds.Length == 0) return;
+        AudioClip clip = hitSounds[Random.Range(0, hitSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), hitSoundVolume);
+    }
+
+    private void PlayDieSound()
+    {
+        if (dieSounds == null || dieSounds.Length == 0) return;
+        AudioClip clip = dieSounds[Random.Range(0, dieSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), dieSoundVolume);
     }
 
     void Update()
@@ -124,13 +168,12 @@ public class SharpBlur : MonoBehaviour
         
         LookAtPosition(playerTransform.position, 10f);
 
-        // NOVA LÓGICA DE DECISÃO COM ALEATORIEDADE DE PERTO
-        if (distToPlayer <= meleeTriggerDistance)
+        bool canDash = Time.time >= nextDashAllowedTime;
+
+        // Se chegou perto do jogador, prioriza o ataque corpo a corpo (com som de ataque!)
+        if (distToPlayer <= Mathf.Max(2.8f, meleeTriggerDistance))
         {
-            // Sorteia um número de 0 a 100. 
-            // Se cair abaixo de 50 (50% de chance), ele dá o ataque Melee.
-            // Se cair 50 ou mais, ele surpreende e dá o Dash!
-            if (Random.Range(0, 100) < 50)
+            if (!canDash || Random.Range(0, 100) < 75)
             {
                 StartCoroutine(MeleeAttackRoutine());
             }
@@ -139,37 +182,40 @@ public class SharpBlur : MonoBehaviour
                 StartCoroutine(DashRoutine());
             }
         }
-        else if (distToPlayer <= dashTriggerDistance)
+        else if (distToPlayer <= dashTriggerDistance && canDash)
         {
-            // Se estiver na distância média, ele só usa os dashes
+            // Na distância média e com o Dash fora de cooldown, usa os dashes
             StartCoroutine(DashRoutine());
         }
         else
         {
-            // Se estiver longe, continua correndo atrás do player
+            // Se estiver longe (ou com Dash em recarga), corre atrás do player até alcançar o Melee!
             Vector3 targetPos = Vector3.MoveTowards(transform.position, playerTransform.position, chaseSpeed * Time.deltaTime);
             rb.MovePosition(targetPos);
         }
     }
 
-    // NOVA ROTINA: Ataque de perto
+    // ROTINA: Ataque de perto (Combo de Garras)
     IEnumerator MeleeAttackRoutine()
     {
         currentState = State.MeleeAttacking;
 
-        if (anim != null) anim.SetBool("isChasing", false);
-        
-        // Substitua "Melee" pelo nome exato da sua animação de soco/mordida no Animator
-        if (anim != null) anim.Play("Melee", 0, 0f); 
+        LookAtPosition(playerTransform.position, 30f);
 
-        // Toca o som do ataque (swoosh / swish de cristal)
+        if (anim != null)
+        {
+            anim.SetBool("isChasing", false);
+            anim.Play("Melee", 0, 0f);
+        }
+
+        // Toca o som do ataque (swoosh / corte de cristal) imediatamente no início do golpe
         PlayMeleeAttackSound();
 
-        // Aguarda o tempo do ataque acontecer
-        yield return new WaitForSeconds(meleeDuration / 2f);
+        // Aguarda a primeira metade da animação (momento do impacto)
+        yield return new WaitForSeconds(meleeDuration * 0.45f);
 
-        // Verifica se o jogador ainda está perto no momento do impacto para dar o dano
-        if (Vector3.Distance(transform.position, playerTransform.position) <= meleeTriggerDistance + 1f)
+        // Verifica se o jogador ainda está perto no momento do impacto para aplicar o dano
+        if (playerTransform != null && Vector3.Distance(transform.position, playerTransform.position) <= Mathf.Max(2.8f, meleeTriggerDistance) + 1.2f)
         {
             PlayerHealth ph = playerTransform.GetComponent<PlayerHealth>() ?? playerTransform.GetComponentInParent<PlayerHealth>();
             if (ph != null)
@@ -180,16 +226,16 @@ public class SharpBlur : MonoBehaviour
         }
 
         // Termina a segunda metade da animação
-        yield return new WaitForSeconds(meleeDuration / 2f);
+        yield return new WaitForSeconds(meleeDuration * 0.55f);
 
         currentState = State.Resting;
-        yield return new WaitForSeconds(endSequenceRest);
+        yield return new WaitForSeconds(endSequenceRest * 0.6f);
         
         currentState = State.Chasing;
         if (anim != null) anim.SetBool("isChasing", true);
     }
 
-    // ANTIGO TripleDashRoutine AGORA É DashRoutine (Quantidade Aleatória)
+    // Sequência de Teleporte / Dash seguida de Golpe
     IEnumerator DashRoutine()
     {
         currentState = State.Dashing;
@@ -209,8 +255,13 @@ public class SharpBlur : MonoBehaviour
             if (dashDirection == Vector3.zero) dashDirection = transform.forward;
 
             Vector3 targetBasePos = targetPredictPos;
-            targetBasePos.y = transform.position.y; 
-            Vector3 targetDashPos = targetBasePos + (dashDirection * (dashDistance / 2f));
+            targetBasePos.y = transform.position.y;
+
+            // No último dash da sequência, para próximo ao jogador para encaixar o golpe!
+            bool isLastDash = (i == numberOfDashes - 1);
+            Vector3 targetDashPos = isLastDash
+                ? targetBasePos - (dashDirection * 1.2f)
+                : targetBasePos + (dashDirection * (dashDistance / 2f));
             Quaternion dashRot = Quaternion.LookRotation(dashDirection);
 
             if (hologramPrefab != null && hologramMaterial != null)
@@ -226,11 +277,34 @@ public class SharpBlur : MonoBehaviour
             if (anim != null) anim.Play("Dash", 0, 0f);
             
             yield return new WaitForSeconds(anticipationTime);
-            yield return StartCoroutine(ExecuteSingleDash(dashDirection, targetPredictPos));
+            yield return StartCoroutine(ExecuteSingleDash(dashDirection, targetDashPos));
             yield return new WaitForSeconds(pauseBetweenDashes);
         }
 
+        // Ao finalizar o teleporte perto do jogador, desfere o golpe com som de ataque antes de recuar!
+        if (playerTransform != null && Vector3.Distance(transform.position, playerTransform.position) <= Mathf.Max(3.5f, meleeTriggerDistance + 1f))
+        {
+            LookAtPosition(playerTransform.position, 40f);
+            if (anim != null) anim.Play("Melee", 0, 0f);
+            PlayMeleeAttackSound();
+
+            yield return new WaitForSeconds(meleeDuration * 0.45f);
+
+            if (playerTransform != null && Vector3.Distance(transform.position, playerTransform.position) <= Mathf.Max(3.5f, meleeTriggerDistance + 1.2f))
+            {
+                PlayerHealth ph = playerTransform.GetComponent<PlayerHealth>() ?? playerTransform.GetComponentInParent<PlayerHealth>();
+                if (ph != null)
+                {
+                    ph.TakeDamage(meleeDamage, gameObject);
+                }
+            }
+
+            yield return new WaitForSeconds(meleeDuration * 0.35f);
+        }
+
         yield return StartCoroutine(RetreatRoutine());
+
+        nextDashAllowedTime = Time.time + dashCooldown;
 
         currentState = State.Resting;
         yield return new WaitForSeconds(endSequenceRest);
@@ -239,7 +313,7 @@ public class SharpBlur : MonoBehaviour
         if (anim != null) anim.SetBool("isChasing", true);
     }
 
-    IEnumerator ExecuteSingleDash(Vector3 direction, Vector3 targetBasePos)
+    IEnumerator ExecuteSingleDash(Vector3 direction, Vector3 targetDashPos)
     {
         if (direction == Vector3.zero) direction = transform.forward;
         transform.rotation = Quaternion.LookRotation(direction);
@@ -248,13 +322,11 @@ public class SharpBlur : MonoBehaviour
         PlayTeleportSound();
 
         Vector3 startPos = transform.position;
-        targetBasePos.y = startPos.y; 
-
-        Vector3 targetDashPos = targetBasePos + (direction * (dashDistance / 2f));
+        targetDashPos.y = startPos.y; 
         
         float startTime = Time.time;
         float distance = Vector3.Distance(startPos, targetDashPos);
-        float duration = distance / dashSpeed;
+        float duration = Mathf.Max(0.05f, distance / dashSpeed);
 
         while (Time.time - startTime < duration)
         {
@@ -303,6 +375,7 @@ public class SharpBlur : MonoBehaviour
             PlayerHealth ph = other.GetComponent<PlayerHealth>() ?? other.GetComponentInParent<PlayerHealth>();
             if (ph != null)
             {
+                PlayMeleeAttackSound();
                 ph.TakeDamage(dashDamage, gameObject);
                 Debug.Log($"[SharpBlur] causou {dashDamage} de dano com o Dash.");
             }
@@ -316,6 +389,7 @@ public class SharpBlur : MonoBehaviour
             PlayerHealth ph = collision.gameObject.GetComponent<PlayerHealth>() ?? collision.gameObject.GetComponentInParent<PlayerHealth>();
             if (ph != null)
             {
+                PlayMeleeAttackSound();
                 ph.TakeDamage(dashDamage, gameObject);
                 Debug.Log($"[SharpBlur] causou {dashDamage} de dano com o Dash.");
             }
@@ -359,12 +433,12 @@ public class SharpBlur : MonoBehaviour
         aSource.clip = clip;
         aSource.pitch = pitch;
         aSource.volume = volume;
-        aSource.spatialBlend = 1f; // Som 3D
-        aSource.minDistance = 3f;
-        aSource.maxDistance = 25f;
+        aSource.spatialBlend = 0.2f; // Mais presente na câmera top-down/isométrica
+        aSource.minDistance = 12f;
+        aSource.maxDistance = 60f;
         aSource.rolloffMode = AudioRolloffMode.Linear;
         aSource.Play();
         float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;
-        Destroy(audioObj, clip.length / safePitch);
+        Destroy(audioObj, (clip.length / safePitch) + 0.1f);
     }
 }

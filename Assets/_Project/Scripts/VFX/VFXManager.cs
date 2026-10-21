@@ -113,7 +113,10 @@ public class VFXManager : MonoBehaviour
             { VFXType.PlayerAxeGroundSlam, "Assets/_Project/VFX/Texture Packs/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Impacts/CFXR Impact Glowing HDR (Blue).prefab" },
             { VFXType.ImpactFrame, "Assets/Vefects/Easy Impact Frames/VFX/Impact Frames/Particles/VFX_Impact_Frame_01.prefab" },
             { VFXType.ImpactEyeCandy, "Assets/Vefects/Easy Impact Frames/VFX/Extra/Particles/VFX_Extra_Eye_Candy_01.prefab" },
-            { VFXType.WWExplosionVariant1, "Assets/_Project/VFX/Texture Packs/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Explosions/CFXR2 WW Explosion 1.prefab" }
+            { VFXType.WWExplosionVariant1, "Assets/_Project/VFX/Texture Packs/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Explosions/CFXR2 WW Explosion 1.prefab" },
+            { VFXType.DashExplosion, "Assets/_Project/VFX/Texture Packs/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Explosions/CFXR2 WW Explosion 1.prefab" },
+            { VFXType.PlayerDash, "Assets/_Project/VFX/Texture Packs/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Nature/CFXR3 Hit Leaves A (Lit).prefab" },
+            { VFXType.PlayerDashEnhanced, "Assets/_Project/VFX/Texture Packs/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Explosions/CFXR Explosion 1.prefab" }
         };
 
         foreach (var kvp in defaultPaths)

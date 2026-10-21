@@ -70,6 +70,19 @@ public class InventoryUI : MonoBehaviour
     [Tooltip("Tooltip customizado flutuante.")]
     public InventoryTooltip customTooltip;
 
+    [Header("Áudio")]
+    [Tooltip("Som reproduzido ao abrir o inventário")]
+    public AudioClip openSound;
+    [Tooltip("Volume do som de abrir")]
+    [Range(0f, 1f)]
+    public float openSoundVolume = 0.8f;
+
+    [Tooltip("Som reproduzido ao fechar o inventário")]
+    public AudioClip closeSound;
+    [Tooltip("Volume do som de fechar")]
+    [Range(0f, 1f)]
+    public float closeSoundVolume = 0.8f;
+
     // Referências internas
     public static Canvas CanvasInstance;
     private PlayerInventory playerInventory;
@@ -91,6 +104,11 @@ public class InventoryUI : MonoBehaviour
     private GameObject screenOverlayObject;
     private GameObject previewPanelObject;
     private GameObject statsPanelObject;
+
+    // Módulo Visual do Histórico de Infusões
+    private GameObject infusionHistoryPanelObj;
+    private RectTransform infusionHistoryContent;
+    private TextMeshProUGUI infusionHistoryHeader;
 
     private Vector3 lastInventoryPanelPosition;
     private Vector3 lastPreviewPanelPosition;
@@ -217,6 +235,7 @@ public class InventoryUI : MonoBehaviour
         if (screenOverlayObject != null) screenOverlayObject.SetActive(false);
         if (previewPanelObject != null) previewPanelObject.SetActive(false);
         if (statsPanelObject != null) statsPanelObject.SetActive(false);
+        if (infusionHistoryPanelObj != null) infusionHistoryPanelObj.SetActive(false);
         if (PlayerPreviewManager.Instance != null) PlayerPreviewManager.Instance.Deactivate();
         if (tooltip != null) tooltip.Hide();
         Cursor.lockState = CursorLockMode.Locked;
@@ -412,6 +431,7 @@ public class InventoryUI : MonoBehaviour
         if (screenOverlayObject != null) screenOverlayObject.SetActive(true);
         if (showPlayerPreview && previewPanelObject != null) previewPanelObject.SetActive(true);
         if (showPlayerPreview && statsPanelObject != null) statsPanelObject.SetActive(true);
+        if (infusionHistoryPanelObj != null) infusionHistoryPanelObj.SetActive(true);
 
         // Ativa o preview 3D do player
         if (showPlayerPreview && PlayerPreviewManager.Instance != null)
@@ -424,12 +444,19 @@ public class InventoryUI : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
 
         RefreshUI();
+        RefreshInfusionHistory();
 
         // Sincroniza com a Bolsa Sintética
         if (SyntheticBagUI.Instance != null && !SyntheticBagUI.Instance.IsOpen())
         {
             SyntheticBagUI.Instance.OpenBag();
         }
+
+        // Toca o som de abertura do inventário
+        if (openSound != null)
+            PlayAudio(openSound, openSoundVolume);
+        else if (playerInventory != null)
+            playerInventory.PlayOpenInventorySound();
 
         Debug.Log("[INVENTORY UI] Inventário aberto");
     }
@@ -439,6 +466,15 @@ public class InventoryUI : MonoBehaviour
     /// </summary>
     public void CloseInventory()
     {
+        if (isOpen)
+        {
+            // Toca o som de fechamento do inventário
+            if (closeSound != null)
+                PlayAudio(closeSound, closeSoundVolume);
+            else if (playerInventory != null)
+                playerInventory.PlayCloseInventorySound();
+        }
+
         ClearSelection();
         isOpen = false;
         if (panelObject != null) panelObject.SetActive(false);
@@ -446,6 +482,7 @@ public class InventoryUI : MonoBehaviour
         if (screenOverlayObject != null) screenOverlayObject.SetActive(false);
         if (previewPanelObject != null) previewPanelObject.SetActive(false);
         if (statsPanelObject != null) statsPanelObject.SetActive(false);
+        if (infusionHistoryPanelObj != null) infusionHistoryPanelObj.SetActive(false);
 
         // Desativa o preview 3D do player
         if (showPlayerPreview && PlayerPreviewManager.Instance != null)
@@ -518,22 +555,38 @@ public class InventoryUI : MonoBehaviour
             RebuildSlots(absoluteMaxSlots);
         }
 
-        // Preenche os slots com dados do inventário
-        Dictionary<string, int> items = playerInventory.GetAllItems();
+        // Preenche os slots com dados do inventário (sem stacking: cada item em 1 slot dedicado)
+        List<string> itemSlots = playerInventory.GetItemSlots();
+
+        // Avalia itens que possuem sinergia ativa com outro item presente na mochila
+        Dictionary<string, string> itemToRecipe = new Dictionary<string, string>();
+        HashSet<string> synergisticItems = SynergyDatabase.GetSynergisticItemsInList(itemSlots, out itemToRecipe);
+
+        if (synergisticItems.Count > 0)
+        {
+            headerText.text += "  <size=12><color=#FFD700>★ Sinergia Disponível</color></size>";
+        }
+
         int slotIndex = 0;
 
-        foreach (var kvp in items)
+        for (int i = 0; i < itemSlots.Count; i++)
         {
             if (slotIndex >= maxSlots || slotIndex >= slots.Count) break;
 
+            string itemId = itemSlots[i];
             ItemData itemData = null;
             if (ItemDatabase.Instance != null)
             {
-                itemData = ItemDatabase.Instance.GetItemData(kvp.Key);
+                itemData = ItemDatabase.Instance.GetItemData(itemId);
             }
 
             slots[slotIndex].SetLocked(false);
-            slots[slotIndex].SetItem(kvp.Key, kvp.Value, itemData);
+            slots[slotIndex].SetItem(itemId, 1, itemData);
+
+            bool hasSyn = !string.IsNullOrEmpty(itemId) && synergisticItems.Contains(itemId);
+            string recName = hasSyn && itemToRecipe.TryGetValue(itemId, out var rName) ? rName : null;
+            slots[slotIndex].SetSynergyIndicator(hasSyn, recName);
+
             slotIndex++;
         }
 
@@ -550,6 +603,9 @@ public class InventoryUI : MonoBehaviour
         {
             slots[i].SetLocked(true);
         }
+
+        // Atualiza o painel lateral de histórico de infusões
+        RefreshInfusionHistory();
     }
 
     // ============================================================
@@ -1080,6 +1136,226 @@ public class InventoryUI : MonoBehaviour
         lastPreviewScale = previewScale;
 
         Debug.Log("[INVENTORY UI] UI criada com " + absoluteMaxSlots + " slots (" + columns + "x" + rows + ")");
+
+        // === Painel Lateral do Histórico de Infusões ===
+        CreateInfusionHistoryPanel(panelObject.transform);
+    }
+
+    // ============================================================
+    //  MÓDULO VISUAL DO HISTÓRICO DE INFUSÕES
+    // ============================================================
+
+    /// <summary>
+    /// Cria um painel lateral dinâmico ancorado à direita do painel principal do inventário.
+    /// O painel exibe o histórico de itens infundidos na arma do jogador.
+    /// Posicionado do lado de fora do painel para não sobrepor outras UIs.
+    /// </summary>
+    void CreateInfusionHistoryPanel(Transform parentCanvas)
+    {
+        int uiLayer = gameObject.layer;
+
+        // === Container principal do painel lateral ===
+        infusionHistoryPanelObj = new GameObject("InfusionHistoryPanel");
+        infusionHistoryPanelObj.transform.SetParent(parentCanvas, false);
+        infusionHistoryPanelObj.layer = uiLayer;
+
+        RectTransform panelRt = infusionHistoryPanelObj.AddComponent<RectTransform>();
+        // Ancorado à borda direita do painel-pai, expandindo de cima a baixo
+        panelRt.anchorMin = new Vector2(1f, 0f);
+        panelRt.anchorMax = new Vector2(1f, 1f);
+        panelRt.pivot = new Vector2(0f, 0.5f); // Pivot na esquerda → cresce para a direita
+        panelRt.anchoredPosition = new Vector2(8f, 0f); // 8px de gap do painel principal
+        panelRt.sizeDelta = new Vector2(80f, 0f); // Largura fixa de 80px, altura preenche o pai
+
+        // Fundo escuro e legível
+        infusionHistoryPanelObj.AddComponent<CanvasRenderer>();
+        Image panelBg = infusionHistoryPanelObj.AddComponent<Image>();
+        panelBg.color = new Color(0.1f, 0.1f, 0.15f, 0.95f);
+        panelBg.raycastTarget = true;
+
+        // Sombra para profundidade
+        Shadow panelShadow = infusionHistoryPanelObj.AddComponent<Shadow>();
+        panelShadow.effectColor = new Color(0f, 0f, 0f, 0.5f);
+        panelShadow.effectDistance = new Vector2(4f, -4f);
+
+        // Borda sutil estilo Sci-Fi
+        Outline panelOutline = infusionHistoryPanelObj.AddComponent<Outline>();
+        panelOutline.effectColor = new Color(0.3f, 0.5f, 0.9f, 0.25f);
+        panelOutline.effectDistance = new Vector2(2f, -2f);
+
+        // === Cabeçalho "INFUSÕES" ===
+        GameObject headerObj = new GameObject("HistoryHeader");
+        headerObj.transform.SetParent(infusionHistoryPanelObj.transform, false);
+        headerObj.layer = uiLayer;
+
+        RectTransform headerRt = headerObj.AddComponent<RectTransform>();
+        headerRt.anchorMin = new Vector2(0f, 1f);
+        headerRt.anchorMax = new Vector2(1f, 1f);
+        headerRt.pivot = new Vector2(0.5f, 1f);
+        headerRt.anchoredPosition = new Vector2(0f, -4f);
+        headerRt.sizeDelta = new Vector2(0f, 20f);
+
+        headerObj.AddComponent<CanvasRenderer>();
+        infusionHistoryHeader = headerObj.AddComponent<TextMeshProUGUI>();
+        if (customFont != null) infusionHistoryHeader.font = customFont;
+        infusionHistoryHeader.text = "INFUSÕES";
+        infusionHistoryHeader.fontSize = 10f;
+        infusionHistoryHeader.fontStyle = FontStyles.Bold;
+        infusionHistoryHeader.color = new Color(0.5f, 0.75f, 1f, 0.85f);
+        infusionHistoryHeader.alignment = TextAlignmentOptions.Center;
+        infusionHistoryHeader.raycastTarget = false;
+        infusionHistoryHeader.enableAutoSizing = false;
+        infusionHistoryHeader.overflowMode = TextOverflowModes.Ellipsis;
+
+        // === Área de Conteúdo com VerticalLayoutGroup ===
+        GameObject contentObj = new GameObject("HistoryContent");
+        contentObj.transform.SetParent(infusionHistoryPanelObj.transform, false);
+        contentObj.layer = uiLayer;
+
+        infusionHistoryContent = contentObj.AddComponent<RectTransform>();
+        infusionHistoryContent.anchorMin = new Vector2(0f, 0f);
+        infusionHistoryContent.anchorMax = new Vector2(1f, 1f);
+        infusionHistoryContent.pivot = new Vector2(0.5f, 1f);
+        infusionHistoryContent.anchoredPosition = new Vector2(0f, -26f); // Abaixo do header
+        infusionHistoryContent.sizeDelta = new Vector2(-8f, -30f); // Padding interno de 4px laterais, 26px topo + 4px base
+
+        VerticalLayoutGroup vlg = contentObj.AddComponent<VerticalLayoutGroup>();
+        vlg.spacing = 10f;
+        vlg.padding = new RectOffset(4, 4, 4, 4);
+        vlg.childAlignment = TextAnchor.UpperCenter;
+        vlg.childControlWidth = false;
+        vlg.childControlHeight = false;
+        vlg.childForceExpandWidth = false;
+        vlg.childForceExpandHeight = false;
+
+        // Inicia oculto (ativado junto com o inventário)
+        infusionHistoryPanelObj.SetActive(false);
+    }
+
+    /// <summary>
+    /// Atualiza o conteúdo visual do painel de histórico de infusões.
+    /// Limpa os filhos atuais e recria os ícones a partir da lista fornecida.
+    /// Ícones com stacks >= 2 exibem um badge "x2" amarelo com outline no canto inferior direito.
+    /// </summary>
+    void UpdateInfusionHistory(List<InfusedItem> infusions)
+    {
+        if (infusionHistoryContent == null) return;
+
+        int uiLayer = gameObject.layer;
+
+        // Limpa filhos atuais do conteúdo
+        for (int i = infusionHistoryContent.childCount - 1; i >= 0; i--)
+        {
+            Destroy(infusionHistoryContent.GetChild(i).gameObject);
+        }
+
+        if (infusions == null || infusions.Count == 0) return;
+
+        foreach (var infusion in infusions)
+        {
+            if (infusion.data == null) continue;
+
+            // === Container do ícone (50x50) ===
+            GameObject iconContainer = new GameObject("InfusionIcon_" + infusion.data.itemId);
+            iconContainer.transform.SetParent(infusionHistoryContent, false);
+            iconContainer.layer = uiLayer;
+
+            RectTransform containerRt = iconContainer.AddComponent<RectTransform>();
+            containerRt.sizeDelta = new Vector2(50f, 50f);
+
+            // Fundo escuro do slot com cor do tier
+            iconContainer.AddComponent<CanvasRenderer>();
+            Image slotBg = iconContainer.AddComponent<Image>();
+            Color tierColor = infusion.data.GetTierColor();
+            slotBg.color = new Color(tierColor.r * 0.25f + 0.04f, tierColor.g * 0.25f + 0.04f, tierColor.b * 0.25f + 0.06f, 0.9f);
+            slotBg.raycastTarget = true; // Permite hover com mouse para ver características
+
+            // Adiciona listener de hover para exibir características e buffs do item no tooltip
+            InfusionHistorySlotHover hover = iconContainer.AddComponent<InfusionHistorySlotHover>();
+            hover.itemData = infusion.data;
+            hover.tooltip = tooltip;
+            hover.isSynergy = infusion.isSynergy;
+            hover.synergyName = infusion.synergyName;
+
+            // Outline colorido pelo tier ou dourado se for sinergia
+            Outline slotOutline = iconContainer.AddComponent<Outline>();
+            if (infusion.isSynergy)
+            {
+                slotBg.color = new Color(0.24f, 0.18f, 0.04f, 0.95f);
+                slotOutline.effectColor = new Color(1f, 0.82f, 0.15f, 0.95f);
+                slotOutline.effectDistance = new Vector2(3f, -3f);
+
+                // Badge de estrela no topo do slot
+                GameObject badgeObj = new GameObject("SynergyStar");
+                badgeObj.transform.SetParent(iconContainer.transform, false);
+                badgeObj.layer = uiLayer;
+                RectTransform bRt = badgeObj.AddComponent<RectTransform>();
+                bRt.anchorMin = new Vector2(1f, 1f);
+                bRt.anchorMax = new Vector2(1f, 1f);
+                bRt.pivot = new Vector2(1f, 1f);
+                bRt.anchoredPosition = new Vector2(2f, 2f);
+                bRt.sizeDelta = new Vector2(18f, 18f);
+
+                badgeObj.AddComponent<CanvasRenderer>();
+                TextMeshProUGUI bTxt = badgeObj.AddComponent<TextMeshProUGUI>();
+                if (customFont != null) bTxt.font = customFont;
+                bTxt.text = "★";
+                bTxt.fontSize = 13f;
+                bTxt.color = new Color(1f, 0.85f, 0.15f, 1f);
+                bTxt.alignment = TextAlignmentOptions.Center;
+                bTxt.raycastTarget = false;
+            }
+            else
+            {
+                slotOutline.effectColor = new Color(tierColor.r, tierColor.g, tierColor.b, 0.6f);
+                slotOutline.effectDistance = new Vector2(2f, -2f);
+            }
+
+            // === Ícone do item ===
+            GameObject iconObj = new GameObject("Icon");
+            iconObj.transform.SetParent(iconContainer.transform, false);
+            iconObj.layer = uiLayer;
+
+            RectTransform iconRt = iconObj.AddComponent<RectTransform>();
+            iconRt.anchorMin = Vector2.zero;
+            iconRt.anchorMax = Vector2.one;
+            iconRt.sizeDelta = new Vector2(-6f, -6f); // 3px de margem interna
+            iconRt.anchoredPosition = Vector2.zero;
+
+            iconObj.AddComponent<CanvasRenderer>();
+            Image iconImg = iconObj.AddComponent<Image>();
+            iconImg.sprite = infusion.data.icon;
+            iconImg.color = Color.white;
+            iconImg.raycastTarget = false;
+            iconImg.preserveAspect = true;
+
+            // Infusão não usa badge 'x2' conforme solicitado pelo design
+        }
+    }
+
+    /// <summary>
+    /// Busca os dados do InfusionManager e atualiza o painel visual.
+    /// Seguro para chamar mesmo sem InfusionManager na cena.
+    /// </summary>
+    void RefreshInfusionHistory()
+    {
+        InfusionManager infMgr = Object.FindFirstObjectByType<InfusionManager>();
+        if (infMgr != null)
+        {
+            if (infusionHistoryHeader != null)
+            {
+                infusionHistoryHeader.text = $"INFUSÕES ({infMgr.CurrentInfusionCount}/{infMgr.GetMaxInfusionCapacity()})";
+            }
+            UpdateInfusionHistory(infMgr.GetInfusionHistory());
+        }
+        else
+        {
+            if (infusionHistoryHeader != null)
+            {
+                infusionHistoryHeader.text = "INFUSÕES";
+            }
+            UpdateInfusionHistory(null);
+        }
     }
 
     void BuildSlots(Transform gridParent, int count)
@@ -1324,12 +1600,48 @@ public class InventoryUI : MonoBehaviour
         }
     }
 
+    private void PlayAudio(AudioClip clip, float volume)
+    {
+        if (clip == null) return;
+        GameObject audioObj = new GameObject("TempInventoryUIAudio");
+        audioObj.transform.position = transform.position;
+        AudioSource aSource = audioObj.AddComponent<AudioSource>();
+        aSource.clip = clip;
+        aSource.volume = volume;
+        aSource.spatialBlend = 0f; // 2D som de UI
+        aSource.Play();
+        Destroy(audioObj, clip.length + 0.1f);
+    }
+
     // ==========================================
     // SISTEMA DE SELEÇÃO E FUSÃO (SINERGIA)
     // ==========================================
 
     public void ToggleItemSelection(InventorySlotUI slot, string itemId)
     {
+        if (slot != null && slot.isSyntheticBag)
+        {
+            if (EptinhoPopupController.instancia != null)
+            {
+                EptinhoPopupController.instancia.MostrarPopupAviso("Recursos da Bolsa Sintética são permanentes e não podem ser infundidos!");
+            }
+            return;
+        }
+
+        ItemData data = ItemDatabase.Instance != null ? ItemDatabase.Instance.GetItemData(itemId) : null;
+        if (data != null && data.returnsToBase)
+        {
+            if (EptinhoPopupController.instancia != null)
+            {
+                EptinhoPopupController.instancia.MostrarPopupAviso("Recursos da Bolsa Sintética são permanentes e não podem ser infundidos!");
+            }
+            return;
+        }
+
+        int maxChamber = 2;
+        InfusionManager infMgr = Object.FindFirstObjectByType<InfusionManager>();
+        if (infMgr != null) maxChamber = infMgr.GetMaxChamberItems();
+
         if (selectedSlots.Contains(slot))
         {
             // Deseleciona
@@ -1338,16 +1650,30 @@ public class InventoryUI : MonoBehaviour
         }
         else
         {
-            // Seleciona (Limita a 2 itens)
-            if (selectedSlots.Count >= 4)
+            // Seleciona respeitando o limite atual da câmara (2 base, 3 ou 4 com upgrades)
+            if (selectedSlots.Count >= maxChamber)
             {
                 // Remove o primeiro para dar espaço ao novo
                 InventorySlotUI oldest = selectedSlots[0];
-                oldest.SetSelected(false);
+                if (oldest != null) oldest.SetSelected(false);
                 selectedSlots.RemoveAt(0);
+
+                if (EptinhoPopupController.instancia != null)
+                {
+                    string upgradeTip = maxChamber < 4 ? " Forje a expansão da câmara no Robozinho para mais slots!" : "";
+                    EptinhoPopupController.instancia.MostrarPopupAviso($"Câmara de Infusão suporta até {maxChamber} itens!{upgradeTip}");
+                }
             }
-            slot.SetSelected(true);
             selectedSlots.Add(slot);
+        }
+
+        // Atualiza a numeração ordinal de cada slot selecionado (#1, #2, #3, ...)
+        for (int i = 0; i < selectedSlots.Count; i++)
+        {
+            if (selectedSlots[i] != null)
+            {
+                selectedSlots[i].SetSelected(true, i + 1);
+            }
         }
 
         UpdateMergeButtonState();
@@ -1367,9 +1693,18 @@ public class InventoryUI : MonoBehaviour
     {
         if (mergeButtonObj == null) return;
 
-        if (selectedSlots.Count > 0 && selectedSlots.Count <= 4)
+        int maxChamber = 2;
+        InfusionManager infMgr = Object.FindFirstObjectByType<InfusionManager>();
+        if (infMgr != null) maxChamber = infMgr.GetMaxChamberItems();
+
+        if (selectedSlots.Count > 0 && selectedSlots.Count <= maxChamber)
         {
             mergeButtonObj.SetActive(true);
+            if (mergeButtonText != null)
+            {
+                string countLabel = selectedSlots.Count == 1 ? "1 ITEM" : $"{selectedSlots.Count}/{maxChamber} ITENS";
+                mergeButtonText.text = $"INFUNDIR ({countLabel})";
+            }
         }
         else
         {
@@ -1388,7 +1723,7 @@ public class InventoryUI : MonoBehaviour
         btnRect.anchorMax = new Vector2(0.5f, -0.05f);
         btnRect.pivot = new Vector2(0.5f, 1f);
         btnRect.anchoredPosition = new Vector2(-150f, 5f);
-        btnRect.sizeDelta = new Vector2(120f, 30f); 
+        btnRect.sizeDelta = new Vector2(160f, 32f); 
 
         mergeButtonObj.AddComponent<CanvasRenderer>();
         UnityEngine.UI.Image btnBg = mergeButtonObj.AddComponent<UnityEngine.UI.Image>();
@@ -1418,23 +1753,33 @@ public class InventoryUI : MonoBehaviour
         textRect.sizeDelta = Vector2.zero;
         textRect.anchoredPosition = Vector2.zero;
 
-        TMPro.TextMeshProUGUI tmpText = textObj.AddComponent<TMPro.TextMeshProUGUI>();
-        tmpText.text = "INFUSÃO";
-        tmpText.fontSize = 12;
-        tmpText.color = Color.white;
-        tmpText.alignment = TMPro.TextAlignmentOptions.Center;
-        // if (titleFont != null) tmpText.font = titleFont; // I'll leave the font logic since they might have Oswald Bold globally assigned.
+        mergeButtonText = textObj.AddComponent<TMPro.TextMeshProUGUI>();
+        mergeButtonText.text = "INFUSÃO";
+        mergeButtonText.fontSize = 12;
+        mergeButtonText.fontStyle = FontStyles.Bold;
+        mergeButtonText.color = Color.white;
+        mergeButtonText.alignment = TMPro.TextAlignmentOptions.Center;
 
         mergeButtonObj.SetActive(false);
     }
     private void OnMergeButtonClicked()
     {
-        if (selectedSlots.Count == 0 || selectedSlots.Count > 4) return;
+        int maxChamber = 2;
+        InfusionManager infMgr = Object.FindFirstObjectByType<InfusionManager>();
+        if (infMgr != null) maxChamber = infMgr.GetMaxChamberItems();
+
+        if (selectedSlots.Count == 0 || selectedSlots.Count > maxChamber) return;
 
         System.Collections.Generic.List<string> ids = new System.Collections.Generic.List<string>();
-        foreach(var s in selectedSlots) ids.Add(s.currentItemId);
+        foreach (var s in selectedSlots)
+        {
+            if (s != null && !string.IsNullOrEmpty(s.currentItemId))
+                ids.Add(s.currentItemId);
+        }
 
-        InfusionUI telaDeUpgrades = Object.FindFirstObjectByType<InfusionUI>(FindObjectsInactive.Include);
+        if (ids.Count == 0) return;
+
+        InfusionUI telaDeUpgrades = InfusionUI.EnsureInstance();
         if (telaDeUpgrades != null)
         {
             bool abriu = telaDeUpgrades.OpenPanel();
@@ -1443,5 +1788,88 @@ public class InventoryUI : MonoBehaviour
                 telaDeUpgrades.SelectMultipleItems(ids);
             }
         }
+        else
+        {
+            Debug.LogError("[INVENTORY UI] Não foi possível carregar ou abrir InfusionUI!");
+        }
+    }
+}
+
+
+/// <summary>
+/// Componente de hover nos itens do histórico de infusão para exibir características e buffs do item.
+/// </summary>
+public class InfusionHistorySlotHover : MonoBehaviour, UnityEngine.EventSystems.IPointerEnterHandler, UnityEngine.EventSystems.IPointerExitHandler
+{
+    public ItemData itemData;
+    public InventoryTooltip tooltip;
+    public bool isSynergy = false;
+    public string synergyName = "";
+
+    public void OnPointerEnter(UnityEngine.EventSystems.PointerEventData eventData)
+    {
+        if (itemData == null || tooltip == null) return;
+
+        System.Text.StringBuilder extra = new System.Text.StringBuilder();
+        extra.AppendLine("<color=#80C0FF><b>PROPRIEDADES INFUNDIDAS:</b></color>");
+        
+        if (itemData.itemAttributes != null && itemData.itemAttributes.Count > 0)
+        {
+            foreach (var buff in itemData.itemAttributes)
+            {
+                float displayVal = buff.isMultiplier ? (buff.value - 1f) * 100f : buff.value;
+                string signal = displayVal > 0 ? "+" : "";
+                string suffix = buff.isMultiplier ? "%" : "";
+                string statName = FormatStatName(buff.attributeType.ToString());
+                extra.AppendLine($"<color=#00FFAA>• {signal}{displayVal:0.##}{suffix}</color> <color=#EEEEEE>{statName}</color>");
+            }
+        }
+        else
+        {
+            extra.AppendLine("<color=#AAAAAA><i>Composto catalisador padrão sem atributos base.</i></color>");
+        }
+
+        if (itemData.tier == ItemTier.Legendary && itemData.tier4Effect != Tier4EffectType.None)
+        {
+            extra.AppendLine($"\n<color=#FFD700><b>★ EFEITO LENDÁRIO:</b> {itemData.tier4Effect}</color>");
+        }
+
+        if (isSynergy && !string.IsNullOrEmpty(synergyName))
+        {
+            extra.AppendLine($"\n<color=#FFD700><b>★ SINERGIA ATIVADA:</b> {synergyName.ToUpper()}</color>");
+        }
+
+        tooltip.Show(itemData, 1, extra.ToString().TrimEnd());
+    }
+
+    public void OnPointerExit(UnityEngine.EventSystems.PointerEventData eventData)
+    {
+        if (tooltip != null)
+        {
+            tooltip.Hide();
+        }
+    }
+
+    private string FormatStatName(string stat)
+    {
+        string s = stat.ToLower();
+        if (s.Contains("damage")) return "Poder de Dano";
+        if (s.Contains("attackspeed")) return "Velocidade de Ataque";
+        if (s.Contains("critchance")) return "Chance de Crítico";
+        if (s.Contains("critmultiplier")) return "Dano Crítico";
+        if (s.Contains("weaponrange")) return "Alcance da Arma";
+        if (s.Contains("knockback")) return "Força de Impacto";
+        if (s.Contains("piercing")) return "Perfuração";
+        if (s.Contains("health")) return "Vida Máxima";
+        if (s.Contains("armorregen")) return "Regen. de Armadura";
+        if (s.Contains("armor")) return "Armadura Máxima";
+        if (s.Contains("dodge")) return "Esquiva";
+        if (s.Contains("damagenegation")) return "Negação de Dano";
+        if (s.Contains("thorns")) return "Espinhos";
+        if (s.Contains("speed")) return "Velocidade de Movimento";
+        if (s.Contains("dashcooldown")) return "Recarga do Dash";
+        if (s.Contains("dashcounts")) return "Cargas de Dash";
+        if (s.Contains("dashinvulnerability")) return "Tempo de Invulnerabilidade";
+        return stat;
     }
 }

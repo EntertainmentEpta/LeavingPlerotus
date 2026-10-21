@@ -208,7 +208,7 @@ public class InventoryTooltip : MonoBehaviour
     /// <summary>
     /// Exibe o tooltip com os dados do item
     /// </summary>
-    public void Show(ItemData itemData, int quantity)
+    public void Show(ItemData itemData, int quantity, string extraNote = null)
     {
         if (itemData == null) return;
 
@@ -218,9 +218,16 @@ public class InventoryTooltip : MonoBehaviour
         nameText.color = tierColor;
 
         // Descrição
-        descriptionText.text = !string.IsNullOrEmpty(itemData.description)
+        string desc = !string.IsNullOrEmpty(itemData.description)
             ? itemData.description
             : "Sem descrição disponível.";
+
+        if (!string.IsNullOrEmpty(extraNote))
+        {
+            desc += "\n\n" + extraNote;
+        }
+
+        descriptionText.text = desc;
 
         // Tier
         tierText.text = itemData.GetTierName();

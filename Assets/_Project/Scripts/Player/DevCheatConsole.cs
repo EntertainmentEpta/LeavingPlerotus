@@ -40,13 +40,31 @@ public class DevCheatConsole : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(toggleKey1) || Input.GetKeyDown(toggleKey2))
+        bool devCombo = (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) &&
+                        (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift));
+
+        if (devCombo && (Input.GetKeyDown(toggleKey1) || Input.GetKeyDown(toggleKey2)))
         {
             ToggleConsole();
+        }
+
+        if (devCombo && Input.GetKeyDown(KeyCode.F8))
+        {
+            UnlockAllLoreAndScriptures();
         }
     }
 
     // ─── CHEAT COMMANDS (API PÚBLICA) ────────────────────────────────────────
+
+    /// <summary>
+    /// Desbloqueia o Caderno do Pesquisador e todas as 18 escrituras / blueprints de lore para testes.
+    /// </summary>
+    public void UnlockAllLoreAndScriptures()
+    {
+        LoreManager.Instance.UnlockAllScripturesAndBook();
+        Log("<color=#FFD154>[CHEAT OK]</color> Caderno do Pesquisador e todas as 18 escrituras desbloqueados!");
+        JournalBookUI.Instance?.OpenJournal();
+    }
 
     /// <summary>
     /// Adiciona +999 de todos os itens do ItemDatabase e receitas à Bolsa Sintética.
@@ -129,6 +147,13 @@ public class DevCheatConsole : MonoBehaviour
         }
 
         SaveManager.instance.SavePersistentData();
+
+        LabDoorManager doorManager = Object.FindFirstObjectByType<LabDoorManager>();
+        if (doorManager != null)
+        {
+            doorManager.UpdateDoorState();
+        }
+
         Log($"<color=#4AE04A>[CHEAT OK]</color> Destravadas {count} melhorias equipáveis no Save!");
     }
 
@@ -211,6 +236,32 @@ public class DevCheatConsole : MonoBehaviour
                 EptinhoPopupController.instancia.MostrarPopupAviso($"Modo Todos os Mobs: {status}");
             }
         }
+        else if (cmd == "rebirth" || cmd == "eliterebirth" || cmd == "rebirthelite" || cmd == "forcerebirth" || cmd == "renascer")
+        {
+            DummyHealth.forceEliteRebirth = !DummyHealth.forceEliteRebirth;
+            ShardSwarmHealth.forceEliteRebirth = DummyHealth.forceEliteRebirth;
+            string status = DummyHealth.forceEliteRebirth ? "ATIVADO (100% ao matar)" : "DESATIVADO (10% normal)";
+            Log($"<color=#FFA500>[ELITE REBIRTH]</color> Renascimento Elite Forçado: {status}");
+            if (EptinhoPopupController.instancia != null)
+            {
+                EptinhoPopupController.instancia.MostrarPopupAviso($"RENASCIMENTO ELITE: {status}");
+            }
+        }
+        else if (cmd == "sinfonia" || cmd == "chaos" || cmd == "pactchaos" || cmd == "pactcaos")
+        {
+            PlayerHealth ph = Object.FindFirstObjectByType<PlayerHealth>();
+            if (ph != null)
+            {
+                ph.hasChaosSymphony = !ph.hasChaosSymphony;
+                ph.hasDoubleLoot = ph.hasChaosSymphony;
+                string status = ph.hasChaosSymphony ? "ATIVADA (+20% Drops, +Elites, Rebirth 35%)" : "DESATIVADA";
+                Log($"<color=#00FF99>[PACTO]</color> A Sinfonia do Caos: {status}");
+                if (EptinhoPopupController.instancia != null)
+                {
+                    EptinhoPopupController.instancia.MostrarPopupAviso($"A SINFONIA DO CAOS: {status}");
+                }
+            }
+        }
         else if (cmd == "unlockmap" || cmd == "unlockenemies" || cmd == "6")
         {
             if (SaveManager.instance != null)
@@ -237,9 +288,49 @@ public class DevCheatConsole : MonoBehaviour
                 Log("> [CHEAT] Bestiario 100% desbloqueado e Mapa de Sinergias revelado!");
             }
         }
+        else if (cmd == "unlocklore" || cmd == "lore" || cmd == "escrituras" || cmd == "scriptures" || cmd == "caderno" || cmd == "livro" || cmd == "book" || cmd == "7")
+        {
+            UnlockAllLoreAndScriptures();
+        }
+        else if (cmd == "clearinv" || cmd == "limparinv" || cmd == "emptyinv" || cmd == "limparmochila")
+        {
+            PlayerInventory inv = Object.FindFirstObjectByType<PlayerInventory>();
+            if (inv != null)
+            {
+                inv.ClearInventory();
+                Log("<color=#00F0FF>[CHEAT OK]</color> Mochila esvaziada (0/10 slots)! Pronta para novos testes.");
+                if (EptinhoPopupController.instancia != null)
+                {
+                    EptinhoPopupController.instancia.MostrarPopupAviso("MOCHILA LIMPA (0/10 SLOTS)!");
+                }
+            }
+        }
+        else if (cmd.StartsWith("fusao") || cmd.StartsWith("combo") || cmd.StartsWith("synergy"))
+        {
+            string[] parts = cmd.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+            int comboNum = 1;
+            if (parts.Length > 1) int.TryParse(parts[1], out comboNum);
+            CheatConsole.GiveSynergyComboItems(comboNum);
+            Log($"<color=#00F0FF>[CHEAT OK]</color> Itens da fusão #{comboNum} colocados na mochila!");
+        }
+        else if (cmd.StartsWith("giveitem") || cmd.StartsWith("item"))
+        {
+            string[] parts = cmd.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length > 1)
+            {
+                string itemId = parts[1].Trim();
+                PlayerInventory inv = Object.FindFirstObjectByType<PlayerInventory>();
+                if (inv != null)
+                {
+                    bool ok = inv.AddItem(itemId, 1);
+                    Log(ok ? $"<color=#00F0FF>[CHEAT OK]</color> Item {itemId} concedido!" : "<color=#FF5555>[ERRO]</color> Mochila cheia!");
+                }
+            }
+        }
         else if (cmd == "help" || cmd == "?")
         {
             Log("Comandos disponíveis:");
+            Log(" • unlocklore / escrituras / F8 -> Destravar todas as 18 escrituras e o Caderno");
             Log(" • allmobs / spawnall   -> Spawnar 1 de cada bicho e ativar modo de todos os mobs");
             Log(" • allitems / recursos  -> Dar +999 de todos os materiais");
             Log(" • unlockall / equip    -> Destravar todas as melhorias");
@@ -344,10 +435,11 @@ public class DevCheatConsole : MonoBehaviour
         logText.alignment = TextAlignmentOptions.BottomLeft;
         logText.text = "<b>Console de Cheats ativado!</b> Pressione [~] ou [F12] para ocultar.\nClique em um dos botões abaixo para dar recursos:";
 
-        // Botões Rápidos
-        CreateButton(panelGO.transform, "🎁 RECURSOS (+999)", new Vector2(0.04f, 0.22f), new Vector2(0.32f, 0.34f), () => GiveAllResources(999), new Color(0.25f, 0.65f, 0.35f));
-        CreateButton(panelGO.transform, "🔓 DESTRAVAR TUDO", new Vector2(0.35f, 0.22f), new Vector2(0.64f, 0.34f), () => UnlockAllEquipment(), new Color(0.35f, 0.45f, 0.85f));
-        CreateButton(panelGO.transform, "💰 +99.999 ORBS", new Vector2(0.67f, 0.22f), new Vector2(0.96f, 0.34f), () => GiveMaxOrbs(99999), new Color(0.85f, 0.65f, 0.25f));
+        // Botões Rápidos (4 botões compactos)
+        CreateButton(panelGO.transform, "🎁 RECURSOS", new Vector2(0.04f, 0.22f), new Vector2(0.26f, 0.34f), () => GiveAllResources(999), new Color(0.25f, 0.65f, 0.35f));
+        CreateButton(panelGO.transform, "🔓 DESTRAVAR", new Vector2(0.28f, 0.22f), new Vector2(0.50f, 0.34f), () => UnlockAllEquipment(), new Color(0.35f, 0.45f, 0.85f));
+        CreateButton(panelGO.transform, "💰 +99k ORBS", new Vector2(0.52f, 0.22f), new Vector2(0.74f, 0.34f), () => GiveMaxOrbs(99999), new Color(0.85f, 0.65f, 0.25f));
+        CreateButton(panelGO.transform, "📜 ESCRITURAS [F8]", new Vector2(0.76f, 0.22f), new Vector2(0.96f, 0.34f), () => UnlockAllLoreAndScriptures(), new Color(0.75f, 0.35f, 0.85f));
 
         // Input Field para digitar comandos
         GameObject inputObj = new GameObject("InputField");

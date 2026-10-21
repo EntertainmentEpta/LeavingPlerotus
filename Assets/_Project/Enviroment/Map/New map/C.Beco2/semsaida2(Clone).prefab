@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 1459960981280253907}
   - component: {fileID: 4204742058913163067}
   - component: {fileID: 1933855336647797341}
+  - component: {fileID: 2111341743215315265}
   m_Layer: 0
   m_Name: semsaida2(Clone)
   m_TagString: Untagged
@@ -105,8 +106,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4c3de5da2575fa14c868522b314ae650, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RoomController
-  isSafeRoom: 0
-  roomCategory: 0
+  isSafeRoom: 1
+  roomCategory: 2
   doorsAreLocked: 0
   roomIndex: 1
   enemyPoolConfig: {fileID: 0}
@@ -115,17 +116,25 @@ MonoBehaviour:
   tanquePrefabs: []
   elitePrefabs: []
   suportePrefabs: []
-  minWaves: 1
-  maxWaves: 3
+  minWaves: 0
+  maxWaves: 0
   timeBetweenWaves: 2
-  minEnemiesPerWave: 6
+  minEnemiesPerWave: 0
   mobCapFraction: 0.7
   spawnAreas: []
   spawnIndicatorPrefab: {fileID: 0}
   spawnDelay: 1.5
   spawnHeightOffset: 0.1
+  faunaSpawnEntries: []
+  floraSpawnEntries: []
+  mineralSpawnEntries: []
+  waterFaunaEntry:
+    itemName: 
+    prefab: {fileID: 0}
+    itemData: {fileID: 0}
+    weight: 1
   doors: []
-  showSpawnLog: 1
+  showSpawnLog: 0
 --- !u!65 &4204742058913163067
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -221,3 +230,26 @@ MonoBehaviour:
   showRuler: 1
   showDoorFrame: 1
   isOccupied: 0
+--- !u!64 &2111341743215315265
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 106353550183271551}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: -5872077933228866730, guid: 2d3ba31b1593e294eb76d40dec6704d0, type: 3}
+

@@ -122255,13 +122255,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Merchant
   interactionRadius: 5.5
   whisperingClip: {fileID: 8300000, guid: a6bac14ed4b71714da8418e4deb20ae2, type: 3}
-  whisperingVolume: 1.5
+  whisperingVolume: 1
   exitFadeDuration: 2
-  basePitch: 0.55
+  basePitch: 0.88
   enableSmoothPitchOscillation: 1
   pitchOscillationSpeed: 1.5
-  minGravePitch: 0.35
-  maxGravePitch: 0.7
+  minGravePitch: 0.8
+  maxGravePitch: 1.02
   enableRandomPitch: 0
   merchantFogParticles: {fileID: 7734711960137168611}
   idleFogEmission: 25

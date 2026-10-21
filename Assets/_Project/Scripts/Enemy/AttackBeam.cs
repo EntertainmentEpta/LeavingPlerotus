@@ -46,6 +46,11 @@ public class AttackBeam : MonoBehaviour
     [HideInInspector]
     public GameObject owner; // O inimigo que criou este raio (para thorns)
 
+    [Header("Elite — MagicStone Mark System")]
+    [Tooltip("Ative SOMENTE no AttackBeam do Prefab Variant da MagicStone Elite. " +
+             "Substitui o dano direto pelo sistema de marca+stun e muda as cores para laranja.")]
+    public bool isEliteBeam = false;
+
     // --- Componentes Internos Procedurais ---
     private LineRenderer coreBeam;     // Linha central fina e intensa
     private LineRenderer auraBeam;     // Linha externa grossa e brilhante
@@ -87,6 +92,13 @@ public class AttackBeam : MonoBehaviour
         beamMat = new Material(additiveShader);
 
         // 3. Constrói os emissores e linhas procedurais
+        // Se for raio elite, sobrepoe as cores para laranja antes de BuildVisuals
+        if (isEliteBeam)
+        {
+            coreColor = new Color(1f, 0.7f, 0.1f, 1f);  // amarelo-laranja intenso
+            glowColor = new Color(1f, 0.35f, 0f, 1f);   // laranja puro
+        }
+
         BuildVisuals();
 
         // 4. Aplica dano imediato em área
@@ -98,10 +110,19 @@ public class AttackBeam : MonoBehaviour
                 PlayerHealth pHealth = hit.GetComponent<PlayerHealth>();
                 if (pHealth != null)
                 {
-                    pHealth.TakeDamage(damage, owner);
+                    if (isEliteBeam && MagicStoneMarkSystem.Instance != null)
+                    {
+                        // Logica elite: marca + stun ao inves de dano direto
+                        MagicStoneMarkSystem.Instance.OnLaserHit(hit.gameObject);
+                    }
+                    else
+                    {
+                        pHealth.TakeDamage(damage, owner);
+                    }
                 }
             }
         }
+
 
         // 5. Autodestruição do objeto após o tempo de vida
         Destroy(gameObject, lifetime);

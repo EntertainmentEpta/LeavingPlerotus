@@ -56,8 +56,8 @@ public class Spider_AI : MonoBehaviour
     [Tooltip("Cooldown do recuo")]
     public float retreatCooldown = 5f;
 
-    [Header("Áudio")]
-    [Tooltip("Vetor de áudios que serão selecionados aleatoriamente")]
+    [Header("Áudio — Movimentação (Passos)")]
+    [Tooltip("Vetor de áudios de passos da Aranha selecionados aleatoriamente")]
     public AudioClip[] walkingSounds;
     [Tooltip("Volume dos sons de passos")]
     [Range(0f, 1f)]
@@ -66,11 +66,26 @@ public class Spider_AI : MonoBehaviour
     public float stepInterval = 0.18f;
     private float stepTimer = 0f;
 
+    [Header("Áudio — Ataque (Salto / Dash)")]
     [Tooltip("Vetor de áudios de dash/ataque que serão selecionados aleatoriamente")]
     public AudioClip[] dashSounds;
     [Tooltip("Volume dos sons de dash/ataque")]
     [Range(0f, 1f)]
     public float dashSoundVolume = 0.8f;
+
+    [Header("Áudio — Dano Recebido (Hit)")]
+    [Tooltip("Sons reproduzidos quando a Aranha leva dano (golpe do player). NÃO colocar sons de ataque aqui.")]
+    public AudioClip[] hitSounds;
+    [Tooltip("Volume dos sons de dano recebido (hit)")]
+    [Range(0f, 1f)]
+    public float hitSoundVolume = 0.7f;
+
+    [Header("Áudio — Morte (Die)")]
+    [Tooltip("Sons reproduzidos quando a Aranha morre.")]
+    public AudioClip[] dieSounds;
+    [Tooltip("Volume dos sons de morte")]
+    [Range(0f, 1f)]
+    public float dieSoundVolume = 0.8f;
 
     [Header("Estados")]
     private bool isLeaping = false;
@@ -110,6 +125,32 @@ public class Spider_AI : MonoBehaviour
         {
             Debug.LogError("Spider_AI: Player não encontrado! Verifique a tag 'Player'.");
         }
+
+        // Registra callbacks de áudio de hit e morte
+        if (health != null)
+        {
+            if (hitSounds != null && hitSounds.Length > 0)
+                health.onDamageTaken += (damage, attacker) => PlayHitSound();
+
+            if (dieSounds != null && dieSounds.Length > 0)
+                health.onDeath += PlayDieSound;
+        }
+    }
+
+    private void PlayHitSound()
+    {
+        if (hitSounds == null || hitSounds.Length == 0) return;
+        AudioClip clip = hitSounds[Random.Range(0, hitSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), hitSoundVolume);
+    }
+
+    private void PlayDieSound()
+    {
+        if (dieSounds == null || dieSounds.Length == 0) return;
+        AudioClip clip = dieSounds[Random.Range(0, dieSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), dieSoundVolume);
     }
 
     void Update()
@@ -360,16 +401,10 @@ public class Spider_AI : MonoBehaviour
 
         int randIndex = Random.Range(0, walkingSounds.Length);
         AudioClip clipToPlay = walkingSounds[randIndex];
-        
-        float pitch = Random.Range(0.9f, 1.1f);
-        
-        // Se contiver "3" no nome ou for o índice correspondente, pode dar uma variação (seguindo a mesma lógica do Mimic)
+
         if (clipToPlay != null)
         {
-            if (randIndex == 2 || clipToPlay.name.Contains("3"))
-            {
-                pitch = Random.Range(1.4f, 1.6f);
-            }
+            float pitch = Random.Range(0.9f, 1.1f);
             PlayClipAtPointWithPitch(clipToPlay, transform.position, pitch, walkingSoundVolume);
         }
     }
@@ -390,13 +425,17 @@ public class Spider_AI : MonoBehaviour
     }
 
     private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
+    {
+        if (audioSource != null)
         {
-            if (audioSource != null)
-            {
-                audioSource.pitch = pitch;
-                audioSource.PlayOneShot(clip, volume);
-            }
+            audioSource.pitch = pitch;
+            audioSource.PlayOneShot(clip, volume);
         }
+        else
+        {
+            AudioSource.PlayClipAtPoint(clip, position, volume);
+        }
+    }
     // Visualização do range no Editor
     void OnDrawGizmosSelected()
     {

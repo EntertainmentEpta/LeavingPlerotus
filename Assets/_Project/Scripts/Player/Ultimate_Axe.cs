@@ -60,7 +60,7 @@ public class Ultimate_Axe : MonoBehaviour
     public float slowMotionDuration = 1.0f;
 
     [Header("💥 Impacto e Dano em Área (AoE)")]
-    public int slamDamage = 1000;
+    public int slamDamage = 240;
     public float shockwaveRadius = 5.0f;
     public float knockbackForce = 12.0f;
     public float upwardKnockbackForce = 0.4f;
@@ -156,19 +156,28 @@ public class Ultimate_Axe : MonoBehaviour
     private Rigidbody playerRb;
     private Animator playerAnimator;
     private bool slamImpactExecuted = false;
+    private bool groundImpactSoundPlayed = false;
     private Quaternion lockedRotation;
 
     void Awake()
     {
         playerRb = GetComponentInParent<Rigidbody>() ?? GetComponent<Rigidbody>();
-        audioSource = GetComponent<AudioSource>() ?? GetComponentInParent<AudioSource>();
+        EnsureAudioSource();
+        FindAnimator();
+    }
+
+    private void EnsureAudioSource()
+    {
         if (audioSource == null)
         {
-            audioSource = gameObject.AddComponent<AudioSource>();
-            audioSource.playOnAwake = false;
-            audioSource.spatialBlend = 0f;
+            audioSource = GetComponent<AudioSource>() ?? GetComponentInParent<AudioSource>();
+            if (audioSource == null)
+            {
+                audioSource = gameObject.AddComponent<AudioSource>();
+                audioSource.playOnAwake = false;
+            }
+            audioSource.spatialBlend = 0f; // 2D para audibilidade cristalina
         }
-        FindAnimator();
     }
 
     private void FindAnimator()
@@ -212,7 +221,8 @@ public class Ultimate_Axe : MonoBehaviour
     public void ExecuteUltimate()
     {
         slamImpactExecuted = false;
-        FindBladeTipIfMissing();
+        groundImpactSoundPlayed = false;
+        FindBladeTipIfMissing(true);
         playerRb = GetComponentInParent<Rigidbody>() ?? GetComponent<Rigidbody>();
         FindAnimator();
 
@@ -419,33 +429,41 @@ public class Ultimate_Axe : MonoBehaviour
         Time.fixedDeltaTime = 0.02f;
     }
 
-    private void FindBladeTipIfMissing()
+    public void FindBladeTipIfMissing(bool forceRefresh = false)
     {
-        if (axeBladeTip != null) return;
+        if (axeBladeTip != null && !forceRefresh) return;
+
+        Player_WeaponManager wm = GetComponentInParent<Player_WeaponManager>() ?? GetComponent<Player_WeaponManager>();
+        Transform weaponTransform = (wm != null && wm.currentWeapon != null) ? wm.currentWeapon.transform : null;
+        if (weaponTransform == null && wm != null && wm.rightHand != null && wm.rightHand.childCount > 0)
+        {
+            weaponTransform = wm.rightHand.GetChild(0);
+        }
+
+        if (weaponTransform != null)
+        {
+            foreach (Transform child in weaponTransform.GetComponentsInChildren<Transform>(true))
+            {
+                if (child.name.Equals("PontaDoMachado", System.StringComparison.OrdinalIgnoreCase) ||
+                    child.name.Equals("BladeTip", System.StringComparison.OrdinalIgnoreCase) ||
+                    child.name.Equals("AxeTip", System.StringComparison.OrdinalIgnoreCase) ||
+                    child.name.Equals("Trail_Pont", System.StringComparison.OrdinalIgnoreCase) ||
+                    child.name.Equals("Trail_Point", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    axeBladeTip = child;
+                    Debug.Log($"[Ultimate_Axe] Ponta do Machado encontrada com sucesso: {axeBladeTip.name} na posição {axeBladeTip.position}");
+                    return;
+                }
+            }
+            axeBladeTip = weaponTransform;
+            return;
+        }
 
         Transform foundTip = FindDeepChild(transform.root, "PontaDoMachado");
         if (foundTip != null)
         {
             axeBladeTip = foundTip;
             return;
-        }
-
-        Player_WeaponManager wm = GetComponentInParent<Player_WeaponManager>() ?? GetComponent<Player_WeaponManager>();
-        if (wm != null && wm.rightHand != null && wm.rightHand.childCount > 0)
-        {
-            Transform weapon = wm.rightHand.GetChild(0);
-            foreach (Transform child in weapon.GetComponentsInChildren<Transform>(true))
-            {
-                if (child.name.Equals("PontaDoMachado", System.StringComparison.OrdinalIgnoreCase) ||
-                    child.name.Equals("BladeTip", System.StringComparison.OrdinalIgnoreCase) ||
-                    child.name.Equals("AxeTip", System.StringComparison.OrdinalIgnoreCase) ||
-                    child.name.Equals("Trail_Point", System.StringComparison.OrdinalIgnoreCase))
-                {
-                    axeBladeTip = child;
-                    return;
-                }
-            }
-            axeBladeTip = weapon;
         }
     }
 
@@ -484,9 +502,10 @@ public class Ultimate_Axe : MonoBehaviour
             playerRb.linearVelocity = Vector3.zero;
         }
 
-        FindBladeTipIfMissing();
+        FindBladeTipIfMissing(true);
 
-        Vector3 tipPos = (axeBladeTip != null) ? axeBladeTip.position : transform.position;
+        // Se a ponta do machado estiver disponível, usa sua coordenada exata. Se não, projeta 2.2m à frente onde o machado crava!
+        Vector3 tipPos = (axeBladeTip != null) ? axeBladeTip.position : (transform.position + transform.forward * 2.2f);
         Vector3 impactPoint = tipPos;
 
         RaycastHit hit;
@@ -499,7 +518,11 @@ public class Ultimate_Axe : MonoBehaviour
             impactPoint = new Vector3(tipPos.x, transform.position.y + groundYOffset, tipPos.z);
         }
 
-        Debug.Log($"💥 [Ultimate_Axe] SLAM IMPACT! Ponto de Origem: {impactPoint}");
+        Debug.Log($"💥 [Ultimate_Axe] SLAM IMPACT! Ponto de Origem: {impactPoint} (Ponta: {(axeBladeTip != null ? axeBladeTip.name : "Projeção Frontal")})");
+
+        // Executa os sons da Ultimate de forma garantida no momento do impacto
+        PlayGroundImpactSFX();
+        PlayCrystalShatterSFX();
 
         // Dano em Área e Knockback
         Collider[] hitColliders = Physics.OverlapSphere(impactPoint, shockwaveRadius);
@@ -867,28 +890,40 @@ public class Ultimate_Axe : MonoBehaviour
     /// </summary>
     public void PlayChargeSFX()
     {
-        if (audioSource == null) { Debug.LogWarning("[Ultimate_Axe] PlayChargeSFX: audioSource é NULL!"); return; }
-        if (chargeClip == null) { Debug.LogWarning("[Ultimate_Axe] PlayChargeSFX: chargeClip não atribuído!"); return; }
-        audioSource.PlayOneShot(chargeClip, chargeVolume);
+        EnsureAudioSource();
+        if (chargeClip == null) return;
+        if (audioSource != null)
+            audioSource.PlayOneShot(chargeClip, chargeVolume);
+        else
+            AudioSource.PlayClipAtPoint(chargeClip, transform.position, chargeVolume);
     }
 
     /// <summary>
-    /// Toca o som de impacto no chão. Chamado via Animation Event.
+    /// Toca o som de impacto no chão. Chamado via Animation Event ou TriggerAxeSlamImpact.
     /// </summary>
     public void PlayGroundImpactSFX()
     {
-        if (audioSource == null) { Debug.LogWarning("[Ultimate_Axe] PlayGroundImpactSFX: audioSource é NULL!"); return; }
-        if (groundImpactClip == null) { Debug.LogWarning("[Ultimate_Axe] PlayGroundImpactSFX: groundImpactClip não atribuído!"); return; }
-        audioSource.PlayOneShot(groundImpactClip, groundImpactVolume);
+        if (groundImpactSoundPlayed) return;
+        groundImpactSoundPlayed = true;
+
+        EnsureAudioSource();
+        if (groundImpactClip == null) return;
+        if (audioSource != null)
+            audioSource.PlayOneShot(groundImpactClip, groundImpactVolume);
+        else
+            AudioSource.PlayClipAtPoint(groundImpactClip, transform.position, groundImpactVolume);
     }
 
     /// <summary>
-    /// Toca o som de estilhaçamento de cristais. Chamado via Animation Event.
+    /// Toca o som de estilhaçamento de cristais. Chamado via Animation Event ou TriggerAxeSlamImpact.
     /// </summary>
     public void PlayCrystalShatterSFX()
     {
-        if (audioSource == null) { Debug.LogWarning("[Ultimate_Axe] PlayCrystalShatterSFX: audioSource é NULL!"); return; }
-        if (crystalShatterClip == null) { Debug.LogWarning("[Ultimate_Axe] PlayCrystalShatterSFX: crystalShatterClip não atribuído!"); return; }
-        audioSource.PlayOneShot(crystalShatterClip, crystalShatterVolume);
+        EnsureAudioSource();
+        if (crystalShatterClip == null) return;
+        if (audioSource != null)
+            audioSource.PlayOneShot(crystalShatterClip, crystalShatterVolume);
+        else
+            AudioSource.PlayClipAtPoint(crystalShatterClip, transform.position, crystalShatterVolume);
     }
 }

@@ -90,16 +90,14 @@ public class GoblinAI_Transform : MonoBehaviour
     public float strafeChangeDuration = 1.2f;
 
     // ── Audio ────────────────────────────────────────────────────────
-    [Header("Áudio")]
-    [Tooltip("Som único de passo do Goblin (tocado a cada stepInterval)")]
+    [Header("Áudio — Movimentação (Passos)")]
+    [Tooltip("Som do passo do Goblin disparado pelo gatilho/evento da animação de corrida (AnimationEvent_Step)")]
     public AudioClip walkSound;
     [Tooltip("Volume do som de passo")]
     [Range(0f, 1f)]
     public float walkSoundVolume = 0.5f;
-    [Tooltip("Intervalo entre cada passo enquanto caminha em segundos (ex: 0.22s)")]
-    public float stepInterval = 0.22f;
-    private float stepTimer = 0f;
 
+    [Header("Áudio — Ataque (Bomba)")]
     [Tooltip("Som do arremesso da bomba pelo Goblin")]
     public AudioClip throwSound;
     [Tooltip("Volume do som de arremesso")]
@@ -117,6 +115,20 @@ public class GoblinAI_Transform : MonoBehaviour
     [Tooltip("Volume do som da explosão da bomba")]
     [Range(0f, 1f)]
     public float bombExplosionSoundVolume = 1.0f;
+
+    [Header("Áudio — Dano Recebido (Hit)")]
+    [Tooltip("Sons reproduzidos quando o Goblin leva dano (golpe do player). NÃO colocar sons de ataque aqui.")]
+    public AudioClip[] hitSounds;
+    [Tooltip("Volume dos sons de dano recebido (hit)")]
+    [Range(0f, 1f)]
+    public float hitSoundVolume = 0.7f;
+
+    [Header("Áudio — Morte (Die)")]
+    [Tooltip("Sons reproduzidos quando o Goblin morre.")]
+    public AudioClip[] dieSounds;
+    [Tooltip("Volume dos sons de morte")]
+    [Range(0f, 1f)]
+    public float dieSoundVolume = 0.8f;
 
     // ── Private ─────────────────────────────────────────────────────    
     private Rigidbody rb;
@@ -163,6 +175,33 @@ public class GoblinAI_Transform : MonoBehaviour
         }
 
         strafeTimer = strafeChangeDuration;
+
+        // Registra callbacks de áudio de hit e morte
+        DummyHealth health = GetComponent<DummyHealth>();
+        if (health != null)
+        {
+            if (hitSounds != null && hitSounds.Length > 0)
+                health.onDamageTaken += (damage, attacker) => PlayHitSound();
+
+            if (dieSounds != null && dieSounds.Length > 0)
+                health.onDeath += PlayDieSound;
+        }
+    }
+
+    private void PlayHitSound()
+    {
+        if (hitSounds == null || hitSounds.Length == 0) return;
+        AudioClip clip = hitSounds[Random.Range(0, hitSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), hitSoundVolume);
+    }
+
+    private void PlayDieSound()
+    {
+        if (dieSounds == null || dieSounds.Length == 0) return;
+        AudioClip clip = dieSounds[Random.Range(0, dieSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), dieSoundVolume);
     }
 
     // ── Crystal Tuner Buff ─────────────────────────────────────────
@@ -213,31 +252,23 @@ public class GoblinAI_Transform : MonoBehaviour
     {
         if (player == null) return;
         ExecuteMovement();
-        HandleWalkSound();
     }
 
-    private void HandleWalkSound()
+    // ── Footstep Events ──────────────────────────────────────────────
+    /// <summary>
+    /// Disparado pelo evento/gatilho da animação de corrida (RunningGoblin) quando o pé toca o chão.
+    /// </summary>
+    public void AnimationEvent_Step()
     {
-        if (walkSound == null) return;
-        if (rb == null) return;
-
-        Vector3 flatVel = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
-        if (flatVel.magnitude > 0.1f)
-        {
-            stepTimer -= Time.fixedDeltaTime;
-            if (stepTimer <= 0f)
-            {
-                PlayWalkSound();
-                stepTimer = stepInterval;
-            }
-        }
-        else
-        {
-            stepTimer = 0f;
-        }
+        PlayStepSound();
     }
 
-    private void PlayWalkSound()
+    public void OnStep() => PlayStepSound();
+    public void Passo() => PlayStepSound();
+    public void Footstep() => PlayStepSound();
+    public void PlayWalkSound() => PlayStepSound();
+
+    public void PlayStepSound()
     {
         if (walkSound == null) return;
 
@@ -246,13 +277,17 @@ public class GoblinAI_Transform : MonoBehaviour
     }
 
     private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
+    {
+        if (audioSource != null)
         {
-            if (audioSource != null)
-            {
-                audioSource.pitch = pitch;
-                audioSource.PlayOneShot(clip, volume);
-            }
+            audioSource.pitch = pitch;
+            audioSource.PlayOneShot(clip, volume);
         }
+        else
+        {
+            AudioSource.PlayClipAtPoint(clip, position, volume);
+        }
+    }
     // ─────────────────────────────────────────────────────────────────
     void UpdateState(float dist)
     {

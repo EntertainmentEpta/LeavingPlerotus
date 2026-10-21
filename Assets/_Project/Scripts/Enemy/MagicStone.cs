@@ -37,7 +37,7 @@ public class MagicStone_AI : MonoBehaviour
     public float attackInterval = 5f;
     public float attackTelegraphTime = 2.5f;
 
-    [Header("Áudio")]
+    [Header("Áudio — Movimentação / Flutuação")]
     [Tooltip("Som do hover/flutuação (loop constante da pedra flutuando)")]
     public AudioClip hoverSound;
     [Tooltip("Volume do som de hover")]
@@ -50,6 +50,7 @@ public class MagicStone_AI : MonoBehaviour
     [Range(0f, 1f)]
     public float teleportSoundVolume = 0.8f;
 
+    [Header("Áudio — Ataque (Raio e Marcação)")]
     [Tooltip("Som do aviso/marcação de ataque no chão (AttackMarker)")]
     public AudioClip telegraphSound;
     [Tooltip("Volume do som do aviso de marcação")]
@@ -61,6 +62,20 @@ public class MagicStone_AI : MonoBehaviour
     [Tooltip("Volume do som do raio caindo")]
     [Range(0f, 1f)]
     public float skybeamSoundVolume = 0.9f;
+
+    [Header("Áudio — Dano Recebido (Hit)")]
+    [Tooltip("Sons reproduzidos quando o MagicStone leva dano (golpe do player). NÃO colocar sons de ataque aqui.")]
+    public AudioClip[] hitSounds;
+    [Tooltip("Volume dos sons de dano recebido (hit)")]
+    [Range(0f, 1f)]
+    public float hitSoundVolume = 0.7f;
+
+    [Header("Áudio — Morte (Die)")]
+    [Tooltip("Sons reproduzidos quando o MagicStone morre.")]
+    public AudioClip[] dieSounds;
+    [Tooltip("Volume dos sons de morte")]
+    [Range(0f, 1f)]
+    public float dieSoundVolume = 0.8f;
 
     private AudioSource hoverAudioSource;
     private float originalAttackInterval;
@@ -94,6 +109,33 @@ public class MagicStone_AI : MonoBehaviour
 
         // Configura o som de flutuação/hover constante
         SetupHoverAudio();
+
+        // Registra callbacks de áudio de hit e morte
+        DummyHealth health = GetComponent<DummyHealth>();
+        if (health != null)
+        {
+            if (hitSounds != null && hitSounds.Length > 0)
+                health.onDamageTaken += (damage, attacker) => PlayHitSound();
+
+            if (dieSounds != null && dieSounds.Length > 0)
+                health.onDeath += PlayDieSound;
+        }
+    }
+
+    private void PlayHitSound()
+    {
+        if (hitSounds == null || hitSounds.Length == 0) return;
+        AudioClip clip = hitSounds[Random.Range(0, hitSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), hitSoundVolume);
+    }
+
+    private void PlayDieSound()
+    {
+        if (dieSounds == null || dieSounds.Length == 0) return;
+        AudioClip clip = dieSounds[Random.Range(0, dieSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), dieSoundVolume);
     }
 
     void Update()
@@ -284,9 +326,9 @@ public class MagicStone_AI : MonoBehaviour
             hoverAudioSource.clip = hoverSound;
             hoverAudioSource.volume = hoverSoundVolume;
             hoverAudioSource.loop = true;
-            hoverAudioSource.spatialBlend = 1f; // Som 3D
+            hoverAudioSource.spatialBlend = 0.5f; // Semi-3D
             hoverAudioSource.minDistance = 3f;
-            hoverAudioSource.maxDistance = 25f;
+            hoverAudioSource.maxDistance = 50f;
             hoverAudioSource.Play();
         }
     }
@@ -323,9 +365,9 @@ public class MagicStone_AI : MonoBehaviour
         aSource.clip = clip;
         aSource.pitch = pitch;
         aSource.volume = volume;
-        aSource.spatialBlend = 1f; // Som 3D
+        aSource.spatialBlend = 0.5f; // Semi-3D
         aSource.minDistance = 5f;
-        aSource.maxDistance = 40f;
+        aSource.maxDistance = 50f;
         aSource.rolloffMode = AudioRolloffMode.Linear;
         aSource.Play();
         float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;

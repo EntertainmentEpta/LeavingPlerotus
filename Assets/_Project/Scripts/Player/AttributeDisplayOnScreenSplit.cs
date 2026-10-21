@@ -2,14 +2,20 @@ using UnityEngine;
 using TMPro;
 
 /// <summary>
-/// Exibe os atributos do jogador na tela em tempo real.
-/// Funciona com o sistema de atributos separados (Offensive + Defensive).
+/// Exibe os atributos completos do jogador na tela em tempo real com estilo Sci-Fi HUD.
+/// Exibe Locomoção/Velocidade (em m/s e multiplicador), Ofensivo, Defensivo/Vitalidade e Infusões.
+/// Integrado com o Robozinho através do Módulo de Telemetria (receita gratuita) ou tecla F5.
 /// </summary>
 public class AttributeDisplayOnScreenSplit : MonoBehaviour
 {
+    public static AttributeDisplayOnScreenSplit Instance { get; private set; }
+
     [Header("References")]
     public PlayerAttributesOffensive offensiveAttributes;
     public PlayerAttributesDefensive defensiveAttributes;
+    public PlayerHealth playerHealth;
+    public PlayerM playerMovement;
+    public InfusionManager infusionManager;
     
     [Header("UI Settings")]
     public bool showDisplay = true;
@@ -17,58 +23,89 @@ public class AttributeDisplayOnScreenSplit : MonoBehaviour
     
     [Header("Display Appearance")]
     [Tooltip("Largura do painel")]
-    [Range(200f, 800f)]
-    public float panelWidth = 400f;
+    public float panelWidth = 440f;
     
     [Tooltip("Altura do painel")]
-    [Range(200f, 800f)]
-    public float panelHeight = 500f;
+    public float panelHeight = 620f;
     
     [Tooltip("Tamanho da fonte")]
-    [Range(10f, 30f)]
-    public float fontSize = 14f;
+    public float fontSize = 13f;
     
     [Tooltip("Opacidade do fundo (0 = transparente, 1 = opaco)")]
-    [Range(0f, 1f)]
-    public float backgroundOpacity = 0.7f;
+    public float backgroundOpacity = 0.88f;
     
     [Header("Display Position")]
     [Tooltip("Distância da borda esquerda")]
-    public float offsetX = 10f;
+    public float offsetX = 16f;
     
     [Tooltip("Distância da borda superior")]
-    public float offsetY = -10f;
+    public float offsetY = -16f;
     
     [Header("Display Settings")]
-    [Tooltip("Atualizar a cada X segundos (0 = todo frame)")]
-    public float updateInterval = 0.5f;
+    [Tooltip("Atualizar a cada X segundos")]
+    public float updateInterval = 0.25f;
+
+    public static bool isModuleEquipped = true; // Por padrão ativo para testes fáceis, alternável via Robozinho ou F5
     
     private TextMeshProUGUI displayText;
     private float updateTimer = 0f;
     private GameObject displayPanel;
+
+    public static void EnsureExistsAndSetVisible(bool visible)
+    {
+        isModuleEquipped = visible;
+        if (Instance != null)
+        {
+            Instance.showDisplay = visible;
+            if (Instance.displayPanel != null)
+            {
+                Instance.displayPanel.SetActive(visible);
+            }
+        }
+    }
     
+    void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+    }
+
     void Start()
     {
-        // Buscar atributos
-        if (offensiveAttributes == null)
-        {
-            offensiveAttributes = GetComponentInChildren<PlayerAttributesOffensive>();
-        }
-        
-        if (defensiveAttributes == null)
-        {
-            defensiveAttributes = GetComponent<PlayerAttributesDefensive>();
-        }
-        
-        // Criar UI
+        FindPlayerReferences();
         CreateDisplayUI();
         
-        Debug.Log("✅ Attribute Display criado! Pressione F5 para mostrar/ocultar");
+        Debug.Log("✅ [TELEMETRIA] Monitor Telemétrico de Atributos ativo! Pressione F5 para alternar exibição.");
+    }
+
+    void FindPlayerReferences()
+    {
+        GameObject p = GameObject.FindGameObjectWithTag("Player");
+        if (p == null) p = gameObject;
+
+        if (offensiveAttributes == null && p != null)
+            offensiveAttributes = p.GetComponentInChildren<PlayerAttributesOffensive>();
+        
+        if (defensiveAttributes == null && p != null)
+            defensiveAttributes = p.GetComponentInChildren<PlayerAttributesDefensive>();
+
+        if (playerHealth == null && p != null)
+            playerHealth = p.GetComponentInChildren<PlayerHealth>();
+
+        if (playerMovement == null && p != null)
+            playerMovement = p.GetComponentInChildren<PlayerM>();
+
+        if (infusionManager == null && p != null)
+            infusionManager = p.GetComponentInChildren<InfusionManager>() ?? Object.FindFirstObjectByType<InfusionManager>();
     }
     
     void Update()
     {
-        // Toggle display
+        // Toggle display via tecla de atalho
         if (Input.GetKeyDown(toggleKey))
         {
             showDisplay = !showDisplay;
@@ -78,31 +115,7 @@ public class AttributeDisplayOnScreenSplit : MonoBehaviour
             }
         }
         
-        // Aplicar mudanças do Inspector em tempo real
-        if (displayPanel != null)
-        {
-            RectTransform panelRect = displayPanel.GetComponent<RectTransform>();
-            if (panelRect != null)
-            {
-                panelRect.sizeDelta = new Vector2(panelWidth, panelHeight);
-                panelRect.anchoredPosition = new Vector2(offsetX, offsetY);
-            }
-            
-            UnityEngine.UI.Image bgImage = displayPanel.GetComponent<UnityEngine.UI.Image>();
-            if (bgImage != null)
-            {
-                Color bgColor = bgImage.color;
-                bgColor.a = backgroundOpacity;
-                bgImage.color = bgColor;
-            }
-        }
-        
-        if (displayText != null)
-        {
-            displayText.fontSize = fontSize;
-        }
-        
-        // Atualizar texto
+        // Atualizar texto em tempo real
         if (showDisplay && displayText != null)
         {
             updateTimer += Time.deltaTime;
@@ -116,12 +129,12 @@ public class AttributeDisplayOnScreenSplit : MonoBehaviour
     
     void CreateDisplayUI()
     {
-        // SEMPRE criar um Canvas dedicado para o display de atributos
+        // Canvas dedicado para o display de atributos
         GameObject canvasObj = new GameObject("AttributeDisplayCanvas");
-        DontDestroyOnLoad(canvasObj); // Persistir entre cenas (como o Player)
+        DontDestroyOnLoad(canvasObj);
         Canvas canvas = canvasObj.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 100; // Garantir que fique na frente
+        canvas.sortingOrder = 95;
         
         UnityEngine.UI.CanvasScaler scaler = canvasObj.AddComponent<UnityEngine.UI.CanvasScaler>();
         scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -129,9 +142,7 @@ public class AttributeDisplayOnScreenSplit : MonoBehaviour
         
         canvasObj.AddComponent<UnityEngine.UI.GraphicRaycaster>();
         
-        Debug.Log("✅ Canvas dedicado criado para Attribute Display");
-        
-        // Criar painel
+        // Painel Principal Estilo Tech Sci-Fi
         displayPanel = new GameObject("AttributeDisplayPanel");
         displayPanel.transform.SetParent(canvas.transform, false);
         
@@ -142,82 +153,133 @@ public class AttributeDisplayOnScreenSplit : MonoBehaviour
         panelRect.anchoredPosition = new Vector2(offsetX, offsetY);
         panelRect.sizeDelta = new Vector2(panelWidth, panelHeight);
         
-        // Background semi-transparente
+        // Fundo escuro azulado elegante
         UnityEngine.UI.Image bgImage = displayPanel.AddComponent<UnityEngine.UI.Image>();
-        bgImage.color = new Color(0, 0, 0, backgroundOpacity);
+        bgImage.color = new Color(0.04f, 0.07f, 0.12f, backgroundOpacity);
         
-        // Criar texto
+        // Borda e Sombra de Estilo Tecnológico
+        UnityEngine.UI.Outline outline = displayPanel.AddComponent<UnityEngine.UI.Outline>();
+        outline.effectColor = new Color(0f, 0.80f, 1f, 0.55f);
+        outline.effectDistance = new Vector2(2f, -2f);
+
+        UnityEngine.UI.Shadow shadow = displayPanel.AddComponent<UnityEngine.UI.Shadow>();
+        shadow.effectColor = new Color(0f, 0f, 0f, 0.85f);
+        shadow.effectDistance = new Vector2(4f, -4f);
+        
+        // Objeto de Texto Formatado
         GameObject textObj = new GameObject("AttributeText");
         textObj.transform.SetParent(displayPanel.transform, false);
         
         RectTransform textRect = textObj.AddComponent<RectTransform>();
         textRect.anchorMin = Vector2.zero;
         textRect.anchorMax = Vector2.one;
-        textRect.offsetMin = new Vector2(10, 10);
-        textRect.offsetMax = new Vector2(-10, -10);
+        textRect.offsetMin = new Vector2(16, 16);
+        textRect.offsetMax = new Vector2(-16, -16);
         
         displayText = textObj.AddComponent<TextMeshProUGUI>();
         displayText.fontSize = fontSize;
         displayText.alignment = TextAlignmentOptions.TopLeft;
         displayText.color = Color.white;
         displayText.font = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
+        displayText.richText = true;
         
         displayPanel.SetActive(showDisplay);
+        UpdateDisplayText();
     }
     
     void UpdateDisplayText()
     {
         if (displayText == null) return;
+        FindPlayerReferences();
         
-        string text = "<b><color=#FFD700>═══ PLAYER ATTRIBUTES ═══</color></b>\n\n";
-        
-        // Atributos Ofensivos
-        if (offensiveAttributes != null)
+        System.Text.StringBuilder sb = new System.Text.StringBuilder();
+
+        // Cabeçalho Sci-Fi
+        sb.AppendLine("<b><color=#00E5FF>◈ TELEMETRIA BIOMÉTRICA DO TRAJE ◈</color></b>");
+        sb.AppendLine("<size=75%><color=#7E97B8>DIAGNÓSTICO EM TEMPO REAL | ALTERNAR: [F5]</color></size>");
+        sb.AppendLine("<color=#005577>────────────────────────────────────────────</color>");
+
+        // 1. LOCOMOÇÃO & VELOCIDADE
+        sb.AppendLine("<b><color=#00FFAA>⚡ LOCOMOÇÃO & MOBILIDADE</color></b>");
+        float baseWalk = 6f;
+        float baseSprint = 11f;
+        float debuff = 1f;
+        if (playerMovement != null)
         {
-            text += "<b><color=#FF6B6B>⚔️ OFFENSIVE</color></b>\n";
-            text += $"  Base Damage: <color=#FF4500>{offensiveAttributes.baseDamageMultiplier:F2}x</color>\n";
-            text += $"  Attack Speed: <color=#00FF00>{offensiveAttributes.attackSpeedMelee:F2}x</color>\n";
-            text += $"  Crit Chance: <color=#FFFF00>{offensiveAttributes.critChance:F1}%</color>\n";
-            text += $"  Crit Multiplier: <color=#FF8C00>{offensiveAttributes.critMultiplier:F2}x</color>\n";
-            text += $"  Weapon Range: <color=#00BFFF>{offensiveAttributes.weaponRangeMelee:F2}x</color>\n";
-            text += $"  Knockback: <color=#FF1493>{offensiveAttributes.knockback:F2}</color>\n";
-            text += $"  Piercing: <color=#9370DB>{offensiveAttributes.piercing}</color>\n";
+            baseSprint = playerMovement.sprintSpeed;
+            baseWalk = playerMovement.walkSpeed;
+            debuff = playerMovement.debuffSpeedMultiplier;
         }
-        else
-        {
-            text += "<color=#FF0000>❌ Offensive Attributes Missing</color>\n";
-        }
+        float speedMult = defensiveAttributes != null ? defensiveAttributes.speedMultiplier : 1f;
+        float finalSprintSpeed = baseSprint * speedMult * debuff;
         
-        text += "\n";
-        
-        // Atributos Defensivos
+        sb.AppendLine($"  Velocidade de Corrida: <color=#00FFCC><b>{finalSprintSpeed:F1} m/s</b></color> <size=80%><color=#8899AA>({speedMult:F2}x)</color></size>");
         if (defensiveAttributes != null)
         {
-            text += "<b><color=#4169E1>🛡️ DEFENSIVE</color></b>\n";
-            text += $"  Armor Regen: <color=#00FF00>{defensiveAttributes.armorRegen:F2}x</color>\n";
-            text += $"  Dodge Chance: <color=#FFFF00>{defensiveAttributes.dodgeChance:F1}%</color>\n";
-            text += $"  Damage Negation: <color=#FFA500>{defensiveAttributes.damageNegation:F1}%</color>\n";
-            text += $"  Thorns: <color=#8B4513>{defensiveAttributes.thorns}</color>\n";
-            
-            text += "\n<b><color=#32CD32>⚡ MOBILITY</color></b>\n";
-            text += $"  Speed: <color=#00FF00>{defensiveAttributes.speedMultiplier:F2}x</color>\n";
-            text += $"  Dash Cooldown: <color=#00BFFF>{defensiveAttributes.dashCooldownMultiplier:F2}x</color>\n";
-            text += $"  Dash Counts: <color=#FFD700>{defensiveAttributes.dashCounts}</color>\n";
-            text += $"  Dash i-frames: <color=#FF69B4>{defensiveAttributes.dashInvulnerability:F2}s</color>\n";
+            sb.AppendLine($"  Recarga do Dash: <color=#00E5FF>{defensiveAttributes.dashCooldownMultiplier:F2}x</color>");
+            sb.AppendLine($"  Cargas de Dash: <color=#FFD700>{defensiveAttributes.dashCounts}</color> <size=80%><color=#8899AA>(Invul: {defensiveAttributes.dashInvulnerability:F2}s)</color></size>");
+        }
+        sb.AppendLine();
+
+        // 2. SISTEMA OFENSIVO
+        sb.AppendLine("<b><color=#FF5555>⚔️ POTÊNCIA OFENSIVA</color></b>");
+        if (offensiveAttributes != null)
+        {
+            sb.AppendLine($"  Dano Base: <color=#FF4444><b>{offensiveAttributes.baseDamageMultiplier:F2}x</b></color>");
+            sb.AppendLine($"  Vel. de Ataque: <color=#FFAA00>{offensiveAttributes.attackSpeedMelee:F2}x</color>");
+            sb.AppendLine($"  Crítico: <color=#FFFF00>{offensiveAttributes.critChance:F1}%</color> <size=80%><color=#8899AA>(Dano: {offensiveAttributes.critMultiplier:F2}x)</color></size>");
+            sb.AppendLine($"  Alcance da Arma: <color=#33CCFF>{offensiveAttributes.weaponRangeMelee:F2}x</color>");
+            sb.AppendLine($"  Impacto / Repulsão: <color=#FF66CC>{offensiveAttributes.knockback:F1}</color>");
+            if (offensiveAttributes.piercing > 0)
+                sb.AppendLine($"  Perfuração de Alvos: <color=#BB88FF>+{offensiveAttributes.piercing}</color>");
         }
         else
         {
-            text += "<color=#FF0000>❌ Defensive Attributes Missing</color>\n";
+            sb.AppendLine("  <color=#8888AA><i>Atributos ofensivos aguardando carregamento...</i></color>");
         }
-        
-        text += "\n<size=10><color=#808080>Press F5 to toggle | F1 for debug console</color></size>";
-        
-        displayText.text = text;
+        sb.AppendLine();
+
+        // 3. DEFESA & VITALIDADE
+        sb.AppendLine("<b><color=#3399FF>🛡️ DEFESA & BIOMÉTRICA</color></b>");
+        if (playerHealth != null)
+        {
+            sb.AppendLine($"  Integridade Vital (HP): <color=#00FF88><b>{playerHealth.currentHealth} / {playerHealth.maxHealth}</b></color>");
+            sb.AppendLine($"  Blindagem (Armadura): <color=#00CCFF><b>{playerHealth.CurrentArmor} / {playerHealth.maxArmor}</b></color>");
+        }
+        if (defensiveAttributes != null)
+        {
+            sb.AppendLine($"  Regen. Armadura: <color=#00FFAA>{defensiveAttributes.armorRegen:F2}x</color>");
+            if (defensiveAttributes.dodgeChance > 0f)
+                sb.AppendLine($"  Esquiva Reativa: <color=#FFFF00>{defensiveAttributes.dodgeChance:F1}%</color>");
+            if (defensiveAttributes.damageNegation > 0f)
+                sb.AppendLine($"  Negação de Dano: <color=#FFAA33>{defensiveAttributes.damageNegation:F1}%</color>");
+            if (defensiveAttributes.thorns > 0)
+                sb.AppendLine($"  Retaliação (Espinhos): <color=#FF8855>{defensiveAttributes.thorns}</color>");
+            if (defensiveAttributes.healthRegen > 0f)
+                sb.AppendLine($"  Regeneração Vital: <color=#00FF88>+{defensiveAttributes.healthRegen:F1}/s</color>");
+        }
+        sb.AppendLine();
+
+        // 4. INFUSÕES & ARSENAL
+        sb.AppendLine("<b><color=#E0AAFF>🧪 SINTONIA DE INFUSÕES</color></b>");
+        if (infusionManager != null)
+        {
+            int curInf = infusionManager.CurrentInfusionCount;
+            int maxCap = infusionManager.GetMaxInfusionCapacity();
+            float ptotal = infusionManager.GetTotalWeight();
+            float inflationPercent = (infusionManager.GetInflationFactor() - 1f) * 100f;
+
+            sb.AppendLine($"  Peças Infundidas: <color=#FFD700><b>{curInf}/{maxCap}</b></color>");
+            sb.AppendLine($"  Peso de Inflação: <color=#FF88AA>{ptotal:F1}</color> <size=80%><color=#FFAA55>(Custo: +{inflationPercent:F0}%)</color></size>");
+        }
+        else
+        {
+            sb.AppendLine("  <color=#8888AA><i>Nenhuma infusão detectada na arma.</i></color>");
+        }
+
+        displayText.text = sb.ToString();
     }
     
-    /// <summary>
-    /// Força atualização imediata do display.
-    /// </summary>
     public void ForceUpdate()
     {
         UpdateDisplayText();

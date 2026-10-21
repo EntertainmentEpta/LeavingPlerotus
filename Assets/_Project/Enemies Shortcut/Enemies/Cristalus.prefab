@@ -429,6 +429,11 @@ MonoBehaviour:
   arcOverlapThreshold: 10
   playerMovementTolerance: 2
   minRepositionAngle: 90
+  hitSounds: []
+  hitSoundVolume: 0.7
+  crystalSpawnSounds:
+  - {fileID: 8300000, guid: 4ef3a1bf76d44704294acb4169450ed0, type: 3}
+  crystalSpawnVolume: 0.75
 --- !u!114 &2199149859530074480
 MonoBehaviour:
   m_ObjectHideFlags: 0

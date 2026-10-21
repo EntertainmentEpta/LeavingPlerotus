@@ -26,12 +26,38 @@ public class ItemSaveEntry
 [Serializable]
 public class PersistentSaveData
 {
+    // --- Metadados do Slot ---
+    public string profileName = "Slot 1";
+    public string lastPlayedTimestamp = "";
+    public int playTimeSeconds = 0;
+
     public int inventoryMaxSlots = 10;
     public List<ItemSaveEntry> baseResources = new List<ItemSaveEntry>();
     public List<int> purchasedUpgradeIndices = new List<int>();
     public string selectedSkinID = "astronaut";
-    public List<string> craftedEquipmentIds = new List<string>();
+    public List<string> craftedEquipmentIds = new List<string>() { "eq_crystal_axe" };
     public List<string> equippedEquipmentIds = new List<string>();
     public List<string> inimigosDescobertos = new List<string>();
+    public List<string> itensCatalogados = new List<string>();
+    public List<string> itensInfundidos = new List<string>();
+    public List<string> discoveredSynergies = new List<string>();
+
+    // --- Sistema de Quests Nível AAA ---
+    public string activeQuestId = "";
+    public int activeQuestProgress = 0;
+    public List<string> completedQuestIds = new List<string>();
+
+    // --- Meta Suprema do Jogo (Núcleos da Nave) ---
+    public int shipPartsRecovered = 0;
+
+    // --- Onboarding & Tutoriais ---
+    public int tutorialStep = 0;
+    public List<string> seenDialogIds = new List<string>();
+
+    // --- Sistema de Lore, Escrituras e Mistério de Plerotus ---
+    public bool hasFoundResearcherBook = false;
+    public List<string> discoveredScriptureIds = new List<string>();
+    public List<string> unlockedRobotBlueprints = new List<string>();
+    public int merchantEncounterCount = 0;
 }
 

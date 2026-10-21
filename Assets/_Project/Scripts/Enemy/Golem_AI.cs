@@ -64,7 +64,7 @@ public class Golem_AI : MonoBehaviour
     private int meleeCombo = 0; // Para usar stun em combos
     private bool isBuffed = false;
 
-    [Header("Áudio")]
+    [Header("Áudio — Movimentação (Passos)")]
     [Tooltip("Vetor de áudios de passos do Golem selecionados aleatoriamente")]
     public AudioClip[] walkingSounds;
     [Tooltip("Volume dos sons de passos do Golem")]
@@ -74,11 +74,33 @@ public class Golem_AI : MonoBehaviour
     public float stepInterval = 0.45f;
     private float stepTimer = 0f;
 
+    [Header("Áudio — Ataque Normal (Melee)")]
+    [Tooltip("Som do golpe corpo a corpo normal do Golem")]
+    public AudioClip meleeAttackSound;
+    [Tooltip("Volume do som de ataque normal")]
+    [Range(0f, 1f)]
+    public float meleeAttackSoundVolume = 0.8f;
+
+    [Header("Áudio — Habilidade (Stomp / Stun)")]
     [Tooltip("Som do impacto da pisada/estouro de Stun (Stomp)")]
     public AudioClip stompSound;
     [Tooltip("Volume do som de Stomp")]
     [Range(0f, 1f)]
     public float stompSoundVolume = 0.9f;
+
+    [Header("Áudio — Dano Recebido (Hit)")]
+    [Tooltip("Sons reproduzidos quando o Golem leva dano (golpe do player). NÃO colocar sons de ataque aqui.")]
+    public AudioClip[] hitSounds;
+    [Tooltip("Volume dos sons de dano recebido (hit)")]
+    [Range(0f, 1f)]
+    public float hitSoundVolume = 0.7f;
+
+    [Header("Áudio — Morte (Die)")]
+    [Tooltip("Sons reproduzidos quando o Golem morre.")]
+    public AudioClip[] dieSounds;
+    [Tooltip("Volume dos sons de morte")]
+    [Range(0f, 1f)]
+    public float dieSoundVolume = 0.8f;
 
     public bool IsAttacking => isAttacking;
     public bool IsCastingStun => isCastingStun;
@@ -111,6 +133,32 @@ public class Golem_AI : MonoBehaviour
         {
             Debug.LogError("Golem_AI: Player não encontrado! Verifique a tag 'Player'.");
         }
+
+        // Registra callbacks de áudio de hit e morte
+        if (health != null)
+        {
+            if (hitSounds != null && hitSounds.Length > 0)
+                health.onDamageTaken += (damage, attacker) => PlayHitSound();
+
+            if (dieSounds != null && dieSounds.Length > 0)
+                health.onDeath += PlayDieSound;
+        }
+    }
+
+    private void PlayHitSound()
+    {
+        if (hitSounds == null || hitSounds.Length == 0) return;
+        AudioClip clip = hitSounds[Random.Range(0, hitSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), hitSoundVolume);
+    }
+
+    private void PlayDieSound()
+    {
+        if (dieSounds == null || dieSounds.Length == 0) return;
+        AudioClip clip = dieSounds[Random.Range(0, dieSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), dieSoundVolume);
     }
 
     void Update()
@@ -199,13 +247,17 @@ public class Golem_AI : MonoBehaviour
     }
 
     private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
+    {
+        if (audioSource != null)
         {
-            if (audioSource != null)
-            {
-                audioSource.pitch = pitch;
-                audioSource.PlayOneShot(clip, volume);
-            }
+            audioSource.pitch = pitch;
+            audioSource.PlayOneShot(clip, volume);
         }
+        else
+        {
+            AudioSource.PlayClipAtPoint(clip, position, volume);
+        }
+    }
 
     void HandleRotation()
     {
@@ -275,6 +327,13 @@ public class Golem_AI : MonoBehaviour
         // Animação de vento (wind-up)
         Debug.Log("[GOLEM] MELEE ATTACK! Preparando golpe...");
         yield return new WaitForSeconds(0.5f);
+
+        // Som do golpe de ataque normal
+        if (meleeAttackSound != null)
+        {
+            float pitch = Random.Range(0.9f, 1.1f);
+            PlayClipAtPointWithPitch(meleeAttackSound, transform.position, pitch, meleeAttackSoundVolume);
+        }
 
         // Verifica hit
         Collider[] hits = Physics.OverlapSphere(transform.position + transform.forward * 1.5f, meleeHitRadius);

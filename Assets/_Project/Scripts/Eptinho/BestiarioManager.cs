@@ -111,6 +111,12 @@ public class BestiarioManager : MonoBehaviour
             {
                 dados.inimigosDescobertos.Add(inimigo.enemyData.enemyName);
                 SaveManager.instance.SavePersistentData();
+
+                // Integração com Quests (CatalogEnemies)
+                if (QuestManager.Instance != null)
+                {
+                    QuestManager.Instance.AdvanceQuest(QuestType.CatalogEnemies, inimigo.enemyData.enemyName, 1);
+                }
             }
         }
 

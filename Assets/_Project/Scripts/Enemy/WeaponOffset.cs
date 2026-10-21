@@ -14,4 +14,16 @@ public class WeaponOffset : MonoBehaviour
     [Header("Animações (Moveset)")]
 
     public RuntimeAnimatorController weaponAnimatorOverride; 
+
+#if UNITY_EDITOR
+    private void Update()
+    {
+        // Permite alterar o offset em tempo real no Inspector durante o Play Mode
+        if (Application.isPlaying && transform.parent != null)
+        {
+            transform.localPosition = equipPosition;
+            transform.localEulerAngles = equipRotation;
+        }
+    }
+#endif
 }

@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
 
@@ -23,7 +23,7 @@ public class PlayerUltimate : MonoBehaviour
     public KeyCode ultimateKey = KeyCode.U;
 
     [Tooltip("Tempo de recarga do Ultimate em segundos")]
-    public float ultimateCooldown = 20f;
+    public float ultimateCooldown = 30f;
 
     [Tooltip("Impulso fisico para a frente durante o pulo do Ultimate")]
     public float forwardLeapImpulse = 6.0f;

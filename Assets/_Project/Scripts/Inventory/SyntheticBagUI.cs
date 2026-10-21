@@ -358,6 +358,7 @@ public class SyntheticBagUI : MonoBehaviour
 
             InventorySlotUI slot = slotObj.GetComponent<InventorySlotUI>();
             if (slot == null) slot = slotObj.AddComponent<InventorySlotUI>();
+            slot.isSyntheticBag = true;
             slot.Initialize(tooltip, slotSize);
             if (customFont != null) slot.SetFont(customFont);
             slot.SetItem(entry.itemId, entry.quantity, itemData);

@@ -59,6 +59,18 @@ public class RunManager : MonoBehaviour
     /// </summary>
     [HideInInspector] public bool forceBossNextRun = false;
 
+    // ==================== MERCADOR — ENCONTRO ÚNICO POR RUN ====================
+
+    /// <summary>
+    /// Trava global: o Mercador e a Sala do Mercador só podem aparecer UMA vez por run inteira.
+    /// </summary>
+    [HideInInspector] public bool hasSpawnedMerchantThisRun = false;
+
+    /// <summary>
+    /// Trava global: impede realizar mais de 1 Pacto de Sangue na mesma run.
+    /// </summary>
+    [HideInInspector] public bool hasCompletedPactThisRun = false;
+
     // =====================================================
 
     void Awake()
@@ -103,7 +115,11 @@ public class RunManager : MonoBehaviour
         geobionteDefeatCount = 0;
         geobionteAbsorbedThisLevel = false;
 
-        Debug.Log($"[RunManager] 🆕 Nova run iniciada. Sala 1 | Round {currentLevel}.");
+        // Reset do Mercador (permite 1 encontro e 1 pacto por run)
+        hasSpawnedMerchantThisRun = false;
+        hasCompletedPactThisRun = false;
+
+        Debug.Log($"[RunManager] 🆕 Nova run iniciada. Sala 1 | Round {currentLevel}. Mercador resetado para novo encontro único.");
         UpdateEndlessUI();
 
         RunStatsManager.Instance?.StartRunTracking(isEndlessMode);
@@ -253,13 +269,47 @@ public class RunManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Orçamento de pontos de spawn para a sala n.
-    /// P(1) = 4 pts (apenas mobs leves), crescendo gradualmente a cada sala.
+    /// Orçamento de pontos de spawn para a sala n no round/level atual.
+    /// Escala de forma progressiva considerando tanto a sala quanto a fase (round) da run.
+    /// Garante que no Round 2 e Round 3 o orçamento de cada onda seja suficiente para spawnar
+    /// Tanques (4 pts), Atiradores (2 pts) e Elites (10 pts como Geobionte).
     /// </summary>
     public int GetSpawnBudget(int roomNumber)
     {
-        int n = Mathf.Max(1, roomNumber);
-        int budget = Mathf.RoundToInt(3f + 1.1f * n);
+        int level = Mathf.Max(1, currentLevel);
+        int room = Mathf.Max(1, roomNumber);
+
+        float baseBudget;
+        float perRoomBudget;
+
+        if (level == 1)
+        {
+            // Level 1: Início calmo e escalonado para aprendizado do jogador
+            // Sala 1 = 4 pts, Sala 2 = 5 pts, Sala 3 = 6 pts, Sala 4 = 7 pts, Sala 5 = 8 pts
+            baseBudget = 3.5f;
+            perRoomBudget = 0.9f;
+        }
+        else if (level == 2)
+        {
+            // Level 2: Intermediário
+            // Sala 1 = 14 pts, Sala 4 = 19 pts, Sala 7 = 25 pts
+            baseBudget = 12f;
+            perRoomBudget = 1.8f;
+        }
+        else if (level == 3)
+        {
+            // Level 3: Avançado com grande variedade de mobs pesados
+            // Sala 1 = 25 pts, Sala 5 = 35 pts, Sala 9 = 45 pts
+            baseBudget = 22f;
+            perRoomBudget = 2.5f;
+        }
+        else // Endless / Level 4+
+        {
+            baseBudget = 36f + (level - 3) * 15f;
+            perRoomBudget = 4.0f;
+        }
+
+        int budget = Mathf.RoundToInt(baseBudget + perRoomBudget * room);
 
         PlayerHealth player = Object.FindFirstObjectByType<PlayerHealth>();
         if (player != null && player.hasChaosSymphony)

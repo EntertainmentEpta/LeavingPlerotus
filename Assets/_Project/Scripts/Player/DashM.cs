@@ -7,6 +7,7 @@ public class DashM : MonoBehaviour
     private Rigidbody rb;
     private PlayerAttributesDefensive playerAttributes;
     private PlayerHealth playerHealth;
+    private PlayerM playerMovement;
     public bool isDashing = false;
 
     [Header("Dash Settings")]
@@ -18,7 +19,7 @@ public class DashM : MonoBehaviour
     private int dashesLeft;
 
     [Header("Cooldown")]
-    public float dashCooldown = 2f; // Tempo em segundos para recarregar todos os dashes
+    public float dashCooldown = 1.3f; // Tempo em segundos para recarregar todos os dashes (acelerado para maior dinamismo)
     private float cooldownTimer;
     private bool isRecharging = false;
 
@@ -48,6 +49,7 @@ public class DashM : MonoBehaviour
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
+        playerMovement = GetComponent<PlayerM>();
         dashesLeft = maxDashes;
         attackScript = GetComponent<PrimaryAttackKnife>() ?? GetComponentInChildren<PrimaryAttackKnife>() ?? GetComponentInParent<PrimaryAttackKnife>();
         
@@ -78,19 +80,27 @@ public class DashM : MonoBehaviour
 
     private void Update()
     {
+        if (DialogManager.BlocksGameplayInput || GamePause.IsPaused) return;
         if (CheatConsole.IsOpen) return;
+        if (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen()) return;
+        if (JournalBookUI.Instance != null && JournalBookUI.Instance.IsOpen) return;
 
         // Trava de segurança: Proíbe Dash durante o Ultimate para evitar exploits de voo/cancelamento indevido
         PlayerUltimate playerUlt = GetComponent<PlayerUltimate>() ?? GetComponentInParent<PlayerUltimate>() ?? GetComponentInChildren<PlayerUltimate>();
         if (playerUlt != null && playerUlt.IsUltimateActive()) return;
 
-        if (Input.GetKeyDown(dashKey))
+        bool plasmaActionLocked = playerMovement != null && playerMovement.IsPlasmaActionLocked;
+        if (plasmaActionLocked)
+        {
+            lastDashInputTime = -999f;
+        }
+        else if (Input.GetKeyDown(dashKey))
         {
             lastDashInputTime = Time.time;
         }
 
         // Lógica para iniciar o dash com suporte a Input Buffer Temporal e Dash-Canceling de ataque (Estilo Hades)
-        if ((Time.time - lastDashInputTime <= inputBufferWindow) && dashesLeft > 0 && !isDashing && !isRecharging)
+        if ((Time.time - lastDashInputTime <= inputBufferWindow) && dashesLeft > 0 && !isDashing && !isRecharging && !plasmaActionLocked)
         {
             // Se o player estiver atacando, cancela a recuperação do ataque imediatamente para realizar o Dash
             if (attackScript != null && attackScript.isAttacking)
@@ -163,7 +173,9 @@ public class DashM : MonoBehaviour
 
         yield return new WaitForSeconds(dashDuration * dashDurationMultiplier);
 
-        rb.linearVelocity = Vector3.zero; // Para o movimento bruscamente no final do dash
+        // Conserva inércia suave na direção do dash para emendar diretamente na corrida
+        float exitSpeed = playerMovement != null ? playerMovement.sprintSpeed : 11f;
+        rb.linearVelocity = dashDirection * exitSpeed;
         
         // Desativar invulnerabilidade se estava ativa
         if (playerHealth != null && playerAttributes != null && playerAttributes.dashInvulnerability > 0)
