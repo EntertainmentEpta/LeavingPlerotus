@@ -128,6 +128,26 @@ public class DevCheatConsole : MonoBehaviour
     /// <summary>
     /// Destrava e crafta todas as melhorias equipáveis cadastradas no jogo.
     /// </summary>
+    /// <summary>
+    /// Desbloqueia todas as armas (Adaga, Machado e Pistola) no save e no expositor.
+    /// </summary>
+    public void UnlockAllWeapons()
+    {
+        if (SaveManager.instance != null)
+        {
+            SaveManager.instance.AddCraftedEquipment("eq_crystal_axe");
+            SaveManager.instance.AddCraftedEquipment("eq_arma_projetil");
+                        SaveManager.instance.SavePersistentData();
+        }
+
+        if (WeaponRack.Instance != null)
+        {
+            WeaponRack.Instance.UnlockAllSlots();
+        }
+
+        Log("<color=#55FF55>[CHEAT OK]</color> Todas as armas desbloqueadas permanentemente!");
+    }
+
     public void UnlockAllEquipment()
     {
         if (EquipmentManager.Instance == null || SaveManager.instance == null)
@@ -147,6 +167,7 @@ public class DevCheatConsole : MonoBehaviour
         }
 
         SaveManager.instance.SavePersistentData();
+        UnlockAllWeapons();
 
         LabDoorManager doorManager = Object.FindFirstObjectByType<LabDoorManager>();
         if (doorManager != null)

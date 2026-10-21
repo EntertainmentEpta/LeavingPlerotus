@@ -751,6 +751,20 @@ public class WeaponRack : MonoBehaviour
         return false;
     }
 
+    /// <summary>
+    /// Desbloqueia todos os slots do expositor imediatamente para testes.
+    /// </summary>
+    public void UnlockAllSlots()
+    {
+        if (slots != null)
+        {
+            foreach (var slot in slots)
+            {
+                if (slot != null) slot.unlockedByDefault = true;
+            }
+        }
+    }
+
     private bool IsWeaponCurrentlyEquipped(WeaponRackSlot slot)
     {
         if (playerWeaponManager == null || playerWeaponManager.currentWeapon == null) return false;

@@ -54,6 +54,10 @@ public class CheatConsole : MonoBehaviour
         new CheatEntry { category = "✨ SINERGIAS & LORE", command = "limparescrituras", aliases = "clearscriptures, clearlore", description = "Reseta todas as escrituras coletadas para páginas em branco.", executePayload = "limparescrituras" },
 
         // ⚔️ Combate, Dano & Atributos
+        new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "armas", aliases = "weapons, allweapons, liberararmas, unlockweapons", description = "Desbloqueia permanentemente todas as armas no Expositor (Machado, Pistola e Adaga).", executePayload = "armas" },
+        new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "arma pistola", aliases = "pistola, gun", description = "Equipa a Pistola diretamente na mão do personagem.", executePayload = "arma pistola" },
+        new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "arma machado", aliases = "machado, axe", description = "Equipa o Machado de Cristal diretamente na mão do personagem.", executePayload = "arma machado" },
+        new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "arma adaga", aliases = "adaga, dagger", description = "Equipa a Adaga de Plasma diretamente na mão do personagem.", executePayload = "arma adaga" },
         new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "forca 10", aliases = "dano [X], str [X], strength [X]", description = "Multiplica o dano base por 10x (aceita qualquer valor: ex: forca 5, forca 50).", executePayload = "forca 10" },
         new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "heal", aliases = "vida, curar, god", description = "Restaura instantaneamente toda a vida e armadura do jogador ao máximo.", executePayload = "heal" },
         new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "poison", aliases = "veneno", description = "Ativa o efeito Tier 4 Veneno (dano contínuo verde nos inimigos).", executePayload = "poison" },
@@ -922,6 +926,7 @@ public class CheatConsole : MonoBehaviour
                  string.Equals(command, "equip", System.StringComparison.OrdinalIgnoreCase))
         {
             Debug.Log("💻 CHEAT APROVADO: Destravando todas as melhorias e sinergias!");
+            UnlockAllWeapons();
             if (DevCheatConsole.Instance != null)
             {
                 DevCheatConsole.Instance.UnlockAllEquipment();
@@ -932,8 +937,27 @@ public class CheatConsole : MonoBehaviour
             }
             if (EptinhoPopupController.instancia != null)
             {
-                EptinhoPopupController.instancia.MostrarPopupAviso("Todas as Melhorias e Sinergias Destravadas!");
+                EptinhoPopupController.instancia.MostrarPopupAviso("Todas as Melhorias, Armas e Sinergias Destravadas!");
             }
+        }
+        else if (string.Equals(command, "armas", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "weapons", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "allweapons", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "liberararmas", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "unlockweapons", System.StringComparison.OrdinalIgnoreCase))
+        {
+            UnlockAllWeapons();
+        }
+        else if (command.StartsWith("arma ", System.StringComparison.OrdinalIgnoreCase) ||
+                 command.StartsWith("weapon ", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "pistola", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "machado", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "adaga", System.StringComparison.OrdinalIgnoreCase))
+        {
+            string weaponArg = command;
+            if (command.StartsWith("arma ", System.StringComparison.OrdinalIgnoreCase)) weaponArg = command.Substring(5).Trim();
+            else if (command.StartsWith("weapon ", System.StringComparison.OrdinalIgnoreCase)) weaponArg = command.Substring(7).Trim();
+            EquipWeaponCheat(weaponArg);
         }
         else if (string.Equals(command, "sinergias", System.StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(command, "synergies", System.StringComparison.OrdinalIgnoreCase) ||
@@ -1378,6 +1402,78 @@ public class CheatConsole : MonoBehaviour
         if (EptinhoPopupController.instancia != null)
         {
             EptinhoPopupController.instancia.MostrarPopupAviso(popup);
+        }
+    }
+
+    /// <summary>
+    /// Desbloqueia permanentemente todas as armas no save e no expositor WeaponRack.
+    /// </summary>
+    public void UnlockAllWeapons()
+    {
+        if (SaveManager.instance != null)
+        {
+            SaveManager.instance.AddCraftedEquipment("eq_crystal_axe");
+            SaveManager.instance.AddCraftedEquipment("eq_arma_projetil");
+                        SaveManager.instance.SavePersistentData();
+        }
+
+        if (WeaponRack.Instance != null)
+        {
+            WeaponRack.Instance.UnlockAllSlots();
+        }
+
+        Debug.Log("💻 CHEAT APROVADO: Todas as armas desbloqueadas permanentemente no Expositor!");
+        if (EptinhoPopupController.instancia != null)
+        {
+            EptinhoPopupController.instancia.MostrarPopupAviso("⚔️ TODAS AS ARMAS DESBLOQUEADAS!\n(Adaga, Machado e Pistola Liberados)");
+        }
+    }
+
+    /// <summary>
+    /// Desbloqueia e equipa uma arma diretamente na mão do jogador (útil em qualquer cena de teste).
+    /// </summary>
+    public void EquipWeaponCheat(string weaponName)
+    {
+        Player_WeaponManager wm = weaponManagerScript ?? GetComponent<Player_WeaponManager>() ?? GetComponentInChildren<Player_WeaponManager>() ?? Object.FindFirstObjectByType<Player_WeaponManager>();
+        if (wm == null)
+        {
+            Debug.LogWarning("🔍 CHEAT: Player_WeaponManager não encontrado.");
+            return;
+        }
+
+        string lower = (weaponName ?? "").ToLower().Trim();
+        GameObject prefabToEquip = null;
+        string displayName = "";
+
+        if (lower.Contains("adaga") || lower.Contains("dagger") || lower.Contains("faca"))
+        {
+            prefabToEquip = Resources.Load<GameObject>("dagger_low");
+            displayName = "Adaga de Plasma";
+        }
+        else if (lower.Contains("machado") || lower.Contains("axe") || lower.Contains("crystal_axe"))
+        {
+            prefabToEquip = Resources.Load<GameObject>("Crystal_Axe");
+            displayName = "Machado de Cristal";
+        }
+        else if (lower.Contains("pistola") || lower.Contains("gun") || lower.Contains("arma") || lower.Contains("tiro"))
+        {
+            prefabToEquip = Resources.Load<GameObject>("gunfake");
+            displayName = "Pistola / Arma de Projétil";
+        }
+
+        if (prefabToEquip != null)
+        {
+            UnlockAllWeapons();
+            wm.EquipWeaponPrefab(prefabToEquip);
+            if (EptinhoPopupController.instancia != null)
+            {
+                EptinhoPopupController.instancia.MostrarPopupAviso($"⚔️ ARMA EQUIPADA: {displayName}!");
+            }
+            Debug.Log($"💻 CHEAT: {displayName} equipada com sucesso no jogador!");
+        }
+        else
+        {
+            Debug.LogWarning($"🔍 CHEAT: Arma '{weaponName}' não reconhecida. Use: adaga, machado ou pistola.");
         }
     }
 }
