@@ -78,6 +78,7 @@ public class QuestHUDTracker : MonoBehaviour
     // ── Seção Expandida (Inventário / Detalhado) ──
     private GameObject      expandedContainer;
     private bool            isCurrentlyExpanded = false;
+    private bool            isPointerHovering = false;
 
     // ── Seção da Meta Suprema (Núcleos da Nave) ──
     private GameObject      masterSection;
@@ -188,7 +189,18 @@ public class QuestHUDTracker : MonoBehaviour
 
     private void UpdateDisplayMode()
     {
-        bool shouldExpand = IsInventoryOpen();
+        bool isInvOpen = IsInventoryOpen();
+        bool isCursorFree = Cursor.visible || isInvOpen;
+
+        // Se o cursor não está livre/visível ou o inventário foi fechado, desativa o hover
+        if (!isCursorFree)
+        {
+            isPointerHovering = false;
+        }
+
+        // O widget só expande quando o jogador passa o mouse por cima do card!
+        // No resto do tempo (inclusive com inventário aberto), fica compacto para não obstruir cliques
+        bool shouldExpand = isPointerHovering && isCursorFree;
 
         if (isCurrentlyExpanded != shouldExpand)
         {
@@ -197,13 +209,28 @@ public class QuestHUDTracker : MonoBehaviour
             if (expandedContainer != null) expandedContainer.SetActive(isCurrentlyExpanded);
         }
 
+        // Dica contextual no modo compacto
+        if (compactHintText != null)
+        {
+            if (isInvOpen)
+            {
+                compactHintText.text = "Passe o mouse para detalhes";
+                compactHintText.color = new Color(0.96f, 0.76f, 0.20f, 0.85f);
+            }
+            else
+            {
+                compactHintText.text = "[TAB] Missão completa";
+                compactHintText.color = new Color(0.7f, 0.65f, 0.85f, 0.6f);
+            }
+        }
+
         if (widgetRect != null)
         {
             float targetW = isCurrentlyExpanded ? widgetWidth : compactWidth;
             float currentW = widgetRect.sizeDelta.x;
             if (Mathf.Abs(currentW - targetW) > 0.5f)
             {
-                widgetRect.sizeDelta = new Vector2(Mathf.Lerp(currentW, targetW, Time.unscaledDeltaTime * 14f), widgetRect.sizeDelta.y);
+                widgetRect.sizeDelta = new Vector2(Mathf.Lerp(currentW, targetW, Time.unscaledDeltaTime * 16f), widgetRect.sizeDelta.y);
             }
         }
     }
@@ -226,7 +253,7 @@ public class QuestHUDTracker : MonoBehaviour
 
         hudCanvas = canvasObj.AddComponent<Canvas>();
         hudCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        hudCanvas.sortingOrder = 55; // Acima da tela normal, abaixo de modais/menus
+        hudCanvas.sortingOrder = 150; // Acima do InventorySystem (100) e do Preview 3D, abaixo de popups modais (500)
 
         CanvasScaler scaler = canvasObj.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -242,6 +269,12 @@ public class QuestHUDTracker : MonoBehaviour
 
         Image bgImg = widgetObj.AddComponent<Image>();
         bgImg.color = BG_COLOR;
+        bgImg.raycastTarget = true;
+
+        // Detector de mouse (hover) para expandir apenas sob demanda
+        QuestWidgetHoverDetector hoverDetector = widgetObj.AddComponent<QuestWidgetHoverDetector>();
+        hoverDetector.onPointerEnter = () => { isPointerHovering = true; };
+        hoverDetector.onPointerExit  = () => { isPointerHovering = false; };
 
         widgetRect = widgetObj.GetComponent<RectTransform>();
         // Ancora no meio da borda direita da tela
@@ -709,5 +742,24 @@ public class QuestHUDTracker : MonoBehaviour
         }
 
         widgetRect.localScale = originalScale;
+    }
+}
+
+/// <summary>
+/// Detecta entrada e saída do cursor do mouse sobre o widget de missões.
+/// </summary>
+public class QuestWidgetHoverDetector : MonoBehaviour, UnityEngine.EventSystems.IPointerEnterHandler, UnityEngine.EventSystems.IPointerExitHandler
+{
+    public System.Action onPointerEnter;
+    public System.Action onPointerExit;
+
+    public void OnPointerEnter(UnityEngine.EventSystems.PointerEventData eventData)
+    {
+        onPointerEnter?.Invoke();
+    }
+
+    public void OnPointerExit(UnityEngine.EventSystems.PointerEventData eventData)
+    {
+        onPointerExit?.Invoke();
     }
 }
