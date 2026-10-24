@@ -76,6 +76,7 @@ public class CheatConsole : MonoBehaviour
         new CheatEntry { category = "👾 INIMIGOS, SPAWNS & BOSS", command = "endless", aliases = "-", description = "Alterna o Modo Endless (fases infinitas sem encerrar no chefe).", executePayload = "endless" },
 
         // ⭐ Efeitos Lendários T4
+        new CheatEntry { category = "⭐ EFEITOS LENDÁRIOS T4", command = "supergun", aliases = "superpistola, maxgun, godgun", description = "MODO DEUS DA PISTOLA: Equipa a arma com 100% Multishot (6 tiros em leque), Piercing 5, Ricochete, Alcance 50m, Dano 75 e Homing!", executePayload = "supergun" },
         new CheatEntry { category = "⭐ EFEITOS LENDÁRIOS T4", command = "t4 dash", aliases = "dash, dashboom", description = "Concede o item Tier 4 Dash Explosivo (04sb) para testar explosões ao dar dash.", executePayload = "t4 dash" },
         new CheatEntry { category = "⭐ EFEITOS LENDÁRIOS T4", command = "t4 aimbot", aliases = "aimbot, homing, autoaim", description = "Concede o item Tier 4 Pistola Teleguiada (03cw) para tiros perseguirem inimigos.", executePayload = "t4 aimbot" },
         new CheatEntry { category = "⭐ EFEITOS LENDÁRIOS T4", command = "t4", aliases = "allt4, tier4", description = "Concede todos os itens lendários Tier 4 de uma vez no inventário.", executePayload = "t4" },
@@ -948,6 +949,13 @@ public class CheatConsole : MonoBehaviour
         {
             UnlockAllWeapons();
         }
+        else if (string.Equals(command, "supergun", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "superpistola", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "maxgun", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "godgun", System.StringComparison.OrdinalIgnoreCase))
+        {
+            ActivateSuperGunCheat();
+        }
         else if (command.StartsWith("arma ", System.StringComparison.OrdinalIgnoreCase) ||
                  command.StartsWith("weapon ", System.StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(command, "pistola", System.StringComparison.OrdinalIgnoreCase) ||
@@ -1474,6 +1482,65 @@ public class CheatConsole : MonoBehaviour
         else
         {
             Debug.LogWarning($"🔍 CHEAT: Arma '{weaponName}' não reconhecida. Use: adaga, machado ou pistola.");
+        }
+    }
+
+    /// <summary>
+    /// Equipa a pistola e eleva seus parâmetros ao nível máximo (Modo Demonstração):
+    /// 100% Multishot (6 projéteis extras em leque), Piercing 5, Ricochete 100% (3x), 
+    /// Alcance 50m, Dano 75, Cadência ultra-rápida (0.15s), 24 cargas de bateria e Tiros Teleguiados (Homing)!
+    /// </summary>
+    public void ActivateSuperGunCheat()
+    {
+        // 1. Equipa a arma pistola imediatamente
+        EquipWeaponCheat("pistola");
+
+        // 2. Modifica os atributos ofensivos do jogador
+        PlayerAttributesOffensive attr = PlayerAttributesOffensive.Instance 
+            ?? GetComponentInChildren<PlayerAttributesOffensive>() 
+            ?? Object.FindFirstObjectByType<PlayerAttributesOffensive>();
+
+        if (attr != null)
+        {
+            attr.multiShotChance = 100f;
+            attr.spread = 12f;
+            attr.piercing = 5;
+            attr.bounceChance = 100f;
+            attr.bounceCount = 3;
+            attr.weaponRangeProjectile = 50f;
+            attr.critChance = 50f;
+            attr.critMultiplier = 2.0f;
+        }
+
+        // 3. Modifica a arma GunAttack instanciada
+        GunAttack gun = GetComponentInChildren<GunAttack>() 
+            ?? Object.FindFirstObjectByType<GunAttack>();
+
+        if (gun != null)
+        {
+            gun.baseDamage = 75;
+            gun.maxExtraProjectiles = 6;
+            gun.minimumProjectileRange = 50f;
+            gun.fireCooldown = 0.15f;
+            gun.batteryCapacity = 24;
+            gun.passiveChargeRegenDelay = 0.4f;
+            gun.passiveChargeRegenInterval = 0.15f;
+            gun.batteryRechargeDuration = 0.5f;
+            gun.RechargeBattery(24);
+        }
+
+        // 4. Ativa o efeito Tier 4 Homing (Pistola Teleguiada)
+        Tier4EffectManager t4 = Object.FindFirstObjectByType<Tier4EffectManager>();
+        if (t4 != null && !t4.HasEffect(Tier4EffectType.HomingProjectiles))
+        {
+            t4.ActivateEffect(Tier4EffectType.HomingProjectiles);
+        }
+
+        string msg = "🔥 SUPER PISTOLA ATIVADA!\nMultishot (6 tiros) + Piercing (5) + Ricochete (3x) + Homing + Cadência 0.15s!";
+        Debug.Log($"💻 CHEAT: {msg}");
+        if (EptinhoPopupController.instancia != null)
+        {
+            EptinhoPopupController.instancia.MostrarPopupAviso(msg);
         }
     }
 }
