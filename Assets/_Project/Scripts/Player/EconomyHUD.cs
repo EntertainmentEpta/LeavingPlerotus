@@ -61,6 +61,17 @@ public class EconomyHUD : MonoBehaviour
 
     void Update()
     {
+        string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if (currentScene == "MainMenu" || currentScene == "Menu")
+        {
+            if (rootCanvas != null && rootCanvas.activeSelf) rootCanvas.SetActive(false);
+            return;
+        }
+        else
+        {
+            if (rootCanvas != null && !rootCanvas.activeSelf && isVisible) rootCanvas.SetActive(true);
+        }
+
         // Reconstrói se panelWidth/margins foram alterados no Inspector
         if (needsRebuild && Application.isPlaying)
         {
@@ -71,7 +82,7 @@ public class EconomyHUD : MonoBehaviour
         if (Input.GetKeyDown(toggleKey))
         {
             isVisible = !isVisible;
-            panel.SetActive(isVisible);
+            if (panel != null) panel.SetActive(isVisible);
         }
 
         if (!isVisible) return;

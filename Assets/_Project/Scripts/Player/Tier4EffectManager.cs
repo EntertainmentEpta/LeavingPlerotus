@@ -22,6 +22,22 @@ public class Tier4EffectManager : MonoBehaviour
     [Tooltip("Referência ao ExplosiveDashEffect (pode estar no mesmo GameObject ou em filho).")]
     public ExplosiveDashEffect explosiveDashEffect;
 
+    [Header("Poison (T4) - Config")]
+    [Tooltip("Dano por tick do veneno aplicado nos inimigos atingidos.")]
+    public int poisonDamagePerTick = 5;
+
+    [Tooltip("Duração do veneno em segundos (reaplicar no mesmo inimigo restaura o timer).")]
+    public float poisonDuration = 5f;
+
+    [Tooltip("Intervalo entre ticks de dano do veneno (segundos).")]
+    public float poisonTickInterval = 1f;
+
+    [Header("Tiro Teleguiado")]
+    [Min(0.1f)] public float homingDetectionRadius = 30f;
+    [Min(1f)] public float homingTurnSpeed = 720f;
+    [Min(0.02f)] public float homingTargetRefreshInterval = 0.1f;
+    public Color homingBatteryOrbTint = new Color(126f / 255f, 61f / 255f, 202f / 255f, 1f);
+
     // Registro de efeitos ativos para consulta rápida
     private HashSet<Tier4EffectType> activeEffects = new HashSet<Tier4EffectType>();
 
@@ -50,16 +66,29 @@ public class Tier4EffectManager : MonoBehaviour
         switch (effectType)
         {
             case Tier4EffectType.ExplosiveDash:
+                if (explosiveDashEffect == null)
+                {
+                    explosiveDashEffect = GetComponent<ExplosiveDashEffect>() 
+                        ?? GetComponentInChildren<ExplosiveDashEffect>()
+                        ?? gameObject.AddComponent<ExplosiveDashEffect>();
+                }
                 if (explosiveDashEffect != null)
                 {
                     explosiveDashEffect.ActivateEffect();
                     activeEffects.Add(effectType);
                     Debug.Log($"💎 [T4 EFFECT] {effectType} ATIVADO!");
                 }
-                else
-                {
-                    Debug.LogError("[Tier4EffectManager] ExplosiveDashEffect não encontrado no Player! Adicione o componente.");
-                }
+                break;
+
+            case Tier4EffectType.Poison:
+                // Efeito passivo: não precisa de componente próprio, os ataques consultam HasEffect()
+                activeEffects.Add(effectType);
+                Debug.Log($"💎 [T4 EFFECT] {effectType} ATIVADO!");
+                break;
+
+            case Tier4EffectType.HomingProjectiles:
+                activeEffects.Add(effectType);
+                Debug.Log($"[Tier4EffectManager] Efeito {effectType} ATIVADO!");
                 break;
 
             default:
@@ -90,6 +119,16 @@ public class Tier4EffectManager : MonoBehaviour
                     Debug.Log($"💎 [T4 EFFECT] {effectType} DESATIVADO!");
                 }
                 break;
+
+            case Tier4EffectType.Poison:
+                activeEffects.Remove(effectType);
+                Debug.Log($"💎 [T4 EFFECT] {effectType} DESATIVADO!");
+                break;
+
+            case Tier4EffectType.HomingProjectiles:
+                activeEffects.Remove(effectType);
+                Debug.Log($"[Tier4EffectManager] Efeito {effectType} DESATIVADO!");
+                break;
         }
     }
 
@@ -99,6 +138,20 @@ public class Tier4EffectManager : MonoBehaviour
     public bool HasEffect(Tier4EffectType effectType)
     {
         return activeEffects.Contains(effectType);
+    }
+
+    /// <summary>
+    /// Aplica os efeitos T4 "on-hit" ativos no inimigo atingido por um ataque do player.
+    /// Chamado pelos scripts de ataque (PrimaryAttackKnife, GunProjectile...) após causar dano.
+    /// </summary>
+    public void ApplyOnHitEffects(GameObject enemy)
+    {
+        if (enemy == null) return;
+
+        if (activeEffects.Contains(Tier4EffectType.Poison))
+        {
+            PoisonedEnemyStatus.ApplyPoison(enemy, poisonDamagePerTick, poisonDuration, poisonTickInterval);
+        }
     }
 
     /// <summary>

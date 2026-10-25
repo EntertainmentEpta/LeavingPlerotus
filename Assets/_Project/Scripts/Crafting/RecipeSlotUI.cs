@@ -19,6 +19,8 @@ public class RecipeSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
     private bool canCraft = false;
     private bool isSelected = false;
     private bool isHovered = false;
+    private bool isFaded = false;
+    private bool isAlreadyBuilt = false;
 
     // Callback de seleção
     private System.Action<CraftingRecipe> onSelected;
@@ -110,12 +112,65 @@ public class RecipeSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
     }
 
     /// <summary>
+    /// Configuração avançada de exibição para a aba de armas (suporta cards opacos, já forjados ou apagados/classificados).
+    /// </summary>
+    public void SetWeaponSlot(CraftingRecipe recipe, string displayName, string customStatus, bool alreadyBuilt, bool craftable, bool faded)
+    {
+        currentRecipe = recipe;
+        canCraft = craftable;
+        isAlreadyBuilt = alreadyBuilt;
+        isFaded = faded;
+
+        if (nameText != null)
+        {
+            nameText.text = displayName;
+            if (faded)
+            {
+                nameText.color = new Color(0.48f, 0.52f, 0.58f, 0.32f);
+            }
+            else if (alreadyBuilt)
+            {
+                nameText.color = new Color(0.85f, 0.98f, 0.92f, 1f);
+            }
+            else
+            {
+                nameText.color = new Color(0.95f, 0.95f, 0.98f, 1f);
+            }
+        }
+
+        if (statusText != null)
+        {
+            statusText.text = customStatus;
+            if (faded)
+            {
+                statusText.color = new Color(0.38f, 0.42f, 0.48f, 0.30f);
+            }
+            else if (alreadyBuilt)
+            {
+                statusText.color = new Color(0.0f, 0.95f, 0.65f, 1f);
+            }
+            else if (craftable)
+            {
+                statusText.color = TEXT_CAN_CRAFT;
+            }
+            else
+            {
+                statusText.color = TEXT_CANT_CRAFT;
+            }
+        }
+
+        UpdateVisual();
+    }
+
+    /// <summary>
     /// Atualiza o slot com os dados de uma receita.
     /// </summary>
     public void SetRecipe(CraftingRecipe recipe, bool craftable)
     {
         currentRecipe = recipe;
         canCraft = craftable;
+        isFaded = false;
+        isAlreadyBuilt = false;
 
         if (recipe == null)
         {
@@ -154,10 +209,17 @@ public class RecipeSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
 
     private void UpdateVisual()
     {
+        if (isFaded)
+        {
+            backgroundImage.color = new Color(0.06f, 0.08f, 0.10f, 0.35f);
+            borderImage.color = isSelected ? new Color(0.4f, 0.45f, 0.5f, 0.4f) : new Color(0.2f, 0.24f, 0.28f, 0.25f);
+            return;
+        }
+
         if (isSelected)
         {
             backgroundImage.color = SLOT_SELECTED;
-            borderImage.color = canCraft ? BORDER_CAN_CRAFT : BORDER_CANT_CRAFT;
+            borderImage.color = isAlreadyBuilt ? new Color(0.0f, 0.95f, 0.65f, 0.9f) : (canCraft ? BORDER_CAN_CRAFT : BORDER_CANT_CRAFT);
         }
         else if (isHovered)
         {
@@ -166,7 +228,7 @@ public class RecipeSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
         else
         {
             backgroundImage.color = SLOT_BG;
-            borderImage.color = BORDER_DEFAULT;
+            borderImage.color = isAlreadyBuilt ? new Color(0.15f, 0.55f, 0.45f, 0.55f) : BORDER_DEFAULT;
         }
     }
 

@@ -111,13 +111,40 @@ public class SpawnItemsSetupTool : Editor
             }
 
             // ── Passo 5: Adiciona ItemPickup se não existir ───────────────────
-            if (prefabRoot.GetComponent<ItemPickup>() == null)
+            ItemPickup pickup = prefabRoot.GetComponent<ItemPickup>();
+            if (pickup == null)
             {
-                prefabRoot.AddComponent<ItemPickup>();
+                pickup = prefabRoot.AddComponent<ItemPickup>();
                 dirty = true;
             }
 
-            // ── Passo 6: Salva o prefab ───────────────────────────────────────
+            // Limpa pressFUI se for um Canvas dummy sem texto
+            if (pickup.pressFUI != null)
+            {
+                if (pickup.pressFUI.GetComponentInChildren<TMPro.TextMeshProUGUI>(true) == null &&
+                    pickup.pressFUI.GetComponentInChildren<UnityEngine.UI.Text>(true) == null)
+                {
+                    pickup.pressFUI = null;
+                    dirty = true;
+                }
+            }
+
+            // ── Passo 6: Garante BoxCollider Trigger para interação ────────────
+            BoxCollider col = prefabRoot.GetComponent<BoxCollider>();
+            if (col == null)
+            {
+                col = prefabRoot.AddComponent<BoxCollider>();
+                dirty = true;
+            }
+            if (!col.isTrigger || col.size != new Vector3(2.5f, 2.5f, 2.5f))
+            {
+                col.isTrigger = true;
+                col.center = new Vector3(0f, 0.5f, 0f);
+                col.size = new Vector3(2.5f, 2.5f, 2.5f);
+                dirty = true;
+            }
+
+            // ── Passo 7: Salva o prefab ───────────────────────────────────────
             if (dirty)
             {
                 PrefabUtility.SaveAsPrefabAsset(prefabRoot, prefabPath);
@@ -140,6 +167,117 @@ public class SpawnItemsSetupTool : Editor
             "Setup Concluído",
             $"SpawnItems configurados!\n\n" +
             $"ItemData criados: {created}\n" +
+            $"Prefabs atualizados: {updated}\n" +
+            $"Sem mudanças: {skipped}",
+            "OK"
+        );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Setup de Map Resources da Bolsa Sintética (Fauna, Flora, Minerais)
+    // ─────────────────────────────────────────────────────────────────────────
+    private const string MapResourcesFolder = "Assets/_Project/Items_and_Crafting/Resources/SpawnItems";
+
+    private static readonly (string prefabName, string itemId)[] MapResourceDefinitions =
+    {
+        ("Cristal",    "po_de_cristal"),
+        ("Fly",        "vagalume_cristalizado"),
+        ("Lanternas",  "arvore_vagens"),
+        ("Lotus",      "lithos"),
+        ("Melacotus",  "melocactus"),
+        ("Ovocristal", "ovo_cristal_crawler"),
+        ("Quebradiço", "caracol_geodo")
+    };
+
+    [MenuItem("Tools/RogueLike/⚙️ Setup Map Resources (Bolsa Sintética)")]
+    public static void SetupMapResources()
+    {
+        int updated = 0;
+        int skipped = 0;
+
+        foreach (var def in MapResourceDefinitions)
+        {
+            string prefabPath = $"{MapResourcesFolder}/{def.prefabName}.prefab";
+            string itemDataPath = $"Assets/_Project/Items_and_Crafting/Resources/ItemData/{def.itemId}.asset";
+
+            ItemData itemData = AssetDatabase.LoadAssetAtPath<ItemData>(itemDataPath);
+            if (itemData == null)
+            {
+                Debug.LogWarning($"[MapResourcesSetup] ItemData não encontrado: {itemDataPath}");
+            }
+
+            GameObject prefabRoot = PrefabUtility.LoadPrefabContents(prefabPath);
+            if (prefabRoot == null)
+            {
+                skipped++;
+                continue;
+            }
+
+            bool dirty = false;
+
+            Interactable interactable = prefabRoot.GetComponent<Interactable>();
+            if (interactable == null)
+            {
+                interactable = prefabRoot.AddComponent<Interactable>();
+                dirty = true;
+            }
+            if (itemData != null && interactable.itemData != itemData)
+            {
+                interactable.itemData = itemData;
+                interactable.objetoNome = itemData.itemName;
+                dirty = true;
+            }
+
+            ItemPickup pickup = prefabRoot.GetComponent<ItemPickup>();
+            if (pickup == null)
+            {
+                pickup = prefabRoot.AddComponent<ItemPickup>();
+                dirty = true;
+            }
+            if (pickup.pressFUI != null)
+            {
+                if (pickup.pressFUI.GetComponentInChildren<TMPro.TextMeshProUGUI>(true) == null &&
+                    pickup.pressFUI.GetComponentInChildren<UnityEngine.UI.Text>(true) == null)
+                {
+                    pickup.pressFUI = null;
+                    dirty = true;
+                }
+            }
+
+            BoxCollider col = prefabRoot.GetComponent<BoxCollider>();
+            if (col == null)
+            {
+                col = prefabRoot.AddComponent<BoxCollider>();
+                dirty = true;
+            }
+            if (!col.isTrigger || col.size != new Vector3(2.5f, 2.5f, 2.5f))
+            {
+                col.isTrigger = true;
+                col.center = new Vector3(0f, 0.5f, 0f);
+                col.size = new Vector3(2.5f, 2.5f, 2.5f);
+                dirty = true;
+            }
+
+            if (dirty)
+            {
+                PrefabUtility.SaveAsPrefabAsset(prefabRoot, prefabPath);
+                updated++;
+                Debug.Log($"[MapResourcesSetup] Prefab configurado com sucesso: {def.prefabName}");
+            }
+            else
+            {
+                skipped++;
+            }
+
+            PrefabUtility.UnloadPrefabContents(prefabRoot);
+        }
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+
+        EditorUtility.DisplayDialog(
+            "Setup Concluído",
+            $"Recursos de Mapa (Bolsa Sintética) configurados!\n\n" +
             $"Prefabs atualizados: {updated}\n" +
             $"Sem mudanças: {skipped}",
             "OK"

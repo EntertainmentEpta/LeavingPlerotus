@@ -224,7 +224,7 @@ public class MainMenuUI : MonoBehaviour
     void OnPlay()
     {
         PlayerHealth.shouldPlayWakeUpAnimation = true;
-        SceneManager.LoadScene(playSceneName);
+        GameManager.EnsureInstance().LoadSceneWithLoading(playSceneName, false);
     }
     void OnOptions() { ShowOptions(); }
     void OnCredits() { ShowCredits(); }

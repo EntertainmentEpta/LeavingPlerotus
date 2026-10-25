@@ -16,6 +16,8 @@ public class DamageZone : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        if (!enabled) return;
+
         if (other.CompareTag("Player"))
         {
             PlayerHealth playerHealth = other.GetComponent<PlayerHealth>();
@@ -55,6 +57,8 @@ public class DamageZone : MonoBehaviour
     // O OnTriggerExit não é mais tão necessário se for destroyOnImpact, mas mantemos para compatibilidade
     private void OnTriggerExit(Collider other)
     {
+        if (!enabled) return;
+
         if (!destroyOnImpact && other.CompareTag("Player"))
         {
             StopAllCoroutines();

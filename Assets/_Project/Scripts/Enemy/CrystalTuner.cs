@@ -51,6 +51,7 @@ public class CrystalTuner : MonoBehaviour
     private float roamRadiusTarget = 6f; // raio-alvo para transicao suave
     private float roamChangeTimer = 0f;  // tempo para trocar comportamento
     private bool roamInitialized = false;
+    private bool sintonizadorDialogTriggered = false;
 
     // Lista de alvos ativos
     private List<TargetData> targets = new List<TargetData>();
@@ -149,16 +150,27 @@ public class CrystalTuner : MonoBehaviour
             if (p != null) playerTransform = p.transform;
         }
 
-        // Registro no bestiário por proximidade
-        if (!registradoNoBestiario && playerTransform != null)
+        // Registro no bestiário por proximidade e diálogo do Eptinho
+        if (playerTransform != null)
         {
-            if (Vector3.Distance(transform.position, playerTransform.position) < fleeDistFromPlayer * 2f)
+            float distToPlayer = Vector3.Distance(transform.position, playerTransform.position);
+            if (distToPlayer < fleeDistFromPlayer * 2f)
             {
-                registradoNoBestiario = true;
-                EnemyIdentity id = GetComponent<EnemyIdentity>() ?? GetComponentInChildren<EnemyIdentity>() ?? GetComponentInParent<EnemyIdentity>();
-                Debug.Log("[CRYSTAL] EnemyIdentity: " + (id != null ? id.nomeInimigo : "NULL") + " | BestiarioManager: " + (BestiarioManager.instancia != null));
-                if (id != null && BestiarioManager.instancia != null)
-                    BestiarioManager.instancia.Registrar(id);
+                if (!registradoNoBestiario)
+                {
+                    registradoNoBestiario = true;
+                    EnemyIdentity id = GetComponent<EnemyIdentity>() ?? GetComponentInChildren<EnemyIdentity>() ?? GetComponentInParent<EnemyIdentity>();
+                    Debug.Log("[CRYSTAL] EnemyIdentity: " + (id != null ? id.nomeInimigo : "NULL") + " | BestiarioManager: " + (BestiarioManager.instancia != null));
+                    if (id != null && BestiarioManager.instancia != null)
+                        BestiarioManager.instancia.Registrar(id);
+                }
+
+                if (!sintonizadorDialogTriggered)
+                {
+                    sintonizadorDialogTriggered = true;
+                    // Dispara o diálogo explicativo do Eptinho sobre o Sintonizador
+                    EptinhoStoryDialogs.TriggerSintonizadorEncounter();
+                }
             }
         }
     }
@@ -316,7 +328,11 @@ public class CrystalTuner : MonoBehaviour
         for (int i = targets.Count - 1; i >= 0; i--)
         {
             var td = targets[i];
-            if (td.obj == null || !td.obj.activeSelf ||
+            DummyHealth targetDh = td.obj != null ? GetTargetComponent<DummyHealth>(td.obj) : null;
+            ShardSwarmHealth targetSsh = td.obj != null ? GetTargetComponent<ShardSwarmHealth>(td.obj) : null;
+            bool isDead = (targetDh != null && targetDh.CurrentHealth <= 0) || (targetSsh != null && targetSsh.CurrentHealth <= 0);
+
+            if (td.obj == null || !td.obj.activeSelf || isDead ||
                 Vector3.Distance(transform.position, td.obj.transform.position) > disconnectRange)
             {
                 RemoveBuffs(td.obj);
@@ -349,7 +365,15 @@ public class CrystalTuner : MonoBehaviour
             if (candidate == gameObject) continue;
             if (GetTargetComponent<CrystalTuner>(candidate) != null) continue;
             if (GetTargetComponent<HomingHazard>(candidate) != null) continue;
-            if (GetTargetComponent<DummyHealth>(candidate) == null && GetTargetComponent<ShardSwarmHealth>(candidate) == null) continue;
+            DummyHealth candDh = GetTargetComponent<DummyHealth>(candidate);
+
+            ShardSwarmHealth candSsh = GetTargetComponent<ShardSwarmHealth>(candidate);
+
+            if (candDh == null && candSsh == null) continue;
+
+            if (candDh != null && candDh.CurrentHealth <= 0) continue;
+
+            if (candSsh != null && candSsh.CurrentHealth <= 0) continue;
 
             // Já é alvo?
             bool alreadyTargeted = false;

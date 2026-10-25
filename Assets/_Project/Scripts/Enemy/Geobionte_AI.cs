@@ -256,7 +256,7 @@ public class Geobionte_AI : MonoBehaviour
 
     // ==================== ÁUDIO ====================
 
-    [Header("Áudio — Bismutado")]
+    [Header("Áudio — Bismutado (Movimentação)")]
     [Tooltip("Vetor de áudios de passos do Bismutado selecionados aleatoriamente")]
     public AudioClip[] bismutadoWalkingSounds;
     [Tooltip("Volume dos sons de passos do Bismutado")]
@@ -266,6 +266,7 @@ public class Geobionte_AI : MonoBehaviour
     public float bismutadoStepInterval = 0.25f;
     private float bismutadoStepTimer = 0f;
 
+    [Header("Áudio — Bismutado (Ataques)")]
     [Tooltip("Vetor de áudios do campo de cristais (Crystal Field) selecionados aleatoriamente")]
     public AudioClip[] crystalFieldSounds;
     [Tooltip("Volume do som do campo de cristais")]
@@ -279,6 +280,20 @@ public class Geobionte_AI : MonoBehaviour
     [Range(0f, 1f)]
     public float bismutadoAttackSoundVolume = 0.8f;
     private AudioSource audioSource;
+
+    [Header("Áudio — Bismutado (Dano Recebido / Hit)")]
+    [Tooltip("Sons reproduzidos quando o Bismutado leva dano (golpe do player). NÃO colocar sons de socos/ataques do Bismutado aqui.")]
+    public AudioClip[] bismutadoHitSounds;
+    [Tooltip("Volume dos sons de dano recebido (hit) do Bismutado")]
+    [Range(0f, 1f)]
+    public float bismutadoHitSoundVolume = 0.7f;
+
+    [Header("Áudio — Morte / Derrota (Die)")]
+    [Tooltip("Sons reproduzidos quando o Geobionte / Bismutado morre ou é derrotado.")]
+    public AudioClip[] dieSounds;
+    [Tooltip("Volume dos sons de morte")]
+    [Range(0f, 1f)]
+    public float dieSoundVolume = 0.8f;
 
     // ==================== VISUAL ====================
 
@@ -953,6 +968,11 @@ public class Geobionte_AI : MonoBehaviour
 
             // Override de morte: Bismutado derrotado → volta ao Geobionte padrão
             health.onDeathOverride = OnDefeated;
+
+            // Registra callback de som de hit do Bismutado (remove primeiro para evitar duplicatas)
+            health.onDamageTaken -= OnBismutadoHit;
+            if (bismutadoHitSounds != null && bismutadoHitSounds.Length > 0)
+                health.onDamageTaken += OnBismutadoHit;
         }
 
         // Cria health bar e damage canvas por código se não existir
@@ -1190,13 +1210,33 @@ public class Geobionte_AI : MonoBehaviour
     }
 
     private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
+    {
+        if (audioSource != null)
         {
-            if (audioSource != null)
-            {
-                audioSource.pitch = pitch;
-                audioSource.PlayOneShot(clip, volume);
-            }
+            audioSource.pitch = pitch;
+            audioSource.PlayOneShot(clip, volume);
         }
+        else
+        {
+            AudioSource.PlayClipAtPoint(clip, position, volume);
+        }
+    }
+
+    private void OnBismutadoHit(int damage, GameObject attacker)
+    {
+        if (bismutadoHitSounds == null || bismutadoHitSounds.Length == 0) return;
+        AudioClip clip = bismutadoHitSounds[Random.Range(0, bismutadoHitSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), bismutadoHitSoundVolume);
+    }
+
+    private void PlayDieSound()
+    {
+        if (dieSounds == null || dieSounds.Length == 0) return;
+        AudioClip clip = dieSounds[Random.Range(0, dieSounds.Length)];
+        if (clip != null)
+            PlayClipAtPointWithPitch(clip, transform.position, Random.Range(0.9f, 1.1f), dieSoundVolume);
+    }
     void HandleCombat()
     {
         if (playerTransform == null)
@@ -1383,6 +1423,12 @@ public class Geobionte_AI : MonoBehaviour
     /// </summary>
     void OnDefeated()
     {
+        // Toca som de morte / derrota
+        PlayDieSound();
+
+        // Remove callback de hit do Bismutado
+        if (health != null) health.onDamageTaken -= OnBismutadoHit;
+
         // Cancela qualquer sweep em andamento
         isSweeping = false;
 

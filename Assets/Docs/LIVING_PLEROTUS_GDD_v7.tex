@@ -11,6 +11,10 @@
 \usepackage{xcolor}
 \usepackage{fancyhdr}
 \usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{array}
 
 % Configuração de Margens e Layout
 \geometry{
@@ -32,12 +36,12 @@
 \pagestyle{fancy}
 \fancyhf{}
 \rhead{\textbf{LIVING PLEROTUS} - Game Design Document}
-\lhead{v7.0 --- Alchemy \& Synergies Update}
+\lhead{v7.0 --- Sinergias, Arsenal \& Rebalanceamento Oficial}
 \cfoot{\thepage}
 
-\title{\textbf{LIVING PLEROTUS}\\ \large Game Design Document (GDD)}
-\author{Equipe de Desenvolvimento}
-\date{\today}
+\title{\textbf{LIVING PLEROTUS}\\ \large Game Design Document (GDD)\\ \small Versão 7.0 --- Consolidação de Gameplay, Bestiário Oficial e Sinergias}
+\author{Equipe de Desenvolvimento Living Plerotus}
+\date{Outubro de 2026}
 
 \begin{document}
 
@@ -50,10 +54,18 @@
 \chapter{Visão Geral}
 
 \section{High Concept}
-Um \textit{Roguelite} de Ação e Sobrevivência focado na improvisação. O jogador controla um engenheiro civil comum, preso em um planeta vivo que tenta digeri-lo. Sem treinamento militar, ele deve adaptar suas ferramentas de trabalho em armas letais, utilizando a própria biologia do planeta para modificá-las, enquanto busca peças para reparar sua nave e escapar de um ciclo eterno de morte e reconstrução.
+Um \textit{Roguelite} de Ação e Sobrevivência focado na improvisação biológica e armamentista. O jogador controla um engenheiro civil comum, preso em um planeta vivo inteligente que tenta ativamente digeri-lo. Sem qualquer treinamento militar, ele deve adaptar suas ferramentas de trabalho cotidianas em armas letais, utilizando a própria biologia mutagênica do planeta para modificá-las em quimeras tecnológicas. Ao mesmo tempo, ele busca recuperar peças vitais roubadas para reparar sua nave e escapar de um ciclo eterno de morte, indigestão e reconstrução.
 
 \section{A Atmosfera}
-O jogo deve transmitir a sensação de \textbf{isolamento claustrofóbico} em um ambiente vasto. Não somos heróis; somos intrusos. O planeta é belo, mas hostil de uma forma biológica: o chão pulsa, as plantas observam e a morte é apenas um processo digestivo interrompido.
+O jogo transmite a sensação contínua de \textbf{isolamento claustrofóbico} em um ambiente vasto, imponente e alienígena. O jogador não personifica um herói ou guerreiro; ele é um intruso frágil e indesejado. O planeta é esteticamente deslumbrante, mas implacavelmente hostil de maneira biológica: o solo pulsa com tecidos cristalinos, formações minerais reagem à presença do engenheiro e a morte não passa de um processo digestivo temporariamente interrompido pelo sistema imunológico planetário.
+
+\section{Pilares de Design}
+\begin{itemize}
+    \item \textbf{Improvisação de Engenharia:} O jogador inicia sem fuzis militares ou magia inata. Seu poder emerge exclusivamente da modificação forçada de cortadores de plasma, chaves de fenda industriais, britadeiras e armas de coleta acopladas a fragmentos de monstros.
+    \item \textbf{Economia em Tempo Real \& Quimerismo:} O tradicional acúmulo de XP é substituído por um ciclo de combate, coleta de matéria-prima corporal e infusão imediata. A arma evolui fisicamente a cada sala, tornando-se uma quimera de circuitos humanos e tecidos biológicos.
+    \item \textbf{Decisão Sob Pressão (Risco vs. Recompensa):} Cada infusão aumenta o custo das próximas através de inflação econômica. O jogador deve decidir se aceita melhorias modestas de imediato ou economiza essência para saltos de poder maiores, recorrendo ao Mercador e seus pactos de sangue nos momentos de desespero.
+    \item \textbf{Teia de Sinergias Alquímicas:} A combinação de partes anatômicas de diferentes criaturas nativas desbloqueia comportamentos compostos (sinergias), transformando profundamente o fluxo das armas e recompensando o domínio estratégico das tabelas de drops.
+\end{itemize}
 
 % =========================================================================
 % CAPÍTULO 2: NARRATIVA E UNIVERSO
@@ -61,14 +73,14 @@ O jogo deve transmitir a sensação de \textbf{isolamento claustrofóbico} em um
 \chapter{Narrativa e Universo}
 
 \section{O Protagonista: O Engenheiro Catalogador}
-O jogador assume o papel de um funcionário de baixo escalão de uma corporação intergaláctica de logística e mapeamento. Seu trabalho não possui caráter militar ou de combate; ele é um engenheiro e pesquisador de campo encarregado de viagens de rotina entre colônias já catalogadas e seguras, prestando manutenção em maquinários de exploração e coletando amostras científicas.
+O jogador assume o papel de um funcionário técnico de baixo escalão de uma corporação intergaláctica de logística, mineração e mapeamento. Seu treinamento é estritamente técnico: manutenção de motores térmicos, soldagem de ligas metálicas, operação de escaneamento mineral e coleta de amostras ambientais de campo.
 
 \begin{figure}[hbt!]
     \centering
     \begin{minipage}[c]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{AstronautaP.png}
-        \caption{Concept Art: Visual Final.}
+        \caption{Concept Art: Visual Final do Protagonista.}
     \end{minipage}
     \hfill
     \begin{minipage}[c]{0.48\textwidth}
@@ -82,69 +94,69 @@ O jogador assume o papel de um funcionário de baixo escalão de uma corporaçã
     \label{fig:protagonista_completo}
 \end{figure}
 
-\subsection{Identidade Visual}
+\subsection{Identidade Visual e Funcional}
 \begin{itemize}
-    \item \textbf{O Traje (EPI Espacial):} Um macacão pressurizado de cor \textbf{branco gelo} com reforços em \textbf{cinza escuro} nas articulações, luvas e botas. O design prioriza a função sobre a estética, repleto de bolsos pequenos para ferramentas e conectores universais.
-    \item \textbf{O Capacete:} O visor possui uma película preta totalmente opaca. Isso serve a dois propósitos: proteger contra a radiação de solda e, narrativamente, permitir que qualquer jogador se projete no personagem (ele não tem rosto definido).
-    \item \textbf{Iluminação Diegética:} O traje possui luzes de serviço integradas (ombros e peito) que iluminam os ambientes escuros do jogo naturalmente, dispensando interfaces artificiais de visão noturna.
-    \item \textbf{Sem Treinamento de Combate:} Ele nunca segurou uma arma de fogo militar. Todo o seu arsenal é composto por ferramentas de coleta e uma adaga simples de corte.
-    \item \textbf{Personalidade:} Prático, curioso e focado em resolver problemas.
+    \item \textbf{O Traje (EPI Espacial Industrial):} Um macacão de trabalho pressurizado na cor \textbf{branco gelo} com reforços em polímero e placas de proteção de juntas em \textbf{cinza chumbo}. Projetado para utilidade pura, é repleto de mosquetões, conectores universais e bolsos externos estanques.
+    \item \textbf{O Capacete e Visor Opaco:} O capacete é equipado com um visor de película negra 100\% opaca antirradiação de solda. Narrativamente, isso permite que qualquer jogador se projete no avatar do engenheiro, cujo rosto nunca é revelado.
+    \item \textbf{Iluminação Diegética Integrada:} Lanternas de serviço montadas no ombro e no peito do traje projetam luz dinâmica angular diretamente no piso, gerando sombras orgânicas nos cristais do cenário e dispensando miras artificiais noturnas.
+    \item \textbf{Inexperiência Militar:} Os movimentos de ataque do protagonista exibem inércia e esforço físico autêntico, refletindo o peso real das ferramentas e a postura defensiva de quem luta pela primeira vez por sobrevivência.
 \end{itemize}
 
 \section{O Incidente: A Rota Desviada}
-A nave de transporte seguia uma rota hiperespacial segura e tediosa. O único companheiro do engenheiro é \textbf{Eptinho}, um Corgi hiperativo que atua como copiloto e analista de dados.
+A nave de transporte científico realizava um voo de rotina tedioso entre entrepostos mineradores automatizados. A bordo, a única companhia do protagonista era \textbf{Eptinho}, um Corgi hiperativo geneticamente adaptado para operar consoles e executar cálculos de trajetória e telemetria estelar.
 \begin{itemize}
-    \item \textbf{O Erro:} Durante um momento de distração mútua no cockpit, Eptinho perseguiu um reflexo nas telas do painel de controle, desengatando o piloto automático e alterando as coordenadas de salto hiperespacial para um setor proibido dos mapas estelares.
-    \item \textbf{O Cinturão de Asteroides:} A nave emergiu do hiperespaço diretamente dentro do campo gravitacional de um planeta hostil não catalogado, cercado por um cinturão de detritos caótico. Nenhuma nave jamais atravessou esse cinturão intacta. A colisão destruiu completamente a nave, espalhando seus destroços pela superfície.
+    \item \textbf{A Distração:} Enquanto ambos comemoravam a conclusão de mais um ciclo de mapeamento, Eptinho saltou no painel perseguindo um feixe laser de depuração de sensores, desconectando a trava inercial do salto e alterando as coordenadas para uma coordenada proibida do setor.
+    \item \textbf{Queda Catastrófica:} A nave emergiu do hiperespaço diretamente no poço gravitacional de um corpo celeste desconhecido cercado por um denso cinturão de estilhaços. A atmosfera violenta rasgou os motores auxiliares e a carcaça partiu-se, espalhando módulos da nave pela superfície biológica de Érebo/Plerotus.
 \end{itemize}
 
-\section{O Planeta Consciente: Parasitismo e Rejeição}
-Este mundo não é apenas um lugar; é um ecossistema inteligente, governado por uma força consciente que age como um parasita biológico. Utilizando a energia cristalina de seu núcleo, o planeta consegue submeter, mutar e controlar toda a matéria orgânica e mineral na sua superfície.
+\section{O Planeta Consciente: Parasitismo, Rejeição e Indigestão}
+O planeta não é um mero aglomerado geológico; trata-se de um macroorganismo inteligente cuja biosfera opera como um gigantesco sistema digestivo e imunológico integrado, energizado por pulsações cristalinas do núcleo.
 \begin{itemize}
-    \item \textbf{A Lei da Assimilação:} Tudo o que cai no planeta é digerido e reintegrado à consciência planetária. É um ciclo perfeito de simbiose e reciclagem.
-    \item \textbf{O Ciclo de Rejeição (Indigestão):} Quando o Engenheiro morre, o solo o absorve. Porém, devido ao seu sangue e à sua biologia humana totalmente estranha àquele ecossistema, o planeta falha em digeri-lo. Incapaz de assimilá-lo, o sistema imunológico do planeta o reconstrói e o expele de volta no ponto de queda. O jogador renasce porque é \textbf{indigesto} para o planeta.
-    \item \textbf{A Zona Esterilizada (Base):} O local da queda da nave serve como base segura porque o combustível e os reatores vazados esterilizaram quimicamente o solo ao redor, criando um casulo neutro onde a biologia consciente do planeta não consegue se aproximar ou digerir os destroços.
-    \item \textbf{O Roubo de Peças (Objetivo da Run):} Criaturas nativas sob o controle do planeta invadiram os destroços da nave e roubaram peças vitais (como baterias térmicas, placas de reator e núcleos de energia), espalhando-as pelos biomas. O Engenheiro deve adentrar os setores perigosos para derrotar essas criaturas, recuperar as peças e consertar a nave para escapar.
-    \item \textbf{O Sequestro do Poder Planetário (Infusões e Alquimia):} Para aprimorar suas ferramentas comuns em armas letais, o Engenheiro **se apossa da própria característica de mutação do planeta**. Canalizando a energia de transmutação natural das pedras e cristais alienígenas colhidos do solo, ele força seu traje a fundir múltiplos fragmentos biológicos simultaneamente às suas ferramentas humanas, criando sinergias e infusões poderosas (as ``Partes do Corpo'').
+    \item \textbf{A Lei da Assimilação:} Qualquer composto orgânico ou mineral nativo que cessa funções biológicas é prontamente dissolvido pelo solo ácido e reabsorvido para a consciência global do ecossistema.
+    \item \textbf{O Ciclo de Rejeição (Indigestão Humana):} Ao ser derrotado, o corpo do Engenheiro é absorvido pelas raízes cristalinas do solo. No entanto, sua composição celular sintético-humana, saturada com fluidos médicos e anticoagulantes industriais, é biologicamente incompatível com a digestão do planeta. O sistema imunológico planetário sofre uma violenta reação alérgica de rejeição (indigestão), reconstituindo o corpo celular do engenheiro e expelindo-o intacto de volta na cratera da base. O jogador renasce porque o planeta \textbf{não consegue digeri-lo}.
+    \item \textbf{A Zona Esterilizada (A Base da Nave):} O local do impacto atua como zona segura permanente porque o combustível hiperbólico e os agentes refrigerantes do reator vazaram em grande escala, esterilizando quimicamente o solo em um raio de dezenas de metros e impedindo que as raízes da entidade planetária invadam os destroços.
+    \item \textbf{O Roubo das Peças Centrais (Objetivo da Run):} Criaturas atraídas pela energia dos geradores roubaram peças mecânicas vitais da nave (baterias térmicas, placas de fusão, relés de dobra) e as enterraram ou assimilaram em setores profundos. Para reparar a nave e abrir os propulsores de escape, o engenheiro precisa adentrar os biomas, expurgar as criaturas e recuperar cada componente.
+    \item \textbf{Sequestro do Poder Mutagênico (Infusões):} Ao matar criaturas nativas, o engenheiro colhe sua essência vital e partes anatômicas não digeridas. Conectando sua forja portátil do traje aos tecidos alienígenas, ele força suas ferramentas a se fundirem biologicamente aos fragmentos dos monstros, gerando o fenômeno de infusão das Partes do Corpo.
 \end{itemize}
 
 \section{Os Chefes de Bioma: Guardiões da Estabilidade}
-Ao final de cada setor/bioma, o jogador deve enfrentar um Chefe. Narrativamente, estes chefes são **Avatares de Transição** criados pelo próprio planeta.
+No limiar de cada grande setor do mapa ergue-se um Chefe colossal. Na mitologia do planeta, essas entidades são **Avatares de Transição**.
 \begin{itemize}
-    \item \textbf{Guardiões da Fronteira:} Eles concentram uma quantidade massiva da energia de infusão e transmutação do núcleo, atuando como verdadeiras barreiras físicas entre as diferentes regiões do planeta.
-    \item \textbf{Prevenção de Caos:} Sua função ecológica essencial é impedir o trânsito livre de fauna e flora entre biomas distintos. Sem estes guardiões guardando as fronteiras, os biomas se misturariam livremente, fundindo ecossistemas incompatíveis e gerando aberrações biológicas abissais e instáveis que ameaçariam a integridade da consciência do próprio planeta.
+    \item \textbf{Barreiras Ecológicas Vivas:} Concentrando grande parte da energia primordial do núcleo, estes guardiões operam como represas biológicas nas fronteiras geográficas.
+    \item \textbf{Contenção do Caos Quimérico:} A função dos guardiões é impedir a migração cruzada descontrolada entre os ecossistemas. Sem a presença deles para segurar as fronteiras, a fauna e flora de setores vizinhos se misturariam livremente, criando aberrações mutagênicas colossais cuja instabilidade colapsaria a própria consciência do planeta.
 \end{itemize}
 
-\section{A Mecânica do Inventário e o Fim da Reciclagem}\label{sec:inventario_sinergia}
-Como o planeta absorve tudo o que toca, qualquer equipamento deixado no chão é consumido em segundos.
+\section{A Mecânica do Inventário (A Bolsa Sintética)}
+Como a biologia do solo absorve matéria vulnerável exposta durante o ciclo de renascimento:
 \begin{itemize}
-    \item \textbf{Por que perdemos o Loot:} Ao morrer (ser dissolvido), as armas e modificações externas são comidas pelo planeta.
-    \item \textbf{Inventário Não-Acumulativo (Run):} O inventário ativo durante a rodada possui exatos 10 slots. \textbf{As Partes do Corpo (itens) não estacam mais}. Cada item coletado ocupa um slot inteiro. O objetivo desta restrição é forçar o jogador a tomar decisões pesadas sobre gerenciamento de espaço: infundir agora ou guardar a peça para tentar uma \textbf{Sinergia Alquímica} mais tarde.
-    \item \textbf{O Fim da Reciclagem:} \textbf{A mecânica de reciclar itens por essência foi completamente removida.} O jogador não pode mais descartar peças que não quer em troca de dinheiro. Isso dá muito mais peso à escolha de pegar um item do chão.
-    \item \textbf{Bolsa Sintética (Recursos Base):} Os minérios e recursos puros (\textit{Base Resources}) continuam utilizando uma bolsa sintética separada, onde estacam normalmente e sobrevivem à morte para serem levados à Base.
+    \item \textbf{Perda de Equipamento Externo:} Todas as armas na mão, infusões atreladas à ferramenta e aprimoramentos de curto prazo são corroídos e consumidos pelo planeta no momento em que o engenheiro tomba em batalha.
+    \item \textbf{Proteção da Bolsa Sintética (Recursos Permanentes):} O engenheiro carrega uma bolsa hermética fabricada em tecido polimérico inerte de grau militar. O solo não consegue dissolver este material. Assim, todos os \textbf{Recursos de Base} (minérios, sementes, espécimes botânicos e insetos) guardados em seu interior sobrevivem integralmente à morte.
+    \item \textbf{Grade de 10 Slots \& Raridade:} O inventário acessível via \texttt{Tab} possui 10 compartimentos iniciais estruturados em grade, exibindo quantidade, peso, dicas contextuais flutuantes (\textit{tooltips}) e molduras de raridade padronizadas (Cinza Comum, Verde Incomum, Azul Raro, Dourado Lendário).
+    \item \textbf{Transição de Fim de Run:} Ao evacuar com sucesso através do portão de saída ou ao renascer na base após ser digerido, todos os itens da bolsa sintética são integrados ao estoque permanente da nave para forjar melhorias permanentes de traje e instalações.
 \end{itemize}
 
-\section{Eptinho: O Copiloto e Analista de Dados}
-Apesar de sua aparência canina, Eptinho é um ser de inteligência aguçada, atuando como o verdadeiro cérebro por trás dos sistemas de navegação e logística da nave. Ele permanece em segurança na base, mas acompanha o protagonista virtualmente a cada passo.
+\section{Eptinho: O Copiloto, Analista de Dados e Oráculo da Interface}
+Eptinho é o cérebro computacional da expedição. Munido de um colar com uplink neural e um mini-traje espacial selado, ele monitora a integridade do Engenheiro a partir da base e transmite suporte estratégico por rádio.
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.60\textwidth]{EPTINHO.png}
-    \caption{Eptinho: O Copiloto Corgi em seu traje espacial.}
+    \includegraphics[width=0.55\textwidth]{EPTINHO.png}
+    \caption{Eptinho: O Copiloto Corgi em seu traje pressurizado.}
     \label{fig:eptinho}
 \end{figure}
 
 \begin{itemize}
-    \item \textbf{O Guia da Interface (UI):} Eptinho funciona como o "Oráculo" e sistema operacional da jornada. Ele aparece visualmente como um \textit{pop-up} na lateral da tela (HUD) para notificar o jogador sempre que um novo recurso é catalogado ou quando há itens de coleta pendentes na fase.
-    \item \textbf{Tradutor Universal:} Ele é o responsável por compilar a \textit{Lore} do jogo no banco de dados. Além disso, é o único capaz de compreender a linguagem enigmática do Mercador, servindo como intérprete durante as trocas comerciais.
+    \item \textbf{Oráculo da Interface (HUD):} Eptinho é a voz diegética dos menus. Ele surge como um avatar no canto da tela notificando novos itens catalogados, alertando sobre a presença de suportes inimigos perigosos e explicando os Tiers de infusão.
+    \item \textbf{Tradutor Universal Progressivo:} Capaz de processar linguística quântica, Eptinho é o único intermediário nas conversas enigmáticas com o Mercador, refinando a tradução a cada encontro durante a run.
+    \item \textbf{Condução de Quests:} Através de caixas de diálogo dinâmicas, Eptinho orienta o jogador nos primeiros passos na base (Tutorial Progression), direcionando-o para a restauração da porta de descompressão, a primeira infusão e a busca por peças da nave.
 \end{itemize}
 
 % =========================================================================
 % CAPÍTULO 3: SISTEMA DE ATRIBUTOS E ESTATÍSTICAS
 % =========================================================================
-\chapter{Sistema de Atributos e Estatísticas}
+\chapter{Sistema de Atributos, Estatísticas e Mecânicas de Combate}
 
-Para permitir uma profundidade estratégica nas \textit{builds}, o jogo utiliza um conjunto extenso de variáveis que podem ser modificadas por Infusões (Partes do Corpo), Sinergias, Itens do Mercador e Upgrades da Base.
+Para proporcionar profundidade às \textit{builds}, o sistema unifica atributos matemáticos modificados por Infusões, Sinergias Alquímicas, Upgrades de Base e Cartas do Mercador.
 
 \section{Atributos Base do Jogador (Balanceamento Oficial)}
 \begin{center}
@@ -152,114 +164,643 @@ Para permitir uma profundidade estratégica nas \textit{builds}, o jogo utiliza 
     \hline
     \textbf{Atributo} & \textbf{Valor Base} & \textbf{Descrição / Mecânica} \\
     \hline
-    HP Máximo (Health) & \textbf{100 HP} & Barra de vida física do personagem. \\
-    Armadura Máxima (Armor) & \textbf{300 AP} & \textbf{Escudo regenerável.} Total de \textbf{400 EHP}. \\
-    Regeneração de Armadura & \textbf{5 AP / s} & Inicia após 4,0s sem receber dano. \\
-    Multiplicador de Dano Base & \textbf{1,0x} & Multiplicador inicial limpo. \\
-    Chance de Acerto Crítico & \textbf{5,0\%} & Chance padrão de dano crítico (1,5x). \\
-    Mitigação / Esquiva Base & \textbf{0,0\%} & Sem mitigação passiva inicial. \\
-    Velocidade de Movimento & \textbf{Padrão (Fixa)} & \textbf{Não modificável via Infusão} (apenas via ULT). \\
+    HP Máximo (\textit{Health}) & \textbf{100 HP} & Barra de vida orgânica (Cartucho Biomecânico). \\
+    Armadura Máxima (\textit{Armor}) & \textbf{300 AP} & \textbf{Escudo regenerável.} Total de \textbf{400 EHP} (\textit{Effective HP}). \\
+    Taxa de Regeneração de Armadura & \textbf{5 AP / s} & Inicia após 4,0s consecutivos sem sofrer dano. \\
+    Multiplicador de Dano Base & \textbf{1,0x} & Multiplicador base padrão para ataques físicos. \\
+    Chance de Acerto Crítico & \textbf{5,0\%} & Probabilidade inicial de acerto crítico. \\
+    Multiplicador de Dano Crítico & \textbf{1,5x} & Amplificação de dano ao acertar criticamente. \\
+    Mitigação Passiva / Esquiva & \textbf{0,0\%} & Sem redução inata no início da jornada. \\
     \hline
 \end{tabular}
 \end{center}
 
-\textit{Nota de Design: \textbf{Velocidade de Movimento (Movement Speed)} foi estritamente removida da pool de melhorias dropáveis. Ela não deve ser um atributo melhorável de forma passiva, pois um acúmulo excessivo quebra completamente a esquiva e o balanceamento do combate. A velocidade base do jogador é fixa.}
-
-\section{Core Loop: O Ciclo de Infusão e Alquimia}
-O núcleo da jogabilidade abandona o sistema tradicional de níveis (XP) por um sistema de \textbf{Economia e Crafting em Tempo Real}. O ciclo se define por quatro etapas constantes:
-
-\begin{enumerate}
-    \item \textbf{Combate:} O jogador enfrenta inimigos usando um dos \textbf{6 Arquétipos de Armas}.
-    \item \textbf{Coleta (Loot \& Currency):} Inimigos derrotados sempre soltam \textit{Essência da Vida} (moeda) e têm uma chance probabilística de soltar \textit{Partes do Corpo} (matéria-prima).
-    \item \textbf{Decisão Estratégica (A Alquimia):} Ao pegar uma Parte do Corpo, o jogador decide:
-    \begin{itemize}
-        \item \textbf{Infundir Sozinho:} Aplica o item instantaneamente na arma. Concede os status básicos, mas gera uma \textbf{alta inflação} no custo das próximas infusões.
-        \item \textbf{Guardar para Sinergia:} Armazena o item em um dos 10 preciosos slots da mochila. O objetivo é tentar encontrar peças complementares de outros inimigos e realizar uma \textbf{Infusão Combinada (Sinergia)}, que concede bônus multiplicativos e reduz drasticamente a inflação gerada.
-    \end{itemize}
-    \item \textbf{Adaptação:} A arma do jogador evolui organicamente durante a run, tornando-se uma quimera de tecnologias humanas e biologia alienígena.
-\end{enumerate}
-
-\section{Sistema de Sinergias Cruzadas (Alquimia)}\label{sec:sinergias}
-Ao invés de infundir itens um a um, o jogador pode selecionar múltiplos itens não-acumulados no inventário e infundi-los simultaneamente.
-
-\begin{itemize}
-    \item \textbf{Sinergias de 2 Itens:} Combinar itens específicos de inimigos diferentes (Ex: T1 do Goblin + T1 do SharpBlur gera a sinergia "Chuva de Lâminas"). Além de conceder os status base dos dois itens, a sinergia concede um bônus especial massivo e aplica um \textbf{desconto na inflação} gerada por aquela infusão.
-    \item \textbf{Sinergias de 4 Itens (Douradas):} Combos extremamente raros que exigem 4 itens específicos juntos no inventário, resultando em poderes lendários (Ex: "Berserker Imortal").
-    \item \textbf{A Ascensão (O Modo Deus):} Se o jogador conseguir o feito quase impossível de coletar e juntar os 13 itens de Tier 4 (Lendários) de todos os 13 inimigos do jogo no inventário ao mesmo tempo, ele destrava a Sinergia Divina, ganhando invencibilidade absoluta.
-    \item \textbf{Falha Alquímica:} Tentar infundir dois ou mais itens simultaneamente que \textbf{não} possuem sinergia resultará na concessão dos atributos básicos, mas o jogador sofrerá uma \textbf{penalidade severa de inflação (Inflation Penalty)}, encarecendo drasticamente as próximas compras da run.
-\end{itemize}
-
-\subsection{Tiers de Raridade}
+\section{Atributos Ofensivos}
 \begin{description}
-    \item[Tier 1, 2 e 3 (Construção Estatística):] \hfill \\
-    Peças numéricas que servem primordialmente como ingredientes para a Alquimia de Sinergias. T1 (Comum, Branco), T2 (Incomum, Verde), T3 (Raro, Roxo).
-    \item[Tier 4 --- Lendário (Modificador de Gameplay):] \hfill \\
-    Itens Amarelos/Dourados. Alterações drásticas de gameplay (ex: ``Sua arma não usa mais munição, mas consome vida para atirar''). São raros de aparecer e muito caros para infundir sozinhos.
+    \item[Attack Speed (Melee):] Reduz a duração das animações de ataque e o intervalo entre os golpes de ferramentas corpo a corpo.
+    \item[Crit Chance:] Probabilidade percentual de desferir um golpe crítico em qualquer inimigo.
+    \item[Crit Multiplier:] Multiplicador escalar que amplia o dano total gerado pelo acerto crítico (ex: 1.5x, 1.8x, 2.2x).
+    \item[Weapon Range (Melee):] Expande o raio da hitbox física tridimensional dos golpes corpo a corpo.
+    \item[Weapon Range (Projectiles):] Aumenta a distância de vida útil que os projéteis percorrem antes de decair.
+    \item[Knockback:] Força física de impulso transferida ao inimigo no impacto, arremessando-o para trás.
+    \item[Piercing:] Quantidade de alvos sucessivos que um mesmo golpe ou projétil consegue perfurar antes de dissipar.
+    \item[Bounce (Chance e Contagem):] Probabilidade e número de vezes que um projétil ricocheteia entre inimigos adjacentes.
+    \item[MultiShot (Chance):] Probabilidade percentual de disparar projéteis extras em salva angular sem gastar munição.
+    \item[Spread:] Ângulo de dispersão cônica dos disparos. Valores baixos garantem precisão cirúrgica; valores altos cobrem ampla área frontal.
 \end{description}
 
+\section{Atributos Defensivos}
+\begin{description}
+    \item[Armor Regen:] Velocidade em pontos por segundo com que as placas de armadura se regeneram após o tempo de espera.
+    \item[Dodge Chance:] Chance percentual de ignorar 100\% do dano de um ataque recebido no momento do impacto.
+    \item[Damage Negation:] Redução matemática fixa ou percentual aplicada a todo o dano recebido antes de afetar a armadura/vida.
+    \item[Thorns (Espinhos):] Dano plano ou percentual refletido diretamente ao atacante quando o jogador é golpeado.
+\end{description}
+
+\section{Atributos de Mobilidade}
+\begin{description}
+    \item[Dash Cooldown:] Reduz o intervalo de recarga para a recuperação de cargas da esquiva rápida.
+    \item[Dash Counts:] Quantidade máxima de cargas de esquiva armazenadas simultaneamente pelo traje.
+    \item[Dash Invulnerability:] Expande a janela de tempo de invulnerabilidade total (\textit{i-frames}) durante o salto de esquiva.
+    \item[Speed Multiplier:] Multiplicador contínuo de velocidade de locomoção e corrida do personagem.
+\end{description}
+
+\section{Status e Economia (Mercador \& Coleta)}
+\begin{description}
+    \item[Luck (Essence):] Aumenta o volume de orbes de Essência da Vida gerados ao abater inimigos.
+    \item[Luck (Drops):] Eleva a probabilidade global de os inimigos droparem Partes do Corpo e aumenta a chance de Tiers superiores (T3 e T4).
+    \item[Magnet Radius:] Raio de atração magnética passiva para puxar orbes de essência e recursos distantes para o jogador.
+\end{description}
+
+\section{Atributos da Habilidade Suprema (ULT)}
+\begin{description}
+    \item[Cooldown Reduction (ULT):] Reduz o tempo de recarga da habilidade suprema da arma ativa.
+    \item[Ult Charge with Kills:] Concede redução direta no tempo restante da ULT a cada inimigo derrotado.
+    \item[Ult Radius:] Expande o raio de área de efeito (AoE) de explosões, ondas de choque ou zonas criadas pela Suprema.
+    \item[Ult Damage Multiplier:] Multiplicador escalar exclusivo de dano para a ativação da Suprema.
+    \item[Ult Buff Potency / Duration:] Amplia a intensidade e o tempo de duração de buffs especiais concedidos durante a ativação da ULT.
+\end{description}
+
+\section{Mecânicas de Armas de Longo Alcance: Mira e Munição}
+Com a chegada das armas de fogo industriais (Rifle / Disparador Cinético):
+\begin{itemize}
+    \item \textbf{Modo de Mira em Cone e Crosshair Dinâmico:} O jogador aponta o retículo no espaço 3D com o mouse. Uma projeção cônica sutil indica a margem de dispersão (\textit{Spread}). Disparos contínuos aumentam temporariamente a abertura do cone (coice/recoil), exigindo cadência rítmica para manter precisão cirúrgica a longas distâncias.
+    \item \textbf{Sistema de Munição e Recarga Automática vs. Punitiva:} A arma dispõe de um magazine de projéteis energizados. Enquanto o jogador para de atirar por breves instantes, pequenos lotes de munição se regeneram passivamente com o tempo. No entanto, se o jogador esvaziar o carregador até zero (100\% de gasto), o sistema entra em bloqueio de segurança (\textit{Overheat Jam}), forçando uma recarga manual longa e ininterrupta, deixando o engenheiro temporariamente vulnerável.
+\end{itemize}
+
+\section{Sistema Modular de Saúde e Escudo (Visual e Funcional)}
+A interface de sobrevivência é diegética e dividida em dois sistemas interdependentes:
+\begin{itemize}
+    \item \textbf{O Cartucho Biomecânico de Fluido Vital (Vida Orgânica):} Uma cápsula tubular reforçada preenchida com fluido vital azul-ciano. Quando danificado após o rompimento da armadura, o fluido diminui visivelmente.
+    \item \textbf{Placas Modulares de Armadura (Escudo Reativo):} Acopladas acima do cartucho, placas de liga reativa de silício absorvem todo o impacto físico recebido. As placas exibem estados visuais (Íntegras, Rachadas e Rompidas). Se o jogador passar 4 segundos sem tomar dano, nanitas reparam as placas a 5 AP/s.
+    \item \textbf{Visualização do Selo de Pacto de Sangue:} Ao realizar um sacrifício no Mercador, a porção de vida máxima perdida não apenas desaparece da barra: ela é permanentemente amarrada por \textbf{correntes de ferro negro e um selo de cera carmesim}, indicando visualmente que aquela fatia do cartucho vital está bloqueada para regeneração até o fim da run.
+\end{itemize}
 
 % =========================================================================
 % CAPÍTULO 4: O MERCADOR
 % =========================================================================
 \chapter{O Mercador: A Válvula de Escape}\label{cap:mercador}
 
-Ocasionalmente, escondido em becos sem saída entre os biomas, o jogador \textbf{poderá} encontrar uma figura misteriosa conhecida apenas como ``O Mercador''.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.45\textwidth]{Mercador (1).png}
+    \caption{O Mercador: A figura enigmática que negocia com sangue nos becos de Érebo.}
+\end{figure}
+
+Em recessos escuros e becos sem saída do mapa procedural, o jogador tem uma probabilidade de encontrar a figura solitária e perturbadora conhecida apenas como ``O Mercador''.
+
+\section{Lore e Visual}
+\begin{itemize}
+    \item \textbf{Aparência:} Envolto em um manto sacerdotal roxo puído com detalhes em couro desgastado e um chapéu pontudo de abas largas que mergulha seu rosto em sombra impenetrável. Apenas dois olhos amarelados emissores de luz brilham sob a aba.
+    \item \textbf{Natureza Enigmática:} Ele não parece pertencer à consciência comum do planeta nem às tripulações de exploradores anteriores. Suas intenções permanecem ocultas: ele busca recolher sangue humano puro em troca de conhecimento proibido e transmutação mineral.
+    \item \textbf{Papel no Jogo:} Atua como a grande válvula de escape econômica da run, permitindo consertar erros graves de montagem de build ou assumir riscos severos em troca de saltos de poder monumentais.
+\end{itemize}
+
+\section{A Tradução Progressiva por Eptinho}
+O Mercador vocaliza um dialeto pré-histórico gutural e incompreensível aos ouvidos do Engenheiro. Toda a comunicação é captada pelos microfones do traje e processada pelos algoritmos de Eptinho na base:
+\begin{description}
+    \item[1º Encontro na Run:] Eptinho detecta apenas fragmentos conceituais. A maioria das frases no HUD surge com caracteres corrompidos e glitchs. É possível entender a funcionalidade básica dos 4 botões de serviço, mas toda a narrativa e nuances dos pactos permanecem indecifráveis.
+    \item[2º Encontro na Run:] Com amostras vocais acumuladas, o tradutor atinge aproximadamente 60\% de clareza. O Mercador passa a tecer comentários enigmáticos sobre o desgaste do traje do jogador e a eficácia de sua arma.
+    \item[3º Encontro em diante:] A tradução atinge quase 100\% de fidelidade linguística. O Mercador revela diálogos profundos sobre a consciência de Érebo, a tragédia de expedições passadas e os motivos pelos quais o planeta rejeita o sangue do engenheiro.
+\end{description}
 
 \section{Regra de Encontro: Um Serviço por Visita}
 \begin{quote}
-    \textbf{Regra Fundamental:} Em cada encontro com o Mercador, o jogador pode utilizar \textbf{apenas um} dos quatro serviços disponíveis. Após a transação, o Mercador encerra a negociação e desaparece.
+    \textbf{Regra Fundamental de Oportunidade:} Em cada encontro com o Mercador, o jogador pode usufruir de \textbf{apenas um} dos quatro serviços disponibilizados. Ao concluir a transação, a loja se fecha e o Mercador despede-se, permanecendo inativo até que o jogador o encontre novamente em outra sala.
 \end{quote}
 
 \section{Os Quatro Pilares de Troca}
 
 \subsection{1. Câmbio de Sangue (Recurso de Desespero)}
-Sacrifica Vida Máxima em troca de uma injeção massiva de \textbf{Essência da Vida}.
+\begin{description}
+    \item[O Custo:] O jogador sacrifica de forma irreversível uma porcentagem de sua \textbf{Vida Máxima} (ex: -20\% ou -30\% do HP total).
+    \item[A Recompensa:] Uma injeção imediata e massiva de \textbf{Essência da Vida} líquida.
+    \item[Impacto no HUD:] A porção de vida subtraída é fisicamente lacrada por correntes e um selo de cera no cartucho de saúde, impedindo qualquer cura daquele segmento.
+    \item[Uso Estratégico:] Permite financiar uma infusão de Tier 4 ou comprar um item vital quando a economia da run colapsou por falta de abates.
+\end{description}
 
-\subsection{2. Cirurgia de Remoção (Otimização)}
-Remove cirurgicamente uma ``Parte do Corpo'' já acoplada à arma. O peso de inflação daquele item é \textbf{subtraído} do $P_{total}$, abaixando o custo de futuras infusões.
+\subsection{2. Cirurgia de Remoção (Otimização e Desinflação)}
+\begin{description}
+    \item[O Custo:] Uma quantia moderada de Essência da Vida.
+    \item[A Recompensa:] O Mercador extirpa cirurgicamente uma Parte do Corpo previamente acoplada à arma, removendo seus atributos da run.
+    \item[Recálculo e Redução de Inflação ($P_{total}$):] Esta é a função mais crítica do Mercador. Ao extirpar a parte, o \textbf{peso de inflação} ($P$) correspondente àquele item é \textbf{subtraído} imediatamente do somatório $P_{total}$. Como consequência, o custo de Essência das próximas infusões cai proporcionalmente, permitindo ao jogador ``voltar o relógio'' da economia caso tenha acoplado uma melhoria fraca no início da partida.
+    \item[Destruição do Material:] A parte removida é consumida pelo Mercador; ela não retorna ao inventário do jogador.
+\end{description}
 
-\subsection{3. Artefatos Refinados \& Únicos}
-Compra direta de itens T3/T4 já identificados a custos altíssimos.
+\subsection{3. Artefatos Refinados \& Únicos (Loot Identificado)}
+\begin{description}
+    \item[O Custo:] Valor elevado de Essência (superior ao custo de uma infusão comum).
+    \item[A Recompensa:] Partes anatômicas de Tier elevado cujos atributos e tipos estão \textbf{100\% revelados e identificados} antes do momento da compra.
+    \item[Regra de Inflação:] A aquisição do item para a bolsa sintética \textbf{não eleva} o $P_{total}$. A inflação só é computada no instante em que o jogador decide ativamente infundir a peça comprada em sua arma.
+\end{description}
 
-\subsection{4. As Maldições (O Tarô Proibido)}
-Custa Vida Máxima para ganhar um poder passivo avassalador atrelado a uma penalidade severa.
+\subsection{4. O Tarô Proibido (Cartas de Maldição)}
+\begin{description}
+    \item[O Custo:] Sempre cobra uma fatia substancial de \textbf{Vida Máxima}.
+    \item[A Recompensa:] Um poder passivo revolucionário acompanhado de uma penalidade draconiana, alterando completamente a dinâmica de combate até o encerramento da run.
+\end{description}
 
-\subsubsection{Exemplos de Cartas de Maldição}
+\subsubsection{Cartas Canônicas de Maldição}
 \begin{itemize}
-    \item \textbf{A Ganância:} Inimigos têm chance dobrada de dropar loot. \textit{Maldição:} Inimigos causam 50\% mais dano.
-    \item \textbf{O Parasita:} Vampirismo. \textit{Maldição:} Vida decai se ficar 5 segundos sem matar.
-    \item \textbf{A Sinfonia do Caos (Pacto 9):} Multiplica por 2x a Essência e o Loot recebido em toda a run. \textit{Maldição:} Triplica o Budget de Spawn e o limite máximo de Elites e Tanques por sala, transformando o jogo em um \textit{bullet hell} absoluto de altíssima dificuldade.
+    \item \textbf{A Ganância:} A taxa de drop de essência e itens de todos os inimigos dobra. \textit{Penalidade:} Todos os inimigos causam +50\% de dano ao jogador.
+    \item \textbf{O Frenesi:} A cadência de ataque e velocidade de movimento aumentam em +40\%. \textit{Penalidade:} O escudo de armadura do traje é permanentemente desativado (0 AP). Todo dano atinge diretamente o sangue.
+    \item \textbf{O Parasita Insaciável:} Concede vampirismo (cada abate restaura 5 HP). \textit{Penalidade:} Necrose celular acelerada — a vida decai continuamente a 2 HP/s caso o jogador permaneça mais de 5 segundos sem eliminar um inimigo.
 \end{itemize}
 
 % =========================================================================
-% CAPÍTULO 5: BESTIÁRIO DE INIMIGOS
+% CAPÍTULO 5: ARSENAL (FERRAMENTAS ADAPTADAS)
 % =========================================================================
-\chapter{Bestiário de Inimigos}\label{cap:bestiario}
+\chapter{Arsenal (Ferramentas Adaptadas)}\label{cap:arsenal}
 
-As criaturas do bioma cristalino são manifestações físicas do sistema imunológico do planeta. Cada classe define o custo de spawn e as restrições táticas dentro das ondas de combate.
+O Engenheiro não desembarcou com fuzis de infantaria. Ele luta com o ferramental de serviço catalogado na sua maleta de trabalho. No início de cada run, na Base, o jogador dirige-se ao \textbf{Expositor de Armas} (\texttt{WeaponRack}) e seleciona a ferramenta que definirá seu arquétipo de combate naquela rodada.
 
-\section{Tabela Resumo --- Os 13 Inimigos do Ecossistema}
-
+\section{Os 6 Arquétipos de Combate}
 \begin{center}
 \begin{tabular}{|l|l|l|}
     \hline
-    \textbf{Inimigo} & \textbf{Classe de Spawn} & \textbf{Características Base} \\
+    \textbf{Arquétipo} & \textbf{Ferramenta Adaptada} & \textbf{Estilo de Jogo} \\
     \hline
-    E1. Aranha            & Mob Menor (1 pt)         & Rápida, Leap Attack, Veneno \\
-    E2. SharpBlur         & Elite Ágil (10 pts)      & Dash de Luz, Ataque Corporal \\
-    E3. Dragão de Cristal & Elite Flutuante (10 pts) & Defesa Retaliadora (Baiacu), Espinhos \\
-    E4. Goblin            & Atirador (4 pts)         & Bombas Ranged, Multi-Tiro \\
-    E5. Watcher           & Elite Estático (10 pts)  & Laser Perseguidor, Range Absoluto \\
-    E6. Tuner (Sintoniz.) & Suporte (5 pts)          & Buffa aliados (Quicar, Furar) \\
-    E7. Cristalus         & Mob Menor (1 pt)         & Suporte de Armadura e Lentidão \\
-    E8. Golem             & Tanque (4 pts)           & Lento, Stun, Absorção de Dano \\
-    E9. Pedra Mágica      & Elite (10 pts)           & HP Massivo, Esquiva, Skybeam \\
-    E10. Shard Swarm      & Elite (10 pts)           & Enxame de I-Frames e Críticos \\
-    E11. Totem            & Estrutura (6 pts)        & Controle de Espaço e Empurrão \\
-    E12. Bismutado        & Elite de Fusão (10 pts)  & Dano Colossal, Cleave, Ofensivo \\
-    E13. Sentinela        & Elite Juggernaut (10 pts)& HP Colossal, Lifesteal, Intransponível \\
+    Curto Alcance / Alta Cadência   & Cortador de Plasma (Adaga) & \textit{Hit \& Run}, mobilidade e combos rápidos \\
+    Curto Alcance / Baixa Cadência  & Machado de Bismuto (Axe)    & Varredura pesada, controle de grupo e alto dano \\
+    Médio Alcance / Alta Cadência   & Soldador Térmico Cíclico    & Fogo contínuo, supressão frontal \\
+    Médio Alcance / Baixa Cadência  & Disparador de Pregos Heavy  & Tiros pontuais perfurantes de média distância \\
+    Longo Alcance / Alta Cadência   & Rifle Cinético de Fragmentos & Fuzil com recarga, controle de cone e spread \\
+    Longo Alcance / Baixa Cadência  & Canhão de Amostragem Geológica & Disparos balísticos de carga lenta e alto impacto \\
     \hline
 \end{tabular}
 \end{center}
+
+\section{Cortador de Plasma Portátil (Adaga Industrial)}
+Originalmente utilizado para cortar chapas de titânio e blindagens em manutenção. Alta cadência e baixo alcance.
+\begin{itemize}
+    \item \textbf{Sequência de Combo de 3 Golpes:}
+    \begin{itemize}
+        \item \textbf{Hit 1:} Corte rápido descendente (\textbf{30 Dano Base} / 45 com Crítico).
+        \item \textbf{Hit 2:} Estocada horizontal de alta frequência (\textbf{35 Dano Base} / 52 com Crítico).
+        \item \textbf{Hit 3 (Finalizador):} Corte em arco com sobrecarga de plasma (\textbf{40 Dano Base} / 60 com Crítico).
+        \item \textbf{Dano Total do Combo:} \textbf{105 de Dano Base} (\textbf{157 com Crítico 1.5x}).
+    \end{itemize}
+    \item \textbf{Tempo de Reset de Combo:} 1,2 segundos sem input de ataque.
+\end{itemize}
+
+\section{Machado de Bismuto (Ferramenta de Demolição Mineral)}
+Uma cunha pesada de extração geológica reforçada com cristais de bismuto.
+\begin{itemize}
+    \item \textbf{Sequência de Combo de 4 Golpes:}
+    \begin{itemize}
+        \item \textbf{Hit 1:} Varredura diagonal lenta (\textbf{40 Dano Base} / 60 com Crítico).
+        \item \textbf{Hit 2:} Golpe reverso ascendente (\textbf{45 Dano Base} / 67 com Crítico).
+        \item \textbf{Hit 3:} Talho horizontal de esmagamento (\textbf{55 Dano Base} / 82 com Crítico).
+        \item \textbf{Hit 4 (Finalizador):} Esmagamento vertical contra o piso com micro-onda de choque (\textbf{55 Dano Base} / 82 com Crítico).
+        \item \textbf{Dano Total do Combo:} \textbf{195 de Dano Base} (\textbf{291 com Crítico 1.5x}).
+    \end{itemize}
+    \item \textbf{Tempo de Reset de Combo:} 1,8 segundos sem input.
+\end{itemize}
+
+\section{Rifle Cinético de Fragmentos (Arma de Longo Alcance)}
+Uma ferramenta adaptada que utiliza solenoides pneumáticos para disparar estilhaços cristalinos colhidos no terreno.
+\begin{itemize}
+    \item \textbf{Capacidade de Carregador e Recarga:} Pente de 24 fragmentos. Ao cessar fogo por 1,5s, regenera 4 fragmentos por segundo. Caso atinja 0 projéteis, trava o percussor e obriga uma recarga manual completa de 2,2 segundos.
+    \item \textbf{Dinâmica de Coice e Dispersão:} O retículo abre em ângulo cônico dinâmico a cada disparo sucessivo. Upgrades de Tier 4 concedem módulos especiais como disparos teleguiados (\textit{Aimbot}).
+\end{itemize}
+
+\section{Sistema de Cadência e Arquitetura de Combos (Input Buffering)}
+Para conferir sensação tática precisa e game feel responsivo aos ataques melee, o motor de combate emprega:
+\begin{itemize}
+    \item \textbf{Input Buffering (Fila de Comandos):} Pressionar o botão de ataque durante o clipe de swing armazena o comando (\texttt{hasBufferedAttack = true}). O buffer só é processado quando a animação atinge o evento \texttt{OpenAttackWindow}.
+    \item \textbf{Trava de Spam no Finalizador (Combo Finisher Lock):} No último hit da sequência (Hit 3 da adaga ou Hit 4 do machado), o buffering é estritamente desligado (\texttt{comboStep == maxComboSteps}). Isso impede que o jogador dispare o primeiro golpe do próximo combo acidentalmente ao clicar repetidas vezes no clímax do golpe.
+    \item \textbf{Navegação Segura de Ultimates no NavMesh:} Durante saltos acrobáticos ou habilidades supremas que elevam o personagem, o sistema não desativa o agente (\texttt{agent.enabled = false}), mas sim utiliza \texttt{updatePosition = false}. Na descida, \texttt{NavMesh.SamplePosition} e \texttt{Warp} garantem que o pouso ocorra exclusivamente em solo navegável, impedindo quedas para o vazio infinito.
+\end{itemize}
+
+% =========================================================================
+% CAPÍTULO 6: BESTIÁRIO DE INIMIGOS
+% =========================================================================
+\chapter{Bestiário de Inimigos (Bioma 1 Cristalizado)}\label{cap:bestiario}
+
+As criaturas de Érebo são manifestações móveis e reativas do sistema imunológico planetário. Cada arquétipo possui um custo específico de orçamento (\textit{Budget}) no gerador de ondas e papéis táticos distintos.
+
+\section{Tabela Oficial de Classes e Custos de Spawn}
+\begin{center}
+\begin{tabular}{|l|c|l|}
+    \hline
+    \textbf{Classe de Spawn} & \textbf{Custo Oficial} & \textbf{Diretrizes e Restrições de Sala} \\
+    \hline
+    Mob Menor            & \textbf{1 ponto}   & Limite de 50\% a 70\% dos pontos da onda \\
+    Atirador             & \textbf{2 pontos}  & Unidades ranged de assédio e dispersão \\
+    Suporte              & \textbf{3 pontos}  & Máximo de 2 por sala; buffam e curam aliados \\
+    Tanque               & \textbf{4 pontos}  & Máximo de 4 por sala; colossos de controle \\
+    Estrutura (Spawner)  & \textbf{6 pontos}  & Máximo de 1 por sala; invocam lacaios sem custo \\
+    Elite                & \textbf{10 pontos} & Máximo de 1 por sala (limite global rigoroso) \\
+    \hline
+\end{tabular}
+\end{center}
+
+\section{Catálogo Oficial de Inimigos --- Bioma 1}
+
+\subsection{Aranha (\textit{Spider\_AI}) --- Mob Menor (1 ponto)}
+\begin{itemize}
+    \item \textbf{Lore:} Tecido nervoso bio-cristalino que se desprende do teto das cavernas. Extremamente veloz, atua como primeiro batedor contra anomalias.
+    \item \textbf{Comportamento:} Locomoção procedural dinâmica com ciclos de perna alternados (\textit{Tripod Gait}). Ao se aproximar a 5 metros do jogador, executa um \textbf{Leap Attack} teleguiado (\texttt{leapDamage = 10}). Possui 30\% de chance de dar um salto evasivo para trás após golpear.
+    \item \textbf{Stats Base:} HP: 35 | Dano: 25 (Pulo) | Velocidade: 6 | Drop Base de Essência: 2.
+\end{itemize}
+
+\subsection{SharpBlur (\textit{SharpBlur\_AI} / \texttt{ANt\_Sharp.prefab}) --- Mob Menor / Flanqueador (1 ponto)}
+\begin{itemize}
+    \item \textbf{Lore:} Uma anomalia translúcida cujos cristais vibram em frequências quânticas, distorcendo o espaço ao seu redor com miragens de refração.
+    \item \textbf{Comportamento:} Persegue o jogador a velocidade constante. A 8m de distância, inicia seu \textbf{Dash Zigue-Zague} ultra veloz com som de teleporte (\texttt{warp.mp3}), projetando clones holográficos que causam 15 de dano de contato. Ao completar o percurso próximo ao jogador, encadeia um golpe de corte/soco corporal com garras (\texttt{sharpBlurAttack.mp3}, 20 de dano). O dash possui um tempo de recarga calibrado (\texttt{dashCooldown = 3.5s}), permitindo ao jogador enfrentá-lo em combate corpo a corpo entre investidas.
+    \item \textbf{Stats Base:} HP: 70 | Dano: 15 (Dash) / 20 (Golpe Melee) | Velocidade: 6 | Drop Base de Essência: 2.
+\end{itemize}
+
+\subsection{Goblin (\textit{GoblinAI\_Transform}) --- Atirador (2 pontos)}
+\begin{itemize}
+    \item \textbf{Lore:} Seres subterrâneos atarracados e cegos pela escuridão das minas que vestem trapos grossos e extraem pólvora mineral.
+    \item \textbf{Comportamento:} Mantém distância ideal de 12 metros realizando strafe lateral e arremessando \textbf{Bombas Parabólicas} em arco que detonam em 3s (\texttt{dano = 30}, \texttt{raio = 2m}). Se o jogador encurralar o Goblin a menos de 2,5m, ele interrompe a fuga e golpeia imediatamente com sua picareta de mineração (\texttt{dano = 15}).
+    \item \textbf{Stats Base:} HP: 95 | Dano: 30 (Bomba) / 15 (Picareta) | Drop Base de Essência: 4.
+\end{itemize}
+
+\subsection{Peixe (\textit{Peixe\_AI} / \texttt{Peixe.prefab}) --- Atirador Flutuante (2 pontos)}
+\begin{quote}
+    \textbf{Nota Oficial de Design:} Substitui formalmente o antigo conceito do Dragão de Cristal (\textit{Crystal Dragon}).
+\end{quote}
+\begin{itemize}
+    \item \textbf{Lore:} Um organismo mineral marinho-aéreo que imita a fisiologia de um peixe-leão e baiacu. Flutua graciosamente através de correntes de gás cristalino.
+    \item \textbf{Comportamento:} Orbita a meia distância e dispara espinhos e bolhas cristalinas de alta velocidade. Se o jogador avançar agressivamente para atacá-lo em combate corpo a corpo (menos de 3,5m), o Peixe ativa seu \textbf{Mecanismo de Insuflamento Defensivo}: incha visivelmente, duplicando de volume e eriçando espinhos afiados que concedem \textbf{imunidade completa a ataques melee e causam dano de contato}. No entanto, ataques à distância (projéteis) e a Habilidade Suprema (ULT) atravessam a couraça. Após alguns segundos, o Peixe esvazia-se gradualmente; durante essa desinsuflação, fica vulnerável e atordoado, criando a janela ideal de punição.
+    \item \textbf{Stats Base:} HP: 75 | Dano: 8 (Espinhos) / 20 (Charge) | Drop Base de Essência: 4.
+\end{itemize}
+
+\subsection{Vigia de Cristal (\textit{CrystalWatcher\_AI}) --- Atirador Estático (2 pontos)}
+\begin{itemize}
+    \item \textbf{Lore:} Sentinela geológica incrustada nas rochas que canaliza feixes fotônicos concentrados.
+    \item \textbf{Comportamento:} Fixo no solo. Ao detectar o jogador, carrega por 0,5s e projeta um \textbf{Laser Contínuo de Varredura 360°} por 4 segundos. O laser gira buscando o jogador e inverte imediatamente sua rotação caso o jogador use a esquiva (Dash) para transpor o feixe.
+    \item \textbf{Stats Base:} HP: 80 | Dano: 20 por tick (a cada 0,3s) | Drop Base de Essência: 4.
+\end{itemize}
+
+\subsection{Cristalus (\textit{Cristalus\_AI}) --- Suporte de Blindagem (3 pontos)}
+\begin{itemize}
+    \item \textbf{Lore:} Pólipo cristalino luminescente que ressoa com os escudos naturais das criaturas.
+    \item \textbf{Comportamento:} Flutua em retaguarda emitindo ondas periódicas de frequência que restauram continuamente a armadura de todos os aliados no setor e aplicam uma aura de lentidão de 25\% no movimento do engenheiro. Não possui ataques diretos de dano.
+    \item \textbf{Stats Base:} HP: 45 | Dano: 0 (Suporte Puro) | Drop Base de Essência: 4.
+\end{itemize}
+
+\subsection{Sintonizador de Cristal (\textit{CrystalTuner\_Root}) --- Suporte Estratégico (3 pontos)}
+\begin{itemize}
+    \item \textbf{Lore:} Nodo móvel do sistema nervoso planetário. Canaliza energia pura do núcleo para organismos de combate.
+    \item \textbf{Comportamento:} Voa a 1,5m de altura e projeta até 3 feixes ondulantes (\textit{Perlin Noise}) conectando-se a monstros da sala. Monstros sintonizados recebem buffs drásticos (+30\% de velocidade, redução de cooldowns de ataque e rotação estendida). Se os aliados morrerem, o Sintonizador entra em \textbf{Roaming Orgânico}, orbitando o jogador à distância. Ao ser destruído, remove instantaneamente todos os buffs de seus alvos.
+    \item \textbf{Stats Base:} HP: 55 | Dano: 0 (Amplificador) | Alcance dos Feixes: 20m | Drop Base de Essência: 4.
+\end{itemize}
+
+\subsection{Golem (\textit{Golem\_AI}) --- Tanque (4 pontos)}
+\begin{itemize}
+    \item \textbf{Lore:} Um monólito maciço de basalto e quartzo. A síntese da resistência física mineral.
+    \item \textbf{Comportamento:} Locomoção pesada com inércia física procedural. Executa um ataque de varredura rotatória com os braços convergindo para dentro e para baixo ($180^\circ$ sem buff, $720^\circ$ quando sintonizado). Após acertar 2 golpes melee, ativa uma erupção de \textbf{Stun em Área Sísmico} (\texttt{raio = 4m}) no chão, paralisando o jogador por 1,5s com efeitos de fendas e poeira.
+    \item \textbf{Stats Base:} HP: 220 | Dano: 30 (Melee) + Stun 1,5s | Drop Base de Essência: 8.
+\end{itemize}
+
+\subsection{Pedra Mágica (\textit{MagicStone\_AI} / \texttt{MagicStoneEnemy}) --- Tanque Ranged (4 pontos)}
+\begin{itemize}
+    \item \textbf{Lore:} Uma gema gigantesca levitante saturada com energia celestial ionizada.
+    \item \textbf{Comportamento:} Flutua sinusoidalmente a 12--15 metros do jogador. A cada 5 segundos, telegrafeia um círculo rúnico no chão por 2,5s e dispara um massivo \textbf{Raio Celeste Vertical} (\texttt{dano = 40}). Se o jogador encurralá-la a menos de 4 metros, teleporta instantaneamente para o extremo oposto da sala.
+    \item \textbf{Stats Base:} HP: 195 | Dano: 40 (Skybeam) | Drop Base de Essência: 8.
+\end{itemize}
+
+\subsection{Istar / Star (\textit{ShardSwarmHealth.cs} / \texttt{Star.prefab}) --- Tanque de Fragmentação (4 pontos)}
+\begin{quote}
+    \textbf{Nota Oficial de Design:} Substitui e consolida o antigo conceito do \textit{Shard Swarm}.
+\end{quote}
+\begin{itemize}
+    \item \textbf{Lore:} Um organismo estelar quadruplo fundido em forma de carambola. Suas quatro pontas acumulam eletricidade cinética gerada pelo núcleo.
+    \item \textbf{Comportamento:}
+    \begin{itemize}
+        \item \textbf{Forma Unida (Estado Vulnerável):} Flutua em direção ao jogador acumulando carga elétrica passiva visível. É a única forma onde recebe dano. Se o jogador demorar demais para atacar, emite uma Nova Elétrica circular (\texttt{dano = 25}, stun 0,8s).
+        \item \textbf{Separação em Salva:} Dispara seus 4 fragmentos pontiagudos em alta velocidade em trajetórias retas fixas contra o jogador (invulnerável).
+        \item \textbf{Reagrupamento com Rastro de Choque:} Os fragmentos retornam ao centro, deixando para trás trilhas elétricas no chão que duram 3 segundos, transformando o solo da arena em um campo minado temporário.
+    \end{itemize}
+    \item \textbf{Stats Base:} HP: 180 | Dano: 30 (Contato) / 25 (Descarga Elétrica) | Drop Base de Essência: 8.
+\end{itemize}
+
+\subsection{Totem (\textit{TotemSpawner}) --- Estrutura / Spawner Pesado (6 pontos)}
+\begin{itemize}
+    \item \textbf{Lore:} Monólito cerimonial cravado nas minas que absorve a matéria biológica residual dos goblins mortos, reanimando seus crânios.
+    \item \textbf{Comportamento:} Estrutura fixa incrustada no terreno. A cada 5 segundos, projeta até 3 crânios voadores teleguiados (\texttt{HomingHazards}) que perseguem o jogador e explodem em impacto. Os crânios invocados não consomem pontos de budget da sala. Ao destruir o Totem, todos os crânios vinculados explodem instantaneamente.
+    \item \textbf{Stats Base:} HP: 150 | Dano: Próprio das caveiras suicidas (25 cada) | Drop Base de Essência: 8.
+\end{itemize}
+
+\subsection{Geobionte e Sentinela / Bismutado (\textit{Geobionte\_AI} / \texttt{bismutado.prefab}) --- Elite de Fusão (10 pontos)}
+\begin{itemize}
+    \item \textbf{Lore:} Uma forma primordial de simbiose geológica. Passivo e vulnerável em seu estado larval, ele é atraído intensamente por veios minerais de bismuto.
+    \item \textbf{Comportamento de Fusão:} Ao avistar o jogador, corre em direção ao depósito mineral mais próximo. O jogador tem uma janela crítica de 7 acertos para interromper a corrida. Caso atinja o minério, o Geobionte funde-se à rocha, recupera 60\% de sua vida máxima e transforma-se no temível \textbf{Cubo Bismutado}, perseguindo o jogador com golpes de varredura devastadores (\texttt{dano = 40}). Em batalhas prolongadas, evolui para a forma \textbf{Sentinela}, emitindo campos de debuff contínuo que desaceleram o engenheiro.
+    \item \textbf{Stats Base:} HP: 250 (Geobionte) / 400 (Sentinela) | Dano: 40 (Varredura) / 50 (Slam em Área) | Drop Base de Essência: 20 (Drop de item 100\% garantido).
+\end{itemize}
+
+\section{O Sistema de Variantes de Elite (Arquitetura de Sub-Roll)}
+Para expandir a variedade sem poluir o balanceamento de pontos de spawn, o jogo utiliza uma arquitetura de \textbf{Dupla Rolagem Procedural} (\textit{Sub-Roll}):
+\begin{enumerate}
+    \item O gerador de ondas da sala consome o budget e sorteia uma classe e inimigo base normal (ex: Aranha, Goblin ou Pedra Mágica).
+    \item Imediatamente após sortear o inimigo base, o sistema executa uma rolagem probabilística interna (\texttt{mutationChance = 15\% a 25\%}, escalando com o número da sala).
+    \item Se a rolagem for bem-sucedida, o spawner instancia a \textbf{Variante de Elite} daquele monstro (ex: \texttt{Elite Spider}, \texttt{Elite Goblin}, \texttt{Elite MagicStone}).
+    \item \textbf{Propriedades da Variante:} Escala visual ampliada (1,25x), shaders com emissão avermelhada/dourada, +50\% de HP, ataques com efeitos secundários e uma tabela de loot exclusiva com chances dobradas de Tiers 3 (Épico) e 4 (Lendário).
+\end{enumerate}
+
+\section{Tabela Resumo do Bioma 1 (Cristalizado)}
+\begin{center}
+\begin{tabular}{|l|l|l|c|}
+    \hline
+    \textbf{Inimigo} & \textbf{Classe de Spawn} & \textbf{Script Principal} & \textbf{Budget} \\
+    \hline
+    Aranha               & Mob Menor           & \texttt{Spider\_AI}           & 1 pt \\
+    SharpBlur            & Mob Menor           & \texttt{SharpBlur\_AI}        & 1 pt \\
+    Goblin               & Atirador            & \texttt{GoblinAI\_Transform}  & 2 pts \\
+    Peixe (ex-Dragon)    & Atirador            & \texttt{Peixe\_AI}            & 2 pts \\
+    Vigia de Cristal     & Atirador            & \texttt{CrystalWatcher\_AI}   & 2 pts \\
+    Cristalus            & Suporte             & \texttt{Cristalus\_AI}        & 3 pts \\
+    Sintonizador         & Suporte             & \texttt{CrystalTuner}         & 3 pts \\
+    Golem                & Tanque              & \texttt{Golem\_AI}            & 4 pts \\
+    Pedra Mágica         & Tanque              & \texttt{MagicStone\_AI}       & 4 pts \\
+    Istar (ex-Swarm)     & Tanque              & \texttt{ShardSwarmHealth}     & 4 pts \\
+    Totem                & Estrutura / Spawner & \texttt{TotemSpawner}         & 6 pts \\
+    Geobionte (Bismutado)& Elite de Fusão      & \texttt{Geobionte\_AI}        & 10 pts \\
+    \hline
+\end{tabular}
+\end{center}
+
+\section{Chefe do Bioma 1 --- Boss Cromático (\textit{BossController})}
+O Guardião de Fronteira do primeiro mundo é um avatar colossal de silício e prismas violetas. Ele atua como barreira viva entre o Bioma Cristalizado e os setores biológicos posteriores.
+
+\subsection{Sistema de Três Barras de Vida Independentes}
+O Boss Cromático possui três fases progressivas, cada uma representada por uma barra de vida completa no topo da tela que altera de tonalidade:
+\begin{itemize}
+    \item \textbf{Fase 1 (Casulo Protetor):} Barra Azul (\texttt{\#338CFF}).
+    \item \textbf{Fase 2 (Refração e Invisibilidade):} Barra Vermelha (\texttt{\#F22626}).
+    \item \textbf{Fase 3 (Raízes Primordiais):} Barra Verde (\texttt{\#33E659}).
+\end{itemize}
+
+\subsection{Fase 1 --- O Casulo de Cristal}
+O Boss inicia o combate protegido por uma couraça mineral. Ele invoca círculos de pilares e espinhos ao redor do jogador, mantendo recuo tático enquanto gera servos menores da pool do bioma. Ao esgotar o HP da Fase 1, o casulo se despedaça em uma onda de choque invulnerável (\texttt{PowerUp}, 2,5s), absorvendo as essências dos servos restantes.
+
+\subsection{Fase 2 --- Refração e Luz Fantasma}
+O Boss revela sua estrutura vítrea translúcida. Utilizando refração de fótons, ele fica \textbf{completamente invisível até ser golpeado pelo jogador}. Enquanto invisível, vagueia pela arena conjurando feixes místico-celestiais (\texttt{SimpleCast}, telegrafado por 0,45s com 2,5s de stun) e invoca a temível \textbf{Erupção 360°} (\texttt{BossSpellWide}), erguendo 28 espinhos orgânicos em anéis expansivos ao redor de toda a sala.
+
+\subsection{Fase 3 --- Raízes Primordiais \& Clímax}
+Com o núcleo exposto, a entidade conecta-se às raízes profundas do bioma. Ela ganha a habilidade de \textbf{Braços Extensíveis} (\textit{Arm Stretch}), esticando membros cristalinos a dezenas de metros para atingir cantos distantes da arena.
+\begin{itemize}
+    \item \textbf{Cinemática de Morte por Absorção:} Ao ter sua terceira barra zerada, o Boss não desaba como um ragdoll inerte. Uma sequência cinemática dramática é acionada onde fendas abrem-se sob seus pés e o solo líquido do planeta o puxa e suga lentamente para as profundezas, reintegrando sua energia ao núcleo da terra e liberando a passagem para o próximo mundo.
+\end{itemize}
+
+% =========================================================================
+% CAPÍTULO 7: BIOMAS E EXPLORAÇÃO
+% =========================================================================
+\chapter{Biomas e Exploração}
+
+A superfície de Érebo é fragmentada em quatro grandes setores biológicos conectados por portais de vácuo, cada qual governado por ecossistemas radicalmente distintos.
+
+\section{Bioma 1: As Cavernas Cristalinas (Zona da Queda)}
+\begin{itemize}
+    \item \textbf{Paleta Visual:} Tons frios de ciano, ametista violeta, rochas de basalto escuro e veios de bismuto iridescente.
+    \item \textbf{Ecologia:} Organismos baseados em redes minerais e silício rígido.
+    \item \textbf{Perigos Ambientais:} Cristais pontiagudos de piso, géisers de pó e fendas luminescentes.
+    \item \textbf{Guardião:} O Boss Cromático.
+\end{itemize}
+
+\section{Setores Futuros em Desenvolvimento}
+\begin{itemize}
+    \item \textbf{Bioma 2: Pântano das Raízes Químicas:} Setor de pântanos viscosos e neblina ácida, onde a fauna assume formas de cogumelos parasitas e artrópodes blindados.
+    \item \textbf{Bioma 3: A Selva de Carne e Silício:} Setor onde metal retorcido de naves antigas fundiu-se a tecidos musculares orgânicos pulsantes.
+    \item \textbf{Bioma 4: O Núcleo Digestivo Primordial:} A câmara central do planeta onde a consciência planetária repousa em um oceano de essência pura.
+\end{itemize}
+
+% =========================================================================
+% CAPÍTULO 8: A NAVE DESTRUÍDA (BASE) E SISTEMA DE QUESTS
+% =========================================================================
+\chapter{A Nave Destruída (Base) e Sistema de Quests}
+
+Entre as tentativas de fuga (runs), o jogador retorna à cratera dos destroços da nave, o único local esterilizado contra a assimilação do planeta.
+
+\section{Estrutura e Instalações da Base}
+\begin{itemize}
+    \item \textbf{Bancada de Reparos e Forja Permanente:} Estação onde o engenheiro utiliza os minerais e espécimes botânicos protegidos na bolsa sintética para fabricar expansões definitivas de vida, armadura e compartimentos de inventário.
+    \item \textbf{Expositor de Armas (\texttt{WeaponRack}):} Painel onde repousam as ferramentas recuperadas, permitindo selecionar o arquétipo inicial da próxima descida.
+    \item \textbf{O Canil e Terminal do Eptinho:} Local de repouso de Eptinho, onde é possível revisar o diário de bordo, reler entradas de lore e interagir para receber incentivos e dicas táticas.
+    \item \textbf{Pod de Customização (Seleção de Skins):} Cabine cilíndrica onde o jogador pode trocar o visual do protagonista (ex: Traje Astronauta Padrão, Astro Novo, Traje de Alta Visibilidade). O sistema desacopla a malha gráfica dos scripts lógicos, mantendo intactas as hitboxes e animators através do componente \texttt{PlayerSkinReferences.cs}.
+\end{itemize}
+
+\section{Sistema de Quests e Onboarding do Jogador}
+O jogo introduz suas mecânicas por meio de um sistema encadeado de missões monitoradas pelo \texttt{QuestManager.cs} com diálogos contextuais disparados pelo \texttt{DialogManager.cs}:
+
+\begin{description}
+    \item[Missão 1: Acordando nos Destroços (Quest 0 --- Intro):] Eptinho estabelece conexão de áudio e explica a situação da queda, a indigestão do planeta e orienta o jogador a investigar a cratera, achar fusíveis e consertar a trava da câmara de descompressão da Run. Ao concluir este diálogo, a missão marca permanência no \texttt{SaveManager}.
+    \item[Missão 2: Adentrando a Zona Hostil:] Com a porta restaurada, o jogador deve cruzar a câmara e derrotar a primeira criatura nas salas de combate para coletar uma Parte do Corpo.
+    \item[Missão 3: Sinergia Alquímica:] Ao recolher a primeira parte, Eptinho explica o funcionamento do menu de infusão e incentiva a forjar a primeira melhoria ou combinar peças para gerar sinergias.
+    \item[Missão 4: Ameaça Buffada:] Ao avistar um Sintonizador pela primeira vez, a missão instrui a focar a destruição do suporte voador antes que os Golems fiquem incontroláveis.
+    \item[Missão 5: Minérios e a Bolsa Sintética:] Introduz a diferença entre partes corporais de monstros e os 17 recursos permanentes que devem ser levados de volta para os reparos da nave.
+    \item[Missão Opcional Secreta: O Tarô Proibido:] Ativada exclusivamente ao encontrar a sala do Mercador em um beco sem saída, alertando sobre os riscos dos pactos de sangue e as cartas de maldição.
+\end{description}
+
+% =========================================================================
+% CAPÍTULO 9: GERAÇÃO PROCEDURAL DE MAPAS
+% =========================================================================
+\chapter{Geração Procedural de Mapas}\label{cap:geracao}
+
+Cada descida a Érebo constrói uma dungeon tridimensional única através de um algoritmo determinístico de encaixe por \textbf{Sockets Direcionais} operado pelo \texttt{LevelGenerator.cs}.
+
+\section{Arquitetura e Fluxo do Gerador}
+\begin{enumerate}
+    \item \textbf{Instanciação da Sala Inicial:} A sala segura (\texttt{Room\_20x20\_Safe}) é posicionada na origem \texttt{(0,0,0)}. Seus sockets abertos (Norte, Sul, Leste) são inseridos na lista de fronteira (\textit{frontier}).
+    \item \textbf{Loop Principal de Expansão:} Enquanto o contador de salas de combate for inferior a \texttt{maxMainRooms = 10}:
+    \begin{itemize}
+        \item Consome-se um socket vago da fronteira.
+        \item Encaixa-se um módulo de transição (corredor).
+        \item Sorteia-se uma sala principal válida (ex: 4-Way, 3-Ways, BigRoom, Circular, DoubleQuad, LakeRoom, Z-Room).
+        \item Novos sockets são abertos e validados geometricamente para evitar sobreposição de volumes.
+    \end{itemize}
+    \item \textbf{Distribuição de Saída e Mercador (Pós-Loop):}
+    \begin{itemize}
+        \item Um dos becos sem saída gerados é sorteado para acomodar o portão de saída (\texttt{ExitRoom}).
+        \item Cada um dos demais becos sem saída possui uma \textbf{chance independente de 25\%} de abrigar o Mercador (\texttt{Room\_Merchant}). Não há garantia de presença do Mercador, tornando seu encontro um evento de grande valor.
+        \item Todos os becos sem saída restantes são vedados com variantes cosméticas de beco (\texttt{semsaida2}, \texttt{DeadEnd}).
+    \end{itemize}
+    \item \textbf{Injeção Centralizada de Inimigos (\texttt{EnemyPoolManager}):} As salas geradas sincronizam automaticamente seus componentes \texttt{RoomController} com o ScriptableObject oficial \texttt{DefaultEnemyPool.asset}, garantindo a presença dos 12 prefabs catalogados.
+\end{enumerate}
+
+% =========================================================================
+% CAPÍTULO 10: SISTEMA ECONÔMICO, DROPS E TEIA DE SINERGIAS
+% =========================================================================
+\chapter{Sistema Econômico, Drops e Teia de Sinergias}\label{cap:economia}
+
+O balanceamento do jogo foi construído para solucionar o dilema fundamental dos roguelites: evitar o ``deserto de loot'' (onde o jogador não consegue itens suficientes para moldar uma build) e evitar o ``lixão de chão'' (onde itens transbordam e esvaziam o valor de cada decisão).
+
+\section{Progressão de Dificuldade das Salas}
+
+\subsection{Fórmula do Orçamento de Spawn da Sala ($P(n)$)}
+O valor total de pontos disponibilizado para instanciar monstros na sala de índice $n$ segue a função:
+\[
+P(n) = 3 + 1{,}1 \times n
+\]
+\begin{itemize}
+    \item \textbf{Sala 1:} $P(1) \approx 4$ pontos $\rightarrow$ 4 Aranhas (ou 2 Goblins).
+    \item \textbf{Sala 4:} $P(4) \approx 7$ pontos $\rightarrow$ 1 Golem (4 pts) + 3 Aranhas (3 pts).
+    \item \textbf{Sala 8:} $P(8) \approx 12$ pontos $\rightarrow$ 1 Geobionte (10 pts) + 2 Aranhas (2 pts).
+    \item \textbf{Sala 12:} $P(12) \approx 16$ pontos $\rightarrow$ 1 Geobionte (10 pts) + 1 Golem (4 pts) + 2 Aranhas (2 pts).
+\end{itemize}
+
+\subsection{Fórmula de Escalonamento de Inimigos (+3\% Composto por Sala)}
+Implementado nos scripts de vida (\texttt{DummyHealth.cs}, \texttt{ShardSwarmHealth.cs}) e dano (\texttt{PlayerHealth.cs}), todos os atributos vitais e ofensivos dos inimigos escalam com o índice real de sala explorada (\texttt{currentRoomNumber}):
+\[
+\text{HP}(n) = \text{HP}_{\text{base}} \times (1 + 0{,}03 \times (n - 1))
+\]
+\[
+\text{Dano}(n) = \text{Dano}_{\text{base}} \times (1 + 0{,}03 \times (n - 1))
+\]
+Desta forma, na Sala 10, um Golem possui 286 HP (+30\%) e desferirá 39 de dano.
+
+\subsection{Fórmula de Drop de Essência}
+A quantidade de Essência da Vida concedida por cada monstro abatido escala com a profundidade:
+\[
+E(n) = d \times (1 + 0{,}05 \times n)
+\]
+Onde $d$ é a essência base do arquétipo (2 para Mob Menor, 4 para Atirador/Suporte, 8 para Tanque/Estrutura e 20 para Elite).
+
+\section{Matriz de Probabilidade de Drops Ponderada por Classe}
+Em uma run típica de 10 a 12 salas, o jogador elimina entre **75 e 90 criaturas**, das quais mais de 50\% são Mobs Menores. Uma taxa fixa de drop faria o jogador acumular dezenas de patas de aranha e nenhum item de elite. Para garantir equilíbrio estatístico, os drops foram calibrados por classe no \texttt{EnemyDrops.cs}:
+
+\begin{center}
+\begin{tabular}{|l|c|c|c|l|}
+    \hline
+    \textbf{Classe do Mob} & \textbf{População Média} & \textbf{Chance de Drop} & \textbf{Média Drops / Run} & \textbf{Tiers Predominantes} \\
+    \hline
+    Mob Menor & ~45 a 50 mobs & \textbf{10\%} & 4 a 5 itens & 80\% T1, 20\% T2 \\
+    Atirador  & ~18 a 22 mobs & \textbf{18\%} & 3 a 4 itens & 60\% T1, 35\% T2, 5\% T3 \\
+    Suporte   & ~5 a 7 mobs   & \textbf{25\%} & 1 a 2 itens & 40\% T1, 40\% T2, 20\% T3 \\
+    Tanque    & ~6 a 8 mobs   & \textbf{35\%} & 2 a 3 itens & 30\% T1, 40\% T2, 30\% T3 \\
+    Estrutura & ~1 a 2 mobs   & \textbf{50\%} & 0 a 1 item  & 20\% T1, 50\% T2, 30\% T3 \\
+    Elite     & ~1 a 2 mobs   & \textbf{100\% (Garantido)} & 1 a 2 itens & 0\% T1, 20\% T2, 50\% T3, 30\% T4 \\
+    \hline
+    \textbf{TOTAL RUN} & \textbf{~80 mobs} & --- & \textbf{12 a 15 itens} & \textbf{Equilíbrio Perfeito} \\
+    \hline
+\end{tabular}
+\end{center}
+
+\textit{Consequência Econômica:} Com 12 a 15 itens obtidos em uma run completa, o jogador consegue realizar de \textbf{4 a 6 infusões de alto impacto} na sua arma, e utiliza os 6 a 9 itens restantes como descarte ou venda ao Mercador para gerar a Essência necessária para pagar as infusões finais.
+
+\section{O Catálogo Completo dos 52 Itens Dropáveis (4 Tiers $\times$ 13 Inimigos)}
+Cada linhagem de monstro possui 4 itens anatômicos rigorosamente associados às suas características físicas e aos nós da Teia de Sinergias:
+
+\begin{center}
+\small
+\begin{tabular}{|l|p{3.2cm}|p{3.2cm}|p{3.2cm}|p{3.8cm}|}
+    \hline
+    \textbf{Inimigo} & \textbf{Tier 1 (Comum)} & \textbf{Tier 2 (Raro)} & \textbf{Tier 3 (Épico)} & \textbf{Tier 4 (Lendário)} \\
+    \hline
+    \textbf{1. Aranha} & \textbf{Pata Ágil:} +8\% Attack Speed & \textbf{Glândula Elástica:} -10\% CD do Dash & \textbf{Tendão Quitinose:} +10\% AtkSpd e -10\% Dash CD & \textbf{Coroa da Ninhada:} Dash deixa teia venenosa; ataques envenenam alvos. \\
+    \hline
+    \textbf{2. SharpBlur} & \textbf{Lasca Afiada:} +6\% Dano Base & \textbf{Prisma Refletor:} +5\% Chance Crítica & \textbf{Bisturi de Ametista:} +8\% Dano e +6\% Crit Chance & \textbf{Corte Fantasma:} Críticos causam Sangramento contínuo (35\% dano em 3s). \\
+    \hline
+    \textbf{3. Peixe} & \textbf{Espinho Cristalino:} +10\% Dano de Espinhos & \textbf{Vesícula Retrátil:} +20\% Força de Knockback & \textbf{Couraça Espinhada:} +15\% Espinhos e +15\% Knockback & \textbf{Retaliação Sísmica:} Dano refletido por espinhos atordoa o agressor por 1,2s. \\
+    \hline
+    \textbf{4. Goblin} & \textbf{Cartucho Pólvora:} +1 Projétil Extra & \textbf{Pavio Rápido:} +15\% Dispersão (Spread) & \textbf{Mochila Dinamite:} +1 Projétil e +20\% Spread & \textbf{Bomba de Escape:} Ao dasha, planta bomba com 90 de dano em área. \\
+    \hline
+    \textbf{5. Watcher} & \textbf{Lente Focal:} +20\% Alcance Projétil & \textbf{Prisma Ocular:} +15\% Alcance Melee & \textbf{Olho Panóptico:} +15\% Range Projétil e Melee & \textbf{Feixe Sentinela:} A cada 8s, dispara laser orbital giratório 360°. \\
+    \hline
+    \textbf{6. Tuner} & \textbf{Diapasão Cristal:} Perfurar 1 alvo & \textbf{Ressonador:} Projéteis quicam 1x & \textbf{Onda Harmônica:} Perfura 1 e Quica 1x & \textbf{Marca Ressonante:} Alvos marcados sofrem +25\% de dano de todas as fontes. \\
+    \hline
+    \textbf{7. Cristalus} & \textbf{Membrana Vítrea:} +1 Regen Armor/s & \textbf{Pó Entorpecente:} Ataques aplicam 25\% Slow & \textbf{Cápsula Vítrea:} +1.5 Regen Armor e Slow 20\% & \textbf{Fluxo Inquebrável:} Regeneração de Armadura nunca é pausada ao sofrer dano. \\
+    \hline
+    \textbf{8. Golem} & \textbf{Placa de Basalto:} +10 Armadura Máx & \textbf{Placa Granito:} 8\% Chance Negar Dano & \textbf{Coração Rochoso:} +15 Armor e 10\% Negar Dano & \textbf{Colosso Indomável:} Com <30\% HP, ganha 60 de Armadura e emite onda sísmica. \\
+    \hline
+    \textbf{9. P. Mágica} & \textbf{Gema da Vida:} +20 HP Máximo & \textbf{Cristal Ilusório:} +5\% Chance Esquiva & \textbf{Geodo Vital:} +30 HP Máx e +5\% Esquiva & \textbf{Fenda Astral:} Dash vira teleporte estelar; deixa Raio Celeste no ponto inicial. \\
+    \hline
+    \textbf{10. Istar} & \textbf{Fragmento Estelar:} +0.15s I-Frames & \textbf{Carambola Cortante:} +25\% Mult. Crítico & \textbf{Núcleo de Enxame:} +0.15s I-Frames e +20\% Crit & \textbf{Órbita Fragmentada:} 3 fragmentos estelares orbitam destruindo tiros inimigos. \\
+    \hline
+    \textbf{11. Totem} & \textbf{Insígnia Crânios:} +1 Carga de Dash & \textbf{Pilar Repulsor:} +25\% Força Knockback & \textbf{Totem Trincheira:} +1 Dash e +20\% Repulsão & \textbf{Totem Humano:} Ficar parado por 1,5s reduz dano em 40\% e cospe caveiras. \\
+    \hline
+    \textbf{12. Bismutado} & \textbf{Lâmina Bismuto:} +15\% Dano Melee & \textbf{Aresta Prisma:} +35\% Dano Crítico & \textbf{Cutelo do Vazio:} +15\% Dano e +30\% Crit & \textbf{Varredura Titânica:} Ataques ganham Cleave frontal de 180° de cobertura. \\
+    \hline
+    \textbf{13. Sentinela} & \textbf{Carcaça Titânica:} +50 HP Máximo & \textbf{Placa Titânica:} +25 Armadura Máxima & \textbf{Bastião Divino:} +40 HP e +20 Armadura & \textbf{Sifão Vampírico:} 5\% de todo dano infligido é drenado como cura direta de HP. \\
+    \hline
+\end{tabular}
+\end{center}
+
+\section{A Teia de Sinergias Oficial}
+Quando o jogador acopla em sua arma itens anatômicos de criaturas com compatibilidade química mútua, uma \textbf{Sinergia Alquímica} se manifesta instantaneamente através do \texttt{SynergyInfusionCalculator.cs}:
+
+\subsection{As 8 Sinergias Padrão (Combinações de 2 Itens)}
+\begin{enumerate}
+    \item \textbf{Chuva de Lâminas:} \textit{Goblin (T1 Multi-Tiro) + SharpBlur (T1 Dano Base)} \\
+    \textbf{Efeito:} Cada finalizador de combo dispara uma saraivada cônica de lâminas estilhaçantes extras. Concede -15\% no custo de Essência das próximas infusões.
+    \item \textbf{Parede Intransponível:} \textit{Golem (T1 Armor Máx) + Sentinela (T2 Armor Colossal)} \\
+    \textbf{Efeito:} Ao romper-se completamente, o escudo de armadura detona uma onda sísmica de espinhos que reflete 100\% do impacto sofrido de volta aos inimigos.
+    \item \textbf{Corte Congelante:} \textit{Cristalus (T2 Lentidão) + SharpBlur (T3 Dano + Crit)} \\
+    \textbf{Efeito:} Inimigos desacelerados por lentidão tornam-se frágeis, sofrendo +40\% de dano crítico adicional.
+    \item \textbf{Assassino Fantasma:} \textit{Aranha (T2 Dash CD) + Pedra Mágica (T2 Esquiva)} \\
+    \textbf{Efeito:} Esquivar com sucesso de qualquer ataque inimigo restaura instantaneamente 1 carga de Dash e concede +25\% de Attack Speed por 2 segundos.
+    \item \textbf{Domínio de Espaço:} \textit{Totem (T2 Knockback) + Watcher (T2 Range Melee)} \\
+    \textbf{Efeito:} A extensão física dos golpes corpo a corpo cresce em +30\% e empurrões colidem os monstros com violência contra paredes (\textit{Wall Slam}), causando atordoamento de 1 segundo.
+    \item \textbf{Tempestade Focada:} \textit{Tuner (T2 Quicar) + Istar (T2 Mult. Crítico)} \\
+    \textbf{Efeito:} Projéteis que ricocheteiam entre monstros recebem 100\% de chance crítica garantida a partir do segundo impacto consecutivo.
+    \item \textbf{Aura Espinhosa:} \textit{Peixe (T1 Espinhos) + Cristalus (T1 Regen Armor)} \\
+    \textbf{Efeito:} Enquanto a Armadura estiver 100\% cheia, o traje projeta uma aura pulsante contínua que retalha alvos próximos sem gastar munição.
+    \item \textbf{Fuga Explosiva:} \textit{Totem (T1 Cargas Dash) + Goblin (T2 Dispersão)} \\
+    \textbf{Efeito:} A cada acionamento da esquiva (Dash), o engenheiro ejeta automaticamente 3 estilhaços explosivos de fragmentação no chão.
+\end{enumerate}
+
+\subsection{Os 2 Combos Especiais / Divinos}
+\begin{itemize}
+    \item \textbf{🌟 BERSERKER IMORTAL (Combo de 4 Nós):} \\
+    \textbf{Requisitos:} \textit{Golem T4 (Colosso) + Bismutado T3 (Dano+Crit) + Istar T1 (I-Frames) + Aranha T1 (AtkSpd)}. \\
+    \textbf{Efeito:} Ao cair abaixo de 30\% de HP, o engenheiro sobrecarrega o traje entrando em estado Berserk por 6 segundos: torna-se imune a atordoamento, ganha +50\% de velocidade de ataque, +100\% de dano crítico e cada golpe físico restaura 3 pontos de HP orgânico.
+    \item \textbf{👑 A ASCENSÃO --- MODO DEUS (Combo dos 13 Lendários T4):} \\
+    \textbf{Requisitos:} Coleta e infusão de 1 item Lendário Tier 4 de cada uma das 13 linhagens de monstros em uma única run histórica. \\
+    \textbf{Efeito:} Domínio total sobre o planeta vivo. O engenheiro ganha capacidade de flutuação contínua, todos os projéteis tornam-se perfurantes e teleguiados, a regeneração de armadura opera ininterruptamente e feixes orbitais dizimam automaticamente alvos no horizonte.
+\end{itemize}
+
+\section{Fórmula de Inflação de Custo e Cirurgia de Remoção}
+O custo em Essência ($C$) para realizar uma nova infusão atrelada à arma segue a equação matemática implementada no \texttt{InfusionManager.cs}:
+\[
+C = B \times (1{,}0 + \alpha \times P_{total})
+\]
+Onde:
+\begin{itemize}
+    \item $B$ = Custo base de essência da raridade do item (T1 = 60, T2 = 180, T3 = 300, T4 = 420).
+    \item $\alpha = 0{,}10$ (Coeficiente de inflação por run).
+    \item $P_{total}$ = Somatório dos pesos de inflação acumulados de todas as partes acopladas na run ($P_{T1} = 1{,}00$; $P_{T2} = 2{,}25$; $P_{T3} = 4{,}00$; $P_{T4} = 6{,}00$).
+\end{itemize}
+
+\subsection{A Desinflação Cirúrgica do Mercador}
+Ao pagar pela Cirurgia de Remoção no Mercador:
+\[
+P_{total}^{novo} = \max(0,\ P_{total}^{anterior} - P_{item\_removido})
+\]
+Essa diminuição direta reduz imediatamente o valor de $C$ para todas as infusões futuras, viabilizando correções de build no meio da jornada.
+
+% =========================================================================
+% CAPÍTULO 11: SISTEMAS DE UI, CÂMERA, ÁUDIO E LOADING
+% =========================================================================
+\chapter{Sistemas de UI, Câmera, Áudio e Loading}
+
+\section{HUD e Visualização Responsiva}
+\begin{itemize}
+    \item \textbf{Quest HUD Tracker Dinâmico (\texttt{QuestHUDTracker.cs}):} Durante o combate ativo, o rastreador de missões recolhe seus textos longos e assume um modo minimalista compacto e discreto no canto da tela, mantendo a visão periférica limpa de poluição visual. Ao abrir o inventário ou a tela de sinergias, o painel se expande com descrições detalhadas e objetivos.
+    \item \textbf{Indicador de Dano Flutuante (Damage Numbers):} Acertos físicos projetam valores em texto branco com gradiente cinza; acertos críticos explodem em fontes aumentadas na cor rubi/vinho com fade-out acelerado em 0,5s.
+\end{itemize}
+
+\section{Sistema de Loading Elegante com Frame Animation}
+\begin{itemize}
+    \item \textbf{Eptinho Animado:} A tela de transição entre cenas utiliza um sistema baseado em quadros (\texttt{LoadingSpinner.cs}) reproduzindo a caminhada pixelada de Eptinho a 12 FPS.
+    \item \textbf{Tempo Mínimo de Exibição (Prevenção de Flash):} Em computadores com carregamento ultrarrápido (SSD/NVMe), a cena pode ser concluída em frações de segundo. Para evitar que a tela de loading surja como um estalo visual quebrado e confunda a câmera, o \texttt{LoadingSpinner} garante um tempo mínimo estético de carregamento de 1,2 segundos com fade-out gradual antes de revelar a sala de início.
+\end{itemize}
+
+\section{Câmera com Spring Arm Anti-Clipping no Inventário 3D}
+A inspeção 3D do personagem no painel de inventário emprega um braço virtual elástico (\textit{Spring Arm}):
+\begin{itemize}
+    \item Se o jogador abrir o inventário enquanto estiver encostado em uma parede rochosa do cenário, a câmera dispara \textit{SphereCasts} contra a malha ambiental e encurta dinamicamente o braço, trazendo a visão para perto do peito do astronauta e impedindo que a câmera atravesse o cenário e exiba o vazio do mapa.
+    \item Filtros inteligentes de colisão garantem que a câmera ignore inimigos, orbes e itens no chão, reagindo puramente a barreiras arquitetônicas.
+\end{itemize}
+
+\section{Sonoplastia (SFX) e AudioMixer}
+A sonorização integra feedback auditivo diegético ao gameplay:
+\begin{itemize}
+    \item \textbf{Passos e Tensão Cardíaca:} Os passos do engenheiro alternam o pitch conforme o solo pisado (rocha sólida, metal da base ou poças cristalinas) e uma pulsação cardíaca rítmica acelera quando a armadura quebra e o HP orgânico cai abaixo de 30\%.
+    \item \textbf{SharpBlur Audível:} O áudio de corte corporal (\texttt{sharpBlurAttack.mp3}) utiliza atenuação espacial ajustada (\texttt{spatialBlend = 0.2f}, alcance de 60m), garantindo nitidez sonora na visão isométrica da câmera.
+    \item \textbf{Vocalizações de Eptinho e Sintetizador:} Sons personalizados acompanham cada popup de quest e confirmações do sintetizador na forja da base.
+\end{itemize}
 
 \end{document}

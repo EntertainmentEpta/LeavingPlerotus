@@ -14,6 +14,10 @@ public class BombaExplosiva : MonoBehaviour
     public float raioExplosao   = 2f;
     public float forcaKnockback = 10f;
 
+    [Header("Elite — Bomb Mark System")]
+    [Tooltip("Ative SOMENTE no prefab da bomba da Goblin Elite. Ao acertar o player, aciona o BombMarkSystem (marca + stun) ao inves de dano direto.")]
+    public bool marksOnHit = false;
+
     [Header("Timer")]
     public float tempoParaExplodir = 3f;
 
@@ -151,7 +155,18 @@ void Explodir()
             PlayerHealth ph = hit.GetComponent<PlayerHealth>();
             if (ph == null) continue;
 
-            ph.TakeDamage(danoExplosao, owner);
+            if (marksOnHit)
+            {
+                // Logica elite: aciona BombMarkSystem (marca + stun) — sem dano direto
+                if (BombMarkSystem.Instance != null)
+                    BombMarkSystem.Instance.OnBombHit(hit.gameObject);
+                else
+                    ph.TakeDamage(danoExplosao, owner); // fallback seguro
+            }
+            else
+            {
+                ph.TakeDamage(danoExplosao, owner);
+            }
 
             // Knockback apenas no plano XZ
             Rigidbody rbPlayer = hit.GetComponent<Rigidbody>();

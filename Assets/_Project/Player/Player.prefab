@@ -1749,6 +1749,7 @@ GameObject:
   - component: {fileID: 8147240710932523325}
   - component: {fileID: 7903399675111266686}
   - component: {fileID: 4810983626657079719}
+  - component: {fileID: -614667531970222130}
   m_Layer: 8
   m_Name: Player
   m_TagString: Player
@@ -1893,9 +1894,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1f438548421a8c841b86d43804752999, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
-  maxHealth: 10000
-  maxArmor: 30
-  armorRegenRate: 50
+  maxHealth: 100
+  maxArmor: 60
+  armorRegenRate: 10
+  shieldRegenDelay: 3.5
   isInvulnerable: 0
   playerMovement: {fileID: 0}
   playerAttack: {fileID: 399265535294509767}
@@ -1906,6 +1908,8 @@ MonoBehaviour:
   armorBarImage: {fileID: 0}
   armorText: {fileID: 0}
   percentageText: {fileID: 0}
+  mercadorHealthFillImage: {fileID: 0}
+  mercadorBarObj: {fileID: 0}
   hasPactCorrupted: 0
   darkPactHealthColor: {r: 0.38, g: 0.04, b: 0.08, a: 1}
   damageMultiplier: 1
@@ -2007,7 +2011,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerUltimate
   ultimateKey: 117
-  ultimateCooldown: 2
+  ultimateCooldown: 30
   forwardLeapImpulse: 6
   grantInvulnerability: 1
   navMeshLandingSearchRadius: 4
@@ -2087,6 +2091,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7219fff5fdb244441b6e817bb2645e48, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerInventory
+  openInventorySound: {fileID: 8300000, guid: 27726599a512e36469b064895c3b23aa, type: 3}
+  openInventorySoundVolume: 0.8
+  closeInventorySound: {fileID: 8300000, guid: 722ff8a899e4148449cdfc1644a0e670, type: 3}
+  closeInventorySoundVolume: 0.8
+  itemPickupSounds:
+  - {fileID: 8300000, guid: b29a3b2dd41519547aaa970e43b578c6, type: 3}
+  - {fileID: 8300000, guid: f828eed3c22a64947b599b80a27239e6, type: 3}
+  - {fileID: 8300000, guid: c1bd6c3d31a6f434a840dbe962f29988, type: 3}
+  itemPickupSoundVolume: 0.8
   maxSlots: 10
   onItemAdded:
     m_PersistentCalls:
@@ -2122,6 +2135,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InfusionManager
   inflationAlpha: 0.1
+  fusionStackMultiplier: 2
+  surgeryEssenceCost: 150
   infusedItems: []
 --- !u!114 &2622090170748288850
 MonoBehaviour:
@@ -2315,7 +2330,7 @@ MonoBehaviour:
   enableSlowMotionOnUlt: 0
   slowMotionTimeScale: 0.25
   slowMotionDuration: 1
-  slamDamage: 1000
+  slamDamage: 260
   shockwaveRadius: 5
   knockbackForce: 12
   upwardKnockbackForce: 0.4
@@ -2443,6 +2458,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Tier4EffectManager
   explosiveDashEffect: {fileID: 0}
+  poisonDamagePerTick: 5
+  poisonDuration: 5
+  poisonTickInterval: 1
+  homingDetectionRadius: 30
+  homingTurnSpeed: 360
+  homingTargetRefreshInterval: 0.1
+  homingBatteryOrbTint: {r: 0.49411765, g: 0.23921569, b: 0.7921569, a: 1}
 --- !u!114 &7903399675111266686
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2478,6 +2500,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0536f880292e9e9419ca90496c4c0c2e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KeybindApplier
+--- !u!114 &-614667531970222130
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3017463410146802124}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 23f8adf423ce8b445ac8d9517bb040bf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StunVFX
+  stunSpiralSprite: {fileID: 0}
+  iconHeightOffset: 2.4
+  iconWorldSize: 0.04
+  iconRotationSpeed: 540
+  healthBarReference: {fileID: 0}
+  stunBarColor: {r: 0.65, g: 0.1, b: 1, a: 1}
+  stunBarBgColor: {r: 0.15, g: 0.05, b: 0.25, a: 0.75}
+  stunBarHeight: 7
+  stunBarYOffset: 3
 --- !u!1 &3037435734811326214
 GameObject:
   m_ObjectHideFlags: 0

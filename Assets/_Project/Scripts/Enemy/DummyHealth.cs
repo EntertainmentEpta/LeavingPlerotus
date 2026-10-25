@@ -24,6 +24,19 @@ public class DummyHealth : MonoBehaviour
     public bool debugLogDamage = false;
     public int CurrentHealth { get; private set; }
 
+    [Header("Elite Rebirth")]
+    [Tooltip("Indica se este mob já é uma unidade elite.")]
+    public bool isElite = false;
+    [Tooltip("Indica se este mob já passou pelo ciclo de renascimento elite (evita renascer infinitamente).")]
+    public bool hasRebornAsElite = false;
+    [Tooltip("Chance deste mob renascer como Elite ao morrer (0.10 = 10%).")]
+    [Range(0f, 1f)]
+    public float eliteRebirthChance = 0.10f;
+    [HideInInspector] public GameObject originalPrefab;
+    [HideInInspector] public RoomController owningRoom;
+
+    public static bool forceEliteRebirth = false;
+
     [Header("Referências UI")]
     public Slider healthBarSlider;
     // A imagem que realmente tem a cor (dentro do Slider)
@@ -62,6 +75,11 @@ public class DummyHealth : MonoBehaviour
     /// </summary>
     [HideInInspector] public System.Action<int, GameObject> onDamageTaken = null;
 
+    /// <summary>
+    /// Evento disparado quando este inimigo morre (antes de ser destruído).
+    /// </summary>
+    [HideInInspector] public System.Action onDeath = null;
+
     private Color originalRenderColor;
     private Color originalBaseColor;
     private bool hasBaseColor = false;
@@ -74,10 +92,10 @@ public class DummyHealth : MonoBehaviour
 
     private void Start()
     {
-        // Aplica escalonamento de HP por sala (+3% por sala avançada conforme Hp_Dano_Inimigos.pdf)
-        if (RunManager.instance != null && RunManager.instance.currentLevel > 1)
+        // Aplica escalonamento de HP por sala (+3% por sala avançada conforme Hp_Dano_Inimigos.pdf / GDD)
+        if (RunManager.instance != null && RunManager.instance.currentRoomNumber > 1)
         {
-            int roomIndex = RunManager.instance.currentLevel;
+            int roomIndex = RunManager.instance.currentRoomNumber;
             float hpScalingMultiplier = 1f + (0.03f * (roomIndex - 1));
             maxHealth = Mathf.RoundToInt(maxHealth * hpScalingMultiplier);
             CurrentHealth = maxHealth;
@@ -89,6 +107,11 @@ public class DummyHealth : MonoBehaviour
             float hpMultiplier = 1f + (RunManager.instance.currentLevel - 3) * 0.15f; // +15% HP por level acima do 3
             maxHealth = Mathf.RoundToInt(maxHealth * hpMultiplier);
             CurrentHealth = maxHealth;
+        }
+
+        if (GetComponent<EliteVariantConfig>() != null || gameObject.name.ToLower().Contains("elite"))
+        {
+            isElite = true;
         }
 
         dummyRenderer = GetComponentInChildren<Renderer>();
@@ -165,8 +188,11 @@ public class DummyHealth : MonoBehaviour
         UpdateHealthBar();
     }
 
-    public void TakeDamage(int damage, bool isCritical = false)
+    public void TakeDamage(int damage, bool isCritical = false, bool isPoison = false)
     {
+        // Peixe: respeita invulnerabilidade do estado Defend
+        if (TryGetComponent<PeixeAI>(out PeixeAI peixeAI) && peixeAI.isInvulnerable) return;
+
         if (isInvulnerable) return;
         if (CurrentHealth <= 0) return;
 
@@ -176,8 +202,23 @@ public class DummyHealth : MonoBehaviour
         if (fixedDamageOverride > 0)
             damage = fixedDamageOverride;
 
-        // Se estiver buffado, recebe dano reduzido (ex: metade)
-        if (isBuffed) damage = Mathf.RoundToInt(damage * 0.5f);
+        // Blueprint: Solenoide de Quebra-Casca (+20% de dano contra monstros pesados/couraça)
+        if (EquipmentManager.Instance != null && EquipmentManager.Instance.HasShellBreaker)
+        {
+            string n = gameObject.name.ToLower();
+            if (n.Contains("golem") || n.Contains("peixe") || n.Contains("geobionte") || n.Contains("bismutado") || n.Contains("magicstone") || n.Contains("star"))
+            {
+                damage = Mathf.RoundToInt(damage * 1.20f);
+            }
+        }
+
+        // Se estiver buffado pelo Sintonizador:
+        if (isBuffed)
+        {
+            // Se o jogador equipou o Estabilizador de Frequência do Robozinho, inibe o escudo defensivo do Sintonizador
+            float buffFactor = (EquipmentManager.Instance != null && EquipmentManager.Instance.HasTunerDisruptor) ? 0.80f : 0.50f;
+            damage = Mathf.RoundToInt(damage * buffFactor);
+        }
 
         CurrentHealth -= damage;
         RunStatsManager.Instance?.RecordDamageDealt(damage);
@@ -187,19 +228,32 @@ public class DummyHealth : MonoBehaviour
         UpdateHealthBar();
         ShowHealthBar();
 
+        if (floatingDamageTextPrefab == null)
+        {
+            DummyHealth[] others = FindObjectsByType<DummyHealth>(FindObjectsSortMode.None);
+            foreach (var other in others)
+            {
+                if (other != this && other.floatingDamageTextPrefab != null)
+                {
+                    floatingDamageTextPrefab = other.floatingDamageTextPrefab;
+                    break;
+                }
+            }
+        }
+
         if (floatingDamageTextPrefab != null)
         {
             GameObject textObject = Instantiate(floatingDamageTextPrefab, transform.position + textOffset, Quaternion.identity);
             FloatingDamageText dmgScript = textObject.GetComponent<FloatingDamageText>();
             if (dmgScript != null)
             {
-                dmgScript.SetDamage(damage, isCritical);
+                dmgScript.SetDamage(damage, isCritical, isPoison);
             }
         }
 
         if (dummyRenderer != null)
         {
-            StartCoroutine(FlashRed());
+            StartCoroutine(isPoison ? FlashPoisonGreen() : FlashRed());
         }
 
         if (CurrentHealth <= 0)
@@ -240,15 +294,27 @@ public class DummyHealth : MonoBehaviour
         if (hasBaseColor) dummyRenderer.material.SetColor("_BaseColor", originalBaseColor);
     }
 
+    IEnumerator FlashPoisonGreen()
+    {
+        Color poisonFlash = new Color(0.18f, 0.95f, 0.22f, 1f);
+        dummyRenderer.material.color = poisonFlash;
+        if (hasBaseColor) dummyRenderer.material.SetColor("_BaseColor", poisonFlash);
+        yield return new WaitForSeconds(hitFlashTime);
+        dummyRenderer.material.color = originalRenderColor;
+        if (hasBaseColor) dummyRenderer.material.SetColor("_BaseColor", originalBaseColor);
+    }
+
     private void Die()
     {
-        RunStatsManager.Instance?.RecordEnemyKilled();
+        try { onDeath?.Invoke(); } catch (System.Exception ex) { Debug.LogError($"[DummyHealth] Erro em onDeath: {ex}"); }
+
+        try { RunStatsManager.Instance?.RecordEnemyKilled(); } catch (System.Exception ex) { Debug.LogError($"[DummyHealth] Erro em RecordEnemyKilled: {ex}"); }
 
         // Se um override foi definido (ex: Geobionte usa fuga ao invés de morte),
         // chama o callback e retorna sem executar a lógica padrão.
         if (onDeathOverride != null)
         {
-            onDeathOverride.Invoke();
+            try { onDeathOverride.Invoke(); } catch (System.Exception ex) { Debug.LogError($"[DummyHealth] Erro em onDeathOverride: {ex}"); }
             return;
         }
 
@@ -259,35 +325,259 @@ public class DummyHealth : MonoBehaviour
         }
 
         // --- SISTEMA DE PACTOS DO JOGADOR ---
-        PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
-        if (playerHealth != null)
+        try
         {
-            playerHealth.lastKillTime = Time.time;        // Checa Vampirismo (GDD §4.1 - Carta O Parasita)
-            if (playerHealth != null && playerHealth.currentHealth > 0 && playerHealth.hasVampirism)
+            PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
+            if (playerHealth != null)
             {
-                Debug.Log("[DUMMY] Inimigo morreu! Curando Player (Vampirismo).");
-                playerHealth.Heal(5); // Cura fixa de 5 (ajustável se quiser balancear)
-                playerHealth.lastKillTime = Time.time; // Reseta a degeneração!
+                playerHealth.lastKillTime = Time.time;        // Checa Vampirismo (GDD §4.1 - Carta O Parasita)
+                if (playerHealth != null && playerHealth.currentHealth > 0 && playerHealth.hasVampirism)
+                {
+                    Debug.Log("[DUMMY] Inimigo morreu! Curando Player (Vampirismo).");
+                    playerHealth.Heal(5); // Cura fixa de 5 (ajustável se quiser balancear)
+                    playerHealth.lastKillTime = Time.time; // Reseta a degeneração!
+                }
             }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[DummyHealth] Erro em pactos de jogador: {ex}");
         }
         // ------------------------------------
 
         // Chama o sistema de drops se existir
         // Busca em filhos e pais também — cobre hierarquias mais complexas de prefab
-        EnemyDrops drops = GetComponent<EnemyDrops>()
-                        ?? GetComponentInChildren<EnemyDrops>()
-                        ?? GetComponentInParent<EnemyDrops>();
-        if (drops != null)
+        try
         {
-            Debug.Log("[DROPS] EnemyDrops encontrado, chamando OnDeath()...");
-            drops.OnDeath();
+            EnemyDrops drops = GetComponent<EnemyDrops>()
+                            ?? GetComponentInChildren<EnemyDrops>()
+                            ?? GetComponentInParent<EnemyDrops>();
+            if (drops != null)
+            {
+                Debug.Log("[DROPS] EnemyDrops encontrado, chamando OnDeath()...");
+                drops.OnDeath();
+            }
+            else
+            {
+                Debug.LogWarning("[DROPS] EnemyDrops NÃO encontrado em " + gameObject.name + "! Adicionando fallback em runtime.");
+                drops = gameObject.AddComponent<EnemyDrops>();
+                drops.OnDeath();
+            }
         }
-        else
+        catch (System.Exception ex)
         {
-            Debug.LogWarning("[DROPS] EnemyDrops NÃO encontrado em " + gameObject.name + "! Adicione o componente EnemyDrops.");
+            Debug.LogError($"[DummyHealth] Erro ao disparar EnemyDrops em {gameObject.name}: {ex}");
+        }
+
+        // --- RECOMPENSA DE COMBATE DA SINFONIA DO CAOS ---
+        try
+        {
+            PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
+            if (isElite && playerHealth != null && playerHealth.hasChaosSymphony)
+            {
+                playerHealth.Heal(8);
+                playerHealth.TriggerEliteKillAdrenaline(5f);
+                Debug.Log("[CAOS] Inimigo Elite abatido! +8 Vida e Adrenalina concedidas ao jogador!");
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[DummyHealth] Erro em recompensa da Sinfonia do Caos: {ex}");
+        }
+
+        // --- SISTEMA DE RENASCIMENTO ELITE (10% base / 100% com cheat / +25% com Sinfonia do Caos) ---
+        bool shouldReborn = false;
+        try
+        {
+            PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
+            bool canReborn = (!isElite && !hasRebornAsElite &&
+                              GetComponent<EliteVariantConfig>() == null &&
+                              !gameObject.name.ToLower().Contains("elite") &&
+                              !gameObject.name.ToLower().Contains("boss") &&
+                              !gameObject.name.ToLower().Contains("geobionte") &&
+                              !gameObject.name.ToLower().Contains("sentinel") &&
+                              GetComponent<Geobionte_AI>() == null);
+
+            float effectiveRebirthChance = eliteRebirthChance;
+            if (playerHealth != null && playerHealth.hasChaosSymphony)
+            {
+                effectiveRebirthChance = Mathf.Clamp01(effectiveRebirthChance + 0.25f);
+            }
+
+            shouldReborn = canReborn && (forceEliteRebirth || Random.value <= effectiveRebirthChance);
+            if (shouldReborn)
+            {
+                TriggerEliteRebirth();
+                return;
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[DummyHealth] Erro ao calcular renascimento Elite em {gameObject.name}: {ex}");
         }
 
         Destroy(gameObject);
+    }
+
+    private void TriggerEliteRebirth()
+    {
+        Debug.Log($"[ELITE REBIRTH] ★ {gameObject.name} iniciou o ciclo de renascimento Elite!");
+        ShowRebirthFloatingText(transform.position);
+
+        RoomController rc = FindRoomController();
+        if (rc != null && rc.gameObject.activeInHierarchy)
+        {
+            rc.enemiesPendingSpawn++;
+            rc.activeEnemies.Remove(gameObject);
+            rc.StartCoroutine(rc.RebirthAsEliteRoutine(transform.position, transform.rotation, originalPrefab != null ? originalPrefab : gameObject, gameObject.name));
+        }
+        else if (RunManager.instance != null && RunManager.instance.gameObject.activeInHierarchy)
+        {
+            RunManager.instance.StartCoroutine(RebirthFallbackRoutine(transform.position, transform.rotation, originalPrefab != null ? originalPrefab : gameObject, gameObject.name));
+        }
+
+        Destroy(gameObject);
+    }
+
+    public void ShowRebirthFloatingText(Vector3 position)
+    {
+        if (floatingDamageTextPrefab == null)
+        {
+            DummyHealth[] others = FindObjectsByType<DummyHealth>(FindObjectsSortMode.None);
+            foreach (var other in others)
+            {
+                if (other != this && other.floatingDamageTextPrefab != null)
+                {
+                    floatingDamageTextPrefab = other.floatingDamageTextPrefab;
+                    break;
+                }
+            }
+        }
+
+        if (floatingDamageTextPrefab != null)
+        {
+            GameObject textObject = Instantiate(floatingDamageTextPrefab, position + textOffset, Quaternion.identity);
+            FloatingDamageText dmgScript = textObject.GetComponent<FloatingDamageText>();
+            if (dmgScript != null)
+            {
+                dmgScript.SetCustomMessage("★ ELITE RENASCIDO! ★", new Color(1f, 0.55f, 0f, 1f), 1.5f);
+            }
+        }
+    }
+
+    public RoomController FindRoomController()
+    {
+        if (owningRoom != null) return owningRoom;
+
+        RoomController[] allRooms = FindObjectsByType<RoomController>(FindObjectsSortMode.None);
+        foreach (var r in allRooms)
+        {
+            if (r != null && r.combatActive && r.activeEnemies.Contains(gameObject))
+            {
+                owningRoom = r;
+                return r;
+            }
+        }
+        RoomController closest = null;
+        float minDist = 50f;
+        foreach (var r in allRooms)
+        {
+            if (r != null && r.combatActive)
+            {
+                float d = Vector3.Distance(r.transform.position, transform.position);
+                if (d < minDist)
+                {
+                    minDist = d;
+                    closest = r;
+                }
+            }
+        }
+        if (closest != null)
+        {
+            owningRoom = closest;
+            return closest;
+        }
+
+        return null;
+    }
+
+    public static IEnumerator RebirthFallbackRoutine(Vector3 spawnPos, Quaternion spawnRot, GameObject sourcePrefabOrInstance, string originalName)
+    {
+        yield return new WaitForSeconds(0.6f);
+        if (sourcePrefabOrInstance == null) yield break;
+
+        string cleanName = originalName.Replace("(Clone)", "").Trim();
+        GameObject prefabToSpawn = sourcePrefabOrInstance;
+
+        EnemyPoolConfig pool = Resources.Load<EnemyPoolConfig>("DefaultEnemyPool");
+        if (pool != null)
+        {
+            EnemySpawnSetup setup = pool.GetMutationSetup(sourcePrefabOrInstance);
+            if (setup != null && setup.variantPrefab != null) prefabToSpawn = setup.variantPrefab;
+            else
+            {
+                foreach (var s in pool.mutationSetups)
+                {
+                    if (s != null && s.basePrefab != null && s.variantPrefab != null && s.basePrefab.name.Equals(cleanName, System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        prefabToSpawn = s.variantPrefab;
+                        break;
+                    }
+                }
+            }
+        }
+
+        GameObject rebornEnemy = Object.Instantiate(prefabToSpawn, spawnPos, spawnRot);
+        rebornEnemy.name = cleanName + "_RebornElite";
+
+        bool hasDedicatedVariant = (sourcePrefabOrInstance != null &&
+                                    sourcePrefabOrInstance.GetComponent<EliteVariantConfig>() != null &&
+                                    !sourcePrefabOrInstance.name.Contains("_RebornElite"));
+
+        DummyHealth dh = rebornEnemy.GetComponent<DummyHealth>() ?? rebornEnemy.GetComponentInChildren<DummyHealth>();
+        if (dh != null)
+        {
+            dh.isElite = true;
+            dh.hasRebornAsElite = true;
+            if (!hasDedicatedVariant)
+            {
+                dh.maxHealth = Mathf.RoundToInt(dh.maxHealth * 1.6f);
+            }
+            dh.SetHealth(dh.maxHealth);
+        }
+
+        ShardSwarmHealth ssh = rebornEnemy.GetComponent<ShardSwarmHealth>() ?? rebornEnemy.GetComponentInChildren<ShardSwarmHealth>();
+        if (ssh != null)
+        {
+            ssh.isElite = true;
+            ssh.hasRebornAsElite = true;
+            if (!hasDedicatedVariant)
+            {
+                ssh.maxHealth = Mathf.RoundToInt(ssh.maxHealth * 1.6f);
+            }
+            ssh.SetHealth(ssh.maxHealth);
+        }
+
+        if (rebornEnemy.GetComponent<EliteVariantConfig>() == null)
+        {
+            EliteVariantConfig aura = rebornEnemy.AddComponent<EliteVariantConfig>();
+            aura.variantName = cleanName + " Elite";
+            aura.useProceduralAura = true;
+            aura.auraColor = new Color(1f, 0.45f, 0f, 1f);
+            aura.auraRadius = 0.85f;
+            aura.auraWidth = 0.09f;
+        }
+
+        if (!hasDedicatedVariant)
+        {
+            rebornEnemy.transform.localScale *= 1.25f;
+        }
+
+        EnemyDrops drops = rebornEnemy.GetComponent<EnemyDrops>() ?? rebornEnemy.GetComponentInChildren<EnemyDrops>();
+        if (drops != null)
+        {
+            drops.isEliteDrops = true;
+        }
     }
 
     private void Update()

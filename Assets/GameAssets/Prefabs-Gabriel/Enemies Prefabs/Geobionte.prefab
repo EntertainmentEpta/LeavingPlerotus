@@ -125,15 +125,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyDrops
   essencePrefab: {fileID: 1526004001283604428, guid: aac8898d50c757240944683fe67b0d7c, type: 3}
-  essenceAmount: 10
-  essenceVariation: 3
-  globalDropChance: 0.35
+  essenceAmount: 50
+  essenceVariation: 5
+  globalDropChance: 1
   itemAmount: 1
   lootPool:
-  - itemPrefab: {fileID: 4556253161868932902, guid: 29e4faefc1c7bca49bab3a0f38ea201c, type: 3}
-    weight: 25
-  - itemPrefab: {fileID: 1035917559036730698, guid: 99514fc2f438d754bb49db2aace05a2e, type: 3}
-    weight: 5
+  - itemPrefab: {fileID: 2444000100010001, guid: 092b9edb4d4dce94c9083501210f7cfb, type: 3}
+    weight: 40
+  - itemPrefab: {fileID: 2444000100010001, guid: d39583501c0cb7b4ba6c72b77600a2bb, type: 3}
+    weight: 30
+  - itemPrefab: {fileID: 2444000100010001, guid: 009a45e8780f0d64b85e0e81e730c9bb, type: 3}
+    weight: 20
+  - itemPrefab: {fileID: 2444000100010001, guid: 338fe6f1b3f4033488f6f5f590053760, type: 3}
+    weight: 10
   spawnHeight: 0.5
   spawnRadius: 0.5
   launchForce: 3
@@ -224,6 +228,8 @@ MonoBehaviour:
   - {fileID: 8300000, guid: 56f9f55969e2d5146bfc136ecc2e2b94, type: 3}
   - {fileID: 8300000, guid: 397ca08bf0df61549ae591b382987f6d, type: 3}
   bismutadoAttackSoundVolume: 0.8
+  bismutadoHitSounds: []
+  bismutadoHitSoundVolume: 0.7
   baseColor: {r: 0.03, g: 0.01, b: 0.05, a: 1}
   transformedColor: {r: 0.7, g: 0.3, b: 0.6, a: 1}
   sentinelColor: {r: 0.9, g: 0.2, b: 0.8, a: 1}

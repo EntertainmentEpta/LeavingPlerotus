@@ -43,6 +43,12 @@ public class PlayerDebuffs : MonoBehaviour
     {
         if (playerAttributes == null) return;
 
+        // Se tiver o Agente de Diluição de Hifas do Robozinho equipado, reduz a intensidade do slow em 30%
+        if (EquipmentManager.Instance != null && EquipmentManager.Instance.HasSlowResistance)
+        {
+            percent *= 0.70f;
+        }
+
         // Se já está com slow, remove o anterior antes de aplicar o novo
         if (isSlowed)
         {

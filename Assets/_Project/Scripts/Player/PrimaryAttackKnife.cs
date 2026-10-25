@@ -19,6 +19,7 @@ public class PrimaryAttackKnife : MonoBehaviour
     public Rigidbody playerRb;
     public PlayerHealth playerHealth;
     private PlayerAttributesOffensive playerAttributes;
+    private Tier4EffectManager tier4Manager;
 
     [Header("Weapon Hitbox")]
     public Collider handHitbox;
@@ -76,19 +77,19 @@ public class PrimaryAttackKnife : MonoBehaviour
     public TrailRenderer weaponTrail; 
 
     [Header("Settings")]
-    public float attackAnimationSpeed = 1.0f;
-    public float defaultAttackSpeed = 1.0f; // Para resetar a velocidade padrão
-    public float axeAttackSpeed = 0.85f; // Velocidade reduzida e pesada para o machado
+    public float attackAnimationSpeed = 1.15f;
+    public float defaultAttackSpeed = 1.15f; // Para resetar a velocidade padrão
+    public float axeAttackSpeed = 0.95f; // Velocidade aprimorada e fluida para o machado
 
     [Header("Combo Speed Modifiers (Fine Tuning)")]
     [Tooltip("Multiplicador de velocidade para o Hit 1")]
-    public float hit1SpeedMultiplier = 1.0f;
+    public float hit1SpeedMultiplier = 1.05f;
     [Tooltip("Multiplicador de velocidade para o Hit 2")]
-    public float hit2SpeedMultiplier = 0.7f; // Reduzido por padrão!
+    public float hit2SpeedMultiplier = 1.05f; // Normalizado sem lentidão artificial!
     [Tooltip("Multiplicador de velocidade para o Hit 3")]
-    public float hit3SpeedMultiplier = 1.0f;
+    public float hit3SpeedMultiplier = 1.15f;
     [Tooltip("Multiplicador de velocidade para o Hit 4")]
-    public float hit4SpeedMultiplier = 1.0f;
+    public float hit4SpeedMultiplier = 1.20f;
 
     [Header("Weapon Damages")]
     public int[] defaultDamages = { 20, 25, 35 };
@@ -112,8 +113,8 @@ public class PrimaryAttackKnife : MonoBehaviour
     private int comboStep = 0;
 
     [Header("Lunge Impulse Control")]
-    [Tooltip("Se verdadeiro, aplica uma investida física (Lunge) para a frente ao atacar. Se falso (padrão), o ataque executa no lugar de forma instantânea sem arrasto.")]
-    public bool enableLunge = false;
+    [Tooltip("Se verdadeiro, aplica uma investida física (Lunge) para a frente ao atacar. Se falso, o ataque executa no lugar.")]
+    public bool enableLunge = true;
 
     [Header("Backup Animation Timing Settings (When no Animation Events exist)")]
     [Tooltip("Delay (em segundos) para ativar o colisor de dano da Adaga")]
@@ -323,10 +324,12 @@ public class PrimaryAttackKnife : MonoBehaviour
 
     private bool IsAnyUIOpen()
     {
+        if (DialogManager.BlocksGameplayInput || GamePause.IsPaused) return true;
         if (CheatConsole.IsOpen) return true;
         if (InventoryUI.Instance != null && InventoryUI.Instance.IsOpen()) return true;
         if (SyntheticBagUI.Instance != null && SyntheticBagUI.Instance.IsOpen()) return true;
         if (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen()) return true;
+        if (JournalBookUI.Instance != null && JournalBookUI.Instance.IsOpen) return true;
         if (EptinhoMenuController.instancia != null && EptinhoMenuController.instancia.IsOpen()) return true;
         if (MerchantUIController.HasInstance && MerchantUIController.Instance.IsUiOpen()) return true;
         return false;
@@ -576,6 +579,14 @@ public class PrimaryAttackKnife : MonoBehaviour
             if (enemy != null)
             {
                 enemy.TakeDamage(finalDamage, isCritical);
+
+                // Efeitos T4 on-hit (ex: Poison) — só se o inimigo sobreviveu ao golpe
+                if (tier4Manager == null)
+                    tier4Manager = GetComponent<Tier4EffectManager>()
+                                ?? GetComponentInParent<Tier4EffectManager>()
+                                ?? FindFirstObjectByType<Tier4EffectManager>();
+                if (tier4Manager != null && enemy != null && enemy.CurrentHealth > 0)
+                    tier4Manager.ApplyOnHitEffects(enemy.gameObject);
                 if (playerAttributes != null && playerAttributes.slowOnHit > 0f)
                 {
                     enemy.ApplySlow(playerAttributes.slowOnHit, 3.0f);
@@ -907,10 +918,12 @@ public class PrimaryAttackKnife : MonoBehaviour
     private bool IsAxeEquipped()
     {
         Player_WeaponManager wm = GetComponent<Player_WeaponManager>() ?? GetComponentInParent<Player_WeaponManager>();
-        if (wm != null && wm.currentWeapon != null && wm.isWeaponDrawn)
+        if (wm != null && wm.currentWeapon != null)
         {
             WeaponOffset offset = wm.currentWeapon.GetComponent<WeaponOffset>();
-            return (offset != null && offset.weaponType == WeaponType.Axe);
+            if (offset != null && offset.weaponType == WeaponType.Axe) return true;
+            string wName = wm.currentWeapon.name.ToLower();
+            return wName.Contains("axe") || wName.Contains("machado");
         }
         return false;
     }
@@ -923,10 +936,8 @@ public class PrimaryAttackKnife : MonoBehaviour
             audioObj.transform.SetParent(transform);
             audioObj.transform.localPosition = Vector3.up;
             axeSwingAudioSource = audioObj.AddComponent<AudioSource>();
-            axeSwingAudioSource.spatialBlend = 1f;
-            axeSwingAudioSource.minDistance = 3f;
-            axeSwingAudioSource.maxDistance = 30f;
-            axeSwingAudioSource.rolloffMode = AudioRolloffMode.Linear;
+            axeSwingAudioSource.spatialBlend = 0f; // 2D para que os swings do jogador sejam ouvidos com máxima clareza
+            axeSwingAudioSource.playOnAwake = false;
         }
     }
 

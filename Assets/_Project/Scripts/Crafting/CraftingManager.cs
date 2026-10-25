@@ -64,6 +64,20 @@ public class CraftingManager : MonoBehaviour
             Debug.Log($"[CRAFTING] Mesclou {loaded.Length} receitas do Resources. Total: {allRecipes.Count}");
         }
 
+        // Garante que a receita gratuita do Monitor Telemétrico de Atributos esteja disponível no Robozinho
+        if (!allRecipes.Exists(r => r != null && r.recipeId == "recipe_monitor_atributos"))
+        {
+            CraftingRecipe monitorRecipe = ScriptableObject.CreateInstance<CraftingRecipe>();
+            monitorRecipe.recipeId     = "recipe_monitor_atributos";
+            monitorRecipe.recipeName   = "Monitor Telemétrico do Traje";
+            monitorRecipe.description  = "Módulo de diagnóstico gratuito do Robozinho. Exibe em tempo real no HUD a velocidade exata, dano, armadura e infusões ativas do explorador.";
+            monitorRecipe.ingredients  = new List<CraftingIngredient>(); // 0 Ingredientes = 100% GRATUITO!
+            monitorRecipe.resultType   = CraftingResultType.Equipment;
+            monitorRecipe.resultEquipment = EquipmentManager.Instance != null ? EquipmentManager.Instance.GetEquipmentData("equip_monitor_atributos") : null;
+
+            allRecipes.Add(monitorRecipe);
+        }
+
         // Garante que a receita gratuita do Detector de Barreiras esteja disponível no Crafting
         if (!allRecipes.Exists(r => r != null && r.recipeId == "recipe_detector_barreiras"))
         {
@@ -78,7 +92,100 @@ public class CraftingManager : MonoBehaviour
             allRecipes.Add(barrierRecipe);
         }
 
+        // Garante que a receita do Machado de Cristal esteja disponível no Crafting
+        if (!allRecipes.Exists(r => r != null && (r.recipeId == "recipe_crystal_axe" || r.recipeId == "recipe_machado_cristal")))
+        {
+            CraftingRecipe axeRecipe = ScriptableObject.CreateInstance<CraftingRecipe>();
+            axeRecipe.recipeId     = "recipe_crystal_axe";
+            axeRecipe.recipeName   = "Machado de Cristal";
+            axeRecipe.description  = "Armamento pesado de corte cristalino. Causa alto impacto, golpes em área e estilhaços.";
+            axeRecipe.ingredients  = new List<CraftingIngredient>
+            {
+                new CraftingIngredient { itemId = "shard_splinter_t1", quantity = 3 },
+                new CraftingIngredient { itemId = "cristal_explosivo", quantity = 2 }
+            };
+            axeRecipe.resultType   = CraftingResultType.Equipment;
+            axeRecipe.resultEquipment = EquipmentManager.Instance != null ? EquipmentManager.Instance.GetEquipmentData("eq_crystal_axe") : null;
+
+            allRecipes.Add(axeRecipe);
+        }
+
+        // Receitas de Expansão da Câmara de Infusão e Chassi Térmico
+        EnsureInfusionRecipe("recipe_camara_infusao_1", "Câmara de Infusão Expandida I",
+            "Aprimora o analisador do traje para permitir infusões combinadas de até 3 itens simultâneos.",
+            "equip_camara_infusao_1",
+            new List<CraftingIngredient>
+            {
+                new CraftingIngredient { itemId = "shard_splinter_t1", quantity = 3 },
+                new CraftingIngredient { itemId = "cristal_explosivo", quantity = 2 }
+            });
+
+        EnsureInfusionRecipe("recipe_camara_infusao_2", "Câmara de Infusão Expandida II",
+            "Sintoniza a matriz quântica do traje para permitir fusões massivas de até 4 itens simultâneos.",
+            "equip_camara_infusao_2",
+            new List<CraftingIngredient>
+            {
+                new CraftingIngredient { itemId = "prisma_t2", quantity = 2 },
+                new CraftingIngredient { itemId = "cristal_explosivo", quantity = 2 }
+            });
+
+        EnsureInfusionRecipe("recipe_capacidade_infusao_1", "Chassi Térmico Modular I",
+            "Aumenta o limite de sobreaquecimento do traje, permitindo até 8 infusões ativas na mesma run.",
+            "equip_capacidade_infusao_1",
+            new List<CraftingIngredient>
+            {
+                new CraftingIngredient { itemId = "shard_splinter_t1", quantity = 3 },
+                new CraftingIngredient { itemId = "prisma_t2", quantity = 1 }
+            });
+
+        EnsureInfusionRecipe("recipe_capacidade_infusao_2", "Chassi Térmico Modular II",
+            "Dissipação criogênica avançada. Permite até 10 infusões ativas simultâneas na mesma run.",
+            "equip_capacidade_infusao_2",
+            new List<CraftingIngredient>
+            {
+                new CraftingIngredient { itemId = "prisma_t2", quantity = 2 },
+                new CraftingIngredient { itemId = "sentinel_core_t3", quantity = 1 }
+            });
+
+        RegisterBlueprintRecipes();
+
         Debug.Log($"[CRAFTING] CraftingManager inicializado com {allRecipes.Count} receitas.");
+    }
+
+    private void EnsureInfusionRecipe(string recipeId, string title, string description, string equipId, List<CraftingIngredient> ingredients)
+    {
+        if (!allRecipes.Exists(r => r != null && r.recipeId == recipeId))
+        {
+            CraftingRecipe r = ScriptableObject.CreateInstance<CraftingRecipe>();
+            r.recipeId = recipeId;
+            r.recipeName = title;
+            r.description = description;
+            r.ingredients = ingredients;
+            r.resultType = CraftingResultType.Equipment;
+            r.resultEquipment = EquipmentManager.Instance != null ? EquipmentManager.Instance.GetEquipmentData(equipId) : null;
+            allRecipes.Add(r);
+        }
+    }
+
+    public void RegisterBlueprintRecipes()
+    {
+        if (LoreManager.Instance == null) return;
+        foreach (var sc in LoreManager.Instance.allScriptures)
+        {
+            if (sc == null || !sc.hasBlueprint || string.IsNullOrEmpty(sc.blueprintEquipmentId)) continue;
+            string rId = "recipe_" + sc.blueprintEquipmentId;
+            if (allRecipes.Exists(r => r != null && r.recipeId == rId)) continue;
+
+            CraftingRecipe bpRecipe = ScriptableObject.CreateInstance<CraftingRecipe>();
+            bpRecipe.recipeId = rId;
+            bpRecipe.recipeName = sc.blueprintTitle;
+            bpRecipe.description = sc.blueprintDescription;
+            bpRecipe.ingredients = sc.ingredients != null ? new List<CraftingIngredient>(sc.ingredients) : new List<CraftingIngredient>();
+            bpRecipe.resultType = CraftingResultType.Equipment;
+            bpRecipe.resultEquipment = EquipmentManager.Instance != null ? EquipmentManager.Instance.GetEquipmentData(sc.blueprintEquipmentId) : null;
+
+            allRecipes.Add(bpRecipe);
+        }
     }
 
     // ─── HELPERS INTERNOS ─────────────────────────────────────────────────────
@@ -191,7 +298,8 @@ public class CraftingManager : MonoBehaviour
                 EquipmentData equipData = recipe.resultEquipment;
                 if (equipData == null && EquipmentManager.Instance != null)
                 {
-                    string targetEquipId = recipe.recipeId.StartsWith("recipe_") ? recipe.recipeId.Replace("recipe_", "equip_") : recipe.recipeId;
+                    string targetEquipId = recipe.recipeId == "recipe_crystal_axe" ? "eq_crystal_axe" :
+                        (recipe.recipeId.StartsWith("recipe_") ? recipe.recipeId.Replace("recipe_", "equip_") : recipe.recipeId);
                     equipData = EquipmentManager.Instance.GetEquipmentData(targetEquipId);
                     recipe.resultEquipment = equipData;
                 }
@@ -204,8 +312,9 @@ public class CraftingManager : MonoBehaviour
                 }
                 else
                 {
-                    Debug.LogWarning($"[CRAFTING] AVISO: resultEquipment era nulo para a receita '{recipe.recipeName}'. Usando ID genérico.");
-                    SaveManager.instance.AddCraftedEquipment(recipe.recipeId.Replace("recipe_", "equip_"));
+                    string fallbackId = recipe.recipeId == "recipe_crystal_axe" ? "eq_crystal_axe" : recipe.recipeId.Replace("recipe_", "equip_");
+                    Debug.LogWarning($"[CRAFTING] AVISO: resultEquipment era nulo para a receita '{recipe.recipeName}'. Usando ID '{fallbackId}'.");
+                    SaveManager.instance.AddCraftedEquipment(fallbackId);
                 }
                 break;
         }

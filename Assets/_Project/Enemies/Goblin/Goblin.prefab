@@ -379,6 +379,8 @@ MonoBehaviour:
   bombTickSoundVolume: 0.6
   bombExplosionSound: {fileID: 8300000, guid: b10e970ebfc7ad6429e84ff52c84bc55, type: 3}
   bombExplosionSoundVolume: 1
+  hitSounds: []
+  hitSoundVolume: 0.7
 --- !u!114 &5303528467312566948
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -509,3 +511,32 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 9d2fc7cb623a40845a768a2537011583, type: 3}
   m_PrefabInstance: {fileID: 7785837289024388505}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &8945618291029384752
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3359006950562635497}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 182d9df1045b668438bf37c0018f5e08, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyDrops
+  essencePrefab: {fileID: 1526004001283604428, guid: aac8898d50c757240944683fe67b0d7c, type: 3}
+  essenceAmount: 12
+  essenceVariation: 3
+  globalDropChance: 0.18
+  itemAmount: 1
+  lootPool:
+  - itemPrefab: {fileID: 4609917713084158627, guid: cd5363bd7755ba74a85b266b7d99ef00, type: 3}
+    weight: 60
+  - itemPrefab: {fileID: 8787886420827172540, guid: 769ebadc573a10d429b42596ae615992, type: 3}
+    weight: 25
+  - itemPrefab: {fileID: 6393505171971684102, guid: d00579b0f66fc7446a2a50932fecb5a0, type: 3}
+    weight: 10
+  - itemPrefab: {fileID: 9083762400421012204, guid: f84164d1cf7cf324284c542bb4f7f0ce, type: 3}
+    weight: 5
+  spawnHeight: 0.5
+  spawnRadius: 0.5
+  launchForce: 3

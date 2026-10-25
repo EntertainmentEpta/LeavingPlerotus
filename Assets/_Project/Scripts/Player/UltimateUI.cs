@@ -76,6 +76,22 @@ public class UltimateUI : MonoBehaviour
 
     void Update()
     {
+        string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        bool inMainMenu = currentScene == "MainMenu" || currentScene == "Menu";
+        bool isWakingUp = PlayerWakeUpEffect.IsWakingUp;
+        bool waitingForIntro = !EptinhoStoryDialogs.HasSeenDialog(EptinhoStoryDialogs.ID_INTRO_EPTINHO);
+
+        if (inMainMenu || isWakingUp || waitingForIntro)
+        {
+            if (autoCanvasObj != null && autoCanvasObj.activeSelf) autoCanvasObj.SetActive(false);
+            return;
+        }
+
+        if (autoCanvasObj != null && !autoCanvasObj.activeSelf)
+        {
+            autoCanvasObj.SetActive(true);
+        }
+
         if (ultimateScript == null)
         {
             ultimateScript = GetComponentInParent<PlayerUltimate>() ?? GetComponent<PlayerUltimate>();
@@ -119,7 +135,8 @@ public class UltimateUI : MonoBehaviour
             }
             else
             {
-                targetText.text = $"<color=#FF5555>{remainingSec:F1}s</color>";
+                int secInt = Mathf.CeilToInt(remainingSec);
+                targetText.text = $"<color=#FF5555><b>RECUPERANDO\n{remainingSec:F1}s</b></color>";
             }
         }
 
@@ -188,6 +205,7 @@ public class UltimateUI : MonoBehaviour
         fillRect.offsetMax = new Vector2(-4, -4);
 
         autoFillImage = fillObj.AddComponent<Image>();
+        autoFillImage.sprite = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 1, 1), Vector2.zero);
         autoFillImage.type = Image.Type.Filled;
         autoFillImage.fillMethod = Image.FillMethod.Horizontal;
         autoFillImage.fillOrigin = (int)Image.OriginHorizontal.Left;
@@ -208,9 +226,12 @@ public class UltimateUI : MonoBehaviour
         autoText.alignment = TextAlignmentOptions.Center;
         autoText.fontStyle = FontStyles.Bold;
         autoText.color = Color.white;
+        autoText.enableWordWrapping = false;
+        autoText.overflowMode = TextOverflowModes.Overflow;
         
         // Tentar carregar fonte padrão do projeto
-        TMP_FontAsset font = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
+        TMP_FontAsset font = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF")
+                          ?? TMP_Settings.defaultFontAsset;
         if (font != null) autoText.font = font;
     }
 }

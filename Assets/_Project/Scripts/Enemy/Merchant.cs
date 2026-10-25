@@ -1,119 +1,59 @@
-using UnityEngine;
-using UnityEngine.UI;
-using TMPro;
 using System.Collections;
-using System.Collections.Generic;
+using UnityEngine;
 
 /// <summary>
 /// Controlador de Proximidade e Interação do Mercador das Sombras (Pacto de Sangue).
 /// 
-/// RECURSOS:
-///   1. Névoa Sombria nos Pés (Controle Ultraleve de ParticleSystem):
-///      O script apenas controla a taxa de emissão do ParticleSystem anexado no Prefab.
-///   2. Oscilação Contínua do Tom Grave (Onda LFO): Frequência grave hipnótica em tempo real.
-///   3. Escrituras Ocultas Místicas Vermelho Escuro e Retrato 'tensoeptinho_0'.
+/// Atmosfera Oculta Completa:
+/// 1. Áudio de Cochicho/Sussurros: Toca em loop com oscilação contínua de tom grave audível e perturbador.
+/// 2. Ducking Musical: A música de fundo do jogo reduz ao se aproximar do Mercador.
+/// 3. Névoa Sombria nos Pés: Partículas intensificadas dinamicamente.
+/// 4. HUD Glitch no Canto Direito: O avatar do Mercador surge com as escrituras místicas em glitch vermelho,
+///    alternando fontes e revelando palavras progressivamente conforme a tradução de silício.
 /// </summary>
 public class Merchant : MonoBehaviour
 {
     [Header("Raio de Interação")]
-    [Tooltip("Tamanho da zona de interação (em metros). Ao entrar nesta área, o som reduz, a névoa se intensifica e o Eptinho alerta.")]
-    public float interactionRadius = 3f;
+    [Tooltip("Tamanho da zona de interação (em metros).")]
+    public float interactionRadius = 4.5f;
 
     [Header("Configuração de Áudio (Sussurros)")]
-    [Tooltip("Arraste o arquivo de áudio dos sussurros (Whispering) aqui ou coloque em Resources/Whispering.")]
+    [Tooltip("Clip de sussurro e murmúrios do Mercador")]
     public AudioClip whisperingClip;
-    [Range(0.1f, 3f)] public float whisperingVolume = 1.75f;
+    [Range(0.1f, 1f)] public float whisperingVolume = 1.0f;
     [Tooltip("Tempo de fade out dos sussurros e restauração da música ao sair (segundos).")]
-    public float exitFadeDuration = 2.0f;
-    
-    [Header("Distorção e Tom do Som (Pitch Grave / Demoníaco)")]
-    [Tooltip("Tom base do áudio (valores menores que 1.0 deixam o som mais grave). Ex: 0.55")]
-    [Range(0.2f, 1.5f)] public float basePitch = 0.55f;
+    public float exitFadeDuration = 1.5f;
 
-    [Header("Oscilação Contínua do Pitch Grave (Onda LFO / Pulsação Hipnótica)")]
-    [Tooltip("Ativa a oscilação suave e contínua do tom grave em tempo real.")]
+    [Header("Distorção e Tom do Som (Audível e Cavernoso)")]
+    [Range(0.5f, 1.2f)] public float basePitch = 0.85f;
+
+    [Header("Oscilação Contínua do Pitch (Onda LFO / Pulsação Hipnótica)")]
     public bool enableSmoothPitchOscillation = true;
-    [Tooltip("Velocidade da oscilação da onda (ex: 1.5 = pulsação média, 3.0 = rápida, 0.5 = lenta e profunda).")]
-    [Range(0.1f, 8.0f)] public float pitchOscillationSpeed = 1.5f;
-    [Tooltip("Tom grave mínimo da oscilação (ex: 0.35 = sub-grave super profundo).")]
-    [Range(0.15f, 1.0f)] public float minGravePitch = 0.35f;
-    [Tooltip("Tom grave máximo da oscilação (ex: 0.70 = grave cavernoso).")]
-    [Range(0.3f, 1.5f)] public float maxGravePitch = 0.70f;
+    [Range(0.1f, 5.0f)] public float pitchOscillationSpeed = 1.5f;
+    [Range(0.5f, 1.0f)] public float minGravePitch = 0.72f;
+    [Range(0.7f, 1.2f)] public float maxGravePitch = 0.95f;
 
-    [Header("Distorção Aleatória a Cada Ciclo")]
-    [Tooltip("Ativa salto aleatório de tom a cada ciclo das escrituras.")]
-    public bool enableRandomPitch = false;
-
-    private AudioSource audioSource;
-    private Coroutine audioTransitionRoutine;
-
-    [Header("Efeito Visual: Névoa Sombria nos Pés (Ground Fog)")]
-    [Tooltip("Arraste o ParticleSystem que você adicionou no Prefab do Mercador.")]
+    [Header("Efeito Visual: Névoa Sombria nos Pés")]
     public ParticleSystem merchantFogParticles;
-    [Tooltip("Taxa de emissão da névoa em repouso (quando longe do Mercador).")]
     public float idleFogEmission = 25f;
-    [Tooltip("Taxa de emissão da névoa quando o Player entra na área do Mercador.")]
     public float activeFogEmission = 60f;
-    [Tooltip("Taxa de emissão da névoa quando o Pacto de Sangue é aberto (Névoa super intensa).")]
     public float pactFogEmission = 180f;
 
-    [Header("Retrato e Fala do Eptinho Tenso / Assustado")]
-    [Tooltip("Arraste o Sprite do Eptinho tenso aqui (ex: tensoeptinho_0).")]
+    [Header("Aviso do Eptinho")]
     public Sprite eptinhoTensoSprite;
     [TextArea(2, 4)]
     public string eptinhoWarningMessage = "Estou sentindo uma energia perturbadora vindo dele... Tenha muito cuidado!";
 
-    [Header("Escrituras Ocultas (Texto Místico Vermelho Escuro)")]
-    [Tooltip("Fontes TMP personalizadas para alternar a cada ciclo (opcional).")]
-    public List<TMP_FontAsset> occultFonts = new List<TMP_FontAsset>();
-    [Tooltip("Intervalo entre cada troca aleatória de caracteres, tamanho, pitch e cor (em segundos).")]
-    public float fontShiftInterval = 0.15f;
-
-    [Header("Posição e Tamanho do Texto na Tela (Ajuste em Tempo Real)")]
-    [Tooltip("Posição vertical na tela (0 = base da tela, 0.5 = centro, 1 = topo).")]
-    [Range(0f, 1f)] public float textPosY = 0.65f;
-    [Tooltip("Posição horizontal na tela (0.5 = centro da tela).")]
-    [Range(0f, 1f)] public float textPosX = 0.5f;
-    [Tooltip("Largura da área do texto.")]
-    public float textWidth = 1000f;
-    [Tooltip("Altura da área do texto.")]
-    public float textHeight = 100f;
-
-    [Header("Tamanho e Comprimento Aleatório do Texto")]
-    public int minCharLength = 5;
-    public int maxCharLength = 18;
-    public int minFontSize = 20;
-    public int maxFontSize = 34;
-
-    // Conjunto de caracteres enigmáticos compatíveis com 100% das fontes TMP
-    private static readonly string occultCharPool = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_+=-~<>?/[]{}";
-
-    // Tons de vermelho sangue escuro para variação contínua
-    private static readonly string[] darkRedColors = new string[]
-    {
-        "#660000", "#550000", "#770000", "#440000", "#880011", "#330000", "#770505", "#500000", "#600303"
-    };
-
     // ── Referências Internas ──────────────────────────────────────────────────
+    private AudioSource audioSource;
+    private Coroutine audioTransitionRoutine;
     private MerchantUIController uiController;
     private bool canInteract = false;
     private bool eptinhoWarnedThisApproach = false;
 
-    private GameObject occultUIOverlay;
-    private TextMeshProUGUI occultTextComp;
-    private Coroutine occultTextRoutine;
-
     void Awake()
     {
-        // Configura AudioSource para os sussurros
-        audioSource = gameObject.GetComponent<AudioSource>();
-        if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
-
-        audioSource.loop = true;
-        audioSource.playOnAwake = false;
-        audioSource.spatialBlend = 0.0f; // 2D puro para audibilidade total
-        audioSource.volume = whisperingVolume;
-        audioSource.pitch = basePitch;
+        EnsureAudioSourceConfigured();
 
         // Garante Rigidbody Cinemático para colisão confiável
         Rigidbody rb = GetComponent<Rigidbody>();
@@ -123,6 +63,44 @@ public class Merchant : MonoBehaviour
         EnsureTriggerColliderExists();
         EnsureFogParticlesExist();
         EnsureProceduralAnimationExists();
+    }
+
+    private void EnsureAudioSourceConfigured()
+    {
+        // Configura AudioSource para os sussurros
+        AudioSource[] sources = GetComponents<AudioSource>();
+        if (sources != null && sources.Length > 0)
+        {
+            foreach (var s in sources)
+            {
+                if (s.clip == whisperingClip)
+                {
+                    audioSource = s;
+                    break;
+                }
+            }
+            if (audioSource == null) audioSource = sources[0];
+        }
+        else
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
+        }
+
+        // Sanitização de tom para manter os formantes vocais nítidos e audíveis
+        if (minGravePitch < 0.75f) minGravePitch = 0.80f;
+        if (maxGravePitch < 0.90f) maxGravePitch = 1.02f;
+        if (basePitch < 0.80f) basePitch = 0.88f;
+        if (whisperingVolume < 0.5f) whisperingVolume = 1.0f;
+
+        audioSource.loop = true;
+        audioSource.playOnAwake = false;
+        audioSource.spatialBlend = 0.0f; // 2D puro para audibilidade total sem corte por distância 3D
+        audioSource.volume = Mathf.Clamp01(whisperingVolume);
+        audioSource.pitch = basePitch;
+        audioSource.priority = 0; // Prioridade máxima no áudio da Unity
+        audioSource.mute = false;
+
+        LoadAudioAndSpriteResources();
     }
 
     private void EnsureProceduralAnimationExists()
@@ -136,8 +114,31 @@ public class Merchant : MonoBehaviour
     void Start()
     {
         uiController = MerchantUIController.Instance;
+        EnsureAudioSourceConfigured();
+    }
 
-        LoadAudioAndSpriteResources();
+    private void LoadAudioAndSpriteResources()
+    {
+        if (whisperingClip == null)
+        {
+#if UNITY_EDITOR
+            whisperingClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/_Project/NPC/Merchant/freesound_community-murmullos-7133.mp3");
+#endif
+            if (whisperingClip == null) whisperingClip = Resources.Load<AudioClip>("freesound_community-murmullos-7133");
+            if (whisperingClip == null) whisperingClip = Resources.Load<AudioClip>("Whispering");
+            if (whisperingClip == null) whisperingClip = Resources.Load<AudioClip>("whisper");
+        }
+
+        if (whisperingClip != null && audioSource != null)
+        {
+            audioSource.clip = whisperingClip;
+        }
+
+        if (eptinhoTensoSprite == null)
+        {
+            eptinhoTensoSprite = Resources.Load<Sprite>("tensoeptinho_0");
+            if (eptinhoTensoSprite == null) eptinhoTensoSprite = Resources.Load<Sprite>("EPTONHO_TENSO");
+        }
     }
 
     private void EnsureFogParticlesExist()
@@ -150,7 +151,7 @@ public class Merchant : MonoBehaviour
         if (merchantFogParticles != null)
         {
             var main = merchantFogParticles.main;
-            main.useUnscaledTime = true; // Garante que a névoa flua em tempo real com a UI aberta
+            main.useUnscaledTime = true;
 
             SetFogEmission(idleFogEmission);
             if (!merchantFogParticles.isPlaying) merchantFogParticles.Play();
@@ -175,7 +176,7 @@ public class Merchant : MonoBehaviour
         if (merchantFogParticles != null)
         {
             var main = merchantFogParticles.main;
-            main.useUnscaledTime = true; // Ajusta parâmetro para funcionar em tempo real na UI
+            main.useUnscaledTime = true;
 
             var emission = merchantFogParticles.emission;
             float targetRate = intense ? pactFogEmission : (canInteract ? activeFogEmission : idleFogEmission);
@@ -183,49 +184,48 @@ public class Merchant : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Faz o Mercador desaparecer na cena após o pacto ser realizado.
-    /// </summary>
-    public void VanishAfterPact()
+    void Update()
     {
-        canInteract = false;
-        StopOccultEffects();
-
-        if (merchantFogParticles != null)
+        if (canInteract)
         {
-            var main = merchantFogParticles.main;
-            main.useUnscaledTime = true;
-            merchantFogParticles.Emit(120);
-        }
+            // Oscilação Contínua e Suave do Tom Grave (Onda LFO / Pulsação Hipnótica)
+            if (enableSmoothPitchOscillation && audioSource != null && audioSource.isPlaying)
+            {
+                float wave = (Mathf.Sin(Time.time * pitchOscillationSpeed) + 1.0f) * 0.5f;
+                audioSource.pitch = Mathf.Lerp(minGravePitch, maxGravePitch, wave);
+            }
 
-        StartCoroutine(VanishRoutine());
-    }
+            bool uiIsOpen = uiController != null && uiController.IsUiOpen();
 
-    private System.Collections.IEnumerator VanishRoutine()
-    {
-        yield return new WaitForSecondsRealtime(0.5f);
-        gameObject.SetActive(false);
-    }
+            if (!uiIsOpen && (Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.E)))
+            {
+                Debug.Log("[MERCHANT] ⚔️ Tecla de interação pressionada! Abrindo o Pacto...");
+                SetPactFogIntense(true);
 
-    private void LoadAudioAndSpriteResources()
-    {
-        if (whisperingClip == null)
-        {
-            whisperingClip = Resources.Load<AudioClip>("Whispering");
-            if (whisperingClip == null) whisperingClip = Resources.Load<AudioClip>("whisper");
-            if (whisperingClip == null) whisperingClip = Resources.Load<AudioClip>("freesound_communi");
-        }
+                // 1. Restaura a música do jogo para o volume normal
+                if (MusicManager.instance != null)
+                {
+                    MusicManager.instance.SetMusicDucking(1.0f, 0.5f);
+                }
 
-        if (whisperingClip != null && audioSource != null)
-        {
-            audioSource.clip = whisperingClip;
-        }
+                // 2. Mantém os sussurros tocando bem baixinho de fundo
+                if (audioSource != null)
+                {
+                    if (!audioSource.isPlaying && whisperingClip != null)
+                    {
+                        audioSource.clip = whisperingClip;
+                        audioSource.Play();
+                    }
+                    audioSource.volume = 0.22f;
+                    audioSource.pitch = basePitch;
+                }
 
-        if (eptinhoTensoSprite == null)
-        {
-            eptinhoTensoSprite = Resources.Load<Sprite>("tensoeptinho_0");
-            if (eptinhoTensoSprite == null) eptinhoTensoSprite = Resources.Load<Sprite>("EPTONHO_TENSO");
-            if (eptinhoTensoSprite == null) eptinhoTensoSprite = Resources.Load<Sprite>("EPTONHO_TRISTE");
+                if (uiController == null || uiController.gameObject == null) uiController = MerchantUIController.Instance;
+                if (uiController != null)
+                {
+                    uiController.OpenPanel(this.transform);
+                }
+            }
         }
     }
 
@@ -260,31 +260,62 @@ public class Merchant : MonoBehaviour
                 audioTransitionRoutine = null;
             }
 
-            // 1. Reduz a música do jogo e ativa sussurros
+            // 1. Pára / reduz a música do jogo e ativa os sussurros
             if (MusicManager.instance != null)
             {
                 MusicManager.instance.SetMusicDucking(0.0f, 0.8f);
             }
 
-            if (audioSource != null && audioSource.clip != null && !audioSource.isPlaying)
+            // Toca os sussurros com volume pleno e audível
+            if (audioSource != null)
             {
-                audioSource.volume = whisperingVolume;
-                audioSource.pitch = enableSmoothPitchOscillation ? minGravePitch : (enableRandomPitch ? Random.Range(minGravePitch, maxGravePitch) : basePitch);
-                audioSource.Play();
+                if (audioSource.clip == null) LoadAudioAndSpriteResources();
+                if (audioSource.clip != null)
+                {
+                    audioSource.volume = Mathf.Clamp01(whisperingVolume);
+                    audioSource.pitch = basePitch;
+                    if (!audioSource.isPlaying) audioSource.Play();
+                    Debug.Log($"[MERCHANT AUDIO] ✅ Sussurros tocando! Clip: {audioSource.clip.name}, Vol: {audioSource.volume}, Pitch: {audioSource.pitch}");
+                }
+                else
+                {
+                    Debug.LogWarning("[MERCHANT AUDIO] ⚠️ whisperingClip não encontrado!");
+                }
             }
 
-            // 2. Intensifica a névoa sombria nos pés do Mercador e dispara uma onda instantânea de névoa
+            // 2. Intensifica a névoa nos pés
             SetFogEmission(activeFogEmission);
             if (merchantFogParticles != null)
             {
                 merchantFogParticles.Emit(25);
             }
 
-            // 3. Exibe escrituras vermelhas na tela
-            StartOccultEffects();
+            // 3. Exibe o Avatar do Mercador e a fala com typewriter no HUD (canto direito)
+            if (MerchantPopupController.Instance != null)
+            {
+                var line = MerchantEncounterDialogueSystem.GetCurrentEncounterLine();
+                MerchantPopupController.Instance.MostrarPopupMercador(line.merchantSpeech, line.percentageBadge, duracao: 0f);
+            }
 
-            // 4. Dispara popup do Eptinho com o retrato tenso de forma protegida
-            if (!eptinhoWarnedThisApproach && EptinhoPopupController.instancia != null)
+            // 4. Prompt de interação e aviso do Eptinho
+            if (uiController == null) uiController = MerchantUIController.Instance;
+            if (uiController != null)
+            {
+                uiController.ShowPrompt(true);
+            }
+
+            if (!EptinhoStoryDialogs.HasSeenDialog(EptinhoStoryDialogs.ID_MERCHANT_ENCOUNTER))
+            {
+                eptinhoWarnedThisApproach = true;
+                EptinhoStoryDialogs.TriggerMerchantEncounter(() =>
+                {
+                    if (QuestManager.Instance != null)
+                    {
+                        QuestManager.Instance.AdvanceQuest(QuestType.Interact, "merchant_interact", 1);
+                    }
+                });
+            }
+            else if (!eptinhoWarnedThisApproach && EptinhoPopupController.instancia != null)
             {
                 eptinhoWarnedThisApproach = true;
                 EptinhoPopupController.instancia.MostrarPopupMercador(eptinhoWarningMessage);
@@ -300,51 +331,53 @@ public class Merchant : MonoBehaviour
             eptinhoWarnedThisApproach = false;
             Debug.Log("[MERCHANT] Player SAIU da zona do Mercador.");
 
-            StopOccultEffects();
+            // Esconde o popup do HUD
+            if (MerchantPopupController.Instance != null)
+            {
+                MerchantPopupController.Instance.EsconderPopup();
+            }
 
-            // Retorna a névoa para a emissão em repouso
+            if (uiController != null)
+            {
+                uiController.ShowPrompt(false);
+            }
+
+            // Retorna a névoa para repouso
             SetFogEmission(idleFogEmission);
 
-            // Transição ultrasuave de áudio ao sair
+            // Transição suave de áudio ao sair (fade dos sussurros e restauração da música)
             SmoothTransitionOnExit(exitFadeDuration);
-
-            if (uiController != null && uiController.IsUiOpen())
-            {
-                uiController.ClosePanel();
-            }
         }
     }
 
     private void SmoothTransitionOnExit(float duration)
     {
         if (audioTransitionRoutine != null) StopCoroutine(audioTransitionRoutine);
-        audioTransitionRoutine = StartCoroutine(FadeOutWhispersAndRestoreMusic(duration));
+        audioTransitionRoutine = StartCoroutine(SmoothExitRoutine(duration));
     }
 
-    private IEnumerator FadeOutWhispersAndRestoreMusic(float duration)
+    private IEnumerator SmoothExitRoutine(float duration)
     {
-        float elapsed = 0f;
-        float startWhisperVol = audioSource != null ? audioSource.volume : 0f;
-
+        // 1. Restaura a música do jogo
         if (MusicManager.instance != null)
         {
             MusicManager.instance.SetMusicDucking(1.0f, duration);
         }
 
-        while (elapsed < duration)
-        {
-            elapsed += Time.unscaledDeltaTime;
-            float t = elapsed / duration;
-
-            if (audioSource != null && audioSource.isPlaying)
-            {
-                audioSource.volume = Mathf.Lerp(startWhisperVol, 0f, t);
-            }
-            yield return null;
-        }
-
+        // 2. Fade out dos sussurros
         if (audioSource != null && audioSource.isPlaying)
         {
+            float startVol = audioSource.volume;
+            float elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                audioSource.volume = Mathf.Lerp(startVol, 0f, t);
+                yield return null;
+            }
+
             audioSource.Stop();
             audioSource.volume = 0f;
             audioSource.pitch = 1.0f;
@@ -352,213 +385,50 @@ public class Merchant : MonoBehaviour
         audioTransitionRoutine = null;
     }
 
-    void Update()
+    [ContextMenu("Testar Sussurros do Mercador")]
+    public void TestarAudioSussurros()
     {
-        if (canInteract)
+        EnsureAudioSourceConfigured();
+        if (audioSource != null && audioSource.clip != null)
         {
-            UpdateRealtimeTextPosition();
-
-            // Oscilação Contínua e Suave do Tom Grave (Onda LFO / Pulsação Hipnótica)
-            if (enableSmoothPitchOscillation && audioSource != null && audioSource.isPlaying)
-            {
-                float wave = (Mathf.Sin(Time.time * pitchOscillationSpeed) + 1.0f) * 0.5f;
-                audioSource.pitch = Mathf.Lerp(minGravePitch, maxGravePitch, wave);
-            }
-
-            bool uiIsOpen = uiController != null && uiController.IsUiOpen();
-
-            if (!uiIsOpen && Input.GetKeyDown(KeyCode.F))
-            {
-                Debug.Log("[MERCHANT] ⚔️ Tecla [F] pressionada! Abrindo o Pacto...");
-                StopOccultEffects();
-                SetPactFogIntense(true);
-
-                // 1. Restaura a música do jogo para o volume normal
-                if (MusicManager.instance != null)
-                {
-                    MusicManager.instance.SetMusicDucking(1.0f, 1.0f);
-                }
-
-                // 2. Mantém os sussurros tocando bem baixinho de fundo
-                if (audioSource != null)
-                {
-                    if (!audioSource.isPlaying && whisperingClip != null)
-                    {
-                        audioSource.clip = whisperingClip;
-                        audioSource.Play();
-                    }
-                    audioSource.volume = 0.18f; // Volume baixo e sutil
-                    audioSource.pitch = basePitch;
-                }
-
-                if (uiController == null) uiController = MerchantUIController.Instance;
-                if (uiController != null)
-                {
-                    uiController.OpenPanel(this.transform);
-                }
-            }
+            audioSource.volume = 1.0f;
+            audioSource.pitch = basePitch;
+            audioSource.Play();
+            Debug.Log($"[MERCHANT AUDIO TEST] ✅ Tocando sussurro: {audioSource.clip.name}");
         }
     }
 
-    private void OnValidate()
+    /// <summary>
+    /// Faz o Mercador desaparecer na cena após o pacto ser realizado.
+    /// </summary>
+    public void VanishAfterPact()
     {
-        EnsureTriggerColliderExists();
-        UpdateRealtimeTextPosition();
+        canInteract = false;
+
+        if (MerchantPopupController.Instance != null)
+        {
+            MerchantPopupController.Instance.EsconderPopup();
+        }
+
+        if (MusicManager.instance != null)
+        {
+            MusicManager.instance.SetMusicDucking(1.0f, 1.0f);
+        }
+
+        if (merchantFogParticles != null)
+        {
+            var main = merchantFogParticles.main;
+            main.useUnscaledTime = true;
+            merchantFogParticles.Emit(120);
+        }
+
+        StartCoroutine(VanishRoutine());
     }
 
-    private void UpdateRealtimeTextPosition()
+    private IEnumerator VanishRoutine()
     {
-        if (occultTextComp != null)
-        {
-            RectTransform tr = occultTextComp.GetComponent<RectTransform>();
-            if (tr != null)
-            {
-                tr.anchorMin = new Vector2(textPosX, textPosY);
-                tr.anchorMax = new Vector2(textPosX, textPosY);
-                tr.pivot = new Vector2(0.5f, 0.5f);
-                tr.anchoredPosition = Vector2.zero;
-                tr.sizeDelta = new Vector2(textWidth, textHeight);
-            }
-        }
-    }
-
-    private void StartOccultEffects()
-    {
-        if (occultUIOverlay == null)
-        {
-            CreateOccultUI();
-        }
-
-        if (occultUIOverlay != null && !occultUIOverlay.activeSelf)
-        {
-            occultUIOverlay.SetActive(true);
-        }
-
-        if (occultTextRoutine == null)
-        {
-            occultTextRoutine = StartCoroutine(AnimateOccultText());
-        }
-    }
-
-    private void StopOccultEffects()
-    {
-        if (occultTextRoutine != null)
-        {
-            StopCoroutine(occultTextRoutine);
-            occultTextRoutine = null;
-        }
-
-        if (occultUIOverlay != null && occultUIOverlay.activeSelf)
-        {
-            occultUIOverlay.SetActive(false);
-        }
-
-        if (audioSource != null)
-        {
-            audioSource.pitch = 1.0f;
-        }
-    }
-
-    private string GenerateRandomOccultString()
-    {
-        int length = Random.Range(minCharLength, maxCharLength + 1);
-
-        System.Text.StringBuilder sb = new System.Text.StringBuilder();
-        for (int i = 0; i < length; i++)
-        {
-            char randomChar = occultCharPool[Random.Range(0, occultCharPool.Length)];
-            sb.Append(randomChar);
-            if (i < length - 1) sb.Append(" ");
-        }
-
-        string chosenColor = darkRedColors[Random.Range(0, darkRedColors.Length)];
-        int randomSize = Random.Range(minFontSize, maxFontSize + 1);
-
-        return $"<color={chosenColor}><b><size={randomSize}>{sb.ToString()}</size></b></color>";
-    }
-
-    private IEnumerator AnimateOccultText()
-    {
-        int fontIdx = 0;
-
-        while (canInteract && (uiController == null || !uiController.IsUiOpen()))
-        {
-            if (occultTextComp != null)
-            {
-                occultTextComp.text = GenerateRandomOccultString();
-
-                if (occultFonts != null && occultFonts.Count > 0)
-                {
-                    TMP_FontAsset fontToUse = occultFonts[fontIdx % occultFonts.Count];
-                    if (fontToUse != null)
-                    {
-                        occultTextComp.font = fontToUse;
-                    }
-                    fontIdx++;
-                }
-            }
-
-            // Se a oscilação contínua não estiver ativa, aplica a distorção por pulso
-            if (!enableSmoothPitchOscillation && audioSource != null && audioSource.isPlaying)
-            {
-                if (enableRandomPitch)
-                    audioSource.pitch = Random.Range(minGravePitch, maxGravePitch);
-                else
-                    audioSource.pitch = basePitch;
-            }
-
-            yield return new WaitForSeconds(fontShiftInterval);
-        }
-
-        if (audioSource != null) audioSource.pitch = 1.0f;
-        occultTextRoutine = null;
-    }
-
-    private void CreateOccultUI()
-    {
-        if (occultUIOverlay != null) return;
-
-        Canvas targetCanvas = null;
-        Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
-        foreach (var c in canvases)
-        {
-            if (c != null && c.gameObject.activeInHierarchy && (c.name.Contains("HUD") || c.name.Contains("Player") || c.renderMode == RenderMode.ScreenSpaceOverlay))
-            {
-                targetCanvas = c;
-                break;
-            }
-        }
-
-        occultUIOverlay = new GameObject("MerchantOccultUI");
-
-        if (targetCanvas != null)
-        {
-            occultUIOverlay.transform.SetParent(targetCanvas.transform, false);
-        }
-        else
-        {
-            Canvas c = occultUIOverlay.AddComponent<Canvas>();
-            c.renderMode = RenderMode.ScreenSpaceOverlay;
-            c.sortingOrder = 400;
-
-            CanvasScaler cs = occultUIOverlay.AddComponent<CanvasScaler>();
-            cs.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            cs.referenceResolution = new Vector2(1920, 1080);
-        }
-
-        RectTransform mainR = occultUIOverlay.GetComponent<RectTransform>();
-        if (mainR == null) mainR = occultUIOverlay.AddComponent<RectTransform>();
-        mainR.anchorMin = Vector2.zero; mainR.anchorMax = Vector2.one; mainR.sizeDelta = Vector2.zero;
-
-        GameObject textObj = new GameObject("OccultScripturesText");
-        textObj.transform.SetParent(occultUIOverlay.transform, false);
-
-        occultTextComp = textObj.AddComponent<TextMeshProUGUI>();
-        occultTextComp.fontStyle = FontStyles.Bold;
-        occultTextComp.alignment = TextAlignmentOptions.Center;
-        occultTextComp.raycastTarget = false;
-
-        UpdateRealtimeTextPosition();
+        yield return new WaitForSecondsRealtime(0.5f);
+        gameObject.SetActive(false);
     }
 
     public void TakeDamage(int damage, bool isCritical = false)
@@ -575,6 +445,12 @@ public class Merchant : MonoBehaviour
         {
             shield.TriggerShield();
         }
+    }
+
+    public void RequestSurgery(InfusedItem item)
+    {
+        if (uiController == null || uiController.gameObject == null) uiController = MerchantUIController.Instance;
+        if (uiController != null) uiController.RequestSurgery(item);
     }
 
     void OnDrawGizmosSelected()

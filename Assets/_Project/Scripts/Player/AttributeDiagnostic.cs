@@ -64,6 +64,8 @@ public class AttributeDiagnostic : MonoBehaviour
     
     void GenerateReport()
     {
+        if (playerHealth == null) playerHealth = GetComponent<PlayerHealth>();
+
         Debug.Log("╔════════════════════════════════════════════════╗");
         Debug.Log("║     RELATÓRIO DE DIAGNÓSTICO (F12)             ║");
         Debug.Log("╠════════════════════════════════════════════════╣");
@@ -85,6 +87,14 @@ public class AttributeDiagnostic : MonoBehaviour
         
         Debug.Log("╠════════════════════════════════════════════════╣");
         
+        if (playerHealth != null)
+        {
+            Debug.Log("║ STATUS VITAIS (PlayerHealth):                  ║");
+            Debug.Log($"║  maxHealth: {playerHealth.maxHealth} (Atual: {playerHealth.currentHealth})");
+            Debug.Log($"║  maxArmor: {playerHealth.maxArmor} (Atual: {playerHealth.CurrentArmor})");
+            Debug.Log("╠════════════════════════════════════════════════╣");
+        }
+
         if (defensiveAttributes != null)
         {
             Debug.Log("║ ATRIBUTOS DEFENSIVOS (Player):                 ║");

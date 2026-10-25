@@ -273,6 +273,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Crystal_Axe
       objectReference: {fileID: 0}
+    - target: {fileID: -8098169881513260187, guid: 5b709342f4050fd49a78027614736a89, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 3447742079981357586, guid: 5b709342f4050fd49a78027614736a89, type: 3}
       propertyPath: m_LocalScale.y
       value: 0.9
@@ -380,6 +384,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 632c6bf9ec0d6414d8d04cfaa3693725, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Dagger_Pickup
+  actionText: Pegar Adaga de Plasma
+  fadeSpeed: 6
+  promptOffset: {x: 0, y: 0.65, z: 0}
 --- !u!114 &2896301147159899967
 MonoBehaviour:
   m_ObjectHideFlags: 0

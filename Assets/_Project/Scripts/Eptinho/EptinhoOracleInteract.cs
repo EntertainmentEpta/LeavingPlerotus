@@ -18,74 +18,176 @@ public class EptinhoOracleInteract : MonoBehaviour
     [SerializeField] private float barkVolume = 0.8f;
     private AudioSource audioSource;
 
+    // ─── Configuração do Prompt ──────────────────────────────────────────────
+    [Header("UI do Eptinho (Estilo Robozinho)")]
+    public string actionText = "Falar com Eptinho";
+    public float fadeSpeed = 6f;
+    public Vector3 promptOffset = new Vector3(0f, 2.2f, 0f);
+
+    public GameObject promptUI;
+    public TextMeshProUGUI promptTextMesh;
+    private CanvasGroup promptCanvasGroup;
+
     // ─── Estado ──────────────────────────────────────────────────────────────
     private bool playerNoPerto = false;
-
-    // ─── UI de prompt (ScreenSpace - criada em runtime) ───────────────────
-    private static GameObject s_promptCanvas;
-    private static TextMeshProUGUI s_promptText;
-    private static int s_activeCount = 0; // Quantos triggers estão com player dentro
-
-    // ─── Referência ao root do Eptinho para posição do label ─────────────
     private Transform eptinhoRoot;
 
     // ─────────────────────────────────────────────────────────────────────────
 
     void Start()
     {
-        // Garante que o BoxCollider é trigger
         BoxCollider bc = GetComponent<BoxCollider>();
         if (bc != null) bc.isTrigger = true;
 
-        // Sobe na hierarquia para pegar o root do prefab instanciado (EptOracle)
         eptinhoRoot = transform.root;
 
-        // Cria o canvas de prompt uma única vez (compartilhado entre instâncias)
-        if (s_promptCanvas == null)
-            CriarPromptUI();
+        BuildWorldPromptUI();
+        UpdatePromptText();
     }
 
-    void OnDestroy()
+    private KeyCode GetCurrentInteractKey()
     {
-        if (playerNoPerto)
+        string savedKey = PlayerPrefs.GetString("KeyInteract", "F");
+        try
         {
-            playerNoPerto = false;
-            s_activeCount = Mathf.Max(0, s_activeCount - 1);
-            AtualizarPrompt();
+            return (KeyCode)System.Enum.Parse(typeof(KeyCode), savedKey);
+        }
+        catch
+        {
+            return KeyCode.F;
         }
     }
 
-    void Update()
+    private void UpdatePromptText()
     {
-        if (playerNoPerto && Input.GetKeyDown(KeyCode.F))
-            AbrirMenuOraculo();
+        if (promptTextMesh != null)
+        {
+            KeyCode currentKey = GetCurrentInteractKey();
+            promptTextMesh.text = $"[ <color=#FFE500>{currentKey}</color> ]  <color=#FFE500><b>{actionText}</b></color>";
+        }
+    }
+
+    private void BuildWorldPromptUI()
+    {
+        if (promptUI != null)
+        {
+            promptCanvasGroup = promptUI.GetComponent<CanvasGroup>() ?? promptUI.AddComponent<CanvasGroup>();
+            promptCanvasGroup.alpha = 0f;
+            promptUI.SetActive(false);
+            return;
+        }
+
+        promptUI = new GameObject("Eptinho_PromptUI");
+        promptUI.transform.SetParent(eptinhoRoot != null ? eptinhoRoot : transform, false);
+        promptUI.transform.localPosition = promptOffset;
+
+        Canvas canvas = promptUI.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.WorldSpace;
+        canvas.sortingOrder = 120;
+
+        RectTransform rect = promptUI.GetComponent<RectTransform>();
+        rect.sizeDelta = new Vector2(360f, 60f);
+        rect.localScale = new Vector3(0.01f, 0.01f, 0.01f);
+
+        promptCanvasGroup = promptUI.AddComponent<CanvasGroup>();
+        promptCanvasGroup.alpha = 0f;
+
+        // Fundo cinza bem sutil e transparente (sem bordas ciano)
+        GameObject bgObj = new GameObject("Background");
+        bgObj.transform.SetParent(promptUI.transform, false);
+        RectTransform bgRect = bgObj.AddComponent<RectTransform>();
+        bgRect.anchorMin = Vector2.zero;
+        bgRect.anchorMax = Vector2.one;
+        bgRect.sizeDelta = Vector2.zero;
+        Image bgImg = bgObj.AddComponent<Image>();
+        bgImg.color = new Color(0.06f, 0.06f, 0.07f, 0.35f);
+        bgImg.raycastTarget = false;
+
+        // Borda ciano removida completamente para visual minimalista e flutuante
+
+        // Texto com tipografia consistente
+        GameObject textObj = new GameObject("PromptText");
+        textObj.transform.SetParent(promptUI.transform, false);
+        RectTransform textRect = textObj.AddComponent<RectTransform>();
+        textRect.anchorMin = Vector2.zero;
+        textRect.anchorMax = Vector2.one;
+        textRect.sizeDelta = Vector2.zero;
+        promptTextMesh = textObj.AddComponent<TextMeshProUGUI>();
+        promptTextMesh.fontSize = 22f;
+        promptTextMesh.fontStyle = FontStyles.Bold;
+        promptTextMesh.alignment = TextAlignmentOptions.Center;
+        promptTextMesh.color = Color.white;
+        promptTextMesh.raycastTarget = false;
+        promptTextMesh.outlineWidth = 0.22f;
+        promptTextMesh.outlineColor = new Color32(0, 0, 0, 220);
+
+        TMP_FontAsset font = Resources.Load<TMP_FontAsset>("Fonts & Materials/Oswald Bold SDF");
+        if (font != null) promptTextMesh.font = font;
+
+        promptUI.SetActive(false);
     }
 
     void OnTriggerEnter(Collider other)
     {
         if (!other.CompareTag("Player")) return;
-        if (playerNoPerto) return;
-
         playerNoPerto = true;
-        s_activeCount++;
-        AtualizarPrompt();
+        UpdatePromptText();
     }
 
     void OnTriggerExit(Collider other)
     {
         if (!other.CompareTag("Player")) return;
-        if (!playerNoPerto) return;
-
         playerNoPerto = false;
-        s_activeCount = Mathf.Max(0, s_activeCount - 1);
-        AtualizarPrompt();
+    }
+
+    void Update()
+    {
+        if (DialogManager.BlocksGameplayInput || GamePause.IsPaused)
+        {
+            if (promptCanvasGroup != null) promptCanvasGroup.alpha = 0f;
+            return;
+        }
+
+        bool isMenuOpen = EptinhoMenuController.instancia != null && EptinhoMenuController.instancia.IsOpen();
+        bool shouldShow = playerNoPerto && !isMenuOpen;
+
+        // Fade suave idêntico ao CraftingTableInteraction
+        if (promptUI != null && promptCanvasGroup != null)
+        {
+            float targetAlpha = shouldShow ? 1f : 0f;
+
+            if (shouldShow && !promptUI.activeSelf)
+            {
+                promptUI.SetActive(true);
+                UpdatePromptText();
+            }
+
+            promptCanvasGroup.alpha = Mathf.MoveTowards(promptCanvasGroup.alpha, targetAlpha, Time.unscaledDeltaTime * fadeSpeed);
+
+            if (!shouldShow && promptCanvasGroup.alpha <= 0.01f && promptUI.activeSelf)
+            {
+                promptUI.SetActive(false);
+            }
+
+            if (promptUI.activeSelf && Camera.main != null)
+            {
+                promptUI.transform.forward = Camera.main.transform.forward;
+            }
+        }
+
+        if (!playerNoPerto || isMenuOpen) return;
+
+        KeyCode interactKey = GetCurrentInteractKey();
+        if (Input.GetKeyDown(interactKey))
+        {
+            AbrirMenuOraculo();
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
 
     private void AbrirMenuOraculo()
     {
-        // Toca o latido ao interagir
         PlayBark();
 
         if (EptinhoMenuController.instancia != null)
@@ -107,65 +209,10 @@ public class EptinhoOracleInteract : MonoBehaviour
         {
             audioSource = gameObject.AddComponent<AudioSource>();
             audioSource.playOnAwake = false;
-            audioSource.spatialBlend = 0f; // 2D para garantir que o player sempre ouça
+            audioSource.spatialBlend = 0f; // 2D para audibilidade limpa
         }
 
         audioSource.PlayOneShot(barkClip, barkVolume);
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Criação e controle do prompt de tela
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private static void CriarPromptUI()
-    {
-        s_promptCanvas = new GameObject("EptinhoPrompt_Canvas");
-        DontDestroyOnLoad(s_promptCanvas);
-
-        Canvas canvas = s_promptCanvas.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 150;
-
-        CanvasScaler scaler = s_promptCanvas.AddComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920f, 1080f);
-        scaler.matchWidthOrHeight = 0.5f;
-
-        s_promptCanvas.AddComponent<GraphicRaycaster>();
-
-        // Painel de fundo semi-transparente
-        GameObject painelGO = new GameObject("PromptPanel");
-        painelGO.transform.SetParent(s_promptCanvas.transform, false);
-        Image painelImg = painelGO.AddComponent<Image>();
-        painelImg.color = new Color(0.04f, 0.04f, 0.10f, 0.80f);
-        RectTransform painelRect = painelGO.GetComponent<RectTransform>();
-        painelRect.anchorMin = new Vector2(0.5f, 0f);
-        painelRect.anchorMax = new Vector2(0.5f, 0f);
-        painelRect.pivot     = new Vector2(0.5f, 0f);
-        painelRect.sizeDelta = new Vector2(340f, 50f);
-        painelRect.anchoredPosition = new Vector2(0f, 60f);
-
-        // Texto do prompt
-        GameObject textoGO = new GameObject("PromptText");
-        textoGO.transform.SetParent(painelGO.transform, false);
-        s_promptText = textoGO.AddComponent<TextMeshProUGUI>();
-        s_promptText.text = "<color=#D1C0FF>[ F ]</color>  Falar com Eptinho";
-        s_promptText.fontSize = 20;
-        s_promptText.alignment = TextAlignmentOptions.Center;
-        s_promptText.color = new Color(0.9f, 0.9f, 1f, 1f);
-        RectTransform txtRect = textoGO.GetComponent<RectTransform>();
-        txtRect.anchorMin = Vector2.zero;
-        txtRect.anchorMax = Vector2.one;
-        txtRect.offsetMin = new Vector2(10f, 5f);
-        txtRect.offsetMax = new Vector2(-10f, -5f);
-
-        s_promptCanvas.SetActive(false);
-    }
-
-    private static void AtualizarPrompt()
-    {
-        if (s_promptCanvas == null) return;
-        s_promptCanvas.SetActive(s_activeCount > 0);
     }
 }
 

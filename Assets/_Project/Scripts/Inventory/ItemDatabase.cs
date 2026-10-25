@@ -46,7 +46,7 @@ public class ItemDatabase : MonoBehaviour
     [Tooltip("Arraste todos os ScriptableObjects de ItemData aqui")]
     public List<ItemData> allItems = new List<ItemData>();
 
-    private Dictionary<string, ItemData> itemLookup = new Dictionary<string, ItemData>();
+    private Dictionary<string, ItemData> itemLookup = new Dictionary<string, ItemData>(System.StringComparer.OrdinalIgnoreCase);
 
     void Awake()
     {
@@ -123,9 +123,31 @@ public class ItemDatabase : MonoBehaviour
 
             seenIds.Add(item.itemId);
             itemLookup[item.itemId] = item;
+
+            // Registra versão sem acento (ex: goblin_braço_t2 -> goblin_braco_t2)
+            string unaccented = item.itemId.Replace("ç", "c").Replace("ã", "a").Replace("õ", "o").Replace("é", "e");
+            if (!itemLookup.ContainsKey(unaccented)) itemLookup[unaccented] = item;
+
+            // Registra pelo nome do asset do ScriptableObject
+            if (!string.IsNullOrEmpty(item.name) && !itemLookup.ContainsKey(item.name))
+            {
+                itemLookup[item.name] = item;
+            }
         }
 
-        Debug.Log("[ITEM DATABASE] " + itemLookup.Count + " itens registrados.");
+        // Mapeamentos manuais para resiliência de drops e nomes legados
+        if (itemLookup.TryGetValue("goblin_trinket_t2", out var gTrinket))
+        {
+            itemLookup["goblin_braço_t2"] = gTrinket;
+            itemLookup["goblin_braco_t2"] = gTrinket;
+        }
+        else if (itemLookup.TryGetValue("goblin_braço_t2", out var gBraco))
+        {
+            itemLookup["goblin_trinket_t2"] = gBraco;
+            itemLookup["goblin_braco_t2"] = gBraco;
+        }
+
+        Debug.Log("[ITEM DATABASE] " + itemLookup.Count + " chaves/itens registrados.");
     }
 
     public bool RegisterItem(ItemData item)
@@ -160,7 +182,12 @@ public class ItemDatabase : MonoBehaviour
     public ItemData GetItemData(string itemId)
     {
         if (string.IsNullOrEmpty(itemId)) return null;
-        return itemLookup.TryGetValue(itemId, out var data) ? data : null;
+        if (itemLookup.TryGetValue(itemId, out var data)) return data;
+
+        string unaccented = itemId.Replace("ç", "c").Replace("ã", "a").Replace("õ", "o").Replace("é", "e");
+        if (itemLookup.TryGetValue(unaccented, out data)) return data;
+
+        return null;
     }
 
     /// <summary>

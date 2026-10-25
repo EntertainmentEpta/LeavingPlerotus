@@ -47,6 +47,8 @@ public class MerchantUIController : MonoBehaviour
     public GameObject removalListPanel;
     public Transform removalListContent; 
     public GameObject removalItemButtonPrefab; 
+    [Tooltip("Taxa fixa de Essência cobrada na Cirurgia de Remoção.")]
+    public int surgeryCost = 150; 
     
     [Header("Geral")]
     public Button closeButton;
@@ -76,7 +78,23 @@ public class MerchantUIController : MonoBehaviour
     private PlayerInventory playerInventory;
 
     private bool hasMadePact = false;
-    public bool HasMadePactInRun { get; private set; } = false;
+    public bool HasMadePactInRun
+    {
+        get
+        {
+            if (RunManager.instance != null && RunManager.instance.hasCompletedPactThisRun) return true;
+            if (playerHealth != null && playerHealth.hasPactCorrupted) return true;
+            return hasMadePact;
+        }
+        private set
+        {
+            hasMadePact = value;
+            if (RunManager.instance != null && value)
+            {
+                RunManager.instance.hasCompletedPactThisRun = true;
+            }
+        }
+    }
 
     // Estado de Animação e Revelação da Carta 3D
     private bool isRevealingPactCard = false;
@@ -84,11 +102,17 @@ public class MerchantUIController : MonoBehaviour
     private int pendingHealthCost = 0;
     private Vector2[] originalCardPositions = new Vector2[3];
     private Vector3[] originalCardScales = new Vector3[3];
+    private int lastDialogueRoomNumber = -999;
 
     public void ResetPactState()
     {
         HasMadePactInRun = false;
         hasMadePact = false;
+        if (RunManager.instance != null)
+        {
+            RunManager.instance.hasCompletedPactThisRun = false;
+            RunManager.instance.hasSpawnedMerchantThisRun = false;
+        }
         isRevealingPactCard = false;
         pendingPactIndex = -1;
     }
@@ -97,6 +121,17 @@ public class MerchantUIController : MonoBehaviour
     {
         HasMadePactInRun = true;
         hasMadePact = true;
+        if (RunManager.instance != null)
+        {
+            RunManager.instance.hasCompletedPactThisRun = true;
+            RunManager.instance.hasSpawnedMerchantThisRun = true;
+        }
+
+        if (QuestManager.Instance != null)
+        {
+            QuestManager.Instance.AdvanceQuest(QuestType.Interact, "merchant_pact", 1);
+            QuestManager.Instance.AdvanceQuest(QuestType.Interact, "merchant_interact", 1);
+        }
 
         if (playerHealth != null)
         {
@@ -138,7 +173,7 @@ public class MerchantUIController : MonoBehaviour
     {
         new PactData {
             name = "A GANÂNCIA",
-            description = "<color=#00ff99>✦ Dobro de loot e essência ao eliminar inimigos.</color>\n<color=#ff4455>✖ Você sofre 50% a mais de dano.</color>",
+            description = "<color=#00ff99>✦ Sorte Extrema: Aumenta muito a chance de drop de itens (Tiers 1 a 4) e +100% Essência.</color>\n<color=#ff4455>✖ Você sofre 50% a mais de dano.</color>",
             healthCostPercent = 0.20f
         },
         new PactData {
@@ -178,41 +213,41 @@ public class MerchantUIController : MonoBehaviour
         },
         new PactData {
             name = "A SINFONIA DO CAOS",
-            description = "<color=#00ff99>✦ Dobro de loot, o dobro de essência e maior sorte.</color>\n<color=#ff4455>✖ Inimigos de elite mais fortes e em maior quantidade.</color>",
-            healthCostPercent = 0.35f
+            description = "<color=#00ff99>✦ Fartura Caótica: +20% na chance geral de drops de itens e +100% Essência.</color>\n<color=#ff4455>✖ Hostilidade Titânica: Inimigos têm +30% de chance de nascer Elite e +25% de renascer como Elite ao morrer.</color>",
+            healthCostPercent = 0.25f
         }
     };
 
     private int[] currentDisplayedPactIndices = new int[3];
 
-    public static bool HasInstance => _instance != null;
+    public static bool HasInstance => _instance != null && _instance.gameObject != null;
 
     private static MerchantUIController _instance;
     public static MerchantUIController Instance
     {
         get
         {
-            if (_instance == null)
+            if (_instance == null || _instance.gameObject == null)
             {
+                // 1. Prioridade Máxima: Busca na hierarquia da cena atual (mesmo inativo)
                 _instance = FindFirstObjectByType<MerchantUIController>(FindObjectsInactive.Include);
+
+                // 2. Se a cena não tiver o canvas na hierarquia, instancia o prefab oficial de Resources
                 if (_instance == null)
                 {
                     GameObject prefab = Resources.Load<GameObject>("MerchantCanvas");
-                    if (prefab == null) prefab = Resources.Load<GameObject>("MerchantCanva");
-                    if (prefab == null) prefab = Resources.Load<GameObject>("MerchantUI");
-
                     if (prefab != null)
                     {
                         GameObject go = Instantiate(prefab);
+                        go.name = "MerchantCanvas";
                         _instance = go.GetComponent<MerchantUIController>();
                         if (_instance == null) _instance = go.AddComponent<MerchantUIController>();
+                        Debug.Log("🧙 [MerchantUIController] Canvas oficial do Mercador instanciado automaticamente a partir de Resources!");
                     }
                     else
                     {
-                        GameObject go = new GameObject("MerchantUIController_Auto");
-                        _instance = go.AddComponent<MerchantUIController>();
+                        Debug.LogError("🚨 [MerchantUIController] ERRO: Prefab oficial 'MerchantCanvas' não encontrado na pasta Resources!");
                     }
-                    if (_instance != null) DontDestroyOnLoad(_instance.gameObject);
                 }
             }
             return _instance;
@@ -222,7 +257,7 @@ public class MerchantUIController : MonoBehaviour
 
     void Awake()
     {
-        if (_instance == null)
+        if (_instance == null || _instance.gameObject == null)
         {
             _instance = this;
         }
@@ -247,6 +282,88 @@ public class MerchantUIController : MonoBehaviour
         if (tarotCardsPanel != null) tarotCardsPanel.SetActive(false);
         
         SetupRightSideText();
+        SetupSurgeryLayout();
+    }
+
+    void OnDestroy()
+    {
+        if (_instance == this)
+        {
+            _instance = null;
+        }
+    }
+
+    /// <summary>
+    /// Formata proceduralmente a UI da Cirurgia (sem depender do Prefab):
+    /// Content com GridLayoutGroup (células 80x80) + ContentSizeFitter vertical (scroll correto)
+    /// e janela do Scroll View com tamanho amplo e legível. Idempotente (seguro chamar várias vezes).
+    /// </summary>
+    private void SetupSurgeryLayout()
+    {
+        EnsurePanelReferences();
+        if (removalListContent == null) return;
+
+        RectTransform contentRt = removalListContent as RectTransform;
+        if (contentRt == null) return;
+
+        // Remove LayoutGroups conflitantes (ex: VerticalLayoutGroup do Prefab). LayoutGroup não permite duplicatas.
+        LayoutGroup[] existingGroups = removalListContent.GetComponents<LayoutGroup>();
+        foreach (LayoutGroup lg in existingGroups)
+        {
+            if (lg != null && !(lg is GridLayoutGroup))
+                DestroyImmediate(lg);
+        }
+
+        // Content ancorado no topo e esticado na horizontal, para crescer para baixo
+        contentRt.anchorMin = new Vector2(0f, 1f);
+        contentRt.anchorMax = new Vector2(1f, 1f);
+        contentRt.pivot = new Vector2(0.5f, 1f);
+        contentRt.anchoredPosition = Vector2.zero;
+
+        GridLayoutGroup grid = removalListContent.GetComponent<GridLayoutGroup>();
+        if (grid == null) grid = removalListContent.gameObject.AddComponent<GridLayoutGroup>();
+        if (grid != null)
+        {
+            grid.cellSize = new Vector2(80f, 80f);
+            grid.spacing = new Vector2(15f, 15f);
+            grid.childAlignment = TextAnchor.UpperLeft;
+            grid.startCorner = GridLayoutGroup.Corner.UpperLeft;
+            grid.startAxis = GridLayoutGroup.Axis.Horizontal;
+            grid.constraint = GridLayoutGroup.Constraint.Flexible;
+            grid.padding = new RectOffset(15, 15, 15, 15);
+        }
+
+        ContentSizeFitter fitter = removalListContent.GetComponent<ContentSizeFitter>();
+        if (fitter == null) fitter = removalListContent.gameObject.AddComponent<ContentSizeFitter>();
+        if (fitter != null)
+        {
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            fitter.verticalFit = ContentSizeFitter.FitMode.MinSize;
+        }
+
+        // Janela "mãe" (Scroll View): tamanho amplo e centralizado.
+        // Usa-se o RectTransform do ScrollRect (e não o painel RemovalList, que é full-screen com âncoras esticadas).
+        ScrollRect scrollRect = removalListPanel != null
+            ? removalListPanel.GetComponentInChildren<ScrollRect>(true)
+            : removalListContent.GetComponentInParent<ScrollRect>(true);
+        if (scrollRect != null)
+        {
+            RectTransform windowRt = scrollRect.GetComponent<RectTransform>();
+            if (windowRt != null)
+            {
+                windowRt.anchorMin = new Vector2(0.5f, 0.5f);
+                windowRt.anchorMax = new Vector2(0.5f, 0.5f);
+                windowRt.pivot = new Vector2(0.5f, 0.5f);
+                windowRt.anchoredPosition = Vector2.zero;
+                windowRt.sizeDelta = new Vector2(500f, 400f);
+            }
+
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
+            scrollRect.movementType = ScrollRect.MovementType.Clamped;
+            scrollRect.scrollSensitivity = 25f;
+            if (scrollRect.content != contentRt) scrollRect.content = contentRt;
+        }
     }
 
     private void EnsurePanelReferences()
@@ -307,6 +424,26 @@ public class MerchantUIController : MonoBehaviour
                 }
             }
         }
+
+        if (removalListContent == null && removalListPanel != null)
+        {
+            ScrollRect sr = removalListPanel.GetComponentInChildren<ScrollRect>(true);
+            if (sr != null && sr.content != null)
+            {
+                removalListContent = sr.content;
+            }
+            else
+            {
+                foreach (Transform t in removalListPanel.GetComponentsInChildren<Transform>(true))
+                {
+                    if (t.name.Equals("Content", System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        removalListContent = t;
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     public void ConnectPlayer(PlayerHealth player)
@@ -322,6 +459,12 @@ public class MerchantUIController : MonoBehaviour
 
     public void ShowTarotCards()
     {
+        if (HasMadePactInRun)
+        {
+            EptinhoPopupController.instancia?.MostrarPopupAviso("Você já fez um Pacto de Sangue nesta run!");
+            return;
+        }
+
         if (mainMenuPanel != null) mainMenuPanel.SetActive(false);
         if (tarotCardsPanel != null) tarotCardsPanel.SetActive(true);
 
@@ -468,7 +611,7 @@ public class MerchantUIController : MonoBehaviour
     void SetupRightSideText()
     {
         if (txtCambioCost != null) txtCambioCost.text = "<color=#ff3344>-15% Vida Máxima</color>\n<color=#ffcc00>+300 Essências</color>";
-        if (txtRemocaoCost != null) txtRemocaoCost.text = "<color=#88ccff>Remove 1 Infusão</color>\n<color=#ffcc00>-150 Essências</color>";
+        if (txtRemocaoCost != null) txtRemocaoCost.text = $"<color=#88ccff>Remove 1 Infusão</color>\n<color=#ffcc00>-{surgeryCost} Essências</color>";
         if (txtArtefatoCost != null) txtArtefatoCost.text = "<color=#ffaa00>Artefato Tier Alto</color>\n<color=#ffcc00>-600 Essências</color>";
     }
 
@@ -510,6 +653,12 @@ public class MerchantUIController : MonoBehaviour
         if (isRevealingPactCard)
         {
             ConfirmRevealedPactAndClose();
+        }
+        else if (removalListPanel != null && removalListPanel.activeSelf)
+        {
+            removalListPanel.SetActive(false);
+            if (mainMenuPanel != null) mainMenuPanel.SetActive(true);
+            else ClosePanel();
         }
         else
         {
@@ -564,6 +713,11 @@ public class MerchantUIController : MonoBehaviour
 
         gameObject.SetActive(true);
 
+        if (QuestManager.Instance != null)
+        {
+            QuestManager.Instance.AdvanceQuest(QuestType.Interact, "merchant_interact", 1);
+        }
+
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
 
@@ -588,6 +742,11 @@ public class MerchantUIController : MonoBehaviour
         if (tarotCardsPanel != null) tarotCardsPanel.SetActive(false);
         if (removalListPanel != null) removalListPanel.SetActive(false);
 
+        if (btnPactoDeSangue != null)
+        {
+            btnPactoDeSangue.interactable = !HasMadePactInRun;
+        }
+
         AddHoverEffectToButtons();
 
         if (enablePactCamera)
@@ -597,6 +756,15 @@ public class MerchantUIController : MonoBehaviour
 
         Time.timeScale = 0f;
         ShowPrompt(false);
+
+        // Dispara o diálogo progressivo dos 20 encontros com o Mercador e a revelação do segredo (1x por sala)
+        int currentRoom = (RunManager.instance != null) ? RunManager.instance.currentRoomNumber : -1;
+        if (lastDialogueRoomNumber != currentRoom || currentRoom == -1)
+        {
+            lastDialogueRoomNumber = currentRoom;
+            MerchantEncounterDialogueSystem.CheckAndTriggerEncounterDialogue();
+        }
+
         Debug.Log("[MERCHANT UI] Painel do Pacto de Sangue aberto com sucesso.");
     }
 
@@ -664,7 +832,17 @@ public class MerchantUIController : MonoBehaviour
     // ============================================
     public void OnTarotCardClicked(int cardSlot)
     {
-        if (playerHealth == null || isRevealingPactCard) return;
+        if (isRevealingPactCard)
+        {
+            ConfirmRevealedPactAndClose();
+            return;
+        }
+        if (HasMadePactInRun)
+        {
+            EptinhoPopupController.instancia?.MostrarPopupAviso("Você já fez um Pacto de Sangue nesta run!");
+            return;
+        }
+        if (playerHealth == null) return;
         if (cardSlot < 0 || cardSlot >= currentDisplayedPactIndices.Length) return;
 
         int pactIndex = currentDisplayedPactIndices[cardSlot];
@@ -777,9 +955,57 @@ public class MerchantUIController : MonoBehaviour
         if (childTexts.Length > 1 && descTxt == null) descTxt = (childTexts[1] != nameTxt) ? childTexts[1] : (childTexts.Length > 2 ? childTexts[2] : null);
         if (childTexts.Length > 2 && costTxt == null) costTxt = (childTexts[2] != nameTxt && childTexts[2] != descTxt) ? childTexts[2] : null;
 
-        if (nameTxt != null) nameTxt.text = $"<color=#ffcc00><b>✦ {pact.name} ✦</b></color>";
-        if (descTxt != null) descTxt.text = pact.description; // REVELA O VERSO COM O SEGREDO COMPLETO!
-        if (costTxt != null) costTxt.text = $"<color=#ff2233><b>-{pact.healthCostPercent * 100}% VIDA MÁXIMA</b></color>";
+        if (nameTxt != null)
+        {
+            nameTxt.gameObject.SetActive(true);
+            nameTxt.text = $"<color=#ffcc00><b>✦ {pact.name} ✦</b></color>";
+            RectTransform nRt = nameTxt.rectTransform;
+            nRt.anchorMin = new Vector2(0.05f, 0.78f);
+            nRt.anchorMax = new Vector2(0.95f, 0.95f);
+            nRt.offsetMin = Vector2.zero;
+            nRt.offsetMax = Vector2.zero;
+            nRt.pivot = new Vector2(0.5f, 0.5f);
+            nameTxt.alignment = TextAlignmentOptions.Center;
+            nameTxt.enableWordWrapping = true;
+            nameTxt.enableAutoSizing = true;
+            nameTxt.fontSizeMin = 18;
+            nameTxt.fontSizeMax = 28;
+        }
+
+        if (descTxt != null)
+        {
+            descTxt.gameObject.SetActive(true);
+            descTxt.text = pact.description; // REVELA O VERSO COM O SEGREDO COMPLETO!
+            RectTransform dRt = descTxt.rectTransform;
+            dRt.anchorMin = new Vector2(0.08f, 0.30f);
+            dRt.anchorMax = new Vector2(0.92f, 0.76f);
+            dRt.offsetMin = Vector2.zero;
+            dRt.offsetMax = Vector2.zero;
+            dRt.pivot = new Vector2(0.5f, 0.5f);
+            descTxt.alignment = TextAlignmentOptions.Center;
+            descTxt.enableWordWrapping = true;
+            descTxt.overflowMode = TextOverflowModes.Ellipsis;
+            descTxt.enableAutoSizing = true;
+            descTxt.fontSizeMin = 14;
+            descTxt.fontSizeMax = 20;
+        }
+
+        if (costTxt != null)
+        {
+            costTxt.gameObject.SetActive(true);
+            costTxt.text = $"<color=#ff2233><b>-{pact.healthCostPercent * 100}% VIDA MÁXIMA</b></color>\n\n<size=75%><color=#ffdd00><b>[ CLIQUE NA CARTA PARA CONCLUIR ]</b></color></size>";
+            RectTransform cRt = costTxt.rectTransform;
+            cRt.anchorMin = new Vector2(0.05f, 0.05f);
+            cRt.anchorMax = new Vector2(0.95f, 0.28f);
+            cRt.offsetMin = Vector2.zero;
+            cRt.offsetMax = Vector2.zero;
+            cRt.pivot = new Vector2(0.5f, 0.5f);
+            costTxt.alignment = TextAlignmentOptions.Center;
+            costTxt.enableWordWrapping = true;
+            costTxt.enableAutoSizing = true;
+            costTxt.fontSizeMin = 14;
+            costTxt.fontSizeMax = 22;
+        }
 
         // FASE 3: Gira de 90° até 0°, desdobrando a face traseira no centro!
         elapsed = 0f;
@@ -797,6 +1023,8 @@ public class MerchantUIController : MonoBehaviour
 
         cardRect.localEulerAngles = Vector3.zero;
         chosenBtn.interactable = true;
+        chosenBtn.onClick.RemoveAllListeners();
+        chosenBtn.onClick.AddListener(ConfirmRevealedPactAndClose);
 
         // Dispara o Popup do Eptinho com a nova expressão 'eptinhomedo'!
         if (EptinhoPopupController.instancia != null)
@@ -838,7 +1066,8 @@ public class MerchantUIController : MonoBehaviour
         switch(index)
         {
             case 0: // A GANÂNCIA
-                playerHealth.hasDoubleLoot = true;
+                playerHealth.hasGreedPact = true;
+                playerHealth.hasDoubleLoot = true; // Dobro de essência
                 playerHealth.damageTakenMultiplier += 0.5f;
                 break;
 
@@ -930,59 +1159,233 @@ public class MerchantUIController : MonoBehaviour
     public void ShowRemovalList()
     {
         if (mainMenuPanel != null) mainMenuPanel.SetActive(false);
+        if (tarotCardsPanel != null) tarotCardsPanel.SetActive(false);
         if (removalListPanel != null) removalListPanel.SetActive(true);
 
-        PopulateRemovalList();
+        PopulateSurgeryList();
     }
 
-    private void PopulateRemovalList()
+    public void ShowSurgeryList() => ShowRemovalList();
+    public void PopulateRemovalList() => PopulateSurgeryList();
+
+    /// <summary>
+    /// Popula a lista visual na aba Surgery do Mercador (Scroll View):
+    /// 1. Limpa os filhos do Content do Scroll View da Surgery.
+    /// 2. Obtém a lista de infusões ativas da arma (via InfusionManager).
+    /// 3. Instancia dinamicamente um botão/ícone para cada item infundido.
+    /// 4. Exibe o sprite do item e, se stacks >= 2, cria um texto (TextMeshProUGUI) no canto inferior com "x" + stacks.
+    /// 5. Adiciona o componente Button e o listener: button.onClick.AddListener(() => RequestSurgery(infusionItem));
+    /// </summary>
+    public void PopulateSurgeryList()
     {
-        if (removalListContent == null || infusionManager == null) return;
+        EnsurePanelReferences();
 
-        foreach (Transform child in removalListContent)
+        if (removalListContent == null)
         {
-            Destroy(child.gameObject);
-        }
-
-        List<ItemData> activeInfusions = infusionManager.infusedItems;
-        if (activeInfusions == null || activeInfusions.Count == 0)
-        {
-            Debug.Log("[Mercador] Player não possui infusões para remover.");
+            Debug.LogWarning("[MERCADOR] Content do Scroll View da Surgery não foi encontrado.");
             return;
         }
 
-        foreach (ItemData inf in activeInfusions)
+        // 1. Limpa os filhos do Content do Scroll View da Surgery
+        for (int i = removalListContent.childCount - 1; i >= 0; i--)
         {
-            if (removalItemButtonPrefab == null) break;
-
-            GameObject btnObj = Instantiate(removalItemButtonPrefab, removalListContent);
-            Button btn = btnObj.GetComponent<Button>();
-            TextMeshProUGUI txt = btnObj.GetComponentInChildren<TextMeshProUGUI>();
-
-            if (txt != null) txt.text = $"Remover {inf.itemName} (150 Essências)";
-
-            ItemData targetInf = inf;
-            if (btn != null)
-            {
-                btn.onClick.AddListener(() => OnRemoveInfusionClicked(targetInf));
-            }
+            Transform child = removalListContent.GetChild(i);
+            child.SetParent(null);
+            Destroy(child.gameObject);
         }
+
+        // Garante referências do Player
+        if (infusionManager == null)
+        {
+            if (playerHealth != null)
+                infusionManager = playerHealth.GetComponent<InfusionManager>() ?? playerHealth.GetComponentInChildren<InfusionManager>();
+            if (infusionManager == null)
+                infusionManager = FindFirstObjectByType<InfusionManager>();
+        }
+
+        if (playerEssence == null)
+        {
+            if (playerHealth != null)
+                playerEssence = playerHealth.GetComponent<PlayerEssence>() ?? playerHealth.GetComponentInChildren<PlayerEssence>();
+            if (playerEssence == null)
+                playerEssence = FindFirstObjectByType<PlayerEssence>();
+        }
+
+        if (infusionManager == null)
+        {
+            Debug.LogWarning("[MERCADOR] InfusionManager não encontrado para popular a lista da Surgery.");
+            return;
+        }
+
+        // 2. Obtém a lista de infusões ativas da arma (via InfusionManager)
+        List<InfusedItem> activeInfusions = infusionManager.GetActiveInfusions();
+        if (activeInfusions == null || activeInfusions.Count == 0)
+        {
+            Debug.Log("[MERCADOR] Nenhuma infusão ativa para Cirurgia de Remoção.");
+            return;
+        }
+
+        // Garante o layout em grade (idempotente) antes de instanciar os ícones
+        SetupSurgeryLayout();
+
+        // 3. Para cada item infundido, instancia dinamicamente um botão/ícone no Scroll View
+        foreach (InfusedItem infusion in activeInfusions)
+        {
+            if (infusion.data == null) continue;
+
+            GameObject iconObj = null;
+            if (removalItemButtonPrefab != null)
+            {
+                iconObj = Instantiate(removalItemButtonPrefab, removalListContent);
+            }
+            else
+            {
+                iconObj = new GameObject("SurgeryItem_" + infusion.data.itemId);
+                iconObj.transform.SetParent(removalListContent, false);
+                iconObj.layer = removalListContent.gameObject.layer;
+            }
+
+            if (iconObj == null) continue;
+
+            // Instantiate em Canvas pode alterar a escala; o GridLayoutGroup controla o tamanho (80x80)
+            iconObj.transform.localScale = Vector3.one;
+            iconObj.name = $"SurgeryItem_{infusion.data.itemId}";
+
+            if (iconObj.GetComponent<RectTransform>() == null) iconObj.AddComponent<RectTransform>();
+
+            // Mostre o sprite do item
+            Image iconImg = null;
+            Transform iconChild = iconObj.transform.Find("Icon");
+            if (iconChild != null) iconImg = iconChild.GetComponent<Image>();
+            if (iconImg == null) iconImg = iconObj.GetComponent<Image>();
+            if (iconImg == null) iconImg = iconObj.AddComponent<Image>();
+
+            if (iconImg != null)
+            {
+                if (infusion.data.icon != null)
+                {
+                    iconImg.sprite = infusion.data.icon;
+                    iconImg.preserveAspect = true;
+                }
+                iconImg.color = Color.white;
+            }
+
+            // Outline elegante colorido pelo tier
+            Outline outline = iconObj.GetComponent<Outline>();
+            if (outline == null) outline = iconObj.AddComponent<Outline>();
+            Color tierColor = infusion.data.GetTierColor();
+            outline.effectColor = new Color(tierColor.r, tierColor.g, tierColor.b, 0.85f);
+            outline.effectDistance = new Vector2(2f, -2f);
+
+            // Se stacks >= 2, crie um texto (TextMeshProUGUI) no canto inferior do ícone mostrando "x" + stacks
+            TextMeshProUGUI badgeText = iconObj.GetComponentInChildren<TextMeshProUGUI>(true);
+            if (infusion.stacks >= 2)
+            {
+                if (badgeText == null)
+                {
+                    GameObject badgeObj = new GameObject("StackBadge");
+                    badgeObj.transform.SetParent(iconObj.transform, false);
+                    badgeObj.layer = iconObj.layer;
+                    badgeText = badgeObj.AddComponent<TextMeshProUGUI>();
+                }
+
+                RectTransform badgeRt = badgeText.rectTransform;
+                badgeRt.anchorMin = new Vector2(1f, 0f); // Canto inferior direito
+                badgeRt.anchorMax = new Vector2(1f, 0f);
+                badgeRt.pivot = new Vector2(1f, 0f);
+                badgeRt.anchoredPosition = new Vector2(-6f, 4f);
+                badgeRt.sizeDelta = new Vector2(40f, 22f);
+
+                badgeText.text = "x" + infusion.stacks;
+                badgeText.fontSize = 16f;
+                badgeText.fontStyle = FontStyles.Bold;
+                badgeText.color = new Color(1f, 0.92f, 0f, 1f); // Amarelo vibrante
+                badgeText.alignment = TextAlignmentOptions.BottomRight;
+                badgeText.raycastTarget = false;
+                badgeText.outlineWidth = 0.25f;
+                badgeText.outlineColor = new Color32(0, 0, 0, 240);
+                badgeText.gameObject.SetActive(true);
+                badgeText.transform.SetAsLastSibling();
+            }
+            else
+            {
+                if (badgeText != null)
+                {
+                    badgeText.text = "";
+                    badgeText.gameObject.SetActive(false);
+                }
+            }
+
+            // Adicione o componente Button a esse ícone e um listener: button.onClick.AddListener(() => RequestSurgery(infusionItem));
+            Button button = iconObj.GetComponent<Button>();
+            if (button == null)
+            {
+                button = iconObj.AddComponent<Button>();
+            }
+            button.onClick.RemoveAllListeners();
+            InfusedItem infusionItem = infusion;
+            button.onClick.AddListener(() => RequestSurgery(infusionItem));
+        }
+
+        // Atualiza o tamanho do Content imediatamente (scroll correto com a nova quantidade de itens)
+        RectTransform contentRect = removalListContent as RectTransform;
+        if (contentRect != null) LayoutRebuilder.ForceRebuildLayoutImmediate(contentRect);
     }
 
-    private void OnRemoveInfusionClicked(ItemData inf)
+    /// <summary>
+    /// Executa a Cirurgia de Remoção:
+    /// 1. Validação: Verifique se o jogador possui o custo da cirurgia (uma taxa fixa de Essência). Se não tiver, cancele.
+    /// 2. Cobrança: Deduza a taxa da cirurgia do jogador.
+    /// 3. Remoção sem Reembolso: Remova o item/buff do arsenal da arma sem devolver Essência original da infusão.
+    /// 4. Recálculo da Inflação: Subtraia o "peso" desse item removido da equação global de inflação do jogo.
+    /// 5. Atualização: Chame o PopulateSurgeryList() novamente para a UI atualizar na mesma hora, fazendo o botão sumir.
+    /// </summary>
+    public void RequestSurgery(InfusedItem item)
     {
-        if (playerEssence == null || infusionManager == null) return;
+        if (item.data == null) return;
 
-        if (playerEssence.currentEssence >= 150)
+        if (infusionManager == null && playerHealth != null)
+            infusionManager = playerHealth.GetComponent<InfusionManager>() ?? playerHealth.GetComponentInChildren<InfusionManager>();
+        if (infusionManager == null)
+            infusionManager = FindFirstObjectByType<InfusionManager>();
+
+        if (playerEssence == null && playerHealth != null)
+            playerEssence = playerHealth.GetComponent<PlayerEssence>() ?? playerHealth.GetComponentInChildren<PlayerEssence>();
+        if (playerEssence == null)
+            playerEssence = FindFirstObjectByType<PlayerEssence>();
+
+        if (infusionManager == null || playerEssence == null)
         {
-            playerEssence.SpendEssence(150);
-            infusionManager.RemoveInfusion(inf);
-            OnPactCompleted();
+            Debug.LogWarning("[MERCADOR] InfusionManager ou PlayerEssence não encontrados para realizar cirurgia.");
+            return;
         }
-        else
+
+        // Validação: Verifique se o jogador possui o custo da cirurgia
+        if (playerEssence.GetEssence() < surgeryCost)
         {
-            Debug.LogWarning("[Mercador] Essência insuficiente para remover infusão!");
+            Debug.LogWarning($"[MERCADOR] Cancelado! Essência insuficiente para cirurgia. Custo: {surgeryCost}, Possui: {playerEssence.GetEssence()}");
+            return;
         }
+
+        // Cobrança, Remoção sem Reembolso e Recálculo da Inflação via InfusionManager
+        infusionManager.surgeryEssenceCost = surgeryCost;
+        bool success = infusionManager.RequestSurgery(item);
+        if (!success)
+        {
+            Debug.LogWarning("[MERCADOR] Falha ao processar a cirurgia no InfusionManager.");
+            return;
+        }
+
+        Debug.Log($"[MERCADOR] Cirurgia concluída para {item.data.itemName}! Atualizando painel.");
+
+        // Atualização: Chame o PopulateSurgeryList() novamente para a UI atualizar na mesma hora
+        PopulateSurgeryList();
+    }
+
+    public void OnRemoveInfusionClicked(ItemData inf)
+    {
+        if (inf == null) return;
+        RequestSurgery(new InfusedItem { data = inf, stacks = 1 });
     }
 
     // ============================================

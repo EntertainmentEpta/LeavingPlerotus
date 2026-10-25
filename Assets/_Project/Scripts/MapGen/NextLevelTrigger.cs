@@ -16,7 +16,7 @@ public class NextLevelTrigger : MonoBehaviour
             GetComponent<Collider>().enabled = false; 
 
             // Avança o round e carrega o próximo nível (NÃO reseta a run)
-            GameManager.instance.LoadNextLevel();
+            GameManager.EnsureInstance().LoadNextLevel();
         }
     }
 }

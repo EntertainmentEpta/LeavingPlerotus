@@ -128,15 +128,17 @@ MonoBehaviour:
   essencePrefab: {fileID: 1526004001283604428, guid: aac8898d50c757240944683fe67b0d7c, type: 3}
   essenceAmount: 10
   essenceVariation: 3
-  globalDropChance: 1
+  globalDropChance: 0.18
   itemAmount: 1
   lootPool:
   - itemPrefab: {fileID: 1066167381274076914, guid: 7b639c0e4681c43489f312080083bfa6, type: 3}
-    weight: 50
+    weight: 60
   - itemPrefab: {fileID: 1066167381274076914, guid: 3bf3a6a977e94db4cb2472416f907426, type: 3}
-    weight: 30
+    weight: 25
   - itemPrefab: {fileID: 1066167381274076914, guid: d2915385f60760446987c1c69ec0ff4b, type: 3}
-    weight: 20
+    weight: 10
+  - itemPrefab: {fileID: 4348939969585618732, guid: 3dce3c0fc194c1646a5342b7749aeea6, type: 3}
+    weight: 5
   spawnHeight: 0.5
   spawnRadius: 0.5
   launchForce: 3
@@ -169,6 +171,12 @@ MonoBehaviour:
   firingSoundVolume: 0.8
   impactSound: {fileID: 8300000, guid: 64d109e81035d064fa02de6c260ecdbc, type: 3}
   impactSoundVolume: 0.8
+  hitSounds:
+  - {fileID: 8300000, guid: e8539116f9064234794d6ceb26bdbc9c, type: 3}
+  hitSoundVolume: 0.7
+  dieSounds:
+  - {fileID: 8300000, guid: 2a55b85948e4f3e4f969c89def593f56, type: 3}
+  dieSoundVolume: 0.8
 --- !u!114 &2726038420584316830
 MonoBehaviour:
   m_ObjectHideFlags: 0

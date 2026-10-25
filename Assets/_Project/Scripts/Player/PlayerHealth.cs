@@ -8,14 +8,16 @@ public class PlayerHealth : MonoBehaviour
 {
     [Header("Configurações")]
     public int maxHealth = 100;
-    public int maxArmor = 300;
+    public int maxArmor = 60;
     public int currentHealth { get; private set; }
     private int currentArmor;
     public int CurrentArmor => currentArmor;
     private int cursedHealthLost = 0;
 
     [Header("Armor Regen")]
-    public float armorRegenRate = 5f;
+    public float armorRegenRate = 10f;
+    [Tooltip("Tempo em segundos sem tomar dano para a armadura começar a se regenerar")]
+    public float shieldRegenDelay = 3.5f;
     
     [Header("Invulnerability")]
     public bool isInvulnerable = false;
@@ -36,6 +38,14 @@ public class PlayerHealth : MonoBehaviour
     public TextMeshProUGUI armorText;
     public TextMeshProUGUI percentageText; // O texto de %
 
+    [Header("Mercador UI (Overlay & Sangue Escuro)")]
+    public Image mercadorHealthFillImage; // Mercador_HealthFill (Filled)
+    public GameObject mercadorBarObj;      // MercadorBar (Moldura com chapéu/sombras)
+    private Coroutine mercadorAnimationCoroutine;
+    private Vector3 mercadorBarOriginalScale = Vector3.one;
+    private Vector3 healthBarOriginalPos = Vector3.zero;
+    private Transform healthBarContainerTransform;
+
     /// <summary>
     /// Evento estático desacoplado disparado quando o jogador recebe dano.
     /// Parâmetros: (int danoRecebido, GameObject atacante)
@@ -52,6 +62,7 @@ public class PlayerHealth : MonoBehaviour
     [Header("Efeitos dos Pactos do Mercador")]
     [HideInInspector] public bool canHeal = true;
     [HideInInspector] public bool hasDoubleLoot = false;
+    [HideInInspector] public bool hasGreedPact = false;
     [HideInInspector] public bool hasChaosSymphony = false;
     [HideInInspector] public bool hasVampirism = false;
     [HideInInspector] public bool hasNecrosis = false;
@@ -65,6 +76,7 @@ public class PlayerHealth : MonoBehaviour
     public bool isStunned { get; private set; } = false;
     private float stunImmunityTimer = 0f;
     private float stunImmunityDuration = 2f; // Imunidade após stun
+    private StunVFX stunVFX;
 
     public bool isDead { get; private set; } = false;
     private int playerLayer;
@@ -85,7 +97,7 @@ public class PlayerHealth : MonoBehaviour
     private AudioSource heartbeatSource;
     private bool isHeartbeatPlaying = false;
 
-    public static bool shouldPlayWakeUpAnimation = false;
+    public static bool shouldPlayWakeUpAnimation = true;
 
     void Start()
     {
@@ -235,6 +247,30 @@ public class PlayerHealth : MonoBehaviour
             GameObject textPercent = GameObject.Find("Text_Percentage");
             if (textPercent != null) percentageText = textPercent.GetComponent<TextMeshProUGUI>();
 
+            // Busca os elementos do Mercador mesmo se estiverem inativos no HealthBar_Container
+            GameObject healthContainer = GameObject.Find("HealthBar_Container");
+            if (healthContainer != null)
+            {
+                healthBarContainerTransform = healthContainer.transform;
+                healthBarOriginalPos = healthBarContainerTransform.localPosition;
+
+                Transform mFill = null;
+                Transform mBar = null;
+                foreach (Transform t in healthContainer.GetComponentsInChildren<Transform>(true))
+                {
+                    if (t.name == "Mercador_HealthFill") mFill = t;
+                    else if (t.name == "MercadorBar") mBar = t;
+                }
+
+                if (mFill != null) mercadorHealthFillImage = mFill.GetComponent<Image>();
+                if (mBar != null)
+                {
+                    mercadorBarObj = mBar.gameObject;
+                    mercadorBarOriginalScale = mBar.localScale;
+                    if (mercadorBarOriginalScale == Vector3.zero) mercadorBarOriginalScale = Vector3.one;
+                }
+            }
+
             if (playerMovement == null) playerMovement = GetComponent<PlayerM>();
             if (playerAnimator == null) playerAnimator = GetComponentInChildren<Animator>();
             if (playerAttack == null) playerAttack = GetComponent<PrimaryAttackKnife>();
@@ -283,6 +319,8 @@ public class PlayerHealth : MonoBehaviour
     void Die()
     {
         isDead = true;
+        isStunned = false;
+        if (stunVFX != null) stunVFX.HideStun();
         if (playerMovement != null) playerMovement.enabled = false;
         if (playerAttack != null) playerAttack.enabled = false;
         gameObject.layer = LayerMask.NameToLayer("DeadBody");
@@ -360,6 +398,8 @@ public class PlayerHealth : MonoBehaviour
             RunStatsManager.Instance.StopRunTracking();
         }
 
+        shouldPlayWakeUpAnimation = true;
+
         if (DeathScreenUI.Instance != null)
         {
             DeathScreenUI.Instance.ShowDeathScreen();
@@ -370,18 +410,213 @@ public class PlayerHealth : MonoBehaviour
     public void SetPactCorrupted(bool corrupted)
     {
         hasPactCorrupted = corrupted;
+        if (corrupted)
+        {
+            TriggerMercadorPactAnimation();
+        }
+        else
+        {
+            ResetMercadorPactUI();
+        }
         UpdateHealthBar();
         Debug.Log($"🩸 [BLOOD PACT] Barra de Vida alterada para Sangue Escuro Corrompido: {corrupted}");
     }
 
-    void FullHeal()
+    /// <summary>
+    /// Dispara a animação dramática das garras sombrias e sangue corrompido do Mercador na barra de vida.
+    /// </summary>
+    public void TriggerMercadorPactAnimation()
+    {
+        hasPactCorrupted = true;
+        if (mercadorAnimationCoroutine != null) StopCoroutine(mercadorAnimationCoroutine);
+        mercadorAnimationCoroutine = StartCoroutine(AnimateMercadorAppearance());
+    }
+
+    /// <summary>
+    /// Reseta o visual do Mercador ao renascer ou curar.
+    /// </summary>
+    public void ResetMercadorPactUI()
+    {
+        if (mercadorAnimationCoroutine != null)
+        {
+            StopCoroutine(mercadorAnimationCoroutine);
+            mercadorAnimationCoroutine = null;
+        }
+
+        if (mercadorBarObj != null)
+        {
+            mercadorBarObj.transform.localScale = mercadorBarOriginalScale;
+            mercadorBarObj.SetActive(false);
+        }
+
+        if (mercadorHealthFillImage != null)
+        {
+            mercadorHealthFillImage.gameObject.SetActive(false);
+        }
+
+        if (healthBarContainerTransform != null && healthBarOriginalPos != Vector3.zero)
+        {
+            healthBarContainerTransform.localPosition = healthBarOriginalPos;
+        }
+
+        hasPactCorrupted = false;
+        UpdateHealthBar();
+    }
+
+    private IEnumerator AnimateMercadorAppearance()
+    {
+        if (mercadorBarObj == null || mercadorHealthFillImage == null || healthBarContainerTransform == null)
+        {
+            FindUIReferences();
+        }
+
+        if (mercadorHealthFillImage != null)
+        {
+            mercadorHealthFillImage.gameObject.SetActive(true);
+            mercadorHealthFillImage.fillAmount = (float)currentHealth / maxHealth;
+        }
+
+        if (mercadorBarObj != null)
+        {
+            mercadorBarObj.SetActive(true);
+        }
+
+        Image mercadorBarImg = mercadorBarObj != null ? mercadorBarObj.GetComponent<Image>() : null;
+        CanvasGroup mercadorBarGroup = mercadorBarObj != null ? mercadorBarObj.GetComponent<CanvasGroup>() : null;
+
+        // Efeito de "Garras se Fechando" / "Abocanhar":
+        // Começa ligeiramente maior (1.30x) e translúcido, e fecha rápido com snap seco
+        float duration = 0.35f;
+        float elapsed = 0f;
+        Vector3 punchStartScale = mercadorBarOriginalScale * 1.30f;
+
+        if (mercadorHealthFillImage != null)
+        {
+            Color c = mercadorHealthFillImage.color;
+            c.a = 0f;
+            mercadorHealthFillImage.color = c;
+        }
+
+        if (mercadorBarObj != null)
+        {
+            mercadorBarObj.transform.localScale = punchStartScale;
+            if (mercadorBarImg != null)
+            {
+                Color c = mercadorBarImg.color;
+                c.a = 0f;
+                mercadorBarImg.color = c;
+            }
+            else if (mercadorBarGroup != null)
+            {
+                mercadorBarGroup.alpha = 0f;
+            }
+        }
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+
+            // Ease Out Back suave (sensação elástica de garras estalando)
+            float tScale = 1f - Mathf.Pow(1f - t, 3f);
+
+            if (mercadorHealthFillImage != null)
+            {
+                Color c = mercadorHealthFillImage.color;
+                c.a = Mathf.Lerp(0f, 1f, t * 1.5f);
+                mercadorHealthFillImage.color = c;
+                mercadorHealthFillImage.fillAmount = (float)currentHealth / maxHealth;
+            }
+
+            if (mercadorBarObj != null)
+            {
+                mercadorBarObj.transform.localScale = Vector3.LerpUnclamped(punchStartScale, mercadorBarOriginalScale, tScale);
+
+                if (mercadorBarImg != null)
+                {
+                    Color c = mercadorBarImg.color;
+                    c.a = Mathf.Lerp(0f, 1f, t * 2f);
+                    mercadorBarImg.color = c;
+                }
+                else if (mercadorBarGroup != null)
+                {
+                    mercadorBarGroup.alpha = Mathf.Lerp(0f, 1f, t * 2f);
+                }
+            }
+
+            yield return null;
+        }
+
+        // Garante valores finais
+        if (mercadorBarObj != null)
+        {
+            mercadorBarObj.transform.localScale = mercadorBarOriginalScale;
+            if (mercadorBarImg != null)
+            {
+                Color c = mercadorBarImg.color; c.a = 1f; mercadorBarImg.color = c;
+            }
+            else if (mercadorBarGroup != null)
+            {
+                mercadorBarGroup.alpha = 1f;
+            }
+        }
+        if (mercadorHealthFillImage != null)
+        {
+            Color c = mercadorHealthFillImage.color; c.a = 1f; mercadorHealthFillImage.color = c;
+        }
+
+        // Micro-trepidação na barra (Screen Shake sutil na HealthBar para sentir o impacto)
+        if (healthBarContainerTransform != null)
+        {
+            float shakeDuration = 0.18f;
+            float shakeElapsed = 0f;
+            float shakeMagnitude = 3.5f;
+
+            while (shakeElapsed < shakeDuration)
+            {
+                shakeElapsed += Time.unscaledDeltaTime;
+                float damping = 1f - (shakeElapsed / shakeDuration);
+                Vector3 offset = new Vector3(
+                    Random.Range(-1f, 1f) * shakeMagnitude * damping,
+                    Random.Range(-1f, 1f) * shakeMagnitude * damping,
+                    0f
+                );
+                healthBarContainerTransform.localPosition = healthBarOriginalPos + offset;
+                yield return null;
+            }
+            healthBarContainerTransform.localPosition = healthBarOriginalPos;
+        }
+
+        mercadorAnimationCoroutine = null;
+        Debug.Log("🩸 [PACTO MERCADOR] Animação de garras e sangue corrompido concluída com sucesso!");
+    }
+
+    public void FullHeal()
     {
         hasPactCorrupted = false;
         canRegenArmor = true;
         cursedHealthLost = 0;
+        hasGreedPact = false;
+        hasDoubleLoot = false;
+        hasChaosSymphony = false;
+        hasVampirism = false;
+        hasNecrosis = false;
+        hasSelfDamageOnAttack = false;
+        isKnockbackImmune = false;
+        canHeal = true;
+        damageMultiplier = 1.0f;
+        damageTakenMultiplier = 1.0f;
         currentHealth = maxHealth;
         currentArmor = maxArmor;
+        ResetMercadorPactUI();
         UpdateHealthBar();
+        UpdateArmorBar();
+    }
+
+    public void RestoreFullArmor()
+    {
+        if (isDead || maxArmor <= 0) return;
+        currentArmor = maxArmor;
         UpdateArmorBar();
     }
     
@@ -391,6 +626,36 @@ public class PlayerHealth : MonoBehaviour
         currentArmor += amount;
         if (currentArmor > maxArmor) currentArmor = maxArmor;
         UpdateArmorBar();
+    }
+
+    private Coroutine adrenalineCoroutine = null;
+
+    /// <summary>
+    /// Bônus da Sinfonia do Caos: ao abater um inimigo Elite, o jogador ganha um surto de velocidade de movimento e ataque por alguns segundos.
+    /// </summary>
+    public void TriggerEliteKillAdrenaline(float duration = 5f)
+    {
+        if (adrenalineCoroutine != null)
+        {
+            StopCoroutine(adrenalineCoroutine);
+        }
+        adrenalineCoroutine = StartCoroutine(EliteAdrenalineRoutine(duration));
+    }
+
+    private IEnumerator EliteAdrenalineRoutine(float duration)
+    {
+        PlayerAttributesDefensive defStats = GetComponent<PlayerAttributesDefensive>() ?? GetComponentInChildren<PlayerAttributesDefensive>();
+        PlayerAttributesOffensive offStats = GetComponent<PlayerAttributesOffensive>() ?? GetComponentInChildren<PlayerAttributesOffensive>();
+
+        if (defStats != null) defStats.speedMultiplier *= 1.15f;
+        if (offStats != null) offStats.attackSpeedMelee *= 1.20f;
+
+        yield return new WaitForSeconds(duration);
+
+        if (defStats != null) defStats.speedMultiplier /= 1.15f;
+        if (offStats != null) offStats.attackSpeedMelee /= 1.20f;
+
+        adrenalineCoroutine = null;
     }
 
     private void UpdateHealthBar()
@@ -405,6 +670,11 @@ public class PlayerHealth : MonoBehaviour
 
             healthFillImage.fillAmount = (float)currentHealth / maxHealth;
             healthFillImage.color = hasPactCorrupted ? darkPactHealthColor : originalHealthFillColor;
+        }
+
+        if (mercadorHealthFillImage != null && mercadorHealthFillImage.gameObject.activeSelf)
+        {
+            mercadorHealthFillImage.fillAmount = (float)currentHealth / maxHealth;
         }
 
         if (percentageText != null)
@@ -471,7 +741,7 @@ public class PlayerHealth : MonoBehaviour
                 // Cura o player com o novo bônus e garante que currentHealth respeita o novo limite
                 currentHealth = Mathf.Clamp(currentHealth + (maxHealth - oldHealth), 1, maxHealth);
                 UpdateHealthBar();
-                Debug.Log($"[PLAYER HEALTH] Vida Maxima aumentada: {oldHealth} -> {maxHealth}");
+                Debug.Log($"❤️ [PLAYER HEALTH] Vida Maxima aumentada: {oldHealth} -> {maxHealth} (+{maxHealth - oldHealth}) | Atual: {currentHealth}/{maxHealth}");
                 break;
 
             case "maxarmor":
@@ -481,7 +751,7 @@ public class PlayerHealth : MonoBehaviour
                 
                 currentArmor = Mathf.Clamp(currentArmor + (maxArmor - oldArmor), 0, maxArmor);
                 UpdateArmorBar();
-                Debug.Log($"[PLAYER HEALTH] Armadura Maxima aumentada: {oldArmor} -> {maxArmor}");
+                Debug.Log($"🛡️ [PLAYER HEALTH] Armadura Maxima aumentada: {oldArmor} -> {maxArmor} (+{maxArmor - oldArmor}) | Atual: {currentArmor}/{maxArmor}");
                 break;
 
             default:
@@ -504,6 +774,11 @@ public class PlayerHealth : MonoBehaviour
         // Verifica se está em dash (não pode ser stunado durante dash)
         DashM dashScript = GetComponent<DashM>();
         if (dashScript != null && dashScript.isDashing) return;
+
+        // Busca o StunVFX (lazy — garante compatibilidade mesmo sem o componente)
+        if (stunVFX == null) stunVFX = GetComponent<StunVFX>();
+        if (stunVFX == null) stunVFX = gameObject.AddComponent<StunVFX>();
+        if (stunVFX != null) stunVFX.ShowStun(duration);
 
         StartCoroutine(StunCoroutine(duration));
     }
@@ -540,6 +815,9 @@ public class PlayerHealth : MonoBehaviour
         // Ativa imunidade temporária
         stunImmunityTimer = stunImmunityDuration;
 
+        // Encerra imediatamente os efeitos visuais de stun (ícone e barra)
+        if (stunVFX != null) stunVFX.HideStun();
+
         Debug.Log("Player recuperou do stun. Imunidade por " + stunImmunityDuration + "s");
     }
     
@@ -553,8 +831,8 @@ public class PlayerHealth : MonoBehaviour
             stunImmunityTimer -= Time.deltaTime;
         }
         
-        // === REGENERAÇÃO DE ARMADURA ===
-        if (!isDead && maxArmor > 0 && canRegenArmor && currentArmor < maxArmor && playerAttributes != null)
+        // === REGENERAÇÃO DE ARMADURA (com Shield Delay pós-dano) ===
+        if (!isDead && maxArmor > 0 && canRegenArmor && currentArmor < maxArmor && playerAttributes != null && (Time.time - lastDamageTime >= shieldRegenDelay))
         {
             armorRegenAccumulator += armorRegenRate * playerAttributes.armorRegen * Time.deltaTime;
             if (armorRegenAccumulator >= 1.0f)
@@ -755,11 +1033,24 @@ public class PlayerHealth : MonoBehaviour
         // Dispara modelo ficando levemente vermelho
         TriggerPlayerRedFlash();
 
+        // Escalonamento de Dano Inimigo (+3% por sala avançada conforme GDD / Hp_Dano_Inimigos.pdf)
+        if (RunManager.instance != null && RunManager.instance.currentRoomNumber > 1 && attacker != null)
+        {
+            float roomDamageMultiplier = 1f + 0.03f * (RunManager.instance.currentRoomNumber - 1);
+            damage = Mathf.RoundToInt(damage * roomDamageMultiplier);
+        }
+
         // Se estivermos no modo Endless e o level for maior que 3, aumenta o dano recebido pelo jogador
         if (RunManager.instance != null && RunManager.instance.isEndlessMode && RunManager.instance.currentLevel > 3)
         {
             float endlessDamageMultiplier = 1f + (RunManager.instance.currentLevel - 3) * 0.15f; // +15% de dano por level acima do 3
             damage = Mathf.RoundToInt(damage * endlessDamageMultiplier);
+        }
+
+        // Resistência a Danos de Ácido / Poças / Veneno (Filtro Químico do Robozinho)
+        if (EquipmentManager.Instance != null && EquipmentManager.Instance.HasAcidPoisonResist && attacker == null)
+        {
+            damage = Mathf.RoundToInt(damage * 0.60f);
         }
         
         int finalDamage = Mathf.RoundToInt(damage * damageTakenMultiplier);

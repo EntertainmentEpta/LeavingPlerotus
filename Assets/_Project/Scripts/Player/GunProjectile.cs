@@ -9,21 +9,57 @@ public class GunProjectile : MonoBehaviour
 
     private int damage;
     private int maxTargets;
+    private int bouncesRemaining;
+    private float criticalChance;
+    private float criticalMultiplier;
+    private float knockback;
+    private float bounceChance;
+    private float slowOnHit;
+    private bool homingEnabled;
+    private float homingDetectionRadius;
+    private float homingTurnSpeed;
+    private float homingTargetRefreshInterval;
+    private float nextHomingTargetScanTime;
+    private DummyHealth homingTarget;
     private float elapsedTime;
     private Transform ownerRoot;
     private readonly HashSet<DummyHealth> hitTargets = new HashSet<DummyHealth>();
 
-    public void Initialize(int projectileDamage, float range, int piercing, Transform owner)
+    public void Initialize(int projectileDamage, float range, int piercing, Transform owner,
+        float critChance, float critMultiplier, float projectileKnockback,
+        float projectileBounceChance, int projectileBounceCount, float projectileSlowOnHit)
+    {
+        Initialize(projectileDamage, range, piercing, owner, critChance, critMultiplier,
+            projectileKnockback, projectileBounceChance, projectileBounceCount, projectileSlowOnHit,
+            false, 0f, 0f, 0f);
+    }
+
+    public void Initialize(int projectileDamage, float range, int piercing, Transform owner,
+        float critChance, float critMultiplier, float projectileKnockback,
+        float projectileBounceChance, int projectileBounceCount, float projectileSlowOnHit,
+        bool enableHoming, float detectionRadius, float turnSpeed, float targetRefreshInterval)
     {
         damage = Mathf.Max(1, projectileDamage);
         lifetime = speed > 0f ? Mathf.Max(0.1f, range / speed) : lifetime;
         maxTargets = Mathf.Max(1, piercing + 1);
+        criticalChance = Mathf.Clamp01(critChance / 100f);
+        criticalMultiplier = Mathf.Max(1f, critMultiplier);
+        knockback = Mathf.Max(0f, projectileKnockback);
+        bounceChance = Mathf.Clamp01(projectileBounceChance / 100f);
+        bouncesRemaining = Mathf.Max(0, projectileBounceCount);
+        slowOnHit = Mathf.Clamp01(projectileSlowOnHit);
+        homingEnabled = enableHoming;
+        homingDetectionRadius = Mathf.Max(0f, detectionRadius);
+        homingTurnSpeed = Mathf.Max(0f, turnSpeed);
+        homingTargetRefreshInterval = Mathf.Max(0.02f, targetRefreshInterval);
+        nextHomingTargetScanTime = Time.time;
         ownerRoot = owner != null ? owner.root : null;
         elapsedTime = 0f;
     }
 
     private void Update()
     {
+        UpdateHoming();
         transform.position += transform.forward * speed * Time.deltaTime;
         elapsedTime += Time.deltaTime;
 
@@ -31,6 +67,56 @@ public class GunProjectile : MonoBehaviour
         {
             Destroy(gameObject);
         }
+    }
+
+    private void UpdateHoming()
+    {
+        if (!homingEnabled || homingDetectionRadius <= 0f || homingTurnSpeed <= 0f) return;
+
+        if (Time.time >= nextHomingTargetScanTime)
+        {
+            FindNearestHomingTarget();
+            nextHomingTargetScanTime = Time.time + homingTargetRefreshInterval;
+        }
+
+        if (!IsValidHomingTarget(homingTarget)) return;
+
+        Collider targetCol = homingTarget.GetComponentInChildren<Collider>();
+        Vector3 targetPos = targetCol != null ? targetCol.bounds.center : homingTarget.transform.position + Vector3.up * 0.9f;
+        Vector3 directionToTarget = targetPos - transform.position;
+        if (directionToTarget.sqrMagnitude <= 0.0001f) return;
+
+        Vector3 steeredDirection = Vector3.RotateTowards(
+            transform.forward,
+            directionToTarget.normalized,
+            homingTurnSpeed * Mathf.Deg2Rad * Time.deltaTime,
+            0f);
+        if (steeredDirection.sqrMagnitude > 0.0001f)
+            transform.rotation = Quaternion.LookRotation(steeredDirection, Vector3.up);
+    }
+
+    private void FindNearestHomingTarget()
+    {
+        homingTarget = null;
+        float nearestDistanceSquared = homingDetectionRadius * homingDetectionRadius;
+        DummyHealth[] candidates = FindObjectsByType<DummyHealth>(FindObjectsSortMode.None);
+
+        foreach (DummyHealth candidate in candidates)
+        {
+            if (!IsValidHomingTarget(candidate)) continue;
+
+            float distanceSquared = (candidate.transform.position - transform.position).sqrMagnitude;
+            if (distanceSquared >= nearestDistanceSquared) continue;
+
+            nearestDistanceSquared = distanceSquared;
+            homingTarget = candidate;
+        }
+    }
+
+    private bool IsValidHomingTarget(DummyHealth candidate)
+    {
+        if (candidate == null || candidate.CurrentHealth <= 0 || hitTargets.Contains(candidate)) return false;
+        return ownerRoot == null || candidate.transform.root != ownerRoot;
     }
 
     private void OnTriggerEnter(Collider other)
@@ -52,11 +138,64 @@ public class GunProjectile : MonoBehaviour
         if (target == null || hitTargets.Contains(target)) return;
 
         hitTargets.Add(target);
-        target.TakeDamage(damage, false);
+        bool isCritical = criticalChance >= 1f || Random.value < criticalChance;
+        int hitDamage = isCritical ? Mathf.Max(1, Mathf.RoundToInt(damage * criticalMultiplier)) : damage;
+        target.TakeDamage(hitDamage, isCritical);
+        ApplyKnockback(target);
+        if (slowOnHit > 0f) target.ApplySlow(slowOnHit, 2f);
+
+        // Efeitos T4 on-hit (ex: Poison do Espinho Venenoso T4)
+        if (target.CurrentHealth > 0)
+        {
+            Tier4EffectManager t4 = FindFirstObjectByType<Tier4EffectManager>();
+            if (t4 != null) t4.ApplyOnHitEffects(target.gameObject);
+        }
+
+        if (TryBounce()) return;
 
         if (hitTargets.Count >= maxTargets)
         {
             Destroy(gameObject);
         }
+    }
+
+    private void ApplyKnockback(DummyHealth target)
+    {
+        if (knockback <= 0f) return;
+
+        Rigidbody targetRigidbody = target.GetComponent<Rigidbody>() ?? target.GetComponentInParent<Rigidbody>();
+        if (targetRigidbody == null || targetRigidbody.isKinematic) return;
+
+        Vector3 direction = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
+        targetRigidbody.AddForce(direction * (5f * knockback), ForceMode.Impulse);
+    }
+
+    private bool TryBounce()
+    {
+        if (bouncesRemaining <= 0 || Random.value >= bounceChance) return false;
+
+        DummyHealth nearestTarget = null;
+        float nearestDistance = float.PositiveInfinity;
+        DummyHealth[] targets = FindObjectsByType<DummyHealth>(FindObjectsSortMode.None);
+        foreach (DummyHealth candidate in targets)
+        {
+            if (candidate == null || candidate.CurrentHealth <= 0 || hitTargets.Contains(candidate)) continue;
+            if (ownerRoot != null && candidate.transform.root == ownerRoot) continue;
+
+            float distance = (candidate.transform.position - transform.position).sqrMagnitude;
+            if (distance >= nearestDistance) continue;
+
+            nearestDistance = distance;
+            nearestTarget = candidate;
+        }
+
+        if (nearestTarget == null) return false;
+
+        Vector3 directionToTarget = nearestTarget.transform.position - transform.position;
+        if (directionToTarget.sqrMagnitude <= 0f) return false;
+
+        bouncesRemaining--;
+        transform.forward = directionToTarget.normalized;
+        return true;
     }
 }

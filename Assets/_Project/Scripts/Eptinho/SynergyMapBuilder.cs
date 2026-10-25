@@ -3,28 +3,19 @@ using UnityEngine.UI;
 using TMPro;
 using System.Collections.Generic;
 
+/// <summary>
+/// Construtor de nós e constelação de sinergias para exibição dentro do Oráculo Eptinho (Aba 3).
+/// Sincronizado integralmente com o SynergyDatabase e SynergyCatalogManager.
+/// </summary>
 public class SynergyMapBuilder : MonoBehaviour
 {
     private RectTransform contentRect;
-    
-    // Classes de Dados
-    public class SynergyNode
-    {
-        public string id;
-        public string name;
-        public int tier;
-        public Vector2 position;
-        public List<string> parents = new List<string>();
-    }
-
-    private List<SynergyNode> nodes = new List<SynergyNode>();
+    private static Sprite _cachedCircle;
 
     private void Awake()
     {
         contentRect = GetComponent<RectTransform>();
         if (contentRect == null) contentRect = gameObject.AddComponent<RectTransform>();
-
-        LoadSynergyData();
     }
 
     private void OnEnable()
@@ -32,53 +23,20 @@ public class SynergyMapBuilder : MonoBehaviour
         BuildVisualMap();
     }
 
-    private void LoadSynergyData()
-    {
-        nodes.Clear();
-
-        // T1
-        nodes.Add(new SynergyNode { id = "golem_1", name = "Golem T1", tier = 1, position = new Vector2(-400, 200) });
-        nodes.Add(new SynergyNode { id = "aranha_1", name = "Aranha T1", tier = 1, position = new Vector2(-400, 0) });
-        nodes.Add(new SynergyNode { id = "goblin_1", name = "Goblin T1", tier = 1, position = new Vector2(-400, -200) });
-
-        // T2
-        nodes.Add(new SynergyNode { id = "golem_2", name = "Golem T2", tier = 2, position = new Vector2(-150, 200), parents = new List<string> { "golem_1" } });
-        nodes.Add(new SynergyNode { id = "aranha_2", name = "Aranha T2", tier = 2, position = new Vector2(-150, 0), parents = new List<string> { "aranha_1" } });
-        nodes.Add(new SynergyNode { id = "goblin_2", name = "Goblin T2", tier = 2, position = new Vector2(-150, -200), parents = new List<string> { "goblin_1" } });
-
-        // T3
-        nodes.Add(new SynergyNode { id = "tank_3", name = "Tank T3", tier = 3, position = new Vector2(150, 100), parents = new List<string> { "golem_2", "aranha_2" } });
-        nodes.Add(new SynergyNode { id = "agil_3", name = "Agil T3", tier = 3, position = new Vector2(150, -100), parents = new List<string> { "aranha_2", "goblin_2" } });
-
-        // T4
-        nodes.Add(new SynergyNode { id = "sharpblur_4", name = "SharpBlur T4\n(Explosive Dash)", tier = 4, position = new Vector2(400, 0), parents = new List<string> { "tank_3", "agil_3" } });
-    }
-
-    private bool IsNodeUnlocked(SynergyNode node, bool hasUnlockAll)
-    {
-        if (hasUnlockAll) return true;
-        
-        // Verifica bestiario
-        if (node.id.Contains("golem") && SaveManager.instance.CachedData.inimigosDescobertos.Contains("Golem")) return true;
-        if (node.id.Contains("aranha") && SaveManager.instance.CachedData.inimigosDescobertos.Contains("Aranha")) return true;
-        if (node.id.Contains("goblin") && SaveManager.instance.CachedData.inimigosDescobertos.Contains("Goblin")) return true;
-        if (node.id.Contains("tank_3") || node.id.Contains("agil_3") || node.id.Contains("sharpblur_4")) return false; // Hide T3/T4 until implemented
-        
-        return false;
-    }
-
     private void BuildVisualMap()
     {
+        // Limpa filhos existentes
         foreach (Transform child in transform) { Destroy(child.gameObject); }
 
         GameObject viewport = new GameObject("Viewport");
         viewport.transform.SetParent(transform, false);
         RectTransform vpRect = viewport.AddComponent<RectTransform>();
-        vpRect.anchorMin = Vector2.zero; vpRect.anchorMax = Vector2.one;
+        vpRect.anchorMin = Vector2.zero;
+        vpRect.anchorMax = Vector2.one;
         vpRect.sizeDelta = Vector2.zero;
         
         Image vpBg = viewport.AddComponent<Image>();
-        vpBg.color = new Color(0.08f, 0.08f, 0.12f, 1f);
+        vpBg.color = new Color(0.04f, 0.05f, 0.08f, 1f);
         viewport.AddComponent<Mask>().showMaskGraphic = true;
 
         GameObject mapContainer = new GameObject("MapContent");
@@ -86,7 +44,7 @@ public class SynergyMapBuilder : MonoBehaviour
         RectTransform mapRect = mapContainer.AddComponent<RectTransform>();
         mapRect.anchorMin = new Vector2(0.5f, 0.5f);
         mapRect.anchorMax = new Vector2(0.5f, 0.5f);
-        mapRect.sizeDelta = new Vector2(1500f, 1000f);
+        mapRect.sizeDelta = new Vector2(1600f, 1200f);
         mapRect.anchoredPosition = Vector2.zero;
 
         ScrollRect scroll = gameObject.GetComponent<ScrollRect>();
@@ -99,94 +57,134 @@ public class SynergyMapBuilder : MonoBehaviour
         scroll.movementType = ScrollRect.MovementType.Elastic;
         scroll.inertia = true;
 
-        Sprite circleSprite = null;
-#if UNITY_EDITOR
-        circleSprite = UnityEditor.AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
-#endif
+        Sprite circleSprite = GetCircleSprite();
+        var recipes = SynergyDatabase.AllRecipes;
 
-        bool hasUnlockAll = (SaveManager.instance != null && SaveManager.instance.CachedData != null && SaveManager.instance.CachedData.inimigosDescobertos.Count > 3);
-
-        // 1. Linhas (somente entre ns desbloqueados)
-        foreach (var node in nodes)
+        Dictionary<string, bool> discMap = new Dictionary<string, bool>();
+        foreach (var r in recipes)
         {
-            if (!IsNodeUnlocked(node, hasUnlockAll)) continue;
-
-            foreach (var parentId in node.parents)
-            {
-                SynergyNode parentNode = nodes.Find(n => n.id == parentId);
-                if (parentNode != null && IsNodeUnlocked(parentNode, hasUnlockAll))
-                {
-                    DrawLine(mapContainer.transform, parentNode.position, node.position);
-                }
-            }
+            discMap[r.id] = SynergyCatalogManager.Instance != null && SynergyCatalogManager.Instance.IsNodeDiscovered(r.id);
         }
 
-        // 2. Ns (somente os desbloqueados)
-        foreach (var node in nodes)
+        // 1. Linhas entre os nós
+        for (int i = 0; i < 8 && i < recipes.Count; i++)
         {
-            if (!IsNodeUnlocked(node, hasUnlockAll)) continue;
-            
-            DrawNode(mapContainer.transform, node, circleSprite);
+            int nextIdx = (i + 1) % 8;
+            DrawLine(mapContainer.transform, recipes[i].mapPosition, recipes[nextIdx].mapPosition,
+                     discMap[recipes[i].id] && discMap[recipes[nextIdx].id]);
+        }
+
+        if (recipes.Count >= 10)
+        {
+            DrawLine(mapContainer.transform, recipes[8].mapPosition, recipes[9].mapPosition,
+                     discMap[recipes[8].id] && discMap[recipes[9].id]);
+        }
+
+        // 2. Nós
+        for (int i = 0; i < recipes.Count; i++)
+        {
+            var r = recipes[i];
+            bool isDisc = discMap[r.id];
+            DrawNode(mapContainer.transform, r, i + 1, isDisc, circleSprite);
         }
     }
 
-    private void DrawLine(Transform parent, Vector2 posA, Vector2 posB)
+    private void DrawLine(Transform parent, Vector2 posA, Vector2 posB, bool bothDiscovered)
     {
         GameObject lineObj = new GameObject("Line");
         lineObj.transform.SetParent(parent, false);
         Image img = lineObj.AddComponent<Image>();
-        img.color = new Color(0.5f, 0.3f, 0.8f, 0.4f); // Roxo translcido
+        img.color = bothDiscovered
+            ? new Color(0.2f, 0.95f, 0.9f, 0.7f)
+            : new Color(0.35f, 0.45f, 0.65f, 0.2f);
 
         RectTransform rect = lineObj.GetComponent<RectTransform>();
         Vector2 dir = (posB - posA).normalized;
         float distance = Vector2.Distance(posA, posB);
         
-        rect.sizeDelta = new Vector2(distance, 6f);
+        rect.sizeDelta = new Vector2(distance, bothDiscovered ? 4f : 2f);
         rect.anchoredPosition = posA + dir * distance * 0.5f;
         
         float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
         rect.localRotation = Quaternion.Euler(0, 0, angle);
     }
 
-    private void DrawNode(Transform parent, SynergyNode node, Sprite circleSprite)
+    private void DrawNode(Transform parent, SynergyRecipe recipe, int index, bool isDiscovered, Sprite circleSprite)
     {
-        GameObject nodeObj = new GameObject("Node_" + node.name);
+        GameObject nodeObj = new GameObject("Node_" + recipe.name);
         nodeObj.transform.SetParent(parent, false);
         
         Image img = nodeObj.AddComponent<Image>();
         if (circleSprite != null) img.sprite = circleSprite;
         
-        // Cores Bonitas
-        if (node.tier == 1) img.color = new Color(0.7f, 0.7f, 0.7f); // Prata
-        else if (node.tier == 2) img.color = new Color(0.2f, 0.8f, 0.3f); // Verde
-        else if (node.tier == 3) img.color = new Color(0.2f, 0.5f, 1.0f); // Azul
-        else img.color = new Color(1f, 0.84f, 0f); // Dourado T4
+        img.color = isDiscovered
+            ? recipe.themeColor
+            : new Color(0.12f, 0.15f, 0.22f, 0.95f);
 
         RectTransform rect = nodeObj.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(70f, 70f); // Bolas maiores!
-        rect.anchoredPosition = node.position;
+        float size = (index >= 9) ? 85f : 70f;
+        rect.sizeDelta = new Vector2(size, size);
+        rect.anchoredPosition = recipe.mapPosition;
 
-        // Efeito de Borda brilhante
+        // Borda
         Outline outline = nodeObj.AddComponent<Outline>();
-        outline.effectColor = new Color(0, 0, 0, 0.5f);
-        outline.effectDistance = new Vector2(2, -2);
+        outline.effectColor = isDiscovered ? new Color(1f, 1f, 1f, 0.5f) : new Color(0.2f, 0.3f, 0.4f, 0.4f);
+        outline.effectDistance = new Vector2(1.5f, -1.5f);
 
-        // Texto do N
+        // Texto com número romano ou ?
+        GameObject glyphObj = new GameObject("Glyph");
+        glyphObj.transform.SetParent(nodeObj.transform, false);
+        TextMeshProUGUI glyph = glyphObj.AddComponent<TextMeshProUGUI>();
+        glyph.text = isDiscovered ? index.ToString() : "?";
+        glyph.fontSize = 22f;
+        glyph.fontStyle = FontStyles.Bold;
+        glyph.alignment = TextAlignmentOptions.Center;
+        glyph.color = isDiscovered ? new Color(0.05f, 0.05f, 0.1f, 0.95f) : new Color(0.5f, 0.6f, 0.7f, 0.8f);
+
+        RectTransform gRect = glyphObj.GetComponent<RectTransform>();
+        gRect.anchorMin = Vector2.zero; gRect.anchorMax = Vector2.one;
+        gRect.sizeDelta = Vector2.zero;
+
+        // Rótulo abaixo da bolinha
         GameObject txtObj = new GameObject("Text");
         txtObj.transform.SetParent(nodeObj.transform, false);
         TextMeshProUGUI txt = txtObj.AddComponent<TextMeshProUGUI>();
         
-        txt.text = node.name;
-        txt.fontSize = 18f;
+        txt.text = isDiscovered ? recipe.name : "[ ? ? ? ]";
+        txt.fontSize = 13f;
         txt.alignment = TextAlignmentOptions.Center;
-        txt.color = Color.white;
+        txt.color = isDiscovered ? new Color(0.9f, 0.95f, 1f) : new Color(0.45f, 0.5f, 0.6f);
         txt.fontStyle = FontStyles.Bold;
         
-        // Sombra no texto
-        txtObj.AddComponent<Shadow>().effectColor = Color.black;
-        
         RectTransform txtRect = txtObj.GetComponent<RectTransform>();
-        txtRect.sizeDelta = new Vector2(200f, 40f);
-        txtRect.anchoredPosition = new Vector2(0, -60f); // Texto fica debaixo da bolinha
+        txtRect.sizeDelta = new Vector2(220f, 30f);
+        txtRect.anchoredPosition = new Vector2(0, -48f);
+    }
+
+    private static Sprite GetCircleSprite()
+    {
+        if (_cachedCircle != null) return _cachedCircle;
+
+        int size = 64;
+        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        float center = size / 2f;
+        float radius = center - 1.5f;
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dist = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
+                if (dist < radius - 1f)
+                    tex.SetPixel(x, y, Color.white);
+                else if (dist < radius)
+                    tex.SetPixel(x, y, new Color(1, 1, 1, radius - dist));
+                else
+                    tex.SetPixel(x, y, Color.clear);
+            }
+        }
+        tex.Apply();
+        _cachedCircle = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100);
+        return _cachedCircle;
     }
 }
