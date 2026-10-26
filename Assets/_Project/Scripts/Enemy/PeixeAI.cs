@@ -146,6 +146,7 @@ public class PeixeAI : MonoBehaviour
     private float nextShootTime = 0f;
     private float nextDefendAllowedTime = 0f;
     private Vector3 spawnPosition;
+    private float spawnGracePeriodTimer = 1.2f;
 
     private const float MAX_VELOCITY = 15f;
     private const float MAX_DISTANCE_FROM_SPAWN = 60f;
@@ -217,6 +218,27 @@ public class PeixeAI : MonoBehaviour
 
         // Inicia no modo normal
         SetMeshMode(false);
+
+        // Previne colisão/dano acidental no momento do nascimento se o jogador estiver em cima
+        Collider pCol = player != null ? player.GetComponent<Collider>() ?? player.GetComponentInChildren<Collider>() : null;
+        StartCoroutine(SpawnGracePeriodRoutine(pCol));
+    }
+
+    private IEnumerator SpawnGracePeriodRoutine(Collider playerCol)
+    {
+        spawnGracePeriodTimer = 1.2f;
+        if (sphereCollider != null && playerCol != null)
+        {
+            Physics.IgnoreCollision(sphereCollider, playerCol, true);
+        }
+
+        yield return new WaitForSeconds(1.2f);
+        spawnGracePeriodTimer = 0f;
+
+        if (sphereCollider != null && playerCol != null)
+        {
+            Physics.IgnoreCollision(sphereCollider, playerCol, false);
+        }
     }
 
     /// <summary>
@@ -305,6 +327,15 @@ public class PeixeAI : MonoBehaviour
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
             transform.position = spawnPosition;
+        }
+
+        // Anti-afundamento: se o jogador pisar em cima ou física empurrar para baixo do chão
+        if (transform.position.y < spawnPosition.y - 1.2f)
+        {
+            Vector3 safePos = transform.position;
+            safePos.y = spawnPosition.y;
+            transform.position = safePos;
+            if (rb != null) rb.linearVelocity = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
         }
 
         float dist = Vector3.Distance(transform.position, player.position);
@@ -548,6 +579,7 @@ public class PeixeAI : MonoBehaviour
     // ── Contact Damage (Defend) ─────────────────────────────────────
     void OnCollisionEnter(Collision collision)
     {
+        if (spawnGracePeriodTimer > 0f) return;
         if (!isDefending) return;
 
         PlayerHealth playerHealth = collision.gameObject.GetComponent<PlayerHealth>();

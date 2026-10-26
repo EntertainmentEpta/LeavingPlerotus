@@ -12,10 +12,10 @@ public class KeybindManager : MonoBehaviour
 
     [Header("Botões de Ação")]
     public Button btnAttack; public Button btnDash; public Button btnUlt; 
-    public Button btnInteract; public Button btnInventory;
+    public Button btnInteract; public Button btnInventory; public Button btnReload;
     
     public TextMeshProUGUI txtAttack; public TextMeshProUGUI txtDash; public TextMeshProUGUI txtUlt; 
-    public TextMeshProUGUI txtInteract; public TextMeshProUGUI txtInventory;
+    public TextMeshProUGUI txtInteract; public TextMeshProUGUI txtInventory; public TextMeshProUGUI txtReload;
 
     [Header("Modo de Mira")]
     public Button btnAimMode;
@@ -27,7 +27,7 @@ public class KeybindManager : MonoBehaviour
     // Lista de todas as chaves salvas para podermos procurar duplicatas
     private string[] allPrefsKeys = { 
         "KeyUp", "KeyDown", "KeyLeft", "KeyRight", 
-        "KeyAttack", "KeyDash", "KeyUlt", "KeyInteract", "KeyInventory" 
+        "KeyAttack", "KeyDash", "KeyUlt", "KeyInteract", "KeyInventory", "KeyReload" 
     };
 
     private void OnEnable()
@@ -50,6 +50,7 @@ public class KeybindManager : MonoBehaviour
     {
         // 1. Garante que o botão de Modo de Mira existe e está configurado
         EnsureAimModeButton();
+        EnsureReloadButton();
 
         // 2. Carrega todas as teclas ao iniciar
         UpdateAllButtonTexts();
@@ -65,6 +66,7 @@ public class KeybindManager : MonoBehaviour
         if (btnUlt != null) btnUlt.onClick.AddListener(() => StartRebind("KeyUlt", txtUlt));
         if (btnInteract != null) btnInteract.onClick.AddListener(() => StartRebind("KeyInteract", txtInteract));
         if (btnInventory != null) btnInventory.onClick.AddListener(() => StartRebind("KeyInventory", txtInventory));
+        if (btnReload != null) btnReload.onClick.AddListener(() => StartRebind("KeyReload", txtReload));
 
         if (btnAimMode != null) btnAimMode.onClick.AddListener(OnAimModeButtonClicked);
     }
@@ -82,6 +84,7 @@ public class KeybindManager : MonoBehaviour
         if (txtUlt != null) txtUlt.text = "Ultimate: " + PlayerPrefs.GetString("KeyUlt", "U");
         if (txtInteract != null) txtInteract.text = "Interagir: " + PlayerPrefs.GetString("KeyInteract", "F");
         if (txtInventory != null) txtInventory.text = "Inventário: " + PlayerPrefs.GetString("KeyInventory", "Tab");
+        if (txtReload != null) txtReload.text = "Recarregar: " + PlayerPrefs.GetString("KeyReload", "R");
 
         if (txtAimMode != null) txtAimMode.text = AimSettings.GetModeDisplayName();
     }
@@ -91,6 +94,38 @@ public class KeybindManager : MonoBehaviour
         AimSettings.ToggleMode();
         UpdateAllButtonTexts();
         Debug.Log($"[KeybindManager] Modo de mira alternado para: {AimSettings.CurrentMode}");
+    }
+
+    private void EnsureReloadButton()
+    {
+        if (btnReload != null) return;
+
+        Transform found = transform.Find("Btn_Reload") ?? transform.Find("Btn_Recarregar");
+        if (found != null)
+        {
+            btnReload = found.GetComponent<Button>();
+            txtReload = found.GetComponentInChildren<TextMeshProUGUI>();
+            return;
+        }
+
+        Button template = btnInventory != null ? btnInventory : (btnInteract != null ? btnInteract : btnAttack);
+        if (template != null)
+        {
+            GameObject cloned = Instantiate(template.gameObject, template.transform.parent);
+            cloned.name = "Btn_Reload";
+            btnReload = cloned.GetComponent<Button>();
+            txtReload = cloned.GetComponentInChildren<TextMeshProUGUI>();
+
+            btnReload.onClick.RemoveAllListeners();
+            btnReload.onClick.AddListener(() => StartRebind("KeyReload", txtReload));
+
+            RectTransform rect = cloned.GetComponent<RectTransform>();
+            RectTransform templateRect = template.GetComponent<RectTransform>();
+            if (rect != null && templateRect != null)
+            {
+                rect.anchoredPosition = new Vector2(templateRect.anchoredPosition.x, templateRect.anchoredPosition.y - 45f);
+            }
+        }
     }
 
     private void EnsureAimModeButton()

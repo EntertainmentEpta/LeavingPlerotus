@@ -14,7 +14,7 @@ public class ScripturePickup : MonoBehaviour
     [Header("Configurações de Interação")]
     [Tooltip("Coleta automática ao encostar no colisor (trigger)? Se false, exige tecla E")]
     public bool autoCollectOnTrigger = true;
-    public KeyCode interactKey = KeyCode.E;
+    public KeyCode interactKey = KeyCode.F;
     public float interactionRadius = 2.5f;
 
     [Header("Efeitos & Áudio")]
@@ -66,7 +66,7 @@ public class ScripturePickup : MonoBehaviour
 
         if (autoCollectOnTrigger || !playerInRange) return;
 
-        if (Input.GetKeyDown(interactKey))
+        if (Input.GetKeyDown(interactKey) || Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.E))
         {
             Collect();
         }
@@ -89,7 +89,7 @@ public class ScripturePickup : MonoBehaviour
                 if (EptinhoPopupController.instancia != null)
                 {
                     string title = scriptureData != null ? scriptureData.title : "Escritura Ancestral";
-                    EptinhoPopupController.instancia.MostrarPopupAviso($"📜 <color=#4DEEEA>{title.ToUpper()}</color>\nPressione <color=#FFE500>[E]</color> para catalogar a página do diário.");
+                    EptinhoPopupController.instancia.MostrarPopupAviso($"📜 <color=#4DEEEA>{title.ToUpper()}</color>\nPressione <color=#FFE500>[F]</color> para catalogar a página do diário.");
                 }
             }
         }

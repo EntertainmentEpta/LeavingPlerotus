@@ -46,6 +46,14 @@ public class DashM : MonoBehaviour
     [HideInInspector]
     public float dashDurationMultiplier = 1.0f;
 
+
+    // === Getters para DashUI e Sistemas Externos ===
+    public float CurrentCooldownTimer => cooldownTimer;
+    public float MaxCooldown => (playerAttributes != null && playerAttributes.dashCooldownMultiplier > 0) ? dashCooldown * playerAttributes.dashCooldownMultiplier : dashCooldown;
+    public bool IsRecharging => isRecharging;
+    public int DashesLeft => dashesLeft;
+    public int MaxDashes => maxDashes;
+
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
@@ -65,6 +73,11 @@ public class DashM : MonoBehaviour
         
         // Tenta encontrar UI no inicio
         FindUIReferences();
+        // Garante que o DashUI existe no Canvas para exibir recarga e cargas
+        if (GetComponent<DashUI>() == null && FindFirstObjectByType<DashUI>() == null)
+        {
+            gameObject.AddComponent<DashUI>();
+        }
     }
 
     public void FindUIReferences()
@@ -94,7 +107,7 @@ public class DashM : MonoBehaviour
         {
             lastDashInputTime = -999f;
         }
-        else if (Input.GetKeyDown(dashKey))
+        else if (Input.GetKeyDown(dashKey) || Input.GetKeyDown(KeyCode.Space))
         {
             lastDashInputTime = Time.time;
         }

@@ -13,7 +13,7 @@ public class AnomalyNodule : MonoBehaviour
 
     [Header("Interação")]
     public float interactionDistance = 3.0f;
-    public KeyCode interactKey = KeyCode.E;
+    public KeyCode interactKey = KeyCode.F;
 
     [Header("Feedback")]
     public GameObject collectVfx;
@@ -34,7 +34,7 @@ public class AnomalyNodule : MonoBehaviour
     {
         if (hasInteracted) return;
 
-        if (playerNearby && Input.GetKeyDown(interactKey))
+        if (playerNearby && (Input.GetKeyDown(interactKey) || Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.E)))
         {
             Interact();
         }
@@ -50,7 +50,7 @@ public class AnomalyNodule : MonoBehaviour
             // Mostra aviso de interação
             if (EptinhoPopupController.instancia != null)
             {
-                EptinhoPopupController.instancia.MostrarPopupAviso("🔬 <color=#4DEEEA>NÓDULO DE REJEIÇÃO BIOLÓGICA</color>\nPressione <color=#FFE500>[E]</color> para extrair amostras do tecido necrosado.");
+                EptinhoPopupController.instancia.MostrarPopupAviso("🔬 <color=#4DEEEA>NÓDULO DE REJEIÇÃO BIOLÓGICA</color>\nPressione <color=#FFE500>[F]</color> para extrair amostras do tecido necrosado.");
             }
         }
     }

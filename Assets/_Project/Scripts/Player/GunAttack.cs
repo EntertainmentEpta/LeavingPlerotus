@@ -26,6 +26,13 @@ public class GunAttack : MonoBehaviour
     [Tooltip("Tempo da recarga manual punitiva após a bateria zerar.")]
     [Min(0.1f)] public float batteryRechargeDuration = 2.0f;
     public KeyCode reloadKey = KeyCode.R;
+
+    private KeyCode GetReloadKey()
+    {
+        string saved = PlayerPrefs.GetString("KeyReload", "R");
+        if (System.Enum.TryParse<KeyCode>(saved, out KeyCode parsed)) return parsed;
+        return reloadKey;
+    }
     [Min(1)] public int chargePerTrigger = 1;
 
     [Header("HUD de Carga")]
@@ -126,6 +133,8 @@ public class GunAttack : MonoBehaviour
     private void OnEnable()
     {
         AimSettings.OnAimModeChanged += HandleAimModeChanged;
+        RefreshOwnerReferences();
+        if (batteryHUDCanvas != null) batteryHUDCanvas.gameObject.SetActive(true);
     }
 
     private void Update()
@@ -142,7 +151,7 @@ public class GunAttack : MonoBehaviour
         }
 
         EnsureBatteryHUD();
-        if (batteryCharge <= 0 && !IsRecharging && Input.GetKeyDown(reloadKey))
+        if (batteryCharge < batteryCapacity && !IsRecharging && Input.GetKeyDown(GetReloadKey()))
             BeginManualReload();
         UpdateBattery();
         RefreshBatteryHUD();
@@ -488,7 +497,7 @@ public class GunAttack : MonoBehaviour
     private bool TryGetAimPoint(out Vector3 aimPoint)
     {
         aimPoint = Vector3.zero;
-        if (aimCamera == null) aimCamera = Camera.main;
+        if (aimCamera == null || !aimCamera.isActiveAndEnabled) aimCamera = Camera.main;
         if (aimCamera == null) return false;
 
         Transform aimOrigin = playerMovement != null ? playerMovement.transform : ownerRoot;

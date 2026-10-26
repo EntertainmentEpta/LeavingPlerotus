@@ -56,6 +56,7 @@ public class ShardSwarmHealth : MonoBehaviour
 
     [HideInInspector] public bool isInvulnerable = false;
     [HideInInspector] public bool isBuffed = false;
+    private bool isDead = false;
 
     /// <summary>
     /// Se definido, substitui a lógica padrão de morte (drops + Destroy).
@@ -261,84 +262,122 @@ public class ShardSwarmHealth : MonoBehaviour
 
     private void Die()
     {
-        onDeath?.Invoke();
+        if (isDead) return;
+        isDead = true;
 
-        if (shardSwarmAI != null)
+        try { onDeath?.Invoke(); } catch (System.Exception ex) { Debug.LogError($"[ShardSwarmHealth] Erro em onDeath: {ex}"); }
+
+        try
         {
-            shardSwarmAI.DestroyAllSpikes();
+            if (shardSwarmAI != null)
+            {
+                shardSwarmAI.enabled = false;
+                shardSwarmAI.DestroyAllSpikes();
+            }
+            Collider[] cols = GetComponentsInChildren<Collider>();
+            foreach (var c in cols) c.enabled = false;
         }
+        catch (System.Exception ex) { Debug.LogError($"[ShardSwarmHealth] Erro ao desativar espinhos/colisores: {ex}"); }
+
+        // Notifica a sala imediatamente para não travar portas
+        try
+        {
+            RoomController room = FindRoomController();
+            if (room != null) room.NotifyEnemyDefeated(gameObject);
+        }
+        catch (System.Exception ex) { Debug.LogError($"[ShardSwarmHealth] Erro ao notificar sala: {ex}"); }
 
         // Se um override foi definido (ex: ShardSwarm_AI controla o split),
         // chama o callback e retorna sem executar a lógica padrão.
         if (onDeathOverride != null)
         {
-            onDeathOverride.Invoke();
+            try { onDeathOverride.Invoke(); } catch (System.Exception ex) { Debug.LogError($"[ShardSwarmHealth] Erro em onDeathOverride: {ex}"); }
             return;
         }
 
         Debug.Log(gameObject.name + " foi destruído.");
 
-        EnemyDrops drops = GetComponent<EnemyDrops>()
-                        ?? GetComponentInChildren<EnemyDrops>()
-                        ?? GetComponentInParent<EnemyDrops>();
-        if (drops != null)
+        try
         {
-            Debug.Log("[DROPS] EnemyDrops encontrado, chamando OnDeath()...");
-            drops.OnDeath();
+            EnemyDrops drops = GetComponent<EnemyDrops>()
+                            ?? GetComponentInChildren<EnemyDrops>()
+                            ?? GetComponentInParent<EnemyDrops>();
+            if (drops != null)
+            {
+                drops.OnDeath();
+            }
         }
+        catch (System.Exception ex) { Debug.LogError($"[ShardSwarmHealth] Erro em EnemyDrops: {ex}"); }
 
         // --- RECOMPENSA DE COMBATE DA SINFONIA DO CAOS ---
-        PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
-        if (isElite && playerHealth != null && playerHealth.hasChaosSymphony)
+        try
         {
-            playerHealth.Heal(8);
-            playerHealth.TriggerEliteKillAdrenaline(5f);
-            Debug.Log("[CAOS] Inimigo Elite abatido! +8 Vida e Adrenalina concedidas ao jogador!");
+            PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
+            if (isElite && playerHealth != null && playerHealth.hasChaosSymphony)
+            {
+                playerHealth.Heal(8);
+                playerHealth.TriggerEliteKillAdrenaline(5f);
+            }
         }
+        catch (System.Exception ex) { Debug.LogError($"[ShardSwarmHealth] Erro em recompensa caos: {ex}"); }
 
-        // --- SISTEMA DE RENASCIMENTO ELITE (10% base / 100% com cheat / +25% com Sinfonia do Caos) ---
-        bool canReborn = (!isElite && !hasRebornAsElite &&
-                          GetComponent<EliteVariantConfig>() == null &&
-                          !gameObject.name.ToLower().Contains("elite") &&
-                          !gameObject.name.ToLower().Contains("boss") &&
-                          !gameObject.name.ToLower().Contains("geobionte") &&
-                          !gameObject.name.ToLower().Contains("sentinel"));
-
-        float effectiveRebirthChance = eliteRebirthChance;
-        if (playerHealth != null && playerHealth.hasChaosSymphony)
+        // --- SISTEMA DE RENASCIMENTO ELITE ---
+        try
         {
-            effectiveRebirthChance = Mathf.Clamp01(effectiveRebirthChance + 0.25f);
-        }
+            PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
+            bool canReborn = (!isElite && !hasRebornAsElite &&
+                              GetComponent<EliteVariantConfig>() == null &&
+                              !gameObject.name.ToLower().Contains("elite") &&
+                              !gameObject.name.ToLower().Contains("boss") &&
+                              !gameObject.name.ToLower().Contains("geobionte") &&
+                              !gameObject.name.ToLower().Contains("sentinel"));
 
-        bool shouldReborn = canReborn && (forceEliteRebirth || DummyHealth.forceEliteRebirth || Random.value <= effectiveRebirthChance);
+            float effectiveRebirthChance = eliteRebirthChance;
+            if (playerHealth != null && playerHealth.hasChaosSymphony)
+            {
+                effectiveRebirthChance = Mathf.Clamp01(effectiveRebirthChance + 0.25f);
+            }
 
-        if (shouldReborn)
-        {
-            TriggerEliteRebirth();
-            return;
+            bool shouldReborn = canReborn && (forceEliteRebirth || DummyHealth.forceEliteRebirth || Random.value <= effectiveRebirthChance);
+
+            if (shouldReborn)
+            {
+                TriggerEliteRebirth();
+                return;
+            }
         }
+        catch (System.Exception ex) { Debug.LogError($"[ShardSwarmHealth] Erro em Elite Rebirth: {ex}"); }
 
         Destroy(gameObject);
     }
 
     private void TriggerEliteRebirth()
     {
-        Debug.Log($"[ELITE REBIRTH] ★ {gameObject.name} iniciou o ciclo de renascimento Elite!");
-        ShowRebirthFloatingText(transform.position);
-
-        RoomController rc = FindRoomController();
-        if (rc != null && rc.gameObject.activeInHierarchy)
+        try
         {
-            rc.enemiesPendingSpawn++;
-            rc.activeEnemies.Remove(gameObject);
-            rc.StartCoroutine(rc.RebirthAsEliteRoutine(transform.position, transform.rotation, originalPrefab != null ? originalPrefab : gameObject, gameObject.name));
-        }
-        else if (RunManager.instance != null && RunManager.instance.gameObject.activeInHierarchy)
-        {
-            RunManager.instance.StartCoroutine(DummyHealth.RebirthFallbackRoutine(transform.position, transform.rotation, originalPrefab != null ? originalPrefab : gameObject, gameObject.name));
-        }
+            Debug.Log($"[ELITE REBIRTH] ★ {gameObject.name} iniciou o ciclo de renascimento Elite!");
+            ShowRebirthFloatingText(transform.position);
 
-        Destroy(gameObject);
+            RoomController rc = FindRoomController();
+            if (rc != null && rc.gameObject.activeInHierarchy)
+            {
+                rc.enemiesPendingSpawn++;
+                rc.activeEnemies.Remove(gameObject);
+                rc.StartCoroutine(rc.RebirthAsEliteRoutine(transform.position, transform.rotation, originalPrefab != null ? originalPrefab : gameObject, gameObject.name));
+            }
+            else if (RunManager.instance != null && RunManager.instance.gameObject.activeInHierarchy)
+            {
+                RunManager.instance.StartCoroutine(DummyHealth.RebirthFallbackRoutine(transform.position, transform.rotation, originalPrefab != null ? originalPrefab : gameObject, gameObject.name));
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[ShardSwarmHealth] Erro em TriggerEliteRebirth: {ex}");
+        }
+        finally
+        {
+            Destroy(gameObject);
+        }
     }
 
     public void ShowRebirthFloatingText(Vector3 position)

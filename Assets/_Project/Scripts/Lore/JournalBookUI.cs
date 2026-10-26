@@ -140,12 +140,13 @@ public class JournalBookUI : MonoBehaviour
     {
         if (!isOpen) return;
 
-        // Teclas de atalho para virar página
-        if (Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.Q))
+        // Teclas de atalho e scroll do mouse para virar página
+        float scroll = Input.GetAxis("Mouse ScrollWheel");
+        if (Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.Q) || scroll > 0.05f)
         {
             PreviousPage();
         }
-        else if (Input.GetKeyDown(KeyCode.D) || Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.E))
+        else if (Input.GetKeyDown(KeyCode.D) || Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.E) || scroll < -0.05f)
         {
             NextPage();
         }
@@ -533,6 +534,7 @@ public class JournalBookUI : MonoBehaviour
         psRect.anchorMax = Vector2.one;
         psRect.sizeDelta = Vector2.zero;
         pagesSpreadImg = pagesSpreadObj.AddComponent<Image>();
+        pagesSpreadImg.raycastTarget = false;
         if (blankPageSprite != null)
         {
             pagesSpreadImg.sprite = blankPageSprite;
@@ -575,7 +577,8 @@ public class JournalBookUI : MonoBehaviour
         lpRect.sizeDelta = new Vector2(530f, 620f);
 
         leftPageBgImg = leftPageObj.AddComponent<Image>();
-        leftPageBgImg.color = Color.clear; // O fundo de papel já vem da camada PagesSpread
+        leftPageBgImg.color = Color.clear;
+        leftPageBgImg.raycastTarget = false; // O fundo de papel já vem da camada PagesSpread
 
         VerticalLayoutGroup lpVlg = leftPageObj.AddComponent<VerticalLayoutGroup>();
         lpVlg.padding = new RectOffset(25, 25, 25, 25);
@@ -601,6 +604,7 @@ public class JournalBookUI : MonoBehaviour
 
         rightPageBgImg = rightPageObj.AddComponent<Image>();
         rightPageBgImg.color = Color.clear;
+        rightPageBgImg.raycastTarget = false;
 
         VerticalLayoutGroup rpVlg = rightPageObj.AddComponent<VerticalLayoutGroup>();
         rpVlg.padding = new RectOffset(25, 25, 25, 25);
@@ -670,6 +674,7 @@ public class JournalBookUI : MonoBehaviour
         tmp.fontStyle = style;
         tmp.color = color;
         tmp.textWrappingMode = TextWrappingModes.Normal;
+        tmp.raycastTarget = false;
         if (customFont != null) tmp.font = customFont;
 
         ContentSizeFitter csf = go.AddComponent<ContentSizeFitter>();
@@ -719,8 +724,10 @@ public class JournalBookUI : MonoBehaviour
         tmp.fontStyle = FontStyles.Bold;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color = new Color(1f, 0.92f, 0.72f);
+        tmp.raycastTarget = false;
         if (customFont != null) tmp.font = customFont;
 
+        btnObj.transform.SetAsLastSibling();
         return btn;
     }
 }

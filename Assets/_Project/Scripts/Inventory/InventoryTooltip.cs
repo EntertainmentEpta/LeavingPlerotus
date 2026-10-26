@@ -19,11 +19,11 @@ public class InventoryTooltip : MonoBehaviour
     public Image separatorLine;
     public Image tierIndicator;
 
-    // Configurações
-    private static readonly float TOOLTIP_WIDTH = 320f;
-    private static readonly float PADDING = 14f;
-    private static readonly Color BG_COLOR = new Color(0.08f, 0.08f, 0.12f, 0.95f);
-    private static readonly Color BORDER_COLOR = new Color(0.4f, 0.4f, 0.5f, 0.7f);
+    // Configurações Ampliadas para Legibilidade Total
+    private static readonly float TOOLTIP_WIDTH = 480f;
+    private static readonly float PADDING = 18f;
+    private static readonly Color BG_COLOR = new Color(0.06f, 0.06f, 0.10f, 0.96f);
+    private static readonly Color BORDER_COLOR = new Color(0.45f, 0.45f, 0.60f, 0.85f);
 
     private Canvas parentCanvas;
 
@@ -36,6 +36,8 @@ public class InventoryTooltip : MonoBehaviour
 
         tooltipRect = GetComponent<RectTransform>();
         if (tooltipRect == null) tooltipRect = gameObject.AddComponent<RectTransform>();
+        tooltipRect.pivot = new Vector2(0f, 1f);
+        tooltipRect.sizeDelta = new Vector2(TOOLTIP_WIDTH, 200f);
 
         canvasGroup = GetComponent<CanvasGroup>();
         if (canvasGroup == null) canvasGroup = gameObject.AddComponent<CanvasGroup>();
@@ -88,7 +90,7 @@ public class InventoryTooltip : MonoBehaviour
         borderImage.fillCenter = false;
         borderObj.transform.SetAsFirstSibling();
 
-        // === Indicador de Tier (barra lateral esquerda fina) ===
+        // === Indicador de Tier (barra lateral esquerda) ===
         GameObject tierBarObj = new GameObject("TierIndicator");
         tierBarObj.transform.SetParent(transform, false);
         tierBarObj.layer = uiLayer;
@@ -98,7 +100,7 @@ public class InventoryTooltip : MonoBehaviour
         tierBarRect.anchorMax = new Vector2(0f, 1f);
         tierBarRect.pivot = new Vector2(0f, 0.5f);
         tierBarRect.anchoredPosition = new Vector2(0f, 0f);
-        tierBarRect.sizeDelta = new Vector2(4f, 0f);
+        tierBarRect.sizeDelta = new Vector2(6f, 0f);
 
         tierBarObj.AddComponent<CanvasRenderer>();
         tierIndicator = tierBarObj.AddComponent<Image>();
@@ -114,12 +116,12 @@ public class InventoryTooltip : MonoBehaviour
         nameRect.anchorMin = new Vector2(0f, 1f);
         nameRect.anchorMax = new Vector2(1f, 1f);
         nameRect.pivot = new Vector2(0f, 1f);
-        nameRect.anchoredPosition = new Vector2(PADDING + 4f, -PADDING);
-        nameRect.sizeDelta = new Vector2(-PADDING * 2 - 4f, 28f);
+        nameRect.anchoredPosition = new Vector2(PADDING + 8f, -PADDING);
+        nameRect.sizeDelta = new Vector2(-PADDING * 2 - 8f, 32f);
 
         nameObj.AddComponent<CanvasRenderer>();
         nameText = nameObj.AddComponent<TextMeshProUGUI>();
-        nameText.fontSize = 16f;
+        nameText.fontSize = 20f;
         nameText.fontStyle = FontStyles.Bold;
         nameText.color = Color.white;
         nameText.alignment = TextAlignmentOptions.TopLeft;
@@ -135,12 +137,12 @@ public class InventoryTooltip : MonoBehaviour
         sepRect.anchorMin = new Vector2(0f, 1f);
         sepRect.anchorMax = new Vector2(1f, 1f);
         sepRect.pivot = new Vector2(0.5f, 1f);
-        sepRect.anchoredPosition = new Vector2(0f, -(PADDING + 30f));
-        sepRect.sizeDelta = new Vector2(-PADDING * 2, 1f);
+        sepRect.anchoredPosition = new Vector2(0f, -(PADDING + 36f));
+        sepRect.sizeDelta = new Vector2(-PADDING * 2, 1.5f);
 
         sepObj.AddComponent<CanvasRenderer>();
         separatorLine = sepObj.AddComponent<Image>();
-        separatorLine.color = new Color(0.5f, 0.5f, 0.6f, 0.4f);
+        separatorLine.color = new Color(0.5f, 0.5f, 0.65f, 0.45f);
         separatorLine.raycastTarget = false;
 
         // === Descrição ===
@@ -152,17 +154,18 @@ public class InventoryTooltip : MonoBehaviour
         descRect.anchorMin = new Vector2(0f, 1f);
         descRect.anchorMax = new Vector2(1f, 1f);
         descRect.pivot = new Vector2(0f, 1f);
-        descRect.anchoredPosition = new Vector2(PADDING + 4f, -(PADDING + 36f));
-        descRect.sizeDelta = new Vector2(-PADDING * 2 - 4f, 90f);
+        descRect.anchoredPosition = new Vector2(PADDING + 8f, -(PADDING + 44f));
+        descRect.sizeDelta = new Vector2(-PADDING * 2 - 8f, 120f);
 
         descObj.AddComponent<CanvasRenderer>();
         descriptionText = descObj.AddComponent<TextMeshProUGUI>();
-        descriptionText.fontSize = 13f;
-        descriptionText.color = new Color(0.75f, 0.75f, 0.8f, 0.9f);
+        descriptionText.fontSize = 15f;
+        descriptionText.lineSpacing = 5f;
+        descriptionText.color = new Color(0.85f, 0.85f, 0.90f, 0.95f);
         descriptionText.alignment = TextAlignmentOptions.TopLeft;
         descriptionText.raycastTarget = false;
         descriptionText.textWrappingMode = TextWrappingModes.Normal;
-        descriptionText.overflowMode = TextOverflowModes.Ellipsis;
+        descriptionText.overflowMode = TextOverflowModes.Overflow;
 
         // === Tier + Quantidade (linha inferior) ===
         GameObject infoObj = new GameObject("InfoLine");
@@ -173,12 +176,12 @@ public class InventoryTooltip : MonoBehaviour
         infoRect.anchorMin = new Vector2(0f, 0f);
         infoRect.anchorMax = new Vector2(0.5f, 0f);
         infoRect.pivot = new Vector2(0f, 0f);
-        infoRect.anchoredPosition = new Vector2(PADDING + 4f, PADDING);
-        infoRect.sizeDelta = new Vector2(-PADDING, 20f);
+        infoRect.anchoredPosition = new Vector2(PADDING + 8f, PADDING);
+        infoRect.sizeDelta = new Vector2(-PADDING, 24f);
 
         infoObj.AddComponent<CanvasRenderer>();
         tierText = infoObj.AddComponent<TextMeshProUGUI>();
-        tierText.fontSize = 11f;
+        tierText.fontSize = 13f;
         tierText.fontStyle = FontStyles.Italic;
         tierText.alignment = TextAlignmentOptions.BottomLeft;
         tierText.raycastTarget = false;
@@ -193,12 +196,12 @@ public class InventoryTooltip : MonoBehaviour
         qtyRect.anchorMax = new Vector2(1f, 0f);
         qtyRect.pivot = new Vector2(1f, 0f);
         qtyRect.anchoredPosition = new Vector2(-PADDING, PADDING);
-        qtyRect.sizeDelta = new Vector2(-PADDING, 20f);
+        qtyRect.sizeDelta = new Vector2(-PADDING, 24f);
 
         qtyObj.AddComponent<CanvasRenderer>();
         quantityText = qtyObj.AddComponent<TextMeshProUGUI>();
-        quantityText.fontSize = 11f;
-        quantityText.color = new Color(0.7f, 0.7f, 0.75f, 0.9f);
+        quantityText.fontSize = 13f;
+        quantityText.color = new Color(0.75f, 0.75f, 0.80f, 0.95f);
         quantityText.alignment = TextAlignmentOptions.BottomRight;
         quantityText.raycastTarget = false;
 
@@ -229,6 +232,20 @@ public class InventoryTooltip : MonoBehaviour
 
         descriptionText.text = desc;
 
+        // Ajusta altura dinamicamente para nunca cortar textos longos de infusão/sinergia
+        descriptionText.ForceMeshUpdate();
+        float descHeight = descriptionText.preferredHeight;
+        float totalHeight = Mathf.Max(180f, descHeight + 125f);
+        if (tooltipRect != null)
+        {
+            tooltipRect.sizeDelta = new Vector2(TOOLTIP_WIDTH, totalHeight);
+        }
+        RectTransform descRect = descriptionText.GetComponent<RectTransform>();
+        if (descRect != null)
+        {
+            descRect.sizeDelta = new Vector2(-PADDING * 2 - 8f, descHeight + 10f);
+        }
+
         // Tier
         tierText.text = itemData.GetTierName();
         tierText.color = tierColor;
@@ -251,12 +268,16 @@ public class InventoryTooltip : MonoBehaviour
     /// </summary>
     public void Hide()
     {
-        canvasGroup.alpha = 0f;
+        if (canvasGroup != null)
+        {
+            canvasGroup.alpha = 0f;
+        }
     }
 
     void Update()
     {
-        if (canvasGroup.alpha <= 0f) return;
+        if (canvasGroup == null || canvasGroup.alpha <= 0f) return;
+        if (parentCanvas == null) return;
 
         // Segue o mouse
         Vector2 mousePos;
@@ -268,7 +289,7 @@ public class InventoryTooltip : MonoBehaviour
         );
 
         // Offset para não cobrir o cursor
-        Vector2 offset = new Vector2(16f, -16f);
+        Vector2 offset = new Vector2(20f, -20f);
         tooltipRect.anchoredPosition = mousePos + offset;
 
         // Clamp para não sair da tela
@@ -279,13 +300,13 @@ public class InventoryTooltip : MonoBehaviour
         // Se sair pela direita, muda para a esquerda do cursor
         if (pos.x + size.x > canvasSize.x / 2f)
         {
-            pos.x = mousePos.x - size.x - 8f;
+            pos.x = mousePos.x - size.x - 16f;
         }
 
         // Se sair por baixo, move para cima
         if (pos.y - size.y < -canvasSize.y / 2f)
         {
-            pos.y = mousePos.y + size.y + 8f;
+            pos.y = mousePos.y + size.y + 16f;
         }
 
         tooltipRect.anchoredPosition = pos;
