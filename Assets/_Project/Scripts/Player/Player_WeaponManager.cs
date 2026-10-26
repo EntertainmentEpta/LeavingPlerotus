@@ -66,7 +66,8 @@ public class Player_WeaponManager : MonoBehaviour
                     isWeaponDrawn = currentWeapon.activeSelf;
                     if (attackScript != null)
                     {
-                        attackScript.hasWeapon = isWeaponDrawn;
+                        bool isMelee = offset.weaponType != WeaponType.Gun;
+                        attackScript.hasWeapon = isWeaponDrawn && isMelee;
                     }
                     if (offset.weaponAnimatorOverride != null)
                     {
@@ -87,9 +88,25 @@ public class Player_WeaponManager : MonoBehaviour
         {
             lastSceneName = activeScene;
             bool isInBase = (activeScene == "Base" || activeScene == "BaseLab");
-            if (!isInBase && currentWeapon != null && !isWeaponDrawn)
+            if (!isInBase && currentWeapon != null)
             {
-                DrawWeapon();
+                if (!isWeaponDrawn)
+                {
+                    DrawWeapon();
+                }
+                else
+                {
+                    WeaponOffset offset = currentWeapon.GetComponent<WeaponOffset>();
+                    if (attackScript != null)
+                    {
+                        bool isMelee = offset == null || offset.weaponType != WeaponType.Gun;
+                        attackScript.hasWeapon = isMelee;
+                    }
+                    if (playerAnimator != null && activeWeaponController != null)
+                    {
+                        playerAnimator.runtimeAnimatorController = activeWeaponController;
+                    }
+                }
             }
         }
 
@@ -190,10 +207,12 @@ public class Player_WeaponManager : MonoBehaviour
     {
         isWeaponDrawn = true;
 
-        // Reativa a capacidade de ataque imediatamente ao puxar a arma
+        // Reativa a capacidade de ataque imediatamente ao puxar a arma (apenas para armas brancas)
         if (attackScript != null)
         {
-            attackScript.hasWeapon = true;
+            WeaponOffset offset = currentWeapon != null ? currentWeapon.GetComponent<WeaponOffset>() : null;
+            bool isMelee = offset == null || offset.weaponType != WeaponType.Gun;
+            attackScript.hasWeapon = isMelee;
         }
 
         // Aplica o moveset específico da arma e dispara o trigger

@@ -135,20 +135,31 @@ public class GunProjectile : MonoBehaviour
         if (ownerRoot != null && other.transform.root == ownerRoot) return;
 
         DummyHealth target = other.GetComponent<DummyHealth>() ?? other.GetComponentInParent<DummyHealth>();
-        if (target == null || hitTargets.Contains(target)) return;
+        ShardSwarmHealth swarmTarget = target == null ? (other.GetComponent<ShardSwarmHealth>() ?? other.GetComponentInParent<ShardSwarmHealth>()) : null;
 
-        hitTargets.Add(target);
+        if (target == null && swarmTarget == null) return;
+        if (target != null && hitTargets.Contains(target)) return;
+
         bool isCritical = criticalChance >= 1f || Random.value < criticalChance;
         int hitDamage = isCritical ? Mathf.Max(1, Mathf.RoundToInt(damage * criticalMultiplier)) : damage;
-        target.TakeDamage(hitDamage, isCritical);
-        ApplyKnockback(target);
-        if (slowOnHit > 0f) target.ApplySlow(slowOnHit, 2f);
 
-        // Efeitos T4 on-hit (ex: Poison do Espinho Venenoso T4)
-        if (target.CurrentHealth > 0)
+        if (target != null)
         {
-            Tier4EffectManager t4 = FindFirstObjectByType<Tier4EffectManager>();
-            if (t4 != null) t4.ApplyOnHitEffects(target.gameObject);
+            hitTargets.Add(target);
+            target.TakeDamage(hitDamage, isCritical);
+            ApplyKnockback(target);
+            if (slowOnHit > 0f) target.ApplySlow(slowOnHit, 2f);
+
+            // Efeitos T4 on-hit (ex: Poison do Espinho Venenoso T4)
+            if (target.CurrentHealth > 0)
+            {
+                Tier4EffectManager t4 = FindFirstObjectByType<Tier4EffectManager>();
+                if (t4 != null) t4.ApplyOnHitEffects(target.gameObject);
+            }
+        }
+        else if (swarmTarget != null)
+        {
+            swarmTarget.TakeDamage(hitDamage);
         }
 
         if (TryBounce()) return;
