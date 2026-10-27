@@ -5,7 +5,8 @@ using TMPro;
 
 /// <summary>
 /// HUD do Sistema de Cura do Traje do Eptinho.
-/// Exibe os frascos de cura disponíveis, o progresso de síntese em tempo real e a integridade do traje.
+/// Exibe as duas cápsulas de fluido de cura com preenchimento vertical (líquido subindo e descendo).
+/// Quando usadas, as cápsulas esvaziam; quando o Eptinho sintetiza, o líquido sobe em tempo real.
 /// </summary>
 public class SuitHealingUI : MonoBehaviour
 {
@@ -13,18 +14,21 @@ public class SuitHealingUI : MonoBehaviour
 
     [Header("Configurações do Painel")]
     public Vector2 screenPosition = new Vector2(-280f, 165f); // Acima do Dash HUD
-    public Vector2 panelSize = new Vector2(240f, 42f);
+    public Vector2 panelSize = new Vector2(330f, 44f);
 
     [Header("Cores")]
     public Color readyPotionColor = new Color(0.0f, 1.0f, 0.65f, 1.0f);     // Verde Esmeralda Neon
     public Color emptyPotionColor = new Color(0.08f, 0.16f, 0.12f, 0.70f);   // Vidro escuro
-    public Color synthesisProgressColor = new Color(0.1f, 0.85f, 0.5f, 0.85f); // Verde de carga
+    public Color synthesisProgressColor = new Color(0.1f, 0.85f, 0.5f, 0.9f); // Verde de carga
+    public Color capsuleBorderColor = new Color(0.2f, 0.45f, 0.35f, 0.8f);
 
     private GameObject autoCanvasObj;
     private TextMeshProUGUI statusText;
-    private Image synthesisBarFill;
-    private List<Image> potionIcons = new List<Image>();
     private SuitHealingSystem healingSystem;
+
+    // Duas cápsulas verticais
+    private Image[] capsuleFills = new Image[2];
+    private Image[] capsuleBorders = new Image[2];
 
     private void Awake()
     {
@@ -61,51 +65,66 @@ public class SuitHealingUI : MonoBehaviour
 
         if (healingSystem == null) return;
 
-        // 1. Atualizar Ícones de Poções
         int current = healingSystem.currentPotions;
         int max = healingSystem.maxPotions;
+        float synthProgress = healingSystem.SynthesisProgress;
 
-        for (int i = 0; i < potionIcons.Count; i++)
+        // 1. Atualizar o preenchimento vertical das duas cápsulas
+        if (capsuleFills[0] != null && capsuleFills[1] != null)
         {
-            if (i < current)
+            if (current >= 2)
             {
-                potionIcons[i].color = readyPotionColor;
+                // Ambas 100% cheias
+                capsuleFills[0].fillAmount = 1f;
+                capsuleFills[0].color = readyPotionColor;
+                capsuleFills[1].fillAmount = 1f;
+                capsuleFills[1].color = readyPotionColor;
+            }
+            else if (current == 1)
+            {
+                // Cápsula 0 cheia, Cápsula 1 enchendo de baixo para cima
+                capsuleFills[0].fillAmount = 1f;
+                capsuleFills[0].color = readyPotionColor;
+
+                capsuleFills[1].fillAmount = synthProgress;
+                capsuleFills[1].color = synthesisProgressColor;
             }
             else
             {
-                potionIcons[i].color = emptyPotionColor;
+                // Ambas foram gastas: Cápsula 0 enchendo da síntese, Cápsula 1 vazia
+                capsuleFills[0].fillAmount = synthProgress;
+                capsuleFills[0].color = synthesisProgressColor;
+
+                capsuleFills[1].fillAmount = 0f;
+            }
+
+            // Pulso sutil nas bordas das cápsulas prontas
+            float pulse = 0.85f + Mathf.PingPong(Time.time * 2.5f, 0.15f);
+            if (capsuleBorders[0] != null)
+            {
+                capsuleBorders[0].color = (capsuleFills[0].fillAmount >= 1f) ? (readyPotionColor * pulse) : capsuleBorderColor;
+            }
+            if (capsuleBorders[1] != null)
+            {
+                capsuleBorders[1].color = (capsuleFills[1].fillAmount >= 1f) ? (readyPotionColor * pulse) : capsuleBorderColor;
             }
         }
 
-        // 2. Atualizar Barra de Síntese
-        if (synthesisBarFill != null)
-        {
-            if (current >= max)
-            {
-                synthesisBarFill.fillAmount = 1f;
-                synthesisBarFill.color = readyPotionColor;
-            }
-            else
-            {
-                synthesisBarFill.fillAmount = healingSystem.SynthesisProgress;
-                synthesisBarFill.color = synthesisProgressColor;
-            }
-        }
-
-        // 3. Atualizar Texto Informativo
+        // 2. Atualizar Texto Informativo
         if (statusText != null)
         {
             string keyHint = $"[ {healingSystem.healKey} ]";
+            string integrityWarn = healingSystem.suitIntegrity < 0.95f ? $" <color=#FFAA44>Traje: {healingSystem.SuitIntegrityPercent:F0}%</color>" : "";
+
             if (current >= max)
             {
-                statusText.text = $"<color=#00FFAA><b>CURA [{current}/{max}]</b></color> <size=75%>{keyHint} CHEIO</size>";
+                statusText.text = $"<color=#00FFAA><b>CURA NO TRAJE</b></color> <size=75%>{keyHint} (20% HP) - 2 CÁPSULAS PRONTAS</size>";
             }
             else
             {
                 float rem = healingSystem.RemainingSynthesisTime;
                 string mode = healingSystem.IsInCombat ? "Combate" : "Descanso (4x)";
-                string integrityWarn = healingSystem.suitIntegrity < 0.95f ? $" <color=#FF8844>Traje: {healingSystem.SuitIntegrityPercent:F0}%</color>" : "";
-                statusText.text = $"<color=#00FFAA><b>CURA [{current}/{max}]</b></color> <size=70%>(+{rem:F0}s {mode}){integrityWarn}</size>";
+                statusText.text = $"<color=#00FFAA><b>CURA [{current}/{max}]</b></color> <size=72%>{keyHint} (20% HP) | Sintetizando (+{rem:F0}s {mode}){integrityWarn}</size>";
             }
         }
     }
@@ -140,89 +159,88 @@ public class SuitHealingUI : MonoBehaviour
 
         Image panelBg = panelObj.AddComponent<Image>();
         panelBg.sprite = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 1, 1), Vector2.zero);
-        panelBg.color = new Color(0.04f, 0.08f, 0.06f, 0.88f);
+        panelBg.color = new Color(0.04f, 0.08f, 0.06f, 0.90f);
 
-        // Texto do Status
+        Sprite pixel = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 1, 1), Vector2.zero);
+
+        // Container Esquerdo: Duas Cápsulas Verticais
+        GameObject capsulesContainer = new GameObject("CapsulesContainer");
+        capsulesContainer.transform.SetParent(panelObj.transform, false);
+
+        RectTransform capsRect = capsulesContainer.AddComponent<RectTransform>();
+        capsRect.anchorMin = new Vector2(0, 0);
+        capsRect.anchorMax = new Vector2(0.20f, 1);
+        capsRect.offsetMin = new Vector2(6, 4);
+        capsRect.offsetMax = new Vector2(0, -4);
+
+        for (int i = 0; i < 2; i++)
+        {
+            GameObject capObj = new GameObject($"Capsule_{i}");
+            capObj.transform.SetParent(capsulesContainer.transform, false);
+
+            RectTransform capRect = capObj.AddComponent<RectTransform>();
+            capRect.anchorMin = new Vector2(i * 0.50f, 0);
+            capRect.anchorMax = new Vector2((i + 1) * 0.50f, 1);
+            capRect.offsetMin = new Vector2(2, 1);
+            capRect.offsetMax = new Vector2(-2, -1);
+
+            Image border = capObj.AddComponent<Image>();
+            border.sprite = pixel;
+            border.color = capsuleBorderColor;
+            capsuleBorders[i] = border;
+
+            // Fundo escuro do vidro da cápsula
+            GameObject bgObj = new GameObject("CapBg");
+            bgObj.transform.SetParent(capObj.transform, false);
+            RectTransform bgRect = bgObj.AddComponent<RectTransform>();
+            bgRect.anchorMin = Vector2.zero;
+            bgRect.anchorMax = Vector2.one;
+            bgRect.offsetMin = new Vector2(1, 1);
+            bgRect.offsetMax = new Vector2(-1, -1);
+
+            Image bg = bgObj.AddComponent<Image>();
+            bg.sprite = pixel;
+            bg.color = emptyPotionColor;
+
+            // Líquido da Cápsula (Preenchimento Vertical de baixo para cima)
+            GameObject fillObj = new GameObject("CapFill");
+            fillObj.transform.SetParent(capObj.transform, false);
+            RectTransform fillRect = fillObj.AddComponent<RectTransform>();
+            fillRect.anchorMin = Vector2.zero;
+            fillRect.anchorMax = Vector2.one;
+            fillRect.offsetMin = new Vector2(1, 1);
+            fillRect.offsetMax = new Vector2(-1, -1);
+
+            Image fill = fillObj.AddComponent<Image>();
+            fill.sprite = pixel;
+            fill.type = Image.Type.Filled;
+            fill.fillMethod = Image.FillMethod.Vertical;
+            fill.fillOrigin = (int)Image.OriginVertical.Bottom;
+            fill.color = readyPotionColor;
+            fill.fillAmount = 1f;
+
+            capsuleFills[i] = fill;
+        }
+
+        // Texto Informativo à Direita das Cápsulas
         GameObject textObj = new GameObject("StatusText");
         textObj.transform.SetParent(panelObj.transform, false);
 
         RectTransform textRect = textObj.AddComponent<RectTransform>();
-        textRect.anchorMin = new Vector2(0, 0.45f);
-        textRect.anchorMax = new Vector2(1, 1f);
-        textRect.offsetMin = new Vector2(6, 0);
-        textRect.offsetMax = new Vector2(-6, -2);
+        textRect.anchorMin = new Vector2(0.22f, 0);
+        textRect.anchorMax = new Vector2(1f, 1f);
+        textRect.offsetMin = new Vector2(6, 4);
+        textRect.offsetMax = new Vector2(-6, -4);
 
         statusText = textObj.AddComponent<TextMeshProUGUI>();
         statusText.fontSize = 11;
         statusText.fontStyle = FontStyles.Bold;
         statusText.alignment = TextAlignmentOptions.MidlineLeft;
         statusText.color = Color.white;
-        statusText.textWrappingMode = TextWrappingModes.NoWrap;
+        statusText.textWrappingMode = TextWrappingModes.Normal;
 
         Shadow textShadow = textObj.AddComponent<Shadow>();
         textShadow.effectColor = new Color(0, 0, 0, 0.9f);
         textShadow.effectDistance = new Vector2(1f, -1f);
-
-        // Container Inferior (Ícones de Frascos + Barra de Síntese)
-        GameObject bottomContainer = new GameObject("BottomContainer");
-        bottomContainer.transform.SetParent(panelObj.transform, false);
-
-        RectTransform bottomRect = bottomContainer.AddComponent<RectTransform>();
-        bottomRect.anchorMin = new Vector2(0, 0);
-        bottomRect.anchorMax = new Vector2(1, 0.48f);
-        bottomRect.offsetMin = new Vector2(6, 3);
-        bottomRect.offsetMax = new Vector2(-6, -1);
-
-        // Ícones das Poções (Frascos)
-        potionIcons.Clear();
-        Sprite pixel = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 1, 1), Vector2.zero);
-
-        for (int i = 0; i < 2; i++)
-        {
-            GameObject vialObj = new GameObject($"Vial_{i}");
-            vialObj.transform.SetParent(bottomContainer.transform, false);
-
-            RectTransform vialRect = vialObj.AddComponent<RectTransform>();
-            vialRect.anchorMin = new Vector2(0, 0);
-            vialRect.anchorMax = new Vector2(0, 1);
-            vialRect.sizeDelta = new Vector2(16f, 0f);
-            vialRect.anchoredPosition = new Vector2(i * 20f + 8f, 0f);
-
-            Image vialImg = vialObj.AddComponent<Image>();
-            vialImg.sprite = pixel;
-            vialImg.color = readyPotionColor;
-            potionIcons.Add(vialImg);
-        }
-
-        // Barra de Síntese
-        GameObject barBgObj = new GameObject("SynthesisBarBg");
-        barBgObj.transform.SetParent(bottomContainer.transform, false);
-
-        RectTransform barBgRect = barBgObj.AddComponent<RectTransform>();
-        barBgRect.anchorMin = new Vector2(0, 0);
-        barBgRect.anchorMax = new Vector2(1, 1);
-        barBgRect.offsetMin = new Vector2(46f, 2f);
-        barBgRect.offsetMax = new Vector2(0f, -2f);
-
-        Image barBg = barBgObj.AddComponent<Image>();
-        barBg.sprite = pixel;
-        barBg.color = new Color(0.1f, 0.18f, 0.14f, 0.8f);
-
-        GameObject barFillObj = new GameObject("SynthesisBarFill");
-        barFillObj.transform.SetParent(barBgObj.transform, false);
-
-        RectTransform barFillRect = barFillObj.AddComponent<RectTransform>();
-        barFillRect.anchorMin = Vector2.zero;
-        barFillRect.anchorMax = Vector2.one;
-        barFillRect.offsetMin = Vector2.zero;
-        barFillRect.offsetMax = Vector2.zero;
-
-        synthesisBarFill = barFillObj.AddComponent<Image>();
-        synthesisBarFill.sprite = pixel;
-        synthesisBarFill.type = Image.Type.Filled;
-        synthesisBarFill.fillMethod = Image.FillMethod.Horizontal;
-        synthesisBarFill.fillOrigin = (int)Image.OriginHorizontal.Left;
-        synthesisBarFill.color = synthesisProgressColor;
-        synthesisBarFill.fillAmount = 1f;
     }
 }

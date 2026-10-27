@@ -26,12 +26,24 @@ public class DashM : MonoBehaviour
     // Timers individuais por carga (cada uma carrega separadamente em paralelo)
     private float[] chargeSlotTimers = new float[0];
 
+    public static DashM Instance { get; private set; }
+
     [Header("Esquiva Perfeita (Perfect Dash)")]
     [Tooltip("Janela inicial em segundos para qualificar uma esquiva perfeita.")]
     public float perfectDodgeWindowDuration = 0.16f;
     private bool isInPerfectDodgeWindow = false;
     private bool isNextAttackGuaranteedCrit = false;
     private float critBuffEndTime = 0f;
+
+    [Header("Sobrecarga de Esquiva Perfeita (Hyper Charge)")]
+    [Tooltip("Duração em segundos que a barra de sobrecarga do Perfect Dash permanece ativa.")]
+    public float perfectDodgeChargeDuration = 6.0f;
+    private bool hasPerfectDodgeCharge = false;
+    private float perfectDodgeChargeTimer = 0f;
+
+    public bool HasPerfectDodgeCharge => hasPerfectDodgeCharge && perfectDodgeChargeTimer > 0f;
+    public float PerfectDodgeChargeProgress => Mathf.Clamp01(perfectDodgeChargeTimer / Mathf.Max(0.1f, perfectDodgeChargeDuration));
+    public float PerfectDodgeChargeRemainingTime => Mathf.Max(0f, perfectDodgeChargeTimer);
 
     [Header("UI")]
     public TextMeshProUGUI dashCountText;
@@ -139,6 +151,7 @@ public class DashM : MonoBehaviour
 
     private void Awake()
     {
+        Instance = this;
         InitSlotTimers();
     }
 
@@ -269,8 +282,18 @@ public class DashM : MonoBehaviour
             StartCoroutine(PerformDash());
         }
 
-        // 3. Expira buff de crítico garantido do Perfect Dash
-        if (isNextAttackGuaranteedCrit && Time.unscaledTime > critBuffEndTime)
+        // 3. Expira a Sobrecarga do Perfect Dash com o tempo (se não for consumida em 6s)
+        if (hasPerfectDodgeCharge)
+        {
+            perfectDodgeChargeTimer -= Time.unscaledDeltaTime;
+            if (perfectDodgeChargeTimer <= 0f)
+            {
+                hasPerfectDodgeCharge = false;
+                perfectDodgeChargeTimer = 0f;
+                isNextAttackGuaranteedCrit = false;
+            }
+        }
+        else if (isNextAttackGuaranteedCrit && Time.unscaledTime > critBuffEndTime)
         {
             isNextAttackGuaranteedCrit = false;
         }
@@ -283,22 +306,32 @@ public class DashM : MonoBehaviour
         isDashing = true;
         isInPerfectDodgeWindow = true;
 
-        float effectiveCooldown = MaxCooldown;
-        int targetMax = MaxDashes;
-        int slotToUse = -1;
-        for (int i = targetMax - 1; i >= 0; i--)
+        // Se o jogador estiver com a Sobrecarga do Perfect Dash ativa, gasta a sobrecarga como um DASH EXTRA LIVRE!
+        if (HasPerfectDodgeCharge)
         {
-            if (chargeSlotTimers[i] >= effectiveCooldown)
+            ConsumePerfectDodgeCharge();
+            Debug.Log("⚡ [DashM] Dash Livre Extra executado usando a Sobrecarga do Perfect Dash!");
+        }
+        else
+        {
+            // Consome a carga normal do dash
+            float effectiveCooldown = MaxCooldown;
+            int targetMax = MaxDashes;
+            int slotToUse = -1;
+            for (int i = targetMax - 1; i >= 0; i--)
             {
-                slotToUse = i;
-                break;
+                if (chargeSlotTimers[i] >= effectiveCooldown)
+                {
+                    slotToUse = i;
+                    break;
+                }
             }
+            if (slotToUse >= 0)
+            {
+                chargeSlotTimers[slotToUse] = 0f;
+            }
+            dashesLeft = Mathf.Max(0, dashesLeft - 1);
         }
-        if (slotToUse >= 0)
-        {
-            chargeSlotTimers[slotToUse] = 0f;
-        }
-        dashesLeft = Mathf.Max(0, dashesLeft - 1);
 
         // Ativar I-Frames durante o dash
         if (playerHealth != null)
@@ -379,38 +412,11 @@ public class DashM : MonoBehaviour
         // 2. Hit-Stop (Desaceleração do tempo / Witch Time)
         Time.timeScale = 0.15f;
 
-        // 3. Recompensa de Mobilidade: Restaura 1 Dash imediatamente (enche o slot com menor progresso)
-        float effectiveCooldown = MaxCooldown;
-        int targetMax = MaxDashes;
-        int slotToRestore = -1;
-        float lowestTime = float.MaxValue;
-        for (int i = 0; i < targetMax; i++)
-        {
-            if (chargeSlotTimers != null && i < chargeSlotTimers.Length && chargeSlotTimers[i] < effectiveCooldown)
-            {
-                if (chargeSlotTimers[i] < lowestTime)
-                {
-                    lowestTime = chargeSlotTimers[i];
-                    slotToRestore = i;
-                }
-            }
-        }
-        if (slotToRestore >= 0)
-        {
-            chargeSlotTimers[slotToRestore] = effectiveCooldown;
-            dashesLeft = Mathf.Min(targetMax, dashesLeft + 1);
-        }
-
-        // 4. Recompensa Ofensiva: 100% de Crítico no próximo ataque (3s)
+        // 3. Ativa a Sobrecarga do Perfect Dash (Barra Especial de 3 Escolhas: Crítico / Dash Extra / Cura Q)
+        hasPerfectDodgeCharge = true;
+        perfectDodgeChargeTimer = perfectDodgeChargeDuration;
         isNextAttackGuaranteedCrit = true;
-        critBuffEndTime = Time.unscaledTime + 3.0f;
-
-        // 5. Recompensa de Sobrevivência: Acelera síntese da poção do Eptinho em +15s
-        SuitHealingSystem suitHealer = SuitHealingSystem.Instance ?? FindFirstObjectByType<SuitHealingSystem>();
-        if (suitHealer != null)
-        {
-            suitHealer.OnPerfectDodgeBonus(15f);
-        }
+        critBuffEndTime = Time.unscaledTime + perfectDodgeChargeDuration;
 
         // 6. Feedback Visual na UI
         if (DashUI.Instance != null)
@@ -485,11 +491,29 @@ public class DashM : MonoBehaviour
     /// <summary>
     /// Consome o bônus de crítico garantido ao desferir um golpe.
     /// </summary>
+    /// <summary>
+    /// Consome a Sobrecarga do Perfect Dash (quando gasta em Dash Livre, Ataque Crítico ou Síntese Q).
+    /// </summary>
+    public bool ConsumePerfectDodgeCharge()
+    {
+        if (hasPerfectDodgeCharge && perfectDodgeChargeTimer > 0f)
+        {
+            hasPerfectDodgeCharge = false;
+            perfectDodgeChargeTimer = 0f;
+            isNextAttackGuaranteedCrit = false;
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Consome o bônus de crítico garantido ao desferir um golpe (com Adaga, Machado ou Tiro).
+    /// </summary>
     public bool ConsumeGuaranteedCrit()
     {
-        if (isNextAttackGuaranteedCrit && Time.unscaledTime <= critBuffEndTime)
+        if (HasPerfectDodgeCharge || (isNextAttackGuaranteedCrit && Time.unscaledTime <= critBuffEndTime))
         {
-            isNextAttackGuaranteedCrit = false;
+            ConsumePerfectDodgeCharge();
             return true;
         }
         return false;
