@@ -16,11 +16,12 @@ public class DashM : MonoBehaviour
 
     [Header("Dash Charges (Modular & Cargas Independentes)")]
     public int maxDashes = 2;
+    private int bonusDashes = 0;
     private int dashesLeft;
 
     [Header("Cooldown por Carga")]
-    [Tooltip("Tempo em segundos para recarregar cada carga individual de dash (padrão: 1.0s).")]
-    public float dashCooldown = 1.0f;
+    [Tooltip("Tempo em segundos para recarregar cada carga individual de dash (padrão: 0.9s conforme game design).")]
+    public float dashCooldown = 0.9f;
 
     // Timers individuais por carga (cada uma carrega separadamente em paralelo)
     private float[] chargeSlotTimers = new float[0];
@@ -58,10 +59,16 @@ public class DashM : MonoBehaviour
     // === Getters para DashUI e Sistemas Externos ===
     public float MaxCooldown => (playerAttributes != null && playerAttributes.dashCooldownMultiplier > 0) ? dashCooldown * playerAttributes.dashCooldownMultiplier : dashCooldown;
     public int DashesLeft => dashesLeft;
-    public int MaxDashes => maxDashes;
+    public int MaxDashes => Mathf.Max(1, maxDashes + bonusDashes);
     public bool IsInPerfectDodgeWindow => isDashing && isInPerfectDodgeWindow;
     public bool IsNextAttackGuaranteedCrit => isNextAttackGuaranteedCrit && Time.unscaledTime <= critBuffEndTime;
-    public bool IsRecharging => dashesLeft < maxDashes;
+    public bool IsRecharging => dashesLeft < MaxDashes;
+
+    public void SetBonusDashes(int bonus)
+    {
+        bonusDashes = bonus;
+        InitSlotTimers();
+    }
 
     public float CurrentCooldownTimer
     {
@@ -69,7 +76,8 @@ public class DashM : MonoBehaviour
         {
             float minRemaining = float.MaxValue;
             float cd = MaxCooldown;
-            for (int i = 0; i < maxDashes; i++)
+            int total = MaxDashes;
+            for (int i = 0; i < total; i++)
             {
                 if (chargeSlotTimers != null && i < chargeSlotTimers.Length && chargeSlotTimers[i] < cd)
                 {
@@ -85,10 +93,11 @@ public class DashM : MonoBehaviour
     {
         get
         {
-            if (dashesLeft >= maxDashes) return 1f;
+            int total = MaxDashes;
+            if (dashesLeft >= total) return 1f;
             float maxProg = 0f;
             float cd = Mathf.Max(0.01f, MaxCooldown);
-            for (int i = 0; i < maxDashes; i++)
+            for (int i = 0; i < total; i++)
             {
                 if (chargeSlotTimers != null && i < chargeSlotTimers.Length && chargeSlotTimers[i] < cd)
                 {
@@ -143,7 +152,6 @@ public class DashM : MonoBehaviour
         playerAttributes = GetComponent<PlayerAttributesDefensive>();
         if (playerAttributes != null)
         {
-            // Se houver upgrades/atributos com mais cargas, expande maxDashes
             if (playerAttributes.dashCounts > maxDashes)
             {
                 maxDashes = playerAttributes.dashCounts;
@@ -151,7 +159,7 @@ public class DashM : MonoBehaviour
         }
 
         InitSlotTimers();
-        dashesLeft = maxDashes;
+        dashesLeft = MaxDashes;
         
         // Buscar PlayerHealth para invulnerabilidade
         playerHealth = GetComponent<PlayerHealth>();
@@ -168,15 +176,23 @@ public class DashM : MonoBehaviour
 
     private void InitSlotTimers()
     {
-        if (maxDashes < 1) maxDashes = 1;
+        int targetMax = MaxDashes;
         float cd = MaxCooldown;
 
-        if (chargeSlotTimers == null || chargeSlotTimers.Length != maxDashes)
+        if (chargeSlotTimers == null || chargeSlotTimers.Length != targetMax)
         {
-            chargeSlotTimers = new float[maxDashes];
-            for (int i = 0; i < maxDashes; i++)
+            float[] oldTimers = chargeSlotTimers;
+            chargeSlotTimers = new float[targetMax];
+            for (int i = 0; i < targetMax; i++)
             {
-                chargeSlotTimers[i] = cd; // Todos começam prontos
+                if (oldTimers != null && i < oldTimers.Length)
+                {
+                    chargeSlotTimers[i] = oldTimers[i];
+                }
+                else
+                {
+                    chargeSlotTimers[i] = cd; // Novo slot começa pronto
+                }
             }
         }
     }
@@ -213,8 +229,8 @@ public class DashM : MonoBehaviour
             lastDashInputTime = Time.time;
         }
 
-        // Garante tamanho do array sincronizado caso maxDashes mude em runtime
-        if (chargeSlotTimers == null || chargeSlotTimers.Length != maxDashes)
+        int targetMax = MaxDashes;
+        if (chargeSlotTimers == null || chargeSlotTimers.Length != targetMax)
         {
             InitSlotTimers();
         }
@@ -223,7 +239,7 @@ public class DashM : MonoBehaviour
 
         // 1. Cada carga carrega separadamente em paralelo
         int readyCount = 0;
-        for (int i = 0; i < maxDashes; i++)
+        for (int i = 0; i < targetMax; i++)
         {
             if (chargeSlotTimers[i] < effectiveCooldown)
             {
@@ -267,10 +283,10 @@ public class DashM : MonoBehaviour
         isDashing = true;
         isInPerfectDodgeWindow = true;
 
-        // Consome a carga mais alta disponível (assim o slot correspondente entra em recarga)
         float effectiveCooldown = MaxCooldown;
+        int targetMax = MaxDashes;
         int slotToUse = -1;
-        for (int i = maxDashes - 1; i >= 0; i--)
+        for (int i = targetMax - 1; i >= 0; i--)
         {
             if (chargeSlotTimers[i] >= effectiveCooldown)
             {
@@ -339,7 +355,7 @@ public class DashM : MonoBehaviour
 
     /// <summary>
     /// Disparado pelo PlayerHealth quando o jogador esquiva com sucesso dentro da janela inicial.
-    /// Ativa hit-stop, restaura 1 dash e concede 100% crítico no próximo golpe.
+    /// Ativa hit-stop, after-image, restaura 1 dash, acelera cura do Eptinho e concede 100% crítico no próximo golpe.
     /// </summary>
     [ContextMenu("Testar Esquiva Perfeita")]
     public void DebugTriggerPerfectDodge()
@@ -357,14 +373,18 @@ public class DashM : MonoBehaviour
     {
         Debug.Log("⚡ [DashM] PERFECT DASH EXECUTADO COM SUCESSO!");
 
-        // 1. Hit-Stop (Desaceleração do tempo / Witch Time)
+        // 1. Gera After-Image (Silhueta fantasma translúcida na posição do dash)
+        SpawnAfterImage();
+
+        // 2. Hit-Stop (Desaceleração do tempo / Witch Time)
         Time.timeScale = 0.15f;
 
-        // 2. Recompensa de Mobilidade: Restaura 1 Dash imediatamente (enche o slot com menor progresso)
+        // 3. Recompensa de Mobilidade: Restaura 1 Dash imediatamente (enche o slot com menor progresso)
         float effectiveCooldown = MaxCooldown;
+        int targetMax = MaxDashes;
         int slotToRestore = -1;
         float lowestTime = float.MaxValue;
-        for (int i = 0; i < maxDashes; i++)
+        for (int i = 0; i < targetMax; i++)
         {
             if (chargeSlotTimers != null && i < chargeSlotTimers.Length && chargeSlotTimers[i] < effectiveCooldown)
             {
@@ -378,14 +398,21 @@ public class DashM : MonoBehaviour
         if (slotToRestore >= 0)
         {
             chargeSlotTimers[slotToRestore] = effectiveCooldown;
-            dashesLeft = Mathf.Min(maxDashes, dashesLeft + 1);
+            dashesLeft = Mathf.Min(targetMax, dashesLeft + 1);
         }
 
-        // 3. Recompensa Ofensiva: 100% de Crítico no próximo ataque (3s)
+        // 4. Recompensa Ofensiva: 100% de Crítico no próximo ataque (3s)
         isNextAttackGuaranteedCrit = true;
         critBuffEndTime = Time.unscaledTime + 3.0f;
 
-        // 4. Feedback Visual na UI
+        // 5. Recompensa de Sobrevivência: Acelera síntese da poção do Eptinho em +15s
+        SuitHealingSystem suitHealer = SuitHealingSystem.Instance ?? FindFirstObjectByType<SuitHealingSystem>();
+        if (suitHealer != null)
+        {
+            suitHealer.OnPerfectDodgeBonus(15f);
+        }
+
+        // 6. Feedback Visual na UI
         if (DashUI.Instance != null)
         {
             DashUI.Instance.TriggerPerfectDodgeFlash();
@@ -395,6 +422,64 @@ public class DashM : MonoBehaviour
         yield return new WaitForSecondsRealtime(0.18f);
 
         Time.timeScale = 1.0f;
+    }
+
+    /// <summary>
+    /// Spawna uma silhueta translúcida (After-Image) do jogador no ponto da esquiva perfeita.
+    /// </summary>
+    private void SpawnAfterImage()
+    {
+        Renderer[] renderers = GetComponentsInChildren<Renderer>();
+        if (renderers == null || renderers.Length == 0) return;
+
+        GameObject ghostObj = new GameObject("DashGhost_AfterImage");
+        ghostObj.transform.position = transform.position;
+        ghostObj.transform.rotation = transform.rotation;
+
+        Material ghostMat = new Material(Shader.Find("Sprites/Default"));
+        ghostMat.color = new Color(0.1f, 0.85f, 1.0f, 0.55f); // Ciano Neon fantasma
+
+        foreach (var r in renderers)
+        {
+            if (r is SkinnedMeshRenderer smr)
+            {
+                Mesh baked = new Mesh();
+                smr.BakeMesh(baked);
+                GameObject part = new GameObject("GhostPart");
+                part.transform.SetParent(ghostObj.transform);
+                part.transform.position = r.transform.position;
+                part.transform.rotation = r.transform.rotation;
+                part.transform.localScale = r.transform.lossyScale;
+
+                MeshFilter mf = part.AddComponent<MeshFilter>();
+                mf.mesh = baked;
+                MeshRenderer mr = part.AddComponent<MeshRenderer>();
+                mr.material = ghostMat;
+            }
+        }
+
+        StartCoroutine(FadeAndDestroyGhost(ghostObj, ghostMat, 0.35f));
+    }
+
+    private IEnumerator FadeAndDestroyGhost(GameObject ghost, Material mat, float duration)
+    {
+        float elapsed = 0f;
+        Color initialColor = mat.color;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float alpha = Mathf.Lerp(initialColor.a, 0f, elapsed / duration);
+            if (mat != null)
+            {
+                Color c = initialColor;
+                c.a = alpha;
+                mat.color = c;
+            }
+            yield return null;
+        }
+
+        if (ghost != null) Destroy(ghost);
     }
 
     /// <summary>
@@ -414,14 +499,15 @@ public class DashM : MonoBehaviour
     {
         if (dashCountText != null)
         {
-            if (dashesLeft < maxDashes)
+            int targetMax = MaxDashes;
+            if (dashesLeft < targetMax)
             {
                 float remaining = CurrentCooldownTimer;
-                dashCountText.text = $"Dash: {dashesLeft}/{maxDashes} ({remaining:F1}s)";
+                dashCountText.text = $"Dash: {dashesLeft}/{targetMax} ({remaining:F1}s)";
             }
             else
             {
-                dashCountText.text = $"Dash: {dashesLeft}/{maxDashes}";
+                dashCountText.text = $"Dash: {dashesLeft}/{targetMax}";
             }
         }
     }
@@ -429,11 +515,12 @@ public class DashM : MonoBehaviour
     public void RechargeDashes(int amount)
     {
         float cd = MaxCooldown;
+        int targetMax = MaxDashes;
         for (int count = 0; count < amount; count++)
         {
             int slotToRestore = -1;
             float lowestTime = float.MaxValue;
-            for (int i = 0; i < maxDashes; i++)
+            for (int i = 0; i < targetMax; i++)
             {
                 if (chargeSlotTimers != null && i < chargeSlotTimers.Length && chargeSlotTimers[i] < cd)
                 {
@@ -449,7 +536,7 @@ public class DashM : MonoBehaviour
                 chargeSlotTimers[slotToRestore] = cd;
             }
         }
-        dashesLeft = Mathf.Min(maxDashes, dashesLeft + amount);
-        Debug.Log($"Dashes recarregados! Total agora: {dashesLeft}/{maxDashes}");
+        dashesLeft = Mathf.Min(targetMax, dashesLeft + amount);
+        Debug.Log($"Dashes recarregados! Total agora: {dashesLeft}/{targetMax}");
     }
 }

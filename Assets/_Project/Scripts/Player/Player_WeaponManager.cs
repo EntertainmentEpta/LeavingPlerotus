@@ -144,6 +144,12 @@ public class Player_WeaponManager : MonoBehaviour
             attackScript.hasWeapon = false;
         }
 
+        DashM dashM = GetComponent<DashM>() ?? GetComponentInParent<DashM>();
+        if (dashM != null)
+        {
+            dashM.SetBonusDashes(0);
+        }
+
         if (playerAnimator != null && defaultAnimatorController != null)
         {
             playerAnimator.runtimeAnimatorController = defaultAnimatorController;
@@ -392,6 +398,19 @@ public class Player_WeaponManager : MonoBehaviour
 
         Dagger_Pickup daggerPickup = weapon.GetComponent<Dagger_Pickup>();
         if (daggerPickup != null) daggerPickup.enabled = false;
+
+        DashM dashM = GetComponent<DashM>() ?? GetComponentInParent<DashM>();
+        if (dashM != null)
+        {
+            if (offsetData.weaponType == WeaponType.Dagger)
+            {
+                dashM.SetBonusDashes(1); // +1 Dash passivo de base ao empunhar Adaga!
+            }
+            else
+            {
+                dashM.SetBonusDashes(0);
+            }
+        }
 
         if (attackScript != null)
         {

@@ -1853,7 +1853,7 @@ MonoBehaviour:
   dashSpeed: 30
   dashDuration: 0.2
   maxDashes: 2
-  dashCooldown: 1
+  dashCooldown: 0.9
   dashCountText: {fileID: 0}
   dashKey: 101
   keyUp: 119

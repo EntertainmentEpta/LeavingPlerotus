@@ -79,11 +79,11 @@ public class PrimaryAttackKnife : MonoBehaviour
     [Header("Settings")]
     public float attackAnimationSpeed = 1.15f;
     public float defaultAttackSpeed = 1.15f; // Para resetar a velocidade padrão
-    public float axeAttackSpeed = 0.95f; // Velocidade aprimorada e fluida para o machado
+    public float axeAttackSpeed = 1.15f; // Velocidade aprimorada e fluida para o machado
 
     [Header("Combo Speed Modifiers (Fine Tuning)")]
     [Tooltip("Multiplicador de velocidade para o Hit 1")]
-    public float hit1SpeedMultiplier = 1.05f;
+    public float hit1SpeedMultiplier = 1.35f;
     [Tooltip("Multiplicador de velocidade para o Hit 2")]
     public float hit2SpeedMultiplier = 1.05f; // Normalizado sem lentidão artificial!
     [Tooltip("Multiplicador de velocidade para o Hit 3")]
@@ -93,7 +93,7 @@ public class PrimaryAttackKnife : MonoBehaviour
 
     [Header("Weapon Damages")]
     public int[] defaultDamages = { 20, 25, 35 };
-    public int[] daggerDamages = { 30, 35, 40 }; // Conforme Hp_Dano_Inimigos.pdf (Combo total = 105)
+    public int[] daggerDamages = { 30, 35, 45 }; // Conforme Hp_Dano_Inimigos.pdf (Combo total = 105)
     public int[] swordDamages = { 35, 45, 60 };
     public int[] axeDamages = { 40, 45, 55, 55 }; // Conforme Hp_Dano_Inimigos.pdf (Combo total = 195)
     private int[] currentDamages;
@@ -110,6 +110,10 @@ public class PrimaryAttackKnife : MonoBehaviour
 
     [HideInInspector]
     public float comboResetTime = 1.2f;
+
+    // Machado: Ataque Pesado Carregado (Hold Attack)
+    private float axeHoldTimer = 0f;
+    private bool isAxeCharging = false;
     private int comboStep = 0;
 
     [Header("Lunge Impulse Control")]
@@ -123,7 +127,7 @@ public class PrimaryAttackKnife : MonoBehaviour
     public float daggerHitDuration = 0.2f;
 
     [Tooltip("Delay (em segundos) para ativar o colisor de dano do Machado")]
-    public float axeHitDelay = 0.22f;
+    public float axeHitDelay = 0.10f;
     [Tooltip("Duração (em segundos) que o colisor do Machado fica ativo")]
     public float axeHitDuration = 0.2f;
 
@@ -229,6 +233,35 @@ public class PrimaryAttackKnife : MonoBehaviour
                 if (Mathf.Abs(animator.speed - targetSpeed) > 0.01f)
                 {
                     animator.speed = targetSpeed;
+                }
+            }
+
+            // Machado: Detecção de ataque carregado segurando o botão
+            bool isAxeEquipped = IsAxeEquipped();
+            if (isAxeEquipped && (Input.GetKey(attackKey) || Input.GetMouseButton(0)))
+            {
+                if (!IsAnyUIOpen() && hasWeapon)
+                {
+                    axeHoldTimer += Time.deltaTime;
+                    if (axeHoldTimer >= 0.35f && !isAxeCharging && !isAttacking && canAttack)
+                    {
+                        isAxeCharging = true;
+                        Debug.Log("🪓 [PrimaryAttackKnife] Machado carregando Ataque Pesado...");
+                    }
+                }
+            }
+
+            if (Input.GetKeyUp(attackKey) || Input.GetMouseButtonUp(0))
+            {
+                if (isAxeCharging)
+                {
+                    isAxeCharging = false;
+                    axeHoldTimer = 0f;
+                    ExecuteAxeHeavyAttack();
+                }
+                else
+                {
+                    axeHoldTimer = 0f;
                 }
             }
 
@@ -840,6 +873,9 @@ public class PrimaryAttackKnife : MonoBehaviour
             BoxCollider boxCollider = equippedWeaponHitbox as BoxCollider;
             if (boxCollider != null)
             {
+                // Aumento de +30% na vertical e profundidade para acertar aranhas facilmente
+                boxCollider.size = new Vector3(1.4f, 1.6f, 2.2f);
+                boxCollider.center = new Vector3(0f, 0.2f, 1.2f);
                 originalWeaponHitboxSize = boxCollider.size;
                 currentOriginalSize = originalWeaponHitboxSize;
             }
@@ -970,4 +1006,74 @@ public class PrimaryAttackKnife : MonoBehaviour
         float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;
         Destroy(audioObj, clip.length / safePitch);
     }
+    /// <summary>
+    /// Skill Única do Machado: Ataque Pesado Carregado em área com alto dano e knockback 360.
+    /// </summary>
+    public void ExecuteAxeHeavyAttack()
+    {
+        if (IsAnyUIOpen() || !hasWeapon) return;
+        Debug.Log("💥 [PrimaryAttackKnife] ATAQUE PESADO DO MACHADO EXECUTADO!");
+
+        canAttack = false;
+        isAttacking = true;
+
+        if (animator != null && animator.isActiveAndEnabled)
+        {
+            animator.speed = 1.35f;
+            animator.Play("Attack4", 0, 0f);
+        }
+
+        if (axeSwing4 != null) PlayAxeSwingClip(axeSwing4, 1.0f);
+
+        StartCoroutine(DoAxeHeavyRoutine());
+    }
+
+    private IEnumerator DoAxeHeavyRoutine()
+    {
+        yield return new WaitForSeconds(0.12f);
+
+        float heavyRadius = axeRange * 1.3f;
+        Collider[] hits = Physics.OverlapSphere(transform.position, heavyRadius);
+        int heavyDamage = 130;
+
+        if (playerAttributes != null)
+        {
+            heavyDamage = Mathf.RoundToInt(heavyDamage * playerAttributes.baseDamageMultiplier);
+        }
+
+        DashM dashRef = GetComponent<DashM>() ?? GetComponentInParent<DashM>();
+        bool guaranteedCrit = dashRef != null && dashRef.ConsumeGuaranteedCrit();
+        if (guaranteedCrit || (playerAttributes != null && Random.Range(0f, 100f) < playerAttributes.critChance))
+        {
+            float critMult = playerAttributes != null ? playerAttributes.critMultiplier : 1.5f;
+            heavyDamage = Mathf.RoundToInt(heavyDamage * critMult);
+        }
+
+        foreach (var hit in hits)
+        {
+            if (hit.CompareTag("Enemy") || hit.GetComponent<DummyHealth>() != null)
+            {
+                DummyHealth dh = hit.GetComponent<DummyHealth>();
+                if (dh != null)
+                {
+                    dh.TakeDamage(heavyDamage);
+                }
+
+                Rigidbody enemyRb = hit.GetComponent<Rigidbody>();
+                if (enemyRb != null)
+                {
+                    Vector3 knockDir = (hit.transform.position - transform.position).normalized;
+                    knockDir.y = 0.25f;
+                    enemyRb.AddForce(knockDir * 20f, ForceMode.Impulse);
+                }
+            }
+        }
+
+        yield return new WaitForSeconds(0.25f);
+
+        canAttack = true;
+        isAttacking = false;
+        if (animator != null) animator.speed = 1f;
+    }
+
 }
