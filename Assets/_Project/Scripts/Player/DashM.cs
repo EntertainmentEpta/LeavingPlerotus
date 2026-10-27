@@ -227,6 +227,12 @@ public class DashM : MonoBehaviour
     /// Disparado pelo PlayerHealth quando o jogador esquiva com sucesso dentro da janela inicial.
     /// Ativa hit-stop, restaura 1 dash e concede 100% crítico no próximo golpe.
     /// </summary>
+    [ContextMenu("Testar Esquiva Perfeita")]
+    public void DebugTriggerPerfectDodge()
+    {
+        TriggerPerfectDodge(null);
+    }
+
     public void TriggerPerfectDodge(GameObject attacker = null)
     {
         isInPerfectDodgeWindow = false;
