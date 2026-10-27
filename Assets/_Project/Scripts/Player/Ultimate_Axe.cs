@@ -204,10 +204,6 @@ public class Ultimate_Axe : MonoBehaviour
             TestVFXDirectly();
         }
 
-        if (Input.GetKeyDown(KeyCode.T))
-        {
-            ToggleTestSlowMotion();
-        }
     }
 
     [ContextMenu("💥 Disparar VFX e Dano Agora")]
