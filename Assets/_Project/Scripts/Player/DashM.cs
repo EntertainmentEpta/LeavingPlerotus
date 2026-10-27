@@ -19,8 +19,8 @@ public class DashM : MonoBehaviour
     private int dashesLeft;
 
     [Header("Cooldown por Carga")]
-    [Tooltip("Tempo em segundos para recarregar cada carga individual de dash (padrão: 0.5s).")]
-    public float dashCooldown = 0.5f;
+    [Tooltip("Tempo em segundos para recarregar cada carga individual de dash (padrão: 1.0s).")]
+    public float dashCooldown = 1.0f;
 
     // Timers individuais por carga (cada uma carrega separadamente em paralelo)
     private float[] chargeSlotTimers = new float[0];
