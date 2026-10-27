@@ -14,14 +14,16 @@ public class DashM : MonoBehaviour
     public float dashSpeed = 30f;
     public float dashDuration = 0.2f;
 
-    [Header("Dash Charges (Estilo Hades)")]
+    [Header("Dash Charges (Modular & Cargas Independentes)")]
     public int maxDashes = 2;
     private int dashesLeft;
 
-    [Header("Cooldown Independente")]
-    [Tooltip("Tempo em segundos para recarregar UMA carga individual de dash (Estilo Hades).")]
-    public float dashCooldown = 0.9f;
-    private float chargeRechargeTimer = 0f;
+    [Header("Cooldown por Carga")]
+    [Tooltip("Tempo em segundos para recarregar cada carga individual de dash (padrão: 0.5s).")]
+    public float dashCooldown = 0.5f;
+
+    // Timers individuais por carga (cada uma carrega separadamente em paralelo)
+    private float[] chargeSlotTimers = new float[0];
 
     [Header("Esquiva Perfeita (Perfect Dash)")]
     [Tooltip("Janela inicial em segundos para qualificar uma esquiva perfeita.")]
@@ -54,33 +56,102 @@ public class DashM : MonoBehaviour
     public float dashDurationMultiplier = 1.0f;
 
     // === Getters para DashUI e Sistemas Externos ===
-    public float CurrentCooldownTimer => dashesLeft >= maxDashes ? 0f : Mathf.Max(0f, MaxCooldown - chargeRechargeTimer);
     public float MaxCooldown => (playerAttributes != null && playerAttributes.dashCooldownMultiplier > 0) ? dashCooldown * playerAttributes.dashCooldownMultiplier : dashCooldown;
-    public float ChargeProgress => dashesLeft >= maxDashes ? 1f : Mathf.Clamp01(chargeRechargeTimer / Mathf.Max(0.01f, MaxCooldown));
-    public bool IsRecharging => dashesLeft < maxDashes;
     public int DashesLeft => dashesLeft;
     public int MaxDashes => maxDashes;
     public bool IsInPerfectDodgeWindow => isDashing && isInPerfectDodgeWindow;
     public bool IsNextAttackGuaranteedCrit => isNextAttackGuaranteedCrit && Time.unscaledTime <= critBuffEndTime;
+    public bool IsRecharging => dashesLeft < maxDashes;
+
+    public float CurrentCooldownTimer
+    {
+        get
+        {
+            float minRemaining = float.MaxValue;
+            float cd = MaxCooldown;
+            for (int i = 0; i < maxDashes; i++)
+            {
+                if (chargeSlotTimers != null && i < chargeSlotTimers.Length && chargeSlotTimers[i] < cd)
+                {
+                    float rem = cd - chargeSlotTimers[i];
+                    if (rem < minRemaining) minRemaining = rem;
+                }
+            }
+            return minRemaining == float.MaxValue ? 0f : minRemaining;
+        }
+    }
+
+    public float ChargeProgress
+    {
+        get
+        {
+            if (dashesLeft >= maxDashes) return 1f;
+            float maxProg = 0f;
+            float cd = Mathf.Max(0.01f, MaxCooldown);
+            for (int i = 0; i < maxDashes; i++)
+            {
+                if (chargeSlotTimers != null && i < chargeSlotTimers.Length && chargeSlotTimers[i] < cd)
+                {
+                    float prog = chargeSlotTimers[i] / cd;
+                    if (prog > maxProg) maxProg = prog;
+                }
+            }
+            return Mathf.Clamp01(maxProg);
+        }
+    }
+
+    /// <summary>
+    /// Retorna o progresso de recarga (0.0 a 1.0) de um slot específico de dash.
+    /// </summary>
+    public float GetSlotProgress(int index)
+    {
+        if (chargeSlotTimers == null || index < 0 || index >= chargeSlotTimers.Length) return 0f;
+        float cd = Mathf.Max(0.01f, MaxCooldown);
+        return Mathf.Clamp01(chargeSlotTimers[index] / cd);
+    }
+
+    /// <summary>
+    /// Informa se o slot específico de dash está 100% carregado e pronto para uso.
+    /// </summary>
+    public bool IsSlotReady(int index)
+    {
+        if (chargeSlotTimers == null || index < 0 || index >= chargeSlotTimers.Length) return false;
+        return chargeSlotTimers[index] >= MaxCooldown;
+    }
+
+    /// <summary>
+    /// Retorna o tempo restante em segundos para a carga deste slot ficar pronta.
+    /// </summary>
+    public float GetSlotRemainingTime(int index)
+    {
+        if (chargeSlotTimers == null || index < 0 || index >= chargeSlotTimers.Length) return 0f;
+        return Mathf.Max(0f, MaxCooldown - chargeSlotTimers[index]);
+    }
+
+    private void Awake()
+    {
+        InitSlotTimers();
+    }
 
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
         playerMovement = GetComponent<PlayerM>();
-        dashesLeft = maxDashes;
         attackScript = GetComponent<PrimaryAttackKnife>() ?? GetComponentInChildren<PrimaryAttackKnife>() ?? GetComponentInParent<PrimaryAttackKnife>();
         
         // Buscar PlayerAttributesDefensive
         playerAttributes = GetComponent<PlayerAttributesDefensive>();
-        if (playerAttributes == null)
+        if (playerAttributes != null)
         {
-            Debug.LogWarning("DashM: PlayerAttributesDefensive não encontrado! Atributos de dash não serão aplicados.");
+            // Se houver upgrades/atributos com mais cargas, expande maxDashes
+            if (playerAttributes.dashCounts > maxDashes)
+            {
+                maxDashes = playerAttributes.dashCounts;
+            }
         }
-        else if (playerAttributes.dashCounts > 0)
-        {
-            maxDashes = playerAttributes.dashCounts;
-            dashesLeft = maxDashes;
-        }
+
+        InitSlotTimers();
+        dashesLeft = maxDashes;
         
         // Buscar PlayerHealth para invulnerabilidade
         playerHealth = GetComponent<PlayerHealth>();
@@ -88,10 +159,25 @@ public class DashM : MonoBehaviour
         // Tenta encontrar UI no inicio
         FindUIReferences();
 
-        // Garante que o DashUI existe no Canvas para exibir recarga e cargas
+        // Garante que o DashUI existe no Canvas para exibir as barras modulares
         if (GetComponent<DashUI>() == null && FindFirstObjectByType<DashUI>() == null)
         {
             gameObject.AddComponent<DashUI>();
+        }
+    }
+
+    private void InitSlotTimers()
+    {
+        if (maxDashes < 1) maxDashes = 1;
+        float cd = MaxCooldown;
+
+        if (chargeSlotTimers == null || chargeSlotTimers.Length != maxDashes)
+        {
+            chargeSlotTimers = new float[maxDashes];
+            for (int i = 0; i < maxDashes; i++)
+            {
+                chargeSlotTimers[i] = cd; // Todos começam prontos
+            }
         }
     }
 
@@ -127,7 +213,35 @@ public class DashM : MonoBehaviour
             lastDashInputTime = Time.time;
         }
 
-        // Inicia o dash se tiver pelo menos 1 carga (não precisa esperar tudo recarregar!)
+        // Garante tamanho do array sincronizado caso maxDashes mude em runtime
+        if (chargeSlotTimers == null || chargeSlotTimers.Length != maxDashes)
+        {
+            InitSlotTimers();
+        }
+
+        float effectiveCooldown = MaxCooldown;
+
+        // 1. Cada carga carrega separadamente em paralelo
+        int readyCount = 0;
+        for (int i = 0; i < maxDashes; i++)
+        {
+            if (chargeSlotTimers[i] < effectiveCooldown)
+            {
+                chargeSlotTimers[i] += Time.deltaTime;
+                if (chargeSlotTimers[i] >= effectiveCooldown)
+                {
+                    chargeSlotTimers[i] = effectiveCooldown;
+                }
+            }
+
+            if (chargeSlotTimers[i] >= effectiveCooldown)
+            {
+                readyCount++;
+            }
+        }
+        dashesLeft = readyCount;
+
+        // 2. Inicia o dash se tiver pelo menos 1 carga pronta
         if ((Time.time - lastDashInputTime <= inputBufferWindow) && dashesLeft > 0 && !isDashing && !plasmaActionLocked)
         {
             if (attackScript != null && attackScript.isAttacking)
@@ -139,23 +253,7 @@ public class DashM : MonoBehaviour
             StartCoroutine(PerformDash());
         }
 
-        // Atualização da Recarga Independente de Cargas (Estilo Hades)
-        float effectiveCooldown = MaxCooldown;
-        if (dashesLeft < maxDashes)
-        {
-            chargeRechargeTimer += Time.deltaTime;
-            if (chargeRechargeTimer >= effectiveCooldown)
-            {
-                dashesLeft++;
-                chargeRechargeTimer = (dashesLeft < maxDashes) ? (chargeRechargeTimer - effectiveCooldown) : 0f;
-            }
-        }
-        else
-        {
-            chargeRechargeTimer = 0f;
-        }
-
-        // Expira buff de crítico garantido do Perfect Dash
+        // 3. Expira buff de crítico garantido do Perfect Dash
         if (isNextAttackGuaranteedCrit && Time.unscaledTime > critBuffEndTime)
         {
             isNextAttackGuaranteedCrit = false;
@@ -168,7 +266,23 @@ public class DashM : MonoBehaviour
     {
         isDashing = true;
         isInPerfectDodgeWindow = true;
-        dashesLeft--; // Gasta 1 carga
+
+        // Consome a carga mais alta disponível (assim o slot correspondente entra em recarga)
+        float effectiveCooldown = MaxCooldown;
+        int slotToUse = -1;
+        for (int i = maxDashes - 1; i >= 0; i--)
+        {
+            if (chargeSlotTimers[i] >= effectiveCooldown)
+            {
+                slotToUse = i;
+                break;
+            }
+        }
+        if (slotToUse >= 0)
+        {
+            chargeSlotTimers[slotToUse] = 0f;
+        }
+        dashesLeft = Mathf.Max(0, dashesLeft - 1);
 
         // Ativar I-Frames durante o dash
         if (playerHealth != null)
@@ -246,11 +360,25 @@ public class DashM : MonoBehaviour
         // 1. Hit-Stop (Desaceleração do tempo / Witch Time)
         Time.timeScale = 0.15f;
 
-        // 2. Recompensa de Mobilidade: Restaura 1 Dash imediatamente!
-        if (dashesLeft < maxDashes)
+        // 2. Recompensa de Mobilidade: Restaura 1 Dash imediatamente (enche o slot com menor progresso)
+        float effectiveCooldown = MaxCooldown;
+        int slotToRestore = -1;
+        float lowestTime = float.MaxValue;
+        for (int i = 0; i < maxDashes; i++)
         {
-            dashesLeft++;
-            chargeRechargeTimer = 0f;
+            if (chargeSlotTimers != null && i < chargeSlotTimers.Length && chargeSlotTimers[i] < effectiveCooldown)
+            {
+                if (chargeSlotTimers[i] < lowestTime)
+                {
+                    lowestTime = chargeSlotTimers[i];
+                    slotToRestore = i;
+                }
+            }
+        }
+        if (slotToRestore >= 0)
+        {
+            chargeSlotTimers[slotToRestore] = effectiveCooldown;
+            dashesLeft = Mathf.Min(maxDashes, dashesLeft + 1);
         }
 
         // 3. Recompensa Ofensiva: 100% de Crítico no próximo ataque (3s)
@@ -300,8 +428,28 @@ public class DashM : MonoBehaviour
 
     public void RechargeDashes(int amount)
     {
+        float cd = MaxCooldown;
+        for (int count = 0; count < amount; count++)
+        {
+            int slotToRestore = -1;
+            float lowestTime = float.MaxValue;
+            for (int i = 0; i < maxDashes; i++)
+            {
+                if (chargeSlotTimers != null && i < chargeSlotTimers.Length && chargeSlotTimers[i] < cd)
+                {
+                    if (chargeSlotTimers[i] < lowestTime)
+                    {
+                        lowestTime = chargeSlotTimers[i];
+                        slotToRestore = i;
+                    }
+                }
+            }
+            if (slotToRestore >= 0)
+            {
+                chargeSlotTimers[slotToRestore] = cd;
+            }
+        }
         dashesLeft = Mathf.Min(maxDashes, dashesLeft + amount);
-        chargeRechargeTimer = 0f;
         Debug.Log($"Dashes recarregados! Total agora: {dashesLeft}/{maxDashes}");
     }
 }

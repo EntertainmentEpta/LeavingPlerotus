@@ -1850,10 +1850,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DashM
   isDashing: 0
-  dashSpeed: 100
-  dashDuration: 0.05
-  maxDashes: 100
-  dashCooldown: 5
+  dashSpeed: 30
+  dashDuration: 0.2
+  maxDashes: 2
+  dashCooldown: 0.5
   dashCountText: {fileID: 0}
   dashKey: 101
   keyUp: 119
@@ -1993,7 +1993,7 @@ MonoBehaviour:
   thorns: 0
   healthRegen: 0
   dashCooldownMultiplier: 1
-  dashCounts: 1
+  dashCounts: 2
   dashInvulnerability: 0.2
   _speedMultiplier: 1
   temporarySpeedBoost: 0

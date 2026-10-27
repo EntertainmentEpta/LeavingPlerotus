@@ -31,7 +31,7 @@ public class PlayerAttributesDefensive : MonoBehaviour
     public float dashCooldownMultiplier = 1.0f;
     
     [Tooltip("Número máximo de cargas de Dash que podem ser armazenadas")]
-    public int dashCounts = 1;
+    public int dashCounts = 2;
     
     [Tooltip("Duração da janela de invencibilidade durante o Dash (em segundos)")]
     public float dashInvulnerability = 0.2f;
@@ -203,7 +203,7 @@ public class PlayerAttributesDefensive : MonoBehaviour
         
         // Mobilidade
         dashCooldownMultiplier = 1.0f;
-        dashCounts = 1;
+        dashCounts = 2;
         dashInvulnerability = 0.2f;
         speedMultiplier = 1.0f;
         
