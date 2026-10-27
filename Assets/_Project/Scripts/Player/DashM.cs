@@ -14,14 +14,21 @@ public class DashM : MonoBehaviour
     public float dashSpeed = 30f;
     public float dashDuration = 0.2f;
 
-    [Header("Dash Charges")]
+    [Header("Dash Charges (Estilo Hades)")]
     public int maxDashes = 2;
     private int dashesLeft;
 
-    [Header("Cooldown")]
-    public float dashCooldown = 1.3f; // Tempo em segundos para recarregar todos os dashes (acelerado para maior dinamismo)
-    private float cooldownTimer;
-    private bool isRecharging = false;
+    [Header("Cooldown Independente")]
+    [Tooltip("Tempo em segundos para recarregar UMA carga individual de dash (Estilo Hades).")]
+    public float dashCooldown = 0.9f;
+    private float chargeRechargeTimer = 0f;
+
+    [Header("Esquiva Perfeita (Perfect Dash)")]
+    [Tooltip("Janela inicial em segundos para qualificar uma esquiva perfeita.")]
+    public float perfectDodgeWindowDuration = 0.16f;
+    private bool isInPerfectDodgeWindow = false;
+    private bool isNextAttackGuaranteedCrit = false;
+    private float critBuffEndTime = 0f;
 
     [Header("UI")]
     public TextMeshProUGUI dashCountText;
@@ -46,13 +53,15 @@ public class DashM : MonoBehaviour
     [HideInInspector]
     public float dashDurationMultiplier = 1.0f;
 
-
     // === Getters para DashUI e Sistemas Externos ===
-    public float CurrentCooldownTimer => cooldownTimer;
+    public float CurrentCooldownTimer => dashesLeft >= maxDashes ? 0f : Mathf.Max(0f, MaxCooldown - chargeRechargeTimer);
     public float MaxCooldown => (playerAttributes != null && playerAttributes.dashCooldownMultiplier > 0) ? dashCooldown * playerAttributes.dashCooldownMultiplier : dashCooldown;
-    public bool IsRecharging => isRecharging;
+    public float ChargeProgress => dashesLeft >= maxDashes ? 1f : Mathf.Clamp01(chargeRechargeTimer / Mathf.Max(0.01f, MaxCooldown));
+    public bool IsRecharging => dashesLeft < maxDashes;
     public int DashesLeft => dashesLeft;
     public int MaxDashes => maxDashes;
+    public bool IsInPerfectDodgeWindow => isDashing && isInPerfectDodgeWindow;
+    public bool IsNextAttackGuaranteedCrit => isNextAttackGuaranteedCrit && Time.unscaledTime <= critBuffEndTime;
 
     private void Start()
     {
@@ -67,12 +76,18 @@ public class DashM : MonoBehaviour
         {
             Debug.LogWarning("DashM: PlayerAttributesDefensive não encontrado! Atributos de dash não serão aplicados.");
         }
+        else if (playerAttributes.dashCounts > 0)
+        {
+            maxDashes = playerAttributes.dashCounts;
+            dashesLeft = maxDashes;
+        }
         
         // Buscar PlayerHealth para invulnerabilidade
         playerHealth = GetComponent<PlayerHealth>();
         
         // Tenta encontrar UI no inicio
         FindUIReferences();
+
         // Garante que o DashUI existe no Canvas para exibir recarga e cargas
         if (GetComponent<DashUI>() == null && FindFirstObjectByType<DashUI>() == null)
         {
@@ -87,7 +102,7 @@ public class DashM : MonoBehaviour
         {
             dashCountText = textObj.GetComponent<TextMeshProUGUI>();
             dashCountText.enabled = true;
-            HandleDashUI(); // Atualiza o texto imediatamente
+            HandleDashUI();
         }
     }
 
@@ -98,7 +113,7 @@ public class DashM : MonoBehaviour
         if (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen()) return;
         if (JournalBookUI.Instance != null && JournalBookUI.Instance.IsOpen) return;
 
-        // Trava de segurança: Proíbe Dash durante o Ultimate para evitar exploits de voo/cancelamento indevido
+        // Trava de segurança: Proíbe Dash durante o Ultimate
         PlayerUltimate playerUlt = GetComponent<PlayerUltimate>() ?? GetComponentInParent<PlayerUltimate>() ?? GetComponentInChildren<PlayerUltimate>();
         if (playerUlt != null && playerUlt.IsUltimateActive()) return;
 
@@ -112,52 +127,56 @@ public class DashM : MonoBehaviour
             lastDashInputTime = Time.time;
         }
 
-        // Lógica para iniciar o dash com suporte a Input Buffer Temporal e Dash-Canceling de ataque (Estilo Hades)
-        if ((Time.time - lastDashInputTime <= inputBufferWindow) && dashesLeft > 0 && !isDashing && !isRecharging && !plasmaActionLocked)
+        // Inicia o dash se tiver pelo menos 1 carga (não precisa esperar tudo recarregar!)
+        if ((Time.time - lastDashInputTime <= inputBufferWindow) && dashesLeft > 0 && !isDashing && !plasmaActionLocked)
         {
-            // Se o player estiver atacando, cancela a recuperação do ataque imediatamente para realizar o Dash
             if (attackScript != null && attackScript.isAttacking)
             {
                 attackScript.CancelAttackForDash();
             }
 
-            lastDashInputTime = -999f; // Consome o comando
+            lastDashInputTime = -999f;
             StartCoroutine(PerformDash());
         }
 
-        // Lógica do Cooldown
-        if (isRecharging)
+        // Atualização da Recarga Independente de Cargas (Estilo Hades)
+        float effectiveCooldown = MaxCooldown;
+        if (dashesLeft < maxDashes)
         {
-            // Se a recarga está ativa, diminui o timer
-            cooldownTimer -= Time.deltaTime;
-            if (cooldownTimer <= 0)
+            chargeRechargeTimer += Time.deltaTime;
+            if (chargeRechargeTimer >= effectiveCooldown)
             {
-                // Quando o timer acaba, reseta os dashes e para a recarga
-                isRecharging = false;
-                
-                // Aplicar Dash Counts do PlayerAttributesDefensive
-                if (playerAttributes != null)
-                {
-                    dashesLeft = playerAttributes.dashCounts;
-                    maxDashes = playerAttributes.dashCounts;
-                }
-                else
-                {
-                    dashesLeft = maxDashes;
-                }
+                dashesLeft++;
+                chargeRechargeTimer = (dashesLeft < maxDashes) ? (chargeRechargeTimer - effectiveCooldown) : 0f;
             }
         }
+        else
+        {
+            chargeRechargeTimer = 0f;
+        }
 
-        // Atualiza a UI a cada frame
+        // Expira buff de crítico garantido do Perfect Dash
+        if (isNextAttackGuaranteedCrit && Time.unscaledTime > critBuffEndTime)
+        {
+            isNextAttackGuaranteedCrit = false;
+        }
+
         HandleDashUI();
     }
 
     private IEnumerator PerformDash()
     {
         isDashing = true;
-        dashesLeft--; // Gasta um dash
+        isInPerfectDodgeWindow = true;
+        dashesLeft--; // Gasta 1 carga
+
+        // Ativar I-Frames durante o dash
+        if (playerHealth != null)
+        {
+            playerHealth.isInvulnerable = true;
+        }
         
-        // === NOVA LÓGICA MANUAL DE DIREÇÃO DO DASH ===
+        // Direção do dash
         float horizontal = 0f;
         if (Input.GetKey(keyRight)) horizontal += 1f;
         if (Input.GetKey(keyLeft)) horizontal -= 1f;
@@ -167,8 +186,6 @@ public class DashM : MonoBehaviour
         if (Input.GetKey(keyDown)) vertical -= 1f;
 
         Vector3 dashDirection = new Vector3(horizontal, 0f, vertical).normalized;
-
-        // Se o cara apertar dash parado, esquiva para frente
         if (dashDirection == Vector3.zero)
         {
             dashDirection = transform.forward;
@@ -176,79 +193,109 @@ public class DashM : MonoBehaviour
 
         rb.linearVelocity = Vector3.zero; 
         rb.linearVelocity = dashDirection * dashSpeed;
-        
-        // Ativar invulnerabilidade durante o dash
-        if (playerHealth != null && playerAttributes != null && playerAttributes.dashInvulnerability > 0)
+
+        float totalDuration = dashDuration * dashDurationMultiplier;
+        float elapsed = 0f;
+        while (elapsed < totalDuration)
         {
-            playerHealth.isInvulnerable = true;
-            Debug.Log($"🛡️ Dash Invulnerability ativada por {playerAttributes.dashInvulnerability}s");
+            elapsed += Time.deltaTime;
+            if (elapsed >= perfectDodgeWindowDuration && isInPerfectDodgeWindow)
+            {
+                isInPerfectDodgeWindow = false;
+            }
+            yield return null;
         }
 
-        yield return new WaitForSeconds(dashDuration * dashDurationMultiplier);
+        isInPerfectDodgeWindow = false;
 
-        // Conserva inércia suave na direção do dash para emendar diretamente na corrida
+        // Conserva inércia suave na direção do dash para emendar na corrida
         float exitSpeed = playerMovement != null ? playerMovement.sprintSpeed : 11f;
         rb.linearVelocity = dashDirection * exitSpeed;
         
-        // Desativar invulnerabilidade se estava ativa
-        if (playerHealth != null && playerAttributes != null && playerAttributes.dashInvulnerability > 0)
+        if (playerHealth != null)
         {
-            playerHealth.isInvulnerable = false;
+            if (playerAttributes == null || playerAttributes.dashInvulnerability <= 0)
+            {
+                playerHealth.isInvulnerable = false;
+            }
         }
         
         isDashing = false;
+    }
 
-        // Se acabaram os dashes, inicia o cooldown
-        if (dashesLeft <= 0)
+    /// <summary>
+    /// Disparado pelo PlayerHealth quando o jogador esquiva com sucesso dentro da janela inicial.
+    /// Ativa hit-stop, restaura 1 dash e concede 100% crítico no próximo golpe.
+    /// </summary>
+    public void TriggerPerfectDodge(GameObject attacker = null)
+    {
+        isInPerfectDodgeWindow = false;
+        StartCoroutine(DoPerfectDodgeRoutine(attacker));
+    }
+
+    private IEnumerator DoPerfectDodgeRoutine(GameObject attacker)
+    {
+        Debug.Log("⚡ [DashM] PERFECT DASH EXECUTADO COM SUCESSO!");
+
+        // 1. Hit-Stop (Desaceleração do tempo / Witch Time)
+        Time.timeScale = 0.15f;
+
+        // 2. Recompensa de Mobilidade: Restaura 1 Dash imediatamente!
+        if (dashesLeft < maxDashes)
         {
-            isRecharging = true;
-            
-            // Aplicar Dash Cooldown Multiplier
-            if (playerAttributes != null)
-            {
-                cooldownTimer = dashCooldown * playerAttributes.dashCooldownMultiplier;
-                Debug.Log($"⏱️ Dash Cooldown: {dashCooldown}s × {playerAttributes.dashCooldownMultiplier} = {cooldownTimer:F2}s");
-            }
-            else
-            {
-                cooldownTimer = dashCooldown;
-            }
+            dashesLeft++;
+            chargeRechargeTimer = 0f;
         }
+
+        // 3. Recompensa Ofensiva: 100% de Crítico no próximo ataque (3s)
+        isNextAttackGuaranteedCrit = true;
+        critBuffEndTime = Time.unscaledTime + 3.0f;
+
+        // 4. Feedback Visual na UI
+        if (DashUI.Instance != null)
+        {
+            DashUI.Instance.TriggerPerfectDodgeFlash();
+        }
+
+        // Duração do Hit-Stop em tempo real
+        yield return new WaitForSecondsRealtime(0.18f);
+
+        Time.timeScale = 1.0f;
+    }
+
+    /// <summary>
+    /// Consome o bônus de crítico garantido ao desferir um golpe.
+    /// </summary>
+    public bool ConsumeGuaranteedCrit()
+    {
+        if (isNextAttackGuaranteedCrit && Time.unscaledTime <= critBuffEndTime)
+        {
+            isNextAttackGuaranteedCrit = false;
+            return true;
+        }
+        return false;
     }
 
     private void HandleDashUI()
     {
         if (dashCountText != null)
         {
-            if (isRecharging)
+            if (dashesLeft < maxDashes)
             {
-                // Se estiver recarregando, mostra o timer
-                dashCountText.text = "Dash: " + cooldownTimer.ToString("F1"); // "F1" mostra 1 casa decimal
+                float remaining = CurrentCooldownTimer;
+                dashCountText.text = $"Dash: {dashesLeft}/{maxDashes} ({remaining:F1}s)";
             }
             else
             {
-                // Senão, mostra a quantidade de dashes
-                dashCountText.text = "Dash: " + dashesLeft;
+                dashCountText.text = $"Dash: {dashesLeft}/{maxDashes}";
             }
         }
     }
 
-    // Função chamada pelo item de recarga (DashRecharge.cs)
     public void RechargeDashes(int amount)
     {
-        // Se estiver em cooldown, a recarga o cancela e enche os dashes.
-        if (isRecharging)
-        {
-            isRecharging = false;
-        }
-        
-        dashesLeft += amount;
-        
-        // Garante que a quantidade de dashes não ultrapasse o máximo
-        if (dashesLeft > maxDashes)
-        {
-            dashesLeft = maxDashes;
-        }
-        Debug.Log("Dashes recarregados! Total agora: " + dashesLeft);
+        dashesLeft = Mathf.Min(maxDashes, dashesLeft + amount);
+        chargeRechargeTimer = 0f;
+        Debug.Log($"Dashes recarregados! Total agora: {dashesLeft}/{maxDashes}");
     }
 }

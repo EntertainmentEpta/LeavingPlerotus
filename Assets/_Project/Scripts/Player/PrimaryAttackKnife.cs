@@ -562,15 +562,15 @@ public class PrimaryAttackKnife : MonoBehaviour
             if (playerHealth != null)
                 finalDamage = Mathf.RoundToInt(finalDamage * playerHealth.damageMultiplier);
 
-            // Calcular crítico
-            if (playerAttributes != null)
+            // Calcular crítico (incluindo bônus de Esquiva Perfeita)
+            DashM dashRef = GetComponent<DashM>() ?? GetComponentInParent<DashM>();
+            bool guaranteedCrit = dashRef != null && dashRef.ConsumeGuaranteedCrit();
+
+            if (guaranteedCrit || (playerAttributes != null && Random.Range(0f, 100f) < playerAttributes.critChance))
             {
-                float critRoll = Random.Range(0f, 100f);
-                if (critRoll < playerAttributes.critChance)
-                {
-                    finalDamage = Mathf.RoundToInt(finalDamage * playerAttributes.critMultiplier);
-                    isCritical = true;
-                }
+                float critMult = playerAttributes != null ? playerAttributes.critMultiplier : 1.5f;
+                finalDamage = Mathf.RoundToInt(finalDamage * critMult);
+                isCritical = true;
             }
 
             Debug.Log($"🗡️ [KNIFE DIAGNOSTIC] base={baseDamage} | attrMult={(playerAttributes != null ? playerAttributes.baseDamageMultiplier : 1)} | healthMult={(playerHealth != null ? playerHealth.damageMultiplier : 1)} | critMult={(isCritical ? playerAttributes.critMultiplier : 1)} => finalDamage={finalDamage}");

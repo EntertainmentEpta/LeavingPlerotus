@@ -858,6 +858,11 @@ public class GunAttack : MonoBehaviour
         float spread = attributes != null ? attributes.spread : 0f;
         int extraProjectiles = GetExtraProjectileCount(attributes);
         float critChance = attributes != null ? attributes.critChance : 0f;
+        DashM dashScriptRef = dashController != null ? dashController : GetComponentInParent<DashM>();
+        if (dashScriptRef != null && dashScriptRef.ConsumeGuaranteedCrit())
+        {
+            critChance = 100f;
+        }
         float critMultiplier = attributes != null ? attributes.critMultiplier : 1f;
         float knockback = attributes != null ? attributes.knockback : 1f;
         int piercing = attributes != null ? attributes.piercing : 0;
