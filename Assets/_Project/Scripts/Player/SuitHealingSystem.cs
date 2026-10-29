@@ -4,12 +4,13 @@ using UnityEngine;
 
 /// <summary>
 /// Sistema de Cura do Traje do Eptinho (Mecânica Central de Sobrevivência).
-/// - 2 Cápsulas de cura no traje (cada uma cura inicialmente 20% da vida máxima).
-/// - Eptinho sintetiza novas cargas com o tempo (preenchendo a cápsula vazia de baixo para cima).
-/// - Integridade do traje: tomar dano descalibra o traje e desacelera a síntese.
-/// - Clean Room (Sair Ileso da fase): restaura o traje para 100% e sintetiza +1 poção imediatamente.
-/// - Sala de Cura / Descanso: sintetiza 4x mais rápido e cura 40% da vida (em vez de 20% em combate).
-/// - Esquiva Perfeita (Q): Pressionar Q enquanto a Sobrecarga estiver cheia consome a barra e injeta +30s na síntese da cura!
+/// - 2 Cápsulas de cura no traje.
+/// - Eficácia: 15% HP em combate ativo, 30% HP fora de combate / descanso.
+/// - Síntese contínua: exatamente 60s por cápsula.
+/// - Aceleração / Desaceleração:
+///   * Tomar dano desacelera a síntese para 50% (taxa 0.5x por 8s).
+///   * Clean Room (sair ileso da fase) avança +20s na barra.
+///   * Perfect Dash (Q) injeta +30s na síntese.
 /// </summary>
 public class SuitHealingSystem : MonoBehaviour
 {
@@ -17,22 +18,26 @@ public class SuitHealingSystem : MonoBehaviour
 
     [Header("Cargas de Cápsulas")]
     public int maxPotions = 2;
-    public int currentPotions = 2;
+    [Tooltip("Inicia com 1 cápsula pronta e a 2ª sintetizando para o jogador ver a barra crescer.")]
+    public int currentPotions = 1;
 
     [Header("Eficácia de Cura (% da Vida Máxima)")]
-    [Tooltip("Percentual da vida curada durante combate ativo (padrão: 0.20 = 20%)")]
-    public float combatHealPercent = 0.20f;
-    [Tooltip("Percentual da vida curada em salas de descanso / seguras (padrão: 0.40 = 40%)")]
-    public float safeRoomHealPercent = 0.40f;
+    [Tooltip("Percentual da vida curada durante combate ativo (padrão: 0.15 = 15%)")]
+    public float combatHealPercent = 0.15f;
+    [Tooltip("Percentual da vida curada fora de combate / salas de descanso (padrão: 0.30 = 30%)")]
+    public float safeRoomHealPercent = 0.30f;
 
     [Header("Síntese do Eptinho")]
-    [Tooltip("Tempo base em segundos para sintetizar 1 cápsula de cura")]
+    [Tooltip("Tempo base em segundos para sintetizar 1 cápsula de cura (1 minuto = 60s)")]
     public float baseSynthesisDuration = 60f;
     private float currentSynthesisTimer = 0f;
 
+    [Header("Dinâmica de Síntese")]
+    private float damageSlowdownTimer = 0f;
+
     [Header("Integridade do Traje")]
     [Range(0.4f, 1.0f)]
-    public float suitIntegrity = 1.0f; // 1.0 = 100%, tomar dano reduz e desacelera síntese
+    public float suitIntegrity = 1.0f;
 
     [Header("Controles")]
     public KeyCode healKey = KeyCode.Q;
@@ -41,32 +46,80 @@ public class SuitHealingSystem : MonoBehaviour
     private PlayerHealth playerHealth;
     private bool tookDamageInCurrentRoom = false;
     private bool isInCombat = false;
+    public bool isInAnomalyRoom = false;
     private float combatCheckTimer = 0f;
 
     public float SynthesisProgress => Mathf.Clamp01(currentSynthesisTimer / Mathf.Max(1f, baseSynthesisDuration));
     public float RemainingSynthesisTime => Mathf.Max(0f, baseSynthesisDuration - currentSynthesisTimer);
+    public float ElapsedSynthesisTime => Mathf.Clamp(currentSynthesisTimer, 0f, baseSynthesisDuration);
     public bool IsInCombat => isInCombat;
     public float SuitIntegrityPercent => suitIntegrity * 100f;
+    public bool IsSlowedByDamage => damageSlowdownTimer > 0f;
+
+    public float CurrentSynthesisRate
+    {
+        get
+        {
+            if (damageSlowdownTimer > 0f) return 0.50f; // Tomou dano: desacelera para 50%
+            if (isInAnomalyRoom) return 1.50f;
+            if (!isInCombat) return 1.25f;              // Fora de combate / descanso: 1.25x
+            return 1.0f;                                // Em combate padrão: 1.0x
+        }
+    }
 
     private void Awake()
     {
+        // Se já existe uma instância e esta pertence a um Player cópia que será destruído pelo PlayerPersistence, não sobrescreve
+        if (Instance != null && Instance != this)
+        {
+            PlayerPersistence persistence = GetComponentInParent<PlayerPersistence>();
+            if (persistence != null && PlayerPersistence.instance != null && PlayerPersistence.instance != persistence)
+            {
+                Destroy(this);
+                return;
+            }
+        }
         Instance = this;
     }
 
     private void Start()
     {
+        string savedKey = PlayerPrefs.GetString("KeyHeal", "Q");
+        try
+        {
+            healKey = (KeyCode)System.Enum.Parse(typeof(KeyCode), savedKey);
+        }
+        catch
+        {
+            healKey = KeyCode.Q;
+        }
+
         playerHealth = GetComponent<PlayerHealth>() ?? GetComponentInParent<PlayerHealth>();
 
-        // Registra listeners de dano e salas
         PlayerHealth.OnPlayerDamaged += OnPlayerTookDamage;
         RoomController.OnRoomCleared += OnRoomCleared;
 
-        // Garante que o UI do Traje seja criado
         if (FindFirstObjectByType<SuitHealingUI>() == null)
         {
             GameObject uiObj = new GameObject("SuitHealingUI_Auto");
+            DontDestroyOnLoad(uiObj);
             uiObj.AddComponent<SuitHealingUI>();
         }
+    }
+
+    /// <summary>
+    /// Chamado ao morrer ou ao respawnar/acordar na Base para garantir que a síntese de cura nunca fique travada.
+    /// </summary>
+    public void ResetOnDeathOrRespawn()
+    {
+        damageSlowdownTimer = 0f;
+        suitIntegrity = 1.0f;
+        isInCombat = false;
+        isInAnomalyRoom = false;
+        currentPotions = Mathf.Max(1, currentPotions);
+        currentSynthesisTimer = 0f;
+        playerHealth = GetComponent<PlayerHealth>() ?? GetComponentInParent<PlayerHealth>() ?? FindFirstObjectByType<PlayerHealth>();
+        Debug.Log($"🧪 [SuitHealing] Sistema de cura resetado com sucesso pós-morte/respawn! Cápsulas: {currentPotions}/{maxPotions}");
     }
 
     private void OnDestroy()
@@ -82,7 +135,6 @@ public class SuitHealingSystem : MonoBehaviour
         if (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen()) return;
         if (JournalBookUI.Instance != null && JournalBookUI.Instance.IsOpen) return;
 
-        // 1. Checa estado de combate a cada 0.5s (procura inimigos ativos)
         combatCheckTimer += Time.deltaTime;
         if (combatCheckTimer >= 0.5f)
         {
@@ -90,15 +142,23 @@ public class SuitHealingSystem : MonoBehaviour
             CheckCombatState();
         }
 
-        // 2. Síntese contínua de cápsula pelo Eptinho (se tiver menos que o máximo)
+        if (damageSlowdownTimer > 0f)
+        {
+            damageSlowdownTimer -= Time.deltaTime;
+        }
+
+        // Atualiza limite máximo de cápsulas com base em melhorias do robozinho
+        int targetMax = 2;
+        if (EquipmentManager.Instance != null && (EquipmentManager.Instance.IsEquipped("equip_reservatorio_cura") || EquipmentManager.Instance.IsOwned("equip_reservatorio_cura")))
+        {
+            targetMax = 3;
+        }
+        maxPotions = targetMax;
+
+        // Síntese de cápsulas (se tiver menos que o máximo)
         if (currentPotions < maxPotions)
         {
-            // Em salas de descanso/sem inimigos, a síntese é 4x mais veloz!
-            float safeRoomMultiplier = isInCombat ? 1.0f : 4.0f;
-            // Integridade do traje acelera ou desacelera o processo
-            float rate = safeRoomMultiplier * suitIntegrity;
-
-            currentSynthesisTimer += Time.deltaTime * rate;
+            currentSynthesisTimer += Time.deltaTime * CurrentSynthesisRate;
 
             if (currentSynthesisTimer >= baseSynthesisDuration)
             {
@@ -112,9 +172,13 @@ public class SuitHealingSystem : MonoBehaviour
             currentSynthesisTimer = 0f;
         }
 
-        // 3. Input de cura ou aceleração de síntese (Tecla Q)
         if (Input.GetKeyDown(healKey))
         {
+            if (!EptinhoStoryDialogs.HasSeenDialog(EptinhoStoryDialogs.ID_HEALING_TUTORIAL))
+            {
+                EptinhoStoryDialogs.TriggerHealingTutorial();
+                return;
+            }
             HandleHealKeyInput();
         }
     }
@@ -123,7 +187,7 @@ public class SuitHealingSystem : MonoBehaviour
     {
         bool consumedSobrecarga = false;
 
-        // Opção C: Se estiver com a Sobrecarga do Perfect Dash ativa, consome a barra e injeta +30s na síntese!
+        // Se estiver com a Sobrecarga do Perfect Dash ativa, consome a barra e injeta +30s na síntese!
         DashM dash = DashM.Instance ?? GetComponent<DashM>() ?? GetComponentInParent<DashM>();
         if (dash != null && dash.HasPerfectDodgeCharge)
         {
@@ -132,22 +196,31 @@ public class SuitHealingSystem : MonoBehaviour
             consumedSobrecarga = true;
         }
 
-        // Se o player puder curar e tiver cápsula disponível, consome a cápsula e cura 20% HP
-        if (playerHealth != null && !playerHealth.isDead && currentPotions > 0 && playerHealth.currentHealth < playerHealth.maxHealth)
+        // Se o jogador estiver vivo e com cápsula disponível:
+        if (playerHealth != null && !playerHealth.isDead && currentPotions > 0)
         {
             currentPotions--;
 
             int maxHp = playerHealth.maxHealth > 0 ? playerHealth.maxHealth : 100;
-            float pct = isInCombat ? combatHealPercent : safeRoomHealPercent;
+            float pct = (isInCombat && !isInAnomalyRoom) ? combatHealPercent : safeRoomHealPercent;
             int healAmount = Mathf.Max(1, Mathf.RoundToInt(maxHp * pct));
 
             playerHealth.Heal(healAmount);
             TriggerHealVFX();
 
+            if (SuitHealingUI.Instance != null)
+            {
+                SuitHealingUI.Instance.TriggerHealFeedback();
+            }
+
             Debug.Log($"💚 [SuitHealing] Cápsula utilizada! Curado: +{healAmount} HP ({(pct * 100):F0}% da vida max). Restam: {currentPotions}/{maxPotions}");
         }
         else if (!consumedSobrecarga && currentPotions <= 0)
         {
+            if (SuitHealingUI.Instance != null)
+            {
+                SuitHealingUI.Instance.FlashEmptyWarning();
+            }
             Debug.LogWarning("⚠️ [SuitHealing] Nenhuma cápsula disponível! Aguarde a síntese do Eptinho.");
         }
     }
@@ -157,16 +230,12 @@ public class SuitHealingSystem : MonoBehaviour
         if (currentPotions < maxPotions)
         {
             currentSynthesisTimer += seconds;
-            Debug.Log($"⚡ [SuitHealing] SOBRECARGA DO PERFECT DASH CONSUMIDA! Síntese acelerada em +{seconds}s!");
+            Debug.Log($"⚡ [SuitHealing] Síntese acelerada em +{seconds}s! Progresso atual: {currentSynthesisTimer:F1}/{baseSynthesisDuration:F0}s");
             if (currentSynthesisTimer >= baseSynthesisDuration)
             {
                 currentSynthesisTimer = 0f;
                 currentPotions = Mathf.Min(maxPotions, currentPotions + 1);
             }
-        }
-        else
-        {
-            Debug.Log("🧪 [SuitHealing] Todas as cápsulas de cura já estão cheias!");
         }
     }
 
@@ -188,9 +257,14 @@ public class SuitHealingSystem : MonoBehaviour
     private void OnPlayerTookDamage(int damage, GameObject attacker)
     {
         tookDamageInCurrentRoom = true;
-        // Dano danifica o traje e desacelera síntese (mínimo de 0.4x)
+        damageSlowdownTimer = 8.0f; // Tomar dano desacelera a síntese por 8 segundos
         suitIntegrity = Mathf.Max(0.40f, suitIntegrity - 0.15f);
-        Debug.Log($"⚠️ [SuitHealing] Traje danificado! Integridade atual: {SuitIntegrityPercent:F0}%. Síntese desacelerada.");
+        Debug.Log($"⚠️ [SuitHealing] Dano recebido! Síntese desacelerada (0.5x por 8s). Integridade: {SuitIntegrityPercent:F0}%");
+
+        if (!EptinhoStoryDialogs.HasSeenDialog(EptinhoStoryDialogs.ID_HEALING_TUTORIAL))
+        {
+            EptinhoStoryDialogs.TriggerHealingTutorial();
+        }
     }
 
     private void OnRoomCleared(RoomController room)
@@ -200,18 +274,10 @@ public class SuitHealingSystem : MonoBehaviour
         // Se saiu ileso da fase (Clean Room):
         if (!tookDamageInCurrentRoom)
         {
-            Debug.Log("⭐ [SuitHealing] CLEAN ROOM! Jogador saiu ileso! Traje calibrado ao máximo e bônus de cura concedido.");
-            suitIntegrity = 1.0f; // Restaura integridade máxima do traje
-
-            if (currentPotions < maxPotions)
-            {
-                currentPotions++;
-                currentSynthesisTimer = 0f;
-            }
-            else
-            {
-                currentSynthesisTimer = baseSynthesisDuration * 0.5f;
-            }
+            Debug.Log("⭐ [SuitHealing] CLEAN ROOM! Jogador saiu ileso! +20s de avanço imediato na síntese!");
+            suitIntegrity = 1.0f;
+            damageSlowdownTimer = 0f;
+            AccelerateSynthesis(20f);
         }
         else
         {
@@ -221,9 +287,11 @@ public class SuitHealingSystem : MonoBehaviour
         tookDamageInCurrentRoom = false;
     }
 
-    /// <summary>
-    /// Bônus acionado pelo Perfect Dash (Esquiva Perfeita): gera energia cinética e avança a síntese em +15s.
-    /// </summary>
+    public void OnEnemyKilled()
+    {
+        AccelerateSynthesis(1.5f);
+    }
+
     public void OnPerfectDodgeBonus(float bonusSeconds = 15f)
     {
         AccelerateSynthesis(bonusSeconds);
@@ -233,6 +301,22 @@ public class SuitHealingSystem : MonoBehaviour
     {
         GameObject healFxObj = new GameObject("HealBurstFX");
         healFxObj.transform.position = transform.position + Vector3.up * 1.0f;
+
+        Light l = healFxObj.AddComponent<Light>();
+        l.type = LightType.Point;
+        l.color = new Color(0.1f, 1.0f, 0.5f);
+        l.range = 8f;
+        l.intensity = 4.5f;
+
+        // Tenta carregar prefab de efeito caso exista em Resources
+        GameObject prefab = Resources.Load<GameObject>("Healing") ?? Resources.Load<GameObject>("Magic effects pack/Prefabs/Character auras/Healing");
+        if (prefab != null)
+        {
+            GameObject fx = Instantiate(prefab, transform.position, Quaternion.identity);
+            fx.transform.SetParent(transform, true);
+            Destroy(fx, 2.0f);
+        }
+
         Destroy(healFxObj, 1.2f);
     }
 }

@@ -14,6 +14,8 @@ public static class EptinhoStoryDialogs
     public const string ID_FIRST_RESOURCE_MINED = "dialog_first_resource_mined";
     public const string ID_SINTONIZADOR_ENCOUNTER = "dialog_sintonizador_encounter";
     public const string ID_MERCHANT_ENCOUNTER = "dialog_merchant_encounter";
+    public const string ID_DASH_TUTORIAL = "dialog_dash_tutorial";
+    public const string ID_HEALING_TUTORIAL = "dialog_healing_tutorial";
 
     public static bool HasSeenDialog(string oneShotId)
     {
@@ -115,5 +117,31 @@ public static class EptinhoStoryDialogs
             "Eptinho: \"Que calafrio... Tem um nativo muito estranho ali. O dialeto dele é bizarro, mas consegui traduzir o básico. O ponto principal dele são as Cartas de Maldição. Ele pode transformar completamente o seu estilo de jogo te dando poderes absurdos através dessas cartas... mas o preço não é dinheiro, é a sua Vida Máxima (Sangue). Negocie por sua conta e risco!\""
         };
         return TryTriggerDialog(ID_MERCHANT_ENCOUNTER, lines, onComplete);
+    }
+
+    /// <summary>
+    /// Evento: Introdução da Esquiva e Esquiva Perfeita (Perfect Dash).
+    /// </summary>
+    public static bool TriggerDashTutorial(Action onComplete = null)
+    {
+        string[] lines = new string[]
+        {
+            "Eptinho: \"Calibrei os propulsores do seu traje! Pressione [Espaço] ou [E] para dar um Dash rápido. Ele inclina seu corpo para frente e te reposiciona velozmente pelo terreno com cargas individuais.\"",
+            "Eptinho: \"E preste muita atenção na Esquiva Perfeita: se você esquivar no momento exato em que um ataque inimigo for te atingir, o tempo desacelera, você atravessa o monstro e seu próximo ataque terá 100% de Chance Crítica! Treine esse reflexo, ele vai salvar sua vida!\""
+        };
+        return TryTriggerDialog(ID_DASH_TUTORIAL, lines, onComplete);
+    }
+
+    /// <summary>
+    /// Evento: Introdução da Cura do Traje (Biossíntese de Cápsulas e Cura Contextual).
+    /// </summary>
+    public static bool TriggerHealingTutorial(Action onComplete = null)
+    {
+        string[] lines = new string[]
+        {
+            "Eptinho: \"Sistemas vitais estabilizados! Pressione [Q] para injetar uma cápsula de biogel e curar seus ferimentos quando estiver em perigo.\"",
+            "Eptinho: \"Repare na barra de síntese na sua interface: eu demoro 60 segundos para fabricar cada nova cápsula. Atenção à tática: usar fora de combate restaura 30% da sua vida máxima, mas no meio da pancadaria recupera apenas 15%! Se tomar dano a fabricação desacelera, mas se limpar salas sem tomar dano ou acertar Esquivas Perfeitas, eu acelero a produção!\""
+        };
+        return TryTriggerDialog(ID_HEALING_TUTORIAL, lines, onComplete);
     }
 }

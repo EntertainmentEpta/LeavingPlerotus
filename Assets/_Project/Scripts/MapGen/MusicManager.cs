@@ -160,14 +160,9 @@ public class MusicManager : MonoBehaviour
     public void SetVolume(float volume)
     {
         masterVolume = Mathf.Clamp01(volume);
-        if (GlobalAudioManager.Instance != null)
-        {
-            GlobalAudioManager.Instance.defaultVolume = masterVolume;
-        }
-
         AudioSource active = usingSourceA ? sourceA : sourceB;
-        if (active != null && active.isPlaying)
-            active.volume = masterVolume * GetCurrentTrackVolume();
+        if (active != null)
+            active.volume = masterVolume * GetCurrentTrackVolume() * duckMultiplier;
     }
 
     /// <summary>Pausa/retoma a música atual.</summary>

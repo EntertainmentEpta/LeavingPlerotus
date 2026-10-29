@@ -101,7 +101,7 @@ public class CraftingManager : MonoBehaviour
             axeRecipe.description  = "Armamento pesado de corte cristalino. Causa alto impacto, golpes em área e estilhaços.";
             axeRecipe.ingredients  = new List<CraftingIngredient>
             {
-                new CraftingIngredient { itemId = "shard_splinter_t1", quantity = 3 },
+                new CraftingIngredient { itemId = "po_de_cristal", quantity = 3 },
                 new CraftingIngredient { itemId = "cristal_explosivo", quantity = 2 }
             };
             axeRecipe.resultType   = CraftingResultType.Equipment;
@@ -110,13 +110,13 @@ public class CraftingManager : MonoBehaviour
             allRecipes.Add(axeRecipe);
         }
 
-        // Receitas de Expansão da Câmara de Infusão e Chassi Térmico
+        // Receitas de Expansão da Câmara de Infusão e Chassi Térmico (Exclusivamente recursos da Bolsa Sintética)
         EnsureInfusionRecipe("recipe_camara_infusao_1", "Câmara de Infusão Expandida I",
             "Aprimora o analisador do traje para permitir infusões combinadas de até 3 itens simultâneos.",
             "equip_camara_infusao_1",
             new List<CraftingIngredient>
             {
-                new CraftingIngredient { itemId = "shard_splinter_t1", quantity = 3 },
+                new CraftingIngredient { itemId = "po_de_cristal", quantity = 3 },
                 new CraftingIngredient { itemId = "cristal_explosivo", quantity = 2 }
             });
 
@@ -125,7 +125,7 @@ public class CraftingManager : MonoBehaviour
             "equip_camara_infusao_2",
             new List<CraftingIngredient>
             {
-                new CraftingIngredient { itemId = "prisma_t2", quantity = 2 },
+                new CraftingIngredient { itemId = "prismalita", quantity = 2 },
                 new CraftingIngredient { itemId = "cristal_explosivo", quantity = 2 }
             });
 
@@ -134,8 +134,8 @@ public class CraftingManager : MonoBehaviour
             "equip_capacidade_infusao_1",
             new List<CraftingIngredient>
             {
-                new CraftingIngredient { itemId = "shard_splinter_t1", quantity = 3 },
-                new CraftingIngredient { itemId = "prisma_t2", quantity = 1 }
+                new CraftingIngredient { itemId = "po_de_cristal", quantity = 3 },
+                new CraftingIngredient { itemId = "prismalita", quantity = 1 }
             });
 
         EnsureInfusionRecipe("recipe_capacidade_infusao_2", "Chassi Térmico Modular II",
@@ -143,8 +143,19 @@ public class CraftingManager : MonoBehaviour
             "equip_capacidade_infusao_2",
             new List<CraftingIngredient>
             {
-                new CraftingIngredient { itemId = "prisma_t2", quantity = 2 },
-                new CraftingIngredient { itemId = "sentinel_core_t3", quantity = 1 }
+                new CraftingIngredient { itemId = "prismalita", quantity = 2 },
+                new CraftingIngredient { itemId = "geodo", quantity = 2 }
+            });
+
+        // Melhoria do Robozinho: +1 Cápsula Máxima de Cura (Cara)
+        EnsureInfusionRecipe("recipe_reservatorio_cura", "Reservatório de Biossíntese Auxiliar",
+            "Módulo avançado de bioconservação de alta capacidade. Adiciona +1 Cápsula Máxima de Cura ao traje (totalizando 3 cápsulas).",
+            "equip_reservatorio_cura",
+            new List<CraftingIngredient>
+            {
+                new CraftingIngredient { itemId = "cristal_explosivo", quantity = 4 },
+                new CraftingIngredient { itemId = "prismalita", quantity = 3 },
+                new CraftingIngredient { itemId = "melocactus", quantity = 3 }
             });
 
         RegisterBlueprintRecipes();
@@ -154,7 +165,8 @@ public class CraftingManager : MonoBehaviour
 
     private void EnsureInfusionRecipe(string recipeId, string title, string description, string equipId, List<CraftingIngredient> ingredients)
     {
-        if (!allRecipes.Exists(r => r != null && r.recipeId == recipeId))
+        CraftingRecipe existing = allRecipes.Find(r => r != null && r.recipeId == recipeId);
+        if (existing == null)
         {
             CraftingRecipe r = ScriptableObject.CreateInstance<CraftingRecipe>();
             r.recipeId = recipeId;
@@ -164,6 +176,14 @@ public class CraftingManager : MonoBehaviour
             r.resultType = CraftingResultType.Equipment;
             r.resultEquipment = EquipmentManager.Instance != null ? EquipmentManager.Instance.GetEquipmentData(equipId) : null;
             allRecipes.Add(r);
+        }
+        else
+        {
+            existing.recipeName = title;
+            existing.description = description;
+            existing.ingredients = ingredients;
+            if (existing.resultEquipment == null && EquipmentManager.Instance != null)
+                existing.resultEquipment = EquipmentManager.Instance.GetEquipmentData(equipId);
         }
     }
 

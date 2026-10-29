@@ -65,7 +65,7 @@ public class PlayerM : MonoBehaviour
 
     [Tooltip("Volume dos passos (0.0 a 1.0)")]
     [Range(0f, 1f)]
-    public float footstepVolume = 0.5f;
+    public float footstepVolume = 0.60f;
 
     private AudioSource footstepSource;
     private bool isFootstepPlaying = false;
@@ -79,6 +79,7 @@ public class PlayerM : MonoBehaviour
         rb = GetComponent<Rigidbody>();
         rb.freezeRotation = true;
         if (attackScript == null) attackScript = GetComponent<PrimaryAttackKnife>() ?? GetComponentInChildren<PrimaryAttackKnife>();
+        if (dashScript == null) dashScript = GetComponent<DashM>() ?? GetComponentInChildren<DashM>() ?? GetComponentInParent<DashM>();
         
         // Buscar PlayerAttributesDefensive
         playerAttributes = GetComponent<PlayerAttributesDefensive>() ?? GetComponentInParent<PlayerAttributesDefensive>() ?? GetComponentInChildren<PlayerAttributesDefensive>();
@@ -326,9 +327,16 @@ public class PlayerM : MonoBehaviour
         if (shouldPlay && !isFootstepPlaying)
         {
             footstepSource.clip = runningFootstepClip;
-            footstepSource.volume = footstepVolume;
-            footstepSource.Play();
-            isFootstepPlaying = true;
+            footstepSource.volume = (footstepVolume * 1.25f) * GlobalAudioManager.SFXVolumeMultiplier;
+            if (footstepSource.volume > 0.001f)
+            {
+                footstepSource.Play();
+                isFootstepPlaying = true;
+            }
+        }
+        else if (shouldPlay && isFootstepPlaying)
+        {
+            footstepSource.volume = (footstepVolume * 1.25f) * GlobalAudioManager.SFXVolumeMultiplier;
         }
         else if (!shouldPlay && isFootstepPlaying)
         {

@@ -78,10 +78,7 @@ public class UltimateUI : MonoBehaviour
     {
         string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         bool inMainMenu = currentScene == "MainMenu" || currentScene == "Menu";
-        bool isWakingUp = PlayerWakeUpEffect.IsWakingUp;
-        bool waitingForIntro = !EptinhoStoryDialogs.HasSeenDialog(EptinhoStoryDialogs.ID_INTRO_EPTINHO);
-
-        if (inMainMenu || isWakingUp || waitingForIntro)
+        if (inMainMenu)
         {
             if (autoCanvasObj != null && autoCanvasObj.activeSelf) autoCanvasObj.SetActive(false);
             return;
@@ -171,7 +168,7 @@ public class UltimateUI : MonoBehaviour
 
         Canvas canvas = autoCanvasObj.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 95;
+        canvas.sortingOrder = 500;
 
         CanvasScaler scaler = autoCanvasObj.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;

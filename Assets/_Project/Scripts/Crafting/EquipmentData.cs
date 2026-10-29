@@ -35,7 +35,8 @@ public enum EquipmentEffectType
     AnomalySonar,            // Revela a presença de Salas de Anomalia e veios (Blueprint do Robozinho)
     AncestralCatalyst,       // Amplifica o poder crítico e dano base da arma (Arma/Composto Ancestral)
     InfusionChamberExpansion, // Expande a câmara de infusão (permite infundir 3 ou 4 itens simultâneos)
-    InfusionCapacityExpansion // Expande o limite de infusões ativas no traje por run
+    InfusionCapacityExpansion, // Expande o limite de infusões ativas no traje por run
+    ExtraPotionSlot          // Expande compartimentos do traje, concedendo +1 Cápsula Máxima de Cura
 }
 
 /// <summary>

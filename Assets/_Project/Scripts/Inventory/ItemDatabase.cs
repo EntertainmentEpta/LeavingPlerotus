@@ -123,6 +123,17 @@ public class ItemDatabase : MonoBehaviour
         }
 
         // Mapeamentos manuais para resiliência de drops e nomes legados
+        if (itemLookup.TryGetValue("prismalita", out var prismalitaItem))
+        {
+            itemLookup["prisma_t2"] = prismalitaItem;
+            itemLookup["prisma"] = prismalitaItem;
+        }
+
+        if (itemLookup.TryGetValue("po_de_cristal", out var poItem))
+        {
+            itemLookup["po_cristal"] = poItem;
+        }
+
         if (itemLookup.TryGetValue("goblin_trinket_t2", out var gTrinket))
         {
             itemLookup["goblin_braço_t2"] = gTrinket;

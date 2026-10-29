@@ -77,7 +77,14 @@ public class ItemSpawner : MonoBehaviour
 
             if (item != null)
             {
-                GameObject spawned = Instantiate(item, point.transform.position, Quaternion.identity);
+                // Snap no chão antes e depois do spawn para garantir que nada spawne enterrado
+                Vector3 spawnPos = point.transform.position;
+                if (Physics.Raycast(spawnPos + Vector3.up * 3f, Vector3.down, out RaycastHit hit, 8f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+                {
+                    spawnPos = new Vector3(spawnPos.x, hit.point.y + 0.15f, spawnPos.z);
+                }
+
+                GameObject spawned = Instantiate(item, spawnPos, Quaternion.identity);
                 if (collectableItems != null && collectableItems.Any(ci => ci.prefab == item))
                 {
                     ItemPickup pickup = spawned.GetComponent<ItemPickup>();

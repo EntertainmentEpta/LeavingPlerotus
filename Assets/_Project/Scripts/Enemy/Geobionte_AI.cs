@@ -379,21 +379,35 @@ public class Geobionte_AI : MonoBehaviour
             Debug.Log("[GEOBIONTE] Progresso carregado do RunManager: " + bismutadoDefeatCount + "/" + fusionsToSentinel + " derrotas");
         }
 
-        // FORMA BASE: não atacável
-        // DummyHealth fica invulnerável e escondemos a health bar
+        // FORMA BASE: ATACÁVEL! O jogador pode acertar o Geobionte antes de ele fundir com o minério
         if (health != null)
         {
-            health.isInvulnerable = true;
-            // O health bar já começa escondido por padrão no DummyHealth
+            health.maxHealth = preventionMaxHP;
+            preventionCurrentHP = preventionMaxHP;
+            health.ResetHealth();
+            health.isInvulnerable = false;
+            health.fixedDamageOverride = 1;
+            health.onDeathOverride = OnPrevented;
+            health.onDamageTaken -= OnBaseGeobionteTookDamage;
+            health.onDamageTaken += OnBaseGeobionteTookDamage;
         }
 
-        // Mudar layer para Default (neutro) — WeaponHitbox não detecta
-        gameObject.layer = LayerMask.NameToLayer("Default");
-
-        // Configurar override de morte
-        if (health != null)
+        // Mantém na layer original de Enemy para registrar colisões de armas e projéteis imediatamente
+        if (originalLayer == 0 || LayerMask.LayerToName(originalLayer) == "Default")
         {
-            health.onDeathOverride = OnDefeated;
+            int enemyLayer = LayerMask.NameToLayer("Enemy");
+            if (enemyLayer != -1) originalLayer = enemyLayer;
+        }
+        gameObject.layer = originalLayer;
+
+        // Auto-alinha no piso sólido e zera rotações invertidas para nunca nascer de cabeça para baixo ou no teto
+        transform.rotation = Quaternion.Euler(0f, transform.rotation.eulerAngles.y, 0f);
+        if (Physics.Raycast(transform.position + Vector3.up * 1.0f, Vector3.down, out RaycastHit snapHit, 15f, ~0, QueryTriggerInteraction.Ignore))
+        {
+            if (snapHit.normal.y >= 0.60f && snapHit.point.y <= transform.position.y + 0.5f)
+            {
+                transform.position = snapHit.point + Vector3.up * bodyHoverHeight;
+            }
         }
 
         // Inicializar prevenção HP
@@ -402,7 +416,21 @@ public class Geobionte_AI : MonoBehaviour
         // Iniciar wandering
         PickNewWanderDirection();
 
-        Debug.Log("[GEOBIONTE] Inicializado em modo passivo. Escala: " + originalScale);
+        Debug.Log("[GEOBIONTE] Inicializado em modo atacável no piso. Escala: " + originalScale);
+    }
+
+    private void OnBaseGeobionteTookDamage(int damage, GameObject attacker)
+    {
+        if (currentState == GeobionteState.Idle)
+        {
+            isActivated = true;
+            Debug.Log("[GEOBIONTE] Recebeu dano no estado Idle! Buscando minério imediatamente.");
+            FindNearestOre();
+            if (targetOre != null)
+            {
+                EnterSeekingOre();
+            }
+        }
     }
 
     // ========================================================================
@@ -1211,14 +1239,20 @@ public class Geobionte_AI : MonoBehaviour
 
     private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
     {
+        if (clip == null) return;
+        float effectiveVolume = volume * GlobalAudioManager.SFXVolumeMultiplier;
+        if (effectiveVolume <= 0.001f) return;
+
         if (audioSource != null)
         {
             audioSource.pitch = pitch;
-            audioSource.PlayOneShot(clip, volume);
+            if (audioSource.outputAudioMixerGroup == null && GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+                audioSource.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
+            audioSource.PlayOneShot(clip, effectiveVolume);
         }
         else
         {
-            AudioSource.PlayClipAtPoint(clip, position, volume);
+            AudioSource.PlayClipAtPoint(clip, position, effectiveVolume);
         }
     }
 
@@ -1265,6 +1299,27 @@ public class Geobionte_AI : MonoBehaviour
         }
     }
 
+    private Coroutine slimeFrenzyCoroutine;
+
+    /// <summary>
+    /// FRENESI: O Bismutado ganha um surto de velocidade para avançar com fúria contra o jogador enredado no lodo.
+    /// </summary>
+    public void TriggerSlimeFrenzy(float duration = 3.5f)
+    {
+        if (slimeFrenzyCoroutine != null) StopCoroutine(slimeFrenzyCoroutine);
+        slimeFrenzyCoroutine = StartCoroutine(SlimeFrenzyRoutine(duration));
+    }
+
+    private IEnumerator SlimeFrenzyRoutine(float duration)
+    {
+        float boostMult = 1.60f; // +60% velocidade de perseguição no frenesi!
+        chaseSpeed = originalChaseSpeed * boostMult;
+        Debug.Log($"🔥 [BISMUTADO] FRENESI ATIVADO! Jogador preso no lodo! Velocidade aumentada para {chaseSpeed:F1} m/s");
+        yield return new WaitForSeconds(duration);
+        chaseSpeed = originalChaseSpeed;
+        slimeFrenzyCoroutine = null;
+    }
+
     /// <summary>
     /// Chamado pelo BismuthCrystalField quando o player entra na área do debuff.
     /// O Bismutado percebe o player no debuff e ataca se estiver no alcance físico de perto (4.0m)!
@@ -1282,6 +1337,9 @@ public class Geobionte_AI : MonoBehaviour
         {
             transform.rotation = Quaternion.LookRotation(dirToPlayer);
         }
+
+        // FRENESI: Bismutado acelera imediatamente para alcançar e punir o jogador preso no lodo
+        TriggerSlimeFrenzy(3.5f);
 
         // SÓ acerta o ataque se estiver no alcance físico real do braço (<= 4.0m) para não socar o vento!
         if (distToPlayer <= sweepRange && !isSweeping)
@@ -2500,20 +2558,29 @@ public class Geobionte_AI : MonoBehaviour
         // Durante o slam, a coroutine SentinelSlam controla a velocity Y diretamente
         if (sentinelIsSlaming) return;
 
+        // Mantém rotação estritamente em pé (impede virar de cabeça para baixo e pregar no teto)
+        transform.rotation = Quaternion.Euler(0f, transform.rotation.eulerAngles.y, 0f);
+
         Collider[] cols = GetComponentsInChildren<Collider>();
         foreach(var c in cols) c.enabled = false;
 
-        RaycastHit[] hits = Physics.RaycastAll(transform.position + Vector3.up * 5f, Vector3.down, 15f);
+        // Raycast parte de apenas 1.0m acima do centro do inimigo (nunca acima do teto da sala) e ignora triggers como AutoSpawnArea
+        RaycastHit[] hits = Physics.RaycastAll(transform.position + Vector3.up * 1.0f, Vector3.down, 12f, ~0, QueryTriggerInteraction.Ignore);
         RaycastHit groundHit = new RaycastHit();
         bool hitGround = false;
         float highestGroundY = -float.MaxValue;
 
         foreach (var hit in hits)
         {
-            if (hit.collider.isTrigger) continue;
-            if (hit.collider.CompareTag("Player")) continue;
+            if (hit.collider == null || hit.collider.isTrigger) continue;
+            if (hit.collider.CompareTag("Player") || hit.collider.CompareTag("Enemy")) continue;
             if (hit.collider.gameObject == gameObject || hit.collider.transform.IsChildOf(transform)) continue;
-            if (hit.collider.CompareTag("Enemy")) continue;
+
+            // CRÍTICO: Deve ser uma superfície sólida apontando para CIMA (piso real), nunca teto ou parede invertida
+            if (hit.normal.y < 0.60f) continue;
+
+            // Ponto de impacto não pode estar acima da criatura (evita teto)
+            if (hit.point.y > transform.position.y + 0.8f) continue;
 
             // Encontra o chão válido mais alto abaixo de nós
             if (hit.point.y > highestGroundY)

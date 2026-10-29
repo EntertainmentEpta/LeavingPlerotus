@@ -47,6 +47,15 @@ public class DummyHealth : MonoBehaviour
     [Tooltip("Cor da barra quando está sendo protegido pelo Sintonizador.")]
     public Color buffedColor = Color.cyan;
 
+    [Header("Resistências (Pilar 4)")]
+    [Tooltip("Redução de dano percentual contra projéteis/tiros (ex: 0.60 = 60% de redução / recebe 40% do dano). Incentiva combate corpo a corpo.")]
+    [Range(0f, 1f)]
+    public float projectileResistance = 0f;
+
+    [Tooltip("Resistência a empurrão / knockback (ex: 0.70 = 70% de redução do impulso recebido).")]
+    [Range(0f, 1f)]
+    public float knockbackResistance = 0f;
+
     [Header("Feedback de Dano")]
     public GameObject floatingDamageTextPrefab;
     public Vector3 textOffset = new Vector3(0, 2f, 0);
@@ -165,6 +174,34 @@ public class DummyHealth : MonoBehaviour
         magicStoneAI = GetComponent<MagicStone_AI>();
         crystalTunerAI = GetComponent<CrystalTuner>();
         cristalusAI = GetComponent<Cristalus_AI>();
+
+        // Configuração de resistências padrão por arquétipo (Pilar 4) caso não customizado no Inspector
+        string lowerName = gameObject.name.ToLower();
+        if (golemAI != null || lowerName.Contains("golem"))
+        {
+            if (projectileResistance <= 0f) projectileResistance = 0.60f;
+            if (knockbackResistance <= 0f) knockbackResistance = 0.95f;
+        }
+        else if (cristalusAI != null || lowerName.Contains("cristalus"))
+        {
+            if (projectileResistance <= 0f) projectileResistance = 0.50f;
+            if (knockbackResistance <= 0f) knockbackResistance = 0.40f;
+        }
+        else if (geobionteAI != null || lowerName.Contains("geobionte"))
+        {
+            if (projectileResistance <= 0f) projectileResistance = 0.50f;
+            if (knockbackResistance <= 0f) knockbackResistance = 0.30f;
+        }
+        else if (TryGetComponent<PeixeAI>(out _) || lowerName.Contains("peixe"))
+        {
+            if (projectileResistance <= 0f) projectileResistance = 0.50f;
+            if (knockbackResistance <= 0f) knockbackResistance = 0.35f;
+        }
+        else if (magicStoneAI != null || lowerName.Contains("magicstone") || lowerName.Contains("star"))
+        {
+            if (projectileResistance <= 0f) projectileResistance = 0.50f;
+            if (knockbackResistance <= 0f) knockbackResistance = 0.50f;
+        }
     }
 
     // --- NOVA FUNÇÃO CHAMADA PELO SINTONIZADOR ---
@@ -188,13 +225,19 @@ public class DummyHealth : MonoBehaviour
         UpdateHealthBar();
     }
 
-    public void TakeDamage(int damage, bool isCritical = false, bool isPoison = false)
+    public void TakeDamage(int damage, bool isCritical = false, bool isPoison = false, bool isProjectile = false)
     {
         // Peixe: respeita invulnerabilidade do estado Defend
         if (TryGetComponent<PeixeAI>(out PeixeAI peixeAI) && peixeAI.isInvulnerable) return;
 
         if (isInvulnerable) return;
         if (CurrentHealth <= 0) return;
+
+        // Pilar 4: Inimigos blindados/com couraça reduzem dano de projéteis
+        if (isProjectile && projectileResistance > 0f)
+        {
+            damage = Mathf.Max(1, Mathf.RoundToInt(damage * (1f - projectileResistance)));
+        }
 
         Debug.Log($"💥 [DAMAGE LOG] {gameObject.name} recebeu {damage} de dano! (HP antes: {CurrentHealth}/{maxHealth} -> HP restante: {Mathf.Max(0, CurrentHealth - damage)})");
 

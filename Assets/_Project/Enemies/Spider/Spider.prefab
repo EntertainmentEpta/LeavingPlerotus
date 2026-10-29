@@ -162,7 +162,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DummyHealth
   isSlowed: 0
-  maxHealth: 35
+  maxHealth: 45
   debugLogDamage: 0
   healthBarSlider: {fileID: 0}
   normalColor: {r: 0.47589064, g: 1, b: 0, a: 1}

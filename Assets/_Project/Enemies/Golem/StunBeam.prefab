@@ -49,6 +49,6 @@ MonoBehaviour:
   beamColor: {r: 0.76105523, g: 0.5222944, b: 0.9150943, a: 1}
   flashColor: {r: 0.850834, g: 0.9056604, b: 0.21787111, a: 0.8509804}
   ringWidth: 0.5
-  pillarHeight: 8
-  pillarDuration: 0.35
+  pillarHeight: 3.5
+  pillarDuration: 0.18
   particleCount: 30

@@ -27,13 +27,13 @@ public class BismuthCrystalField : MonoBehaviour
 
     [Header("3. Aparência e Cores (VFX no Inspector)")]
     [Tooltip("Cor do anel rúnico externo e da onda concentrica de drenagem")]
-    public Color ringColor = new Color(0.45f, 0.15f, 0.65f, 0.25f);
+    public Color ringColor = new Color(0.70f, 0.40f, 0.95f, 0.35f);
 
     [Tooltip("Cor do disco holográfico translúcido no solo")]
-    public Color floorDiscColor = new Color(0.35f, 0.10f, 0.50f, 0.12f);
+    public Color floorDiscColor = new Color(0.55f, 0.25f, 0.85f, 0.10f);
 
     [Tooltip("Espessura da linha do anel rúnico néon no solo")]
-    public float ringLineWidth = 0.12f;
+    public float ringLineWidth = 0.05f;
 
     [Header("Referências")]
     [HideInInspector] public Geobionte_AI ownerBismutado;
@@ -49,6 +49,7 @@ public class BismuthCrystalField : MonoBehaviour
     private LineRenderer outerRingLine;
     private LineRenderer innerWaveLine;
     private MeshRenderer floorDiscRenderer;
+    private Mesh floorDiscMesh;
     private Material ringMaterial;
     private Material discMaterial;
 
@@ -68,86 +69,102 @@ public class BismuthCrystalField : MonoBehaviour
     }
 
     /// <summary>
-    /// Cria o disco holográfico translúcido no solo com as cores do Inspector.
+    /// Cria o disco holográfico moderno e sutil no solo com gradiente radial suave (sem blocos ou cilindros).
     /// </summary>
     void CreateFloorDisc()
     {
-        GameObject discObj = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        discObj.name = "HolographicFloorDisc";
+        GameObject discObj = new GameObject("SoftHolographicFloorDisc");
         discObj.transform.SetParent(transform, false);
         discObj.transform.localPosition = new Vector3(0, 0.02f, 0);
-        discObj.transform.localScale = new Vector3(fieldRadius * 2f, 0.01f, fieldRadius * 2f);
 
-        // Remove o collider do cilindro
-        Collider col = discObj.GetComponent<Collider>();
-        if (col != null) Destroy(col);
+        MeshFilter mf = discObj.AddComponent<MeshFilter>();
+        floorDiscRenderer = discObj.AddComponent<MeshRenderer>();
 
-        floorDiscRenderer = discObj.GetComponent<MeshRenderer>();
-        if (floorDiscRenderer != null)
+        // Gera mesh circular suave com vertex colors (centro suave, borda 100% transparente)
+        int segments = 48;
+        floorDiscMesh = new Mesh();
+        floorDiscMesh.name = "BismuthDiscMesh";
+
+        Vector3[] vertices = new Vector3[segments + 1];
+        Color[] colors = new Color[segments + 1];
+        int[] triangles = new int[segments * 3];
+
+        vertices[0] = Vector3.zero;
+        colors[0] = new Color(floorDiscColor.r, floorDiscColor.g, floorDiscColor.b, floorDiscColor.a);
+
+        float angleStep = 360f / segments;
+        for (int i = 0; i < segments; i++)
         {
-            Shader particleShader = Shader.Find("Particles/Standard Unlit") ?? Shader.Find("Sprites/Default") ?? Shader.Find("Universal Render Pipeline/Lit");
-            if (particleShader != null)
-            {
-                discMaterial = new Material(particleShader);
-                discMaterial.SetColor("_Color", floorDiscColor);
-                if (discMaterial.HasProperty("_BaseColor")) discMaterial.SetColor("_BaseColor", floorDiscColor);
-                if (discMaterial.HasProperty("_EmissionColor")) discMaterial.SetColor("_EmissionColor", floorDiscColor * 0.8f);
-                discMaterial.EnableKeyword("_EMISSION");
-                floorDiscRenderer.material = discMaterial;
-            }
+            float rad = Mathf.Deg2Rad * (i * angleStep);
+            vertices[i + 1] = new Vector3(Mathf.Cos(rad) * fieldRadius, 0f, Mathf.Sin(rad) * fieldRadius);
+            colors[i + 1] = new Color(floorDiscColor.r, floorDiscColor.g, floorDiscColor.b, 0f); // Borda suave
+
+            int next = (i + 1) % segments;
+            triangles[i * 3] = 0;
+            triangles[i * 3 + 1] = i + 1;
+            triangles[i * 3 + 2] = next + 1;
+        }
+
+        floorDiscMesh.vertices = vertices;
+        floorDiscMesh.colors = colors;
+        floorDiscMesh.triangles = triangles;
+        floorDiscMesh.RecalculateNormals();
+        mf.mesh = floorDiscMesh;
+
+        Shader shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
+        if (shader != null)
+        {
+            discMaterial = new Material(shader);
+            discMaterial.SetColor("_Color", Color.white);
+            if (discMaterial.HasProperty("_BaseColor")) discMaterial.SetColor("_BaseColor", Color.white);
+            discMaterial.SetFloat("_Surface", 1);
+            discMaterial.SetFloat("_Blend", 0);
+            discMaterial.renderQueue = 3000;
+            floorDiscRenderer.material = discMaterial;
         }
     }
 
     /// <summary>
-    /// Cria o anel néon externo e a onda de energia concentrica interna com as cores do Inspector.
+    /// Cria o anel néon externo e a onda de energia concêntrica fina e moderna.
     /// </summary>
     void CreateNeonRings()
     {
-        Shader particleShader = Shader.Find("Particles/Standard Unlit") ?? Shader.Find("Sprites/Default") ?? Shader.Find("Mobile/Particles/Additive");
-        if (particleShader != null)
+        Shader shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
+        if (shader != null)
         {
-            ringMaterial = new Material(particleShader);
+            ringMaterial = new Material(shader);
             ringMaterial.SetColor("_Color", ringColor);
-            if (ringMaterial.HasProperty("_EmissionColor")) ringMaterial.SetColor("_EmissionColor", ringColor * 1.0f);
+            if (ringMaterial.HasProperty("_BaseColor")) ringMaterial.SetColor("_BaseColor", ringColor);
+            ringMaterial.SetFloat("_Surface", 1);
+            ringMaterial.SetFloat("_Blend", 0);
+            ringMaterial.renderQueue = 3001;
         }
 
-        // 1. Anel Externo Discreto
+        // 1. Anel Externo Fino e Sutil
         GameObject outerRingObj = new GameObject("OuterNeonRing");
         outerRingObj.transform.SetParent(transform, false);
-        outerRingObj.transform.localPosition = new Vector3(0, 0.05f, 0);
+        outerRingObj.transform.localPosition = new Vector3(0, 0.03f, 0);
 
         outerRingLine = outerRingObj.AddComponent<LineRenderer>();
         outerRingLine.startWidth = ringLineWidth;
         outerRingLine.endWidth = ringLineWidth;
         outerRingLine.useWorldSpace = false;
         outerRingLine.loop = true;
-        SetupCirclePositions(outerRingLine, fieldRadius, 45);
+        SetupCirclePositions(outerRingLine, fieldRadius, 48);
         if (ringMaterial != null) outerRingLine.material = ringMaterial;
 
-        Gradient outerGradient = new Gradient();
-        outerGradient.SetKeys(
-            new GradientColorKey[] { 
-                new GradientColorKey(ringColor, 0.0f),
-                new GradientColorKey(ringColor * 0.8f, 0.5f),
-                new GradientColorKey(ringColor * 0.6f, 1.0f) 
-            },
-            new GradientAlphaKey[] { new GradientAlphaKey(ringColor.a, 0.0f), new GradientAlphaKey(ringColor.a * 0.2f, 1.0f) }
-        );
-        outerRingLine.colorGradient = outerGradient;
-
-        // 2. Onda Interna de Drenagem
+        // 2. Onda Interna Efémera de Drenagem
         GameObject innerWaveObj = new GameObject("InnerDrainWave");
         innerWaveObj.transform.SetParent(transform, false);
-        innerWaveObj.transform.localPosition = new Vector3(0, 0.06f, 0);
+        innerWaveObj.transform.localPosition = new Vector3(0, 0.04f, 0);
 
         innerWaveLine = innerWaveObj.AddComponent<LineRenderer>();
-        innerWaveLine.startWidth = ringLineWidth * 0.7f;
-        innerWaveLine.endWidth = ringLineWidth * 0.7f;
+        innerWaveLine.startWidth = ringLineWidth * 0.75f;
+        innerWaveLine.endWidth = ringLineWidth * 0.75f;
         innerWaveLine.useWorldSpace = false;
         innerWaveLine.loop = true;
-        SetupCirclePositions(innerWaveLine, fieldRadius * 0.5f, 35);
+        SetupCirclePositions(innerWaveLine, fieldRadius * 0.5f, 36);
         if (ringMaterial != null) innerWaveLine.material = ringMaterial;
-        innerWaveLine.colorGradient = outerGradient;
     }
 
     private void SetupCirclePositions(LineRenderer lr, float radius, int segments)
@@ -192,27 +209,27 @@ public class BismuthCrystalField : MonoBehaviour
     void UpdateHolographicPulse()
     {
         float time = Time.time;
-        float pulse = Mathf.Sin(time * 3.5f) * 0.35f + 1.15f;
+        float pulse = Mathf.Sin(time * 2.5f) * 0.20f + 0.95f;
 
-        // Anima a onda interna encolhendo em direção ao centro para simular drenagem de velocidade
-        float waveRadiusPct = (time * 0.5f) % 1.0f;
-        float currentWaveRadius = Mathf.Lerp(fieldRadius * 0.95f, 0.2f, waveRadiusPct);
+        // Anima a onda interna encolhendo suavemente em direção ao centro para simular drenagem
+        float waveRadiusPct = (time * 0.35f) % 1.0f;
+        float currentWaveRadius = Mathf.Lerp(fieldRadius * 0.92f, 0.25f, waveRadiusPct);
         if (innerWaveLine != null)
         {
-            SetupCirclePositions(innerWaveLine, currentWaveRadius, 35);
+            SetupCirclePositions(innerWaveLine, currentWaveRadius, 36);
         }
 
-        // Brilho pulsante no anel e disco usando as cores do Inspector
+        // Brilho pulsante sutil no anel e disco
         if (ringMaterial != null)
         {
-            Color neonPulse = ringColor * pulse;
+            Color neonPulse = new Color(ringColor.r, ringColor.g, ringColor.b, ringColor.a * pulse);
             ringMaterial.SetColor("_Color", neonPulse);
-            if (ringMaterial.HasProperty("_EmissionColor")) ringMaterial.SetColor("_EmissionColor", neonPulse * 1.5f);
+            if (ringMaterial.HasProperty("_BaseColor")) ringMaterial.SetColor("_BaseColor", neonPulse);
         }
 
         if (discMaterial != null)
         {
-            Color discPulse = new Color(floorDiscColor.r, floorDiscColor.g, floorDiscColor.b, floorDiscColor.a * (pulse * 0.8f));
+            Color discPulse = new Color(1f, 1f, 1f, pulse * 0.9f);
             discMaterial.SetColor("_Color", discPulse);
             if (discMaterial.HasProperty("_BaseColor")) discMaterial.SetColor("_BaseColor", discPulse);
         }
@@ -238,6 +255,7 @@ public class BismuthCrystalField : MonoBehaviour
     {
         if (ringMaterial != null) Destroy(ringMaterial);
         if (discMaterial != null) Destroy(discMaterial);
+        if (floorDiscMesh != null) Destroy(floorDiscMesh);
         Destroy(gameObject);
     }
 

@@ -46,6 +46,7 @@ public class Merchant : MonoBehaviour
 
     // ── Referências Internas ──────────────────────────────────────────────────
     private AudioSource audioSource;
+    private AudioSource audioSourceBoost; // Camada adicional (+40% de ganho de volume)
     private Coroutine audioTransitionRoutine;
     private MerchantUIController uiController;
     private bool canInteract = false;
@@ -100,6 +101,28 @@ public class Merchant : MonoBehaviour
         audioSource.priority = 0; // Prioridade máxima no áudio da Unity
         audioSource.mute = false;
 
+        // Configura fonte de reforço (+40% volume solicitado pelo usuário)
+        if (audioSourceBoost == null)
+        {
+            Transform existingBoost = transform.Find("Merchant_AudioBoost");
+            if (existingBoost != null)
+            {
+                audioSourceBoost = existingBoost.GetComponent<AudioSource>();
+            }
+            if (audioSourceBoost == null)
+            {
+                GameObject boostObj = new GameObject("Merchant_AudioBoost");
+                boostObj.transform.SetParent(transform, false);
+                audioSourceBoost = boostObj.AddComponent<AudioSource>();
+            }
+        }
+        audioSourceBoost.loop = true;
+        audioSourceBoost.playOnAwake = false;
+        audioSourceBoost.spatialBlend = 0.0f;
+        audioSourceBoost.volume = 0.40f;
+        audioSourceBoost.pitch = basePitch;
+        audioSourceBoost.priority = 0;
+
         LoadAudioAndSpriteResources();
     }
 
@@ -129,9 +152,10 @@ public class Merchant : MonoBehaviour
             if (whisperingClip == null) whisperingClip = Resources.Load<AudioClip>("whisper");
         }
 
-        if (whisperingClip != null && audioSource != null)
+        if (whisperingClip != null)
         {
-            audioSource.clip = whisperingClip;
+            if (audioSource != null) audioSource.clip = whisperingClip;
+            if (audioSourceBoost != null) audioSourceBoost.clip = whisperingClip;
         }
 
         if (eptinhoTensoSprite == null)
@@ -192,7 +216,9 @@ public class Merchant : MonoBehaviour
             if (enableSmoothPitchOscillation && audioSource != null && audioSource.isPlaying)
             {
                 float wave = (Mathf.Sin(Time.time * pitchOscillationSpeed) + 1.0f) * 0.5f;
-                audioSource.pitch = Mathf.Lerp(minGravePitch, maxGravePitch, wave);
+                float currentPitch = Mathf.Lerp(minGravePitch, maxGravePitch, wave);
+                audioSource.pitch = currentPitch;
+                if (audioSourceBoost != null) audioSourceBoost.pitch = currentPitch;
             }
 
             bool uiIsOpen = uiController != null && uiController.IsUiOpen();
@@ -266,7 +292,7 @@ public class Merchant : MonoBehaviour
                 MusicManager.instance.SetMusicDucking(0.0f, 0.8f);
             }
 
-            // Toca os sussurros com volume pleno e audível
+            // Toca os sussurros com volume pleno e audível (+40% de amplificação combinada)
             if (audioSource != null)
             {
                 if (audioSource.clip == null) LoadAudioAndSpriteResources();
@@ -275,7 +301,17 @@ public class Merchant : MonoBehaviour
                     audioSource.volume = Mathf.Clamp01(whisperingVolume);
                     audioSource.pitch = basePitch;
                     if (!audioSource.isPlaying) audioSource.Play();
-                    Debug.Log($"[MERCHANT AUDIO] ✅ Sussurros tocando! Clip: {audioSource.clip.name}, Vol: {audioSource.volume}, Pitch: {audioSource.pitch}");
+
+                    // Camada de reforço (+40% volume)
+                    if (audioSourceBoost != null)
+                    {
+                        audioSourceBoost.clip = audioSource.clip;
+                        audioSourceBoost.volume = 0.40f;
+                        audioSourceBoost.pitch = basePitch;
+                        if (!audioSourceBoost.isPlaying) audioSourceBoost.Play();
+                    }
+
+                    Debug.Log($"[MERCHANT AUDIO] ✅ Sussurros tocando (+40% boost)! Clip: {audioSource.clip.name}, Vol: {audioSource.volume} + 0.40, Pitch: {audioSource.pitch}");
                 }
                 else
                 {
@@ -365,22 +401,33 @@ public class Merchant : MonoBehaviour
         }
 
         // 2. Fade out dos sussurros
-        if (audioSource != null && audioSource.isPlaying)
+        if ((audioSource != null && audioSource.isPlaying) || (audioSourceBoost != null && audioSourceBoost.isPlaying))
         {
-            float startVol = audioSource.volume;
+            float startVol = audioSource != null ? audioSource.volume : 0f;
+            float startVolBoost = audioSourceBoost != null ? audioSourceBoost.volume : 0f;
             float elapsed = 0f;
 
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
-                audioSource.volume = Mathf.Lerp(startVol, 0f, t);
+                if (audioSource != null) audioSource.volume = Mathf.Lerp(startVol, 0f, t);
+                if (audioSourceBoost != null) audioSourceBoost.volume = Mathf.Lerp(startVolBoost, 0f, t);
                 yield return null;
             }
 
-            audioSource.Stop();
-            audioSource.volume = 0f;
-            audioSource.pitch = 1.0f;
+            if (audioSource != null)
+            {
+                audioSource.Stop();
+                audioSource.volume = 0f;
+                audioSource.pitch = 1.0f;
+            }
+            if (audioSourceBoost != null)
+            {
+                audioSourceBoost.Stop();
+                audioSourceBoost.volume = 0f;
+                audioSourceBoost.pitch = 1.0f;
+            }
         }
         audioTransitionRoutine = null;
     }

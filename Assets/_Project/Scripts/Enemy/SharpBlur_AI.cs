@@ -427,16 +427,22 @@ public class SharpBlur : MonoBehaviour
 
     private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
     {
+        if (clip == null) return;
+        float effectiveVolume = volume * GlobalAudioManager.SFXVolumeMultiplier;
+        if (effectiveVolume <= 0.001f) return;
+
         GameObject audioObj = new GameObject("TempSharpBlurAudio");
         audioObj.transform.position = position;
         AudioSource aSource = audioObj.AddComponent<AudioSource>();
         aSource.clip = clip;
         aSource.pitch = pitch;
-        aSource.volume = volume;
+        aSource.volume = effectiveVolume;
         aSource.spatialBlend = 0.2f; // Mais presente na câmera top-down/isométrica
         aSource.minDistance = 12f;
         aSource.maxDistance = 60f;
         aSource.rolloffMode = AudioRolloffMode.Linear;
+        if (GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+            aSource.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
         aSource.Play();
         float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;
         Destroy(audioObj, (clip.length / safePitch) + 0.1f);

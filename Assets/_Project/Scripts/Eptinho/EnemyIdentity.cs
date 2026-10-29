@@ -39,6 +39,18 @@ public class EnemyIdentity : MonoBehaviour
                 cleanName = "Sentinela";
             else if (cleanName.Contains("Totem"))
                 cleanName = "Totem";
+            else if (cleanName.Contains("Golem") || cleanName.Contains("golem"))
+                cleanName = "Golem";
+            else if (cleanName.Contains("Goblin") || cleanName.Contains("goblin"))
+                cleanName = "Goblin";
+            else if (cleanName.Contains("Cristalus") || cleanName.Contains("cristalus"))
+                cleanName = "Cristalus";
+            else if (cleanName.Contains("Peixe") || cleanName.Contains("peixe") || cleanName.Contains("Fish") || cleanName.Contains("fish"))
+                cleanName = "Peixe";
+            else if (cleanName.Contains("Tuner") || cleanName.Contains("tuner") || cleanName.Contains("Sintonizador") || cleanName.Contains("sintonizador"))
+                cleanName = "Sintonizador";
+            else if (cleanName.Contains("Swarm") || cleanName.Contains("swarm") || cleanName.Contains("Enxame") || cleanName.Contains("ShardSwarm"))
+                cleanName = "Enxame";
 
             enemyData = EnemyDataAutoLoader.instancia.GetByName(cleanName);
         }

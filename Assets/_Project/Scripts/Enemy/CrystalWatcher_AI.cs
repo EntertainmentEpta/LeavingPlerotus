@@ -39,7 +39,7 @@ public class CrystalWatcher_AI : MonoBehaviour
     
     [Header("Ciclo de Ataque")]
     [Tooltip("Tempo de carregamento antes do laser disparar (em segundos)")]
-    public float chargeTime = 0.5f;
+    public float chargeTime = 1.2f;
 
     [Tooltip("Duração do laser ativo (em segundos)")]
     public float fireDuration = 4.0f;
@@ -143,6 +143,12 @@ public class CrystalWatcher_AI : MonoBehaviour
     
     void Start()
     {
+        // Pilar 4: Garante telegrafagem de laser fino de 1.2s antes de disparar o raio letal
+        if (chargeTime < 1.2f)
+        {
+            chargeTime = 1.2f;
+        }
+
         // Sobrescreve o default antigo curto para o novo longo que cruza o mapa
         if (laserRange == 20f)
         {
@@ -482,7 +488,7 @@ public class CrystalWatcher_AI : MonoBehaviour
             hoverObj.transform.SetParent(transform, false);
             hoverAudioSource = hoverObj.AddComponent<AudioSource>();
             hoverAudioSource.clip = hoverSound;
-            hoverAudioSource.volume = hoverSoundVolume;
+            hoverAudioSource.volume = hoverSoundVolume * GlobalAudioManager.SFXVolumeMultiplier;
             hoverAudioSource.loop = true;
             hoverAudioSource.spatialBlend = 1f; // 3D Audio
             hoverAudioSource.minDistance = 3f;
@@ -498,7 +504,7 @@ public class CrystalWatcher_AI : MonoBehaviour
             firingObj.transform.SetParent(transform, false);
             firingAudioSource = firingObj.AddComponent<AudioSource>();
             firingAudioSource.clip = firingSound;
-            firingAudioSource.volume = firingSoundVolume;
+            firingAudioSource.volume = firingSoundVolume * GlobalAudioManager.SFXVolumeMultiplier;
             firingAudioSource.loop = true;
             firingAudioSource.spatialBlend = 1f;
             firingAudioSource.minDistance = 3f;
@@ -513,7 +519,7 @@ public class CrystalWatcher_AI : MonoBehaviour
             impactObj.transform.SetParent(transform, false);
             impactAudioSource = impactObj.AddComponent<AudioSource>();
             impactAudioSource.clip = impactSound;
-            impactAudioSource.volume = impactSoundVolume;
+            impactAudioSource.volume = impactSoundVolume * GlobalAudioManager.SFXVolumeMultiplier;
             impactAudioSource.loop = true;
             impactAudioSource.spatialBlend = 1f;
             impactAudioSource.minDistance = 3f;
@@ -534,7 +540,7 @@ public class CrystalWatcher_AI : MonoBehaviour
     {
         if (firingAudioSource != null && firingSound != null)
         {
-            firingAudioSource.volume = firingSoundVolume;
+            firingAudioSource.volume = firingSoundVolume * GlobalAudioManager.SFXVolumeMultiplier;
             if (!firingAudioSource.isPlaying)
                 firingAudioSource.Play();
         }
@@ -552,7 +558,7 @@ public class CrystalWatcher_AI : MonoBehaviour
     {
         if (impactAudioSource != null && impactSound != null)
         {
-            impactAudioSource.volume = impactSoundVolume;
+            impactAudioSource.volume = impactSoundVolume * GlobalAudioManager.SFXVolumeMultiplier;
             if (hitting)
             {
                 if (!impactAudioSource.isPlaying)
@@ -580,14 +586,20 @@ public class CrystalWatcher_AI : MonoBehaviour
 
     private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
     {
+        if (clip == null) return;
+        float effectiveVolume = volume * GlobalAudioManager.SFXVolumeMultiplier;
+        if (effectiveVolume <= 0.001f) return;
+
         if (baseAudioSource != null)
         {
             baseAudioSource.pitch = pitch;
-            baseAudioSource.PlayOneShot(clip, volume);
+            if (baseAudioSource.outputAudioMixerGroup == null && GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+                baseAudioSource.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
+            baseAudioSource.PlayOneShot(clip, effectiveVolume);
         }
         else
         {
-            AudioSource.PlayClipAtPoint(clip, position, volume);
+            AudioSource.PlayClipAtPoint(clip, position, effectiveVolume);
         }
     }
     // VISUAL DO LASER (LineRenderer)

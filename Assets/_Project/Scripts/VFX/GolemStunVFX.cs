@@ -17,8 +17,8 @@ public class GolemStunVFX : MonoBehaviour
     public float ringWidth = 0.5f;
 
     [Header("Pillar Beam")]
-    public float pillarHeight = 8f;
-    public float pillarDuration = 0.4f;
+    public float pillarHeight = 3.5f;
+    public float pillarDuration = 0.18f;
 
     [Header("Partículas")]
     public int particleCount = 30;
@@ -114,13 +114,13 @@ public class GolemStunVFX : MonoBehaviour
             }
         }
 
-        // Animação do pilar vertical
+        // Animação do pilar vertical (feixe fino e rápido)
         if (pillarBeam != null)
         {
             float pillarT = Mathf.Clamp01(lifetime / pillarDuration);
-            float currentPillarWidth = Mathf.Lerp(maxRadius * 0.4f, 0f, pillarT);
+            float currentPillarWidth = Mathf.Lerp(0.35f, 0f, pillarT);
             pillarBeam.startWidth = currentPillarWidth;
-            pillarBeam.endWidth = currentPillarWidth * 0.5f;
+            pillarBeam.endWidth = currentPillarWidth * 0.4f;
 
             if (pillarMat != null)
             {
@@ -129,7 +129,7 @@ public class GolemStunVFX : MonoBehaviour
                 pillarMat.SetColor("_BaseColor", pCol);
                 if (pillarMat.HasProperty("_EmissionColor"))
                 {
-                    pillarMat.SetColor("_EmissionColor", pCol * (4f * (1f - pillarT)));
+                    pillarMat.SetColor("_EmissionColor", pCol * (3f * (1f - pillarT)));
                 }
             }
         }
@@ -137,7 +137,7 @@ public class GolemStunVFX : MonoBehaviour
         // Fade da luz
         if (flashLight != null)
         {
-            flashLight.intensity = Mathf.Lerp(15f, 0f, lifetime / 0.4f);
+            flashLight.intensity = Mathf.Lerp(4f, 0f, lifetime / 0.25f);
         }
 
         // Autodestruição quando o tempo total passar
@@ -156,8 +156,8 @@ public class GolemStunVFX : MonoBehaviour
         flashLight = lightObj.AddComponent<Light>();
         flashLight.type = LightType.Point;
         flashLight.color = stunColor;
-        flashLight.intensity = 15f;
-        flashLight.range = maxRadius * 2.5f;
+        flashLight.intensity = 4f;
+        flashLight.range = maxRadius * 1.2f;
         flashLight.shadows = LightShadows.None;
     }
 
@@ -207,10 +207,10 @@ public class GolemStunVFX : MonoBehaviour
         pillarBeam.SetPosition(0, Vector3.zero);
         pillarBeam.SetPosition(1, Vector3.up * pillarHeight);
 
-        pillarMat = CreateURPMaterial(stunColor, 4f);
+        pillarMat = CreateURPMaterial(stunColor, 3f);
         pillarBeam.material = pillarMat;
-        pillarBeam.startWidth = maxRadius * 0.4f;
-        pillarBeam.endWidth = maxRadius * 0.2f;
+        pillarBeam.startWidth = 0.35f;
+        pillarBeam.endWidth = 0.15f;
     }
 
     void CreateCracks()

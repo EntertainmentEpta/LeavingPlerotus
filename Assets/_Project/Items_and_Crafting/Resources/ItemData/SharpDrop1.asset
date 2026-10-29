@@ -20,7 +20,7 @@ MonoBehaviour:
   enemySource: SharpBlur
   returnsToBase: 0
   recycleEssenceValue: 10
-  infusionEssenceCost: 60
+  infusionEssenceCost: 50
   itemAttributes:
   - attributeType: 0
     value: 1.1

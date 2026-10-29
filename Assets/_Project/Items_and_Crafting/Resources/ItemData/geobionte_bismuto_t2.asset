@@ -19,7 +19,7 @@ MonoBehaviour:
   tier: 1
   enemySource: Geobionte
   recycleEssenceValue: 72
-  infusionEssenceCost: 180
+  infusionEssenceCost: 100
   itemAttributes:
   - attributeType: 12
     value: 0.05

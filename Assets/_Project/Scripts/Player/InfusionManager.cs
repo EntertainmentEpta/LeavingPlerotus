@@ -19,9 +19,9 @@ public class InfusionManager : MonoBehaviour
     private PlayerHealth healthStats;
     private PlayerEssence essenceWallet;
 
-    [Header("InflaÃ§Ã£o de InfusÃ£o (GDD Â§1.3)")]
-    [Tooltip("Î± = coeficiente de inflaÃ§Ã£o. GDD usa 0,1 conforme os exemplos da tabela.")]
-    public float inflationAlpha = 0.1f;
+    [Header("Inflação de Infusão")]
+    [Tooltip("α = coeficiente de inflação balanceado para permitir progressão fluida sem travar a run.")]
+    public float inflationAlpha = 0.04f;
 
     [Header("Fluxo Acumulado (2 itens iguais)")]
     [Tooltip("Multiplicador progressivo (M) aplicado aos buffs ao fundir 2 itens iguais. Padrão: ×2.")]
@@ -144,14 +144,38 @@ public class InfusionManager : MonoBehaviour
     // =====================================================
 
     /// <summary>
-    /// Calcula o custo REAL de infusÃ£o com a inflaÃ§Ã£o acumulada.
-    /// FÃ³rmula: C = B Ã— (1,0 + Î± Ã— Ptotal)
+    /// Tabela base de custo por raridade/tier: T1=50, T2=100, T3=180, T4=280.
+    /// </summary>
+    public static int GetBaseTierCost(ItemTier tier) => tier switch
+    {
+        ItemTier.Common    => 50,
+        ItemTier.Uncommon  => 100,
+        ItemTier.Rare      => 180,
+        ItemTier.Legendary => 280,
+        _                  => 50
+    };
+
+    public int GetBaseCost(ItemData data)
+    {
+        if (data == null) return 0;
+        int tierCost = GetBaseTierCost(data.tier);
+        // Corrige assets com custo 0 ou custo descalibrado
+        if (data.infusionEssenceCost <= 20 || (data.tier == ItemTier.Legendary && data.infusionEssenceCost > 320) || (data.tier == ItemTier.Common && data.infusionEssenceCost > 70))
+        {
+            return tierCost;
+        }
+        return data.infusionEssenceCost;
+    }
+
+    /// <summary>
+    /// Calcula o custo REAL de infusão com a inflação acumulada e teto de balanceamento (+50% máx).
     /// </summary>
     public int GetInflatedCost(ItemData data)
     {
         if (data == null) return 0;
-        float cost = data.infusionEssenceCost * (1f + inflationAlpha * totalInfusionWeight);
-        return Mathf.RoundToInt(cost);
+        int baseCost = GetBaseCost(data);
+        float factor = Mathf.Min(1.5f, 1f + inflationAlpha * totalInfusionWeight);
+        return Mathf.RoundToInt(baseCost * factor);
     }
 
     /// <summary>
@@ -296,8 +320,8 @@ public class InfusionManager : MonoBehaviour
 
     public int GetInfusionCost(IReadOnlyList<string> itemIds) => GetInfusionCost(BuildInfusionRequest(itemIds));
 
-    /// <summary>Fator atual da equação de inflação: (1 + α × Ptotal).</summary>
-    public float GetInflationFactor() => 1f + inflationAlpha * totalInfusionWeight;
+    /// <summary>Fator atual da equação de inflação: (1 + α × Ptotal), limitado a 1.5x (teto de +50%).</summary>
+    public float GetInflationFactor() => Mathf.Min(1.5f, 1f + inflationAlpha * totalInfusionWeight);
 
     // ---------- Matemática modular do acúmulo ----------
 

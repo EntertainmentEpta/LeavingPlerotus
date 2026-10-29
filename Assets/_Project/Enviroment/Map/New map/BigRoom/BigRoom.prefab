@@ -312,7 +312,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0.7071068, y: -0, z: -0, w: 0.7071068}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 2000, y: 2000, z: 2000}
+  m_LocalScale: {x: 2100, y: 2100, z: 2100}
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 9031085450712633728}
@@ -436,6 +436,9 @@ MonoBehaviour:
   - {fileID: 1874209651432304369}
   - {fileID: 3685330142872494824}
   showSpawnLog: 1
+  enemiesPendingSpawn: 0
+  activeEnemies: []
+  combatActive: 0
 --- !u!65 &2396026864998720726
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -505,7 +508,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1.35, y: 1.15, z: 1.35}
+  m_LocalScale: {x: 1, y: 0.9, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 5331466559826976119}

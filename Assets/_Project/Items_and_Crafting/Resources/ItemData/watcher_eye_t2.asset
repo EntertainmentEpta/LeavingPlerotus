@@ -20,7 +20,7 @@ MonoBehaviour:
   enemySource: Crystal Watcher
   returnsToBase: 0
   recycleEssenceValue: 72
-  infusionEssenceCost: 180
+  infusionEssenceCost: 100
   itemAttributes:
   - attributeType: 6
     value: 10

@@ -888,10 +888,12 @@ public class Ultimate_Axe : MonoBehaviour
     {
         EnsureAudioSource();
         if (chargeClip == null) return;
+        float effectiveVolume = chargeVolume * GlobalAudioManager.SFXVolumeMultiplier;
+        if (effectiveVolume <= 0.001f) return;
         if (audioSource != null)
-            audioSource.PlayOneShot(chargeClip, chargeVolume);
+            audioSource.PlayOneShot(chargeClip, effectiveVolume);
         else
-            AudioSource.PlayClipAtPoint(chargeClip, transform.position, chargeVolume);
+            AudioSource.PlayClipAtPoint(chargeClip, transform.position, effectiveVolume);
     }
 
     /// <summary>
@@ -904,10 +906,12 @@ public class Ultimate_Axe : MonoBehaviour
 
         EnsureAudioSource();
         if (groundImpactClip == null) return;
+        float effectiveVolume = groundImpactVolume * GlobalAudioManager.SFXVolumeMultiplier;
+        if (effectiveVolume <= 0.001f) return;
         if (audioSource != null)
-            audioSource.PlayOneShot(groundImpactClip, groundImpactVolume);
+            audioSource.PlayOneShot(groundImpactClip, effectiveVolume);
         else
-            AudioSource.PlayClipAtPoint(groundImpactClip, transform.position, groundImpactVolume);
+            AudioSource.PlayClipAtPoint(groundImpactClip, transform.position, effectiveVolume);
     }
 
     /// <summary>
@@ -917,9 +921,11 @@ public class Ultimate_Axe : MonoBehaviour
     {
         EnsureAudioSource();
         if (crystalShatterClip == null) return;
+        float effectiveVolume = crystalShatterVolume * GlobalAudioManager.SFXVolumeMultiplier;
+        if (effectiveVolume <= 0.001f) return;
         if (audioSource != null)
-            audioSource.PlayOneShot(crystalShatterClip, crystalShatterVolume);
+            audioSource.PlayOneShot(crystalShatterClip, effectiveVolume);
         else
-            AudioSource.PlayClipAtPoint(crystalShatterClip, transform.position, crystalShatterVolume);
+            AudioSource.PlayClipAtPoint(crystalShatterClip, transform.position, effectiveVolume);
     }
 }

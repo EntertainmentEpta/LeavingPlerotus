@@ -110,7 +110,7 @@ public class LevelGenerator : MonoBehaviour
 
     [Range(0f, 1f)]
     [Tooltip("Chance de cada beco sem saída restante gerar a Sala de Anomalia (máx 1 por run).")]
-    public float anomalyRoomChance = 0.35f;
+    public float anomalyRoomChance = 0.46f;
 
     [Header("Boss Fight")]
     [Tooltip("Prefab da sala de Boss Fight (Round 4). Deve ter 1 ConnectionPoint(Entrada).\nQuando o round boss for detectado, apenas Safe Room + Boss Room são gerados.")]
@@ -134,8 +134,8 @@ public class LevelGenerator : MonoBehaviour
     [Range(0f, 1f)] public float merchantChancePhase3 = 0.30f;
 
     [Header("Lore e Escrituras")]
-    [Tooltip("Chance balanceada de uma página de escritura ancestral aparecer na dungeon nesta fase (35%). Evita que todo beco tenha escritura.")]
-    [Range(0f, 1f)] public float scriptureSpawnChance = 0.45f;
+    [Tooltip("Chance balanceada de uma página de escritura ancestral aparecer na dungeon nesta fase (+30% aumentada).")]
+    [Range(0f, 1f)] public float scriptureSpawnChance = 0.60f;
 
     [Header("Configurações")]
     [Tooltip("Delay extra após a geração antes de notificar o GameManager (para assets carregarem).")]
@@ -347,14 +347,20 @@ public class LevelGenerator : MonoBehaviour
 
                 ConnectionPoint transEntrada = null;
                 ConnectionPoint transSaida   = null;
+                List<ConnectionPoint> availableSaidas = new List<ConnectionPoint>();
 
                 foreach (var cp in transCPs)
                 {
                     if (transEntrada == null && cp.pointType == ConnectionPoint.PointType.Entrada && !cp.isOccupied)
                         transEntrada = cp;
-                    if (transSaida == null && cp.pointType == ConnectionPoint.PointType.Saida && !cp.isOccupied)
-                        transSaida = cp;
-                    if (transEntrada != null && transSaida != null) break;
+                    if (cp.pointType == ConnectionPoint.PointType.Saida && !cp.isOccupied)
+                        availableSaidas.Add(cp);
+                }
+
+                if (availableSaidas.Count > 0)
+                {
+                    // Se houver múltiplas saídas (como na sala 3ways / Tree Ways), sorteia uma aleatoriamente para o avanço principal
+                    transSaida = availableSaidas[Random.Range(0, availableSaidas.Count)];
                 }
 
                 if (transEntrada == null || transSaida == null)
@@ -429,6 +435,19 @@ public class LevelGenerator : MonoBehaviour
                     roomCtrl.Initialize(roomSequenceCounter);
 
                 RegisterOutputPoints(newRoom, isStartRoom: false);
+
+                // Se a transição possui saídas adicionais (ex: bifurcação Tree Ways / 3ways),
+                // registra TODAS as outras saídas livres na fila openOutputs para que o gerador crie caminhos também nelas!
+                foreach (var extraSaida in availableSaidas)
+                {
+                    if (extraSaida != null && extraSaida != transSaida && !extraSaida.isOccupied)
+                    {
+                        extraSaida.connectionTag = currentOutput.connectionTag;
+                        openOutputs.Add(extraSaida);
+                        Debug.Log($"[LevelGenerator] 🌿 Saída bifurcada adicional de '{transitionRoom.name}' ({extraSaida.gameObject.name}) adicionada à fila de expansão!");
+                    }
+                }
+
                 Debug.Log($"[LevelGenerator] ✅ Sala '{prefabName}' adicionada (#{roomCount}). Saídas abertas: {openOutputs.Count}");
                 outputPlaced = true;
                 break;
@@ -949,7 +968,7 @@ public class LevelGenerator : MonoBehaviour
         Collider[] allCols = room.GetComponentsInChildren<Collider>(true);
         foreach (var col in allCols)
         {
-            if (col.gameObject.name.Contains("Barrier_CP") || col.gameObject.name.Contains("DoorBarrier"))
+            if (col.gameObject.name.IndexOf("barrier", System.StringComparison.OrdinalIgnoreCase) >= 0 || col.gameObject.name.IndexOf("door", System.StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 col.gameObject.SetActive(false);
                 col.enabled = false;
@@ -1010,6 +1029,35 @@ public class LevelGenerator : MonoBehaviour
         entrada.isOccupied = true;
         RegisterRoomBounds(room);
 
+        // Remove barreiras na porta da sala de origem para garantir acesso 100% livre
+        GameObject sourceRoom = targetOutput.transform.root.gameObject;
+        if (sourceRoom != null)
+        {
+            Collider[] sourceCols = sourceRoom.GetComponentsInChildren<Collider>(true);
+            foreach (var col in sourceCols)
+            {
+                if (col.gameObject.name.IndexOf("barrier", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    col.gameObject.name.IndexOf("door", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    col.gameObject.SetActive(false);
+                    col.enabled = false;
+                }
+            }
+        }
+
+        // Remove qualquer colisor de barreira ou tampa no socket da porta
+        Collider[] nearCols = Physics.OverlapSphere(targetOutput.transform.position, 6.0f);
+        foreach (var col in nearCols)
+        {
+            if (col.gameObject.name.IndexOf("barrier", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                col.gameObject.name.IndexOf("door", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                col.gameObject.name.IndexOf("capped", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                col.gameObject.SetActive(false);
+                col.enabled = false;
+            }
+        }
+
         // Configura sala 100% segura e contemplativa (sem mobs, sem barreiras travadas)
         ConfigureAnomalyRoom(room);
 
@@ -1064,7 +1112,7 @@ public class LevelGenerator : MonoBehaviour
         Collider[] allCols = room.GetComponentsInChildren<Collider>(true);
         foreach (var col in allCols)
         {
-            if (col.gameObject.name.Contains("Barrier_CP") || col.gameObject.name.Contains("DoorBarrier"))
+            if (col.gameObject.name.IndexOf("barrier", System.StringComparison.OrdinalIgnoreCase) >= 0 || col.gameObject.name.IndexOf("door", System.StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 col.gameObject.SetActive(false);
                 col.enabled = false;
@@ -1540,17 +1588,33 @@ public class LevelGenerator : MonoBehaviour
         if (targetRoom != null)
         {
             Vector3 center = targetRoom.transform.position;
-            // Raycast para encontrar o chão FÍSICO exato do quarto, garantindo que o item nunca fique sob o mapa
-            Vector3 rayStart = new Vector3(center.x, roomFloorY + 10f, center.z);
-            RaycastHit hit;
-            if (Physics.Raycast(rayStart, Vector3.down, out hit, 30f))
+            // Raycast para encontrar o chão FÍSICO exato do quarto, ignorando estritamente triggers aéreos (como AutoSpawnArea)
+            Vector3 rayStart = new Vector3(center.x, roomFloorY + 12f, center.z);
+            RaycastHit[] hits = Physics.RaycastAll(rayStart, Vector3.down, 35f, ~0, QueryTriggerInteraction.Ignore);
+            float bestFloorY = float.MinValue;
+            bool hitSolid = false;
+
+            foreach (var h in hits)
             {
-                spawnPos = hit.point + Vector3.up * 0.45f;
+                if (h.collider != null && !h.collider.isTrigger)
+                {
+                    // Prioriza o piso físico sólido próximo ao nível do chão
+                    if (h.point.y > bestFloorY && h.point.y < roomFloorY + 3.0f)
+                    {
+                        bestFloorY = h.point.y;
+                        hitSolid = true;
+                    }
+                }
+            }
+
+            if (hitSolid)
+            {
+                spawnPos = new Vector3(center.x, bestFloorY + 0.35f, center.z);
                 foundSpot = true;
             }
             else
             {
-                spawnPos = center + Vector3.up * 0.8f;
+                spawnPos = new Vector3(center.x, roomFloorY + 0.35f, center.z);
                 foundSpot = true;
             }
         }

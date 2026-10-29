@@ -391,10 +391,15 @@ MonoBehaviour:
   - {fileID: 901390459081756430, guid: 99897e60af28beb4989d544507ee2ee7, type: 3}
   - {fileID: 106353550183271551, guid: f4387ba8fdd517e4fa83d0e717e8c2b6, type: 3}
   deadEndPrefab: {fileID: 901390459081756430, guid: 99897e60af28beb4989d544507ee2ee7, type: 3}
+  anomalyRoomPrefab: {fileID: 0}
+  anomalyRoomChance: 0.35
   bossRoomPrefab: {fileID: 4075775615371522870, guid: ea9952427c739f444b2a82a07fe77e91, type: 3}
   maxMainRooms: 4
   roomLimitPerType: 10
-  merchantRoomChance: 1
+  merchantChancePhase1: 0.2
+  merchantChancePhase2: 0.4
+  merchantChancePhase3: 0.6
+  scriptureSpawnChance: 0.45
   extraLoadDelay: 0
   roomFloorY: 0
   overlapTolerance: 0.5

@@ -339,11 +339,11 @@ public class CraftingTableInteraction : MonoBehaviour
 
         if (audioSource != null)
         {
-            audioSource.PlayOneShot(clip, soundVolume);
+            audioSource.PlayOneShot(clip, soundVolume * GlobalAudioManager.SFXVolumeMultiplier);
         }
         else
         {
-            AudioSource.PlayClipAtPoint(clip, Camera.main != null ? Camera.main.transform.position : transform.position, soundVolume);
+            AudioSource.PlayClipAtPoint(clip, Camera.main != null ? Camera.main.transform.position : transform.position, soundVolume * GlobalAudioManager.SFXVolumeMultiplier);
         }
     }
 }

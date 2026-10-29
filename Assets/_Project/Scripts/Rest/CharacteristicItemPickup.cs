@@ -370,11 +370,11 @@ public class CharacteristicItemPickup : MonoBehaviour
         
         if (!added)
         {
-            // Inventário cheio (10/10 slots): o drop é destruído/descartado automaticamente
-            Debug.Log($"[ITEM] Mochila cheia (10/10 slots)! {itemName} foi descartado ao passar por cima.");
+            // Inventário cheio (5/5 slots): o drop é destruído/descartado automaticamente
+            Debug.Log($"[ITEM] Mochila cheia (5/5 slots)! {itemName} foi descartado ao passar por cima.");
             if (EptinhoPopupController.instancia != null)
             {
-                EptinhoPopupController.instancia.MostrarPopupAviso($"Mochila cheia (10/10)! {itemName} descartado.");
+                EptinhoPopupController.instancia.MostrarPopupAviso($"Mochila cheia (5/5)! {itemName} descartado.");
             }
             Destroy(gameObject);
             return;

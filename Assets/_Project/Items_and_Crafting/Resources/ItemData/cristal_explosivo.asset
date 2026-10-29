@@ -20,5 +20,5 @@ MonoBehaviour:
   enemySource: "Minerals"
   returnsToBase: 1
   recycleEssenceValue: 25
-  infusionEssenceCost: 80
+  infusionEssenceCost: 180
   itemAttributes: []

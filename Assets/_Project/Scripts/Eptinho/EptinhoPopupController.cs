@@ -601,7 +601,7 @@ public class EptinhoPopupController : MonoBehaviour
             popupAudioSource.spatialBlend = 0f; // 2D para garantir que o player sempre ouça
         }
 
-        popupAudioSource.PlayOneShot(popupBeepClip, popupBeepVolume);
+        popupAudioSource.PlayOneShot(popupBeepClip, popupBeepVolume * GlobalAudioManager.SFXVolumeMultiplier);
     }
 
     IEnumerator EsconderApos(float segundos)

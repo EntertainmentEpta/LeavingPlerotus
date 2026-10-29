@@ -19,7 +19,7 @@ MonoBehaviour:
   tier: 3
   enemySource: Crystal Watcher
   recycleEssenceValue: 50
-  infusionEssenceCost: 50
+  infusionEssenceCost: 280
   itemAttributes:
   - attributeType: 0
     value: 1.3

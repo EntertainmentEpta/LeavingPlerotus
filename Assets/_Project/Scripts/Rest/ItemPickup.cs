@@ -131,8 +131,8 @@ public class ItemPickup : MonoBehaviour
                      (gameObject.name.ToLower().Contains("fly") && !gameObject.name.ToLower().Contains("peixe"));
         if (isFly) return;
 
-        Vector3 rayStart = transform.position + Vector3.up * 1.5f;
-        RaycastHit[] hits = Physics.RaycastAll(rayStart, Vector3.down, 6.0f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
+        Vector3 rayStart = transform.position + Vector3.up * 4.0f;
+        RaycastHit[] hits = Physics.RaycastAll(rayStart, Vector3.down, 12.0f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
         float bestDist = float.MaxValue;
         Vector3 bestPoint = Vector3.zero;
         bool found = false;
@@ -147,7 +147,7 @@ public class ItemPickup : MonoBehaviour
             if (n.Contains("crystal") || n.Contains("prop") || h.collider.CompareTag("Prop")) continue;
             if (h.collider.isTrigger && !n.Contains("water")) continue;
 
-            float d = Mathf.Abs(h.point.y - transform.position.y);
+            float d = h.distance;
             if (d < bestDist)
             {
                 bestDist = d;
@@ -158,7 +158,35 @@ public class ItemPickup : MonoBehaviour
 
         if (found)
         {
-            transform.position = new Vector3(transform.position.x, bestPoint.y + 0.05f, transform.position.z);
+            // Calcula o offset da base da malha 3D para evitar que o modelo fique enterrado no chão
+            Bounds combinedBounds = new Bounds(transform.position, Vector3.zero);
+            bool hasBounds = false;
+            foreach (var r in GetComponentsInChildren<Renderer>(true))
+            {
+                if (r == null || !r.enabled || r is ParticleSystemRenderer || 
+                    r.gameObject.name.Contains("Canvas") || r.gameObject.name.Contains("Prompt") || 
+                    r.gameObject.name.Contains("glow") || r.gameObject.name.Contains("Fly"))
+                    continue;
+
+                if (!hasBounds)
+                {
+                    combinedBounds = r.bounds;
+                    hasBounds = true;
+                }
+                else
+                {
+                    combinedBounds.Encapsulate(r.bounds);
+                }
+            }
+
+            float bottomOffset = 0.15f;
+            if (hasBounds)
+            {
+                bottomOffset = transform.position.y - combinedBounds.min.y;
+                if (bottomOffset < 0.05f) bottomOffset = 0.05f;
+            }
+
+            transform.position = new Vector3(transform.position.x, bestPoint.y + bottomOffset + 0.08f, transform.position.z);
         }
     }
 

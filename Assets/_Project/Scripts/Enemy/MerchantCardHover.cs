@@ -218,7 +218,7 @@ public class MerchantCardHover : MonoBehaviour, IPointerEnterHandler, IPointerEx
 
         // SFX de carta trocando ao passar o mouse
         if (audioSource != null && hoverClip != null)
-            audioSource.PlayOneShot(hoverClip, hoverVolume);
+            audioSource.PlayOneShot(hoverClip, hoverVolume * GlobalAudioManager.SFXVolumeMultiplier);
     }
 
     public void OnPointerExit(PointerEventData eventData)

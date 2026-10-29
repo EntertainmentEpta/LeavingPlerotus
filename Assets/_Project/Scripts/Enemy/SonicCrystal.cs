@@ -21,10 +21,11 @@ public class SonicCrystal : MonoBehaviour
     [Range(0f, 1f)]
     public float explodeVolume = 0.8f;
 
+    private bool isDestroyed = false;
+
     private void Start()
     {
- 
-        Destroy(gameObject, lifeTime);
+        Invoke(nameof(SelfDestruct), lifeTime);
     }
 
     private void OnTriggerEnter(Collider other)
@@ -65,6 +66,9 @@ void ApplyEffects(GameObject player)
 
     public void SelfDestruct()
     {
+        if (isDestroyed) return;
+        isDestroyed = true;
+
         PlayExplodeSound();
 
         if (breakEffectPrefab != null)

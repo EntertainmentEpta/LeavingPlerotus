@@ -34,6 +34,9 @@ public class MenuAudioFX : MonoBehaviour
         }
         Instance = this;
 
+        musicVolume = PlayerPrefs.GetFloat("SavedBGM", 0.75f);
+        sfxVolume = PlayerPrefs.GetFloat("SavedSFX", 0.75f);
+
         SetupAudioSources();
         GenerateProceduralClips();
     }
@@ -96,6 +99,24 @@ public class MenuAudioFX : MonoBehaviour
         AudioClip clip = AudioClip.Create(name, numSamples, 1, sampleRate, false);
         clip.SetData(samples, 0);
         return clip;
+    }
+
+    public void SetMusicVolume(float volume)
+    {
+        musicVolume = Mathf.Clamp01(volume);
+        if (bgmSource != null)
+        {
+            bgmSource.volume = musicVolume;
+        }
+    }
+
+    public void SetSFXVolume(float volume)
+    {
+        sfxVolume = Mathf.Clamp01(volume);
+        if (sfxSource != null)
+        {
+            sfxSource.volume = sfxVolume;
+        }
     }
 
     public void PlayBackgroundMusic()

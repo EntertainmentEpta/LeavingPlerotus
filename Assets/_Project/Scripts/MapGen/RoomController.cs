@@ -310,6 +310,11 @@ public class RoomController : MonoBehaviour
             Debug.Log($"[ROOM {roomIndex}] Portas trancadas. {totalWavesThisRoom} ondas programadas.");
         yield return new WaitForSeconds(0.40f);
 
+        if (!EptinhoStoryDialogs.HasSeenDialog(EptinhoStoryDialogs.ID_DASH_TUTORIAL))
+        {
+            EptinhoStoryDialogs.TriggerDashTutorial();
+        }
+
         SpawnNextWave();
         combatActive = true;
     }
@@ -719,17 +724,42 @@ public class RoomController : MonoBehaviour
         BoxCollider chosenArea = spawnAreas[Random.Range(0, spawnAreas.Count)];
         Vector3 spawnPos = GetRandomPositionInArea(chosenArea);
 
+        // Regra Especial de Combate: A Aranha é o único inimigo que sempre spawna em duplas (pares)
+        bool isSpider = (prefab != null && prefab.name.ToLower().Contains("spider")) || 
+                        (prefabToSpawn != null && prefabToSpawn.name.ToLower().Contains("spider"));
+        Vector3 pairPos = spawnPos;
+        if (isSpider)
+        {
+            Vector3 pairOffset = (Quaternion.Euler(0, Random.Range(30f, 330f), 0) * Vector3.forward) * 1.5f;
+            if (UnityEngine.AI.NavMesh.SamplePosition(spawnPos + pairOffset, out UnityEngine.AI.NavMeshHit pairHit, 3.0f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                pairPos = pairHit.position;
+            }
+            else
+            {
+                pairPos = spawnPos + pairOffset;
+            }
+        }
+
         // Spawn indicator visual
         GameObject indicator = null;
+        GameObject pairIndicator = null;
         if (spawnIndicatorPrefab != null)
         {
             Vector3 indicatorPos = new Vector3(spawnPos.x, spawnPos.y + 0.05f, spawnPos.z);
             indicator = Instantiate(spawnIndicatorPrefab, indicatorPos, Quaternion.identity);
+
+            if (isSpider)
+            {
+                Vector3 pairIndicatorPos = new Vector3(pairPos.x, pairPos.y + 0.05f, pairPos.z);
+                pairIndicator = Instantiate(spawnIndicatorPrefab, pairIndicatorPos, Quaternion.identity);
+            }
         }
 
         yield return new WaitForSeconds(spawnDelay);
 
         if (indicator != null) Destroy(indicator);
+        if (pairIndicator != null) Destroy(pairIndicator);
 
         GameObject newEnemy = Instantiate(prefabToSpawn, spawnPos, prefabToSpawn.transform.rotation);
 
@@ -800,6 +830,25 @@ public class RoomController : MonoBehaviour
         }
 
         activeEnemies.Add(newEnemy);
+
+        // Se for aranha, instancia a parceira da dupla
+        if (isSpider)
+        {
+            GameObject spiderPartner = Instantiate(prefabToSpawn, pairPos, prefabToSpawn.transform.rotation);
+            if (spiderPartner.GetComponent<NavMeshBoundaryConstraint>() == null)
+                spiderPartner.AddComponent<NavMeshBoundaryConstraint>();
+
+            DummyHealth partnerDh = spiderPartner.GetComponent<DummyHealth>() ?? spiderPartner.GetComponentInChildren<DummyHealth>();
+            if (partnerDh != null)
+            {
+                partnerDh.originalPrefab = prefab;
+                partnerDh.owningRoom = this;
+            }
+
+            activeEnemies.Add(spiderPartner);
+            Debug.Log($"[ROOM {roomIndex}] 🕷️ Aranha nasceu em DUPLA! (Parceira gerada em {pairPos})");
+        }
+
         enemiesPendingSpawn--;
     }
 
@@ -1343,7 +1392,7 @@ public class RoomController : MonoBehaviour
         }
         else
         {
-            y += 0.05f; // Slightly above ground to prevent clipping
+            y += 0.25f; // Folga segura acima do piso para que nenhum modelo spawne enterrado
         }
 
         return new Vector3(x, y, z);
@@ -1377,7 +1426,7 @@ public class RoomController : MonoBehaviour
             floraSpawnEntries = new List<CollectibleSpawnEntry>()
             {
                 new CollectibleSpawnEntry() { itemName = "Melocactus", prefab = Resources.Load<GameObject>("SpawnItems/Melacotus"), itemData = Resources.Load<ItemData>("ItemData/melocactus"), weight = 1.0f },
-                new CollectibleSpawnEntry() { itemName = "Lithos (Lotus)", prefab = Resources.Load<GameObject>("SpawnItems/Lotus"), itemData = Resources.Load<ItemData>("ItemData/lithos"), weight = 1.0f },
+                new CollectibleSpawnEntry() { itemName = "Lithos (Lotus)", prefab = Resources.Load<GameObject>("SpawnItems/Lotus"), itemData = Resources.Load<ItemData>("ItemData/lithos"), weight = 1.30f },
                 new CollectibleSpawnEntry() { itemName = "Árvore de Vagens (Lanternas)", prefab = Resources.Load<GameObject>("SpawnItems/Lanternas"), itemData = Resources.Load<ItemData>("ItemData/arvore_vagens"), weight = 1.0f }
             };
         }

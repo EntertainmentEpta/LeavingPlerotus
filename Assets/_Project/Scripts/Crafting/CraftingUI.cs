@@ -319,8 +319,14 @@ public class CraftingUI : MonoBehaviour
             if (r == null) continue;
             if (IsWeaponRecipe(r)) continue; // Armas exclusivas na aba Armas!
 
+            // Itens já craftados somem do robozinho como possibilidade de craftar
+            if (IsRecipeAlreadyCrafted(r))
+            {
+                continue;
+            }
+
             // Se for receita de blueprint de escritura ancestral, só exibe no Robozinho se já foi desbloqueada
-            bool isInfusionUpgrade = r.resultEquipment != null && (r.resultEquipment.equipmentId.StartsWith("equip_camara_infusao") || r.resultEquipment.equipmentId.StartsWith("equip_capacidade_infusao"));
+            bool isInfusionUpgrade = r.resultEquipment != null && (r.resultEquipment.equipmentId.StartsWith("equip_camara_infusao") || r.resultEquipment.equipmentId.StartsWith("equip_capacidade_infusao") || r.resultEquipment.equipmentId == "equip_reservatorio_cura");
             if (r.resultEquipment != null && r.resultEquipment.equipmentId.StartsWith("equip_") && r.resultEquipment.equipmentId != "equip_detector_barreiras" && !isInfusionUpgrade)
             {
                 if (LoreManager.Instance != null && !LoreManager.Instance.IsBlueprintUnlocked(r.resultEquipment.equipmentId))
@@ -609,12 +615,48 @@ public class CraftingUI : MonoBehaviour
 
     private void OnCraftCompleted(CraftingRecipe recipe)
     {
+        if (selectedRecipe == recipe && IsRecipeAlreadyCrafted(recipe))
+        {
+            selectedRecipe = null;
+        }
+
         RefreshUI();
 
         if (recipe != null && IsWeaponRecipe(recipe))
         {
             TutorialManager.Instance?.CompleteStep(TutorialStep.ForjarArma);
         }
+    }
+
+    private bool IsRecipeAlreadyCrafted(CraftingRecipe r)
+    {
+        if (r == null || SaveManager.instance == null) return false;
+
+        string equipId = r.resultEquipment != null ? r.resultEquipment.equipmentId : null;
+        if (string.IsNullOrEmpty(equipId))
+        {
+            equipId = r.recipeId.StartsWith("recipe_") ? r.recipeId.Replace("recipe_", "equip_") : r.recipeId;
+        }
+
+        if (!string.IsNullOrEmpty(equipId))
+        {
+            if (SaveManager.instance.GetAllCraftedEquipmentIds().Contains(equipId) || 
+                SaveManager.instance.GetCraftedEquipmentCount(equipId) > 0)
+            {
+                return true;
+            }
+        }
+
+        if (r.recipeId == "recipe_crystal_axe" || r.recipeId == "recipe_machado_cristal")
+        {
+            if (SaveManager.instance.GetAllCraftedEquipmentIds().Contains("eq_crystal_axe")) return true;
+        }
+        if (r.recipeId == "recipe_arma_projetil")
+        {
+            if (SaveManager.instance.GetAllCraftedEquipmentIds().Contains("eq_arma_projetil")) return true;
+        }
+
+        return false;
     }
 
     // ─── HELPERS ─────────────────────────────────────────────────────────────

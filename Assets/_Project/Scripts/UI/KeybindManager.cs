@@ -12,10 +12,10 @@ public class KeybindManager : MonoBehaviour
 
     [Header("Botões de Ação")]
     public Button btnAttack; public Button btnDash; public Button btnUlt; 
-    public Button btnInteract; public Button btnInventory; public Button btnReload;
+    public Button btnInteract; public Button btnInventory; public Button btnReload; public Button btnHeal;
     
     public TextMeshProUGUI txtAttack; public TextMeshProUGUI txtDash; public TextMeshProUGUI txtUlt; 
-    public TextMeshProUGUI txtInteract; public TextMeshProUGUI txtInventory; public TextMeshProUGUI txtReload;
+    public TextMeshProUGUI txtInteract; public TextMeshProUGUI txtInventory; public TextMeshProUGUI txtReload; public TextMeshProUGUI txtHeal;
 
     [Header("Modo de Mira")]
     public Button btnAimMode;
@@ -27,7 +27,7 @@ public class KeybindManager : MonoBehaviour
     // Lista de todas as chaves salvas para podermos procurar duplicatas
     private string[] allPrefsKeys = { 
         "KeyUp", "KeyDown", "KeyLeft", "KeyRight", 
-        "KeyAttack", "KeyDash", "KeyUlt", "KeyInteract", "KeyInventory", "KeyReload" 
+        "KeyAttack", "KeyDash", "KeyUlt", "KeyInteract", "KeyInventory", "KeyReload", "KeyHeal" 
     };
 
     private void OnEnable()
@@ -51,6 +51,7 @@ public class KeybindManager : MonoBehaviour
         // 1. Garante que o botão de Modo de Mira existe e está configurado
         EnsureAimModeButton();
         EnsureReloadButton();
+        EnsureHealButton();
 
         // 2. Carrega todas as teclas ao iniciar
         UpdateAllButtonTexts();
@@ -67,6 +68,7 @@ public class KeybindManager : MonoBehaviour
         if (btnInteract != null) btnInteract.onClick.AddListener(() => StartRebind("KeyInteract", txtInteract));
         if (btnInventory != null) btnInventory.onClick.AddListener(() => StartRebind("KeyInventory", txtInventory));
         if (btnReload != null) btnReload.onClick.AddListener(() => StartRebind("KeyReload", txtReload));
+        if (btnHeal != null) btnHeal.onClick.AddListener(() => StartRebind("KeyHeal", txtHeal));
 
         if (btnAimMode != null) btnAimMode.onClick.AddListener(OnAimModeButtonClicked);
     }
@@ -85,6 +87,7 @@ public class KeybindManager : MonoBehaviour
         if (txtInteract != null) txtInteract.text = "Interagir: " + PlayerPrefs.GetString("KeyInteract", "F");
         if (txtInventory != null) txtInventory.text = "Inventário: " + PlayerPrefs.GetString("KeyInventory", "Tab");
         if (txtReload != null) txtReload.text = "Recarregar: " + PlayerPrefs.GetString("KeyReload", "R");
+        if (txtHeal != null) txtHeal.text = "Recuperar Vida: " + PlayerPrefs.GetString("KeyHeal", "Q");
 
         if (txtAimMode != null) txtAimMode.text = AimSettings.GetModeDisplayName();
     }
@@ -94,6 +97,20 @@ public class KeybindManager : MonoBehaviour
         AimSettings.ToggleMode();
         UpdateAllButtonTexts();
         Debug.Log($"[KeybindManager] Modo de mira alternado para: {AimSettings.CurrentMode}");
+    }
+
+    
+    private void EnsureHealButton()
+    {
+        if (btnHeal != null) return;
+
+        Transform found = transform.Find("Btn_Curar") ?? transform.Find("Btn_RecuperarVida") ?? transform.Find("Btn_Heal");
+        if (found != null)
+        {
+            btnHeal = found.GetComponent<Button>();
+            txtHeal = found.GetComponentInChildren<TextMeshProUGUI>();
+            return;
+        }
     }
 
     private void EnsureReloadButton()
@@ -244,7 +261,7 @@ public class KeybindManager : MonoBehaviour
         {
             case "KeyUp": return "W"; case "KeyDown": return "S"; case "KeyLeft": return "A"; case "KeyRight": return "D";
             case "KeyAttack": return "Q"; case "KeyDash": return "E"; case "KeyUlt": return "U"; 
-            case "KeyInteract": return "F"; case "KeyInventory": return "Tab"; default: return "None";
+            case "KeyInteract": return "F"; case "KeyInventory": return "Tab"; case "KeyHeal": return "Q"; default: return "None";
         }
     }
 }

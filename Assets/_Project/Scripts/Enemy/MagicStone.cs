@@ -96,10 +96,17 @@ public class MagicStone_AI : MonoBehaviour
         }
 
         // Snap de segurança no chão para evitar clipagem no piso da sala
-        if (UnityEngine.AI.NavMesh.SamplePosition(transform.position, out UnityEngine.AI.NavMeshHit navHit, 5f, UnityEngine.AI.NavMesh.AllAreas))
+        Vector3 rayStart = transform.position + Vector3.up * 4f;
+        if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit startGround, 25f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
         {
             Vector3 pos = transform.position;
-            pos.y = navHit.position.y + 0.5f;
+            pos.y = startGround.point.y;
+            transform.position = pos;
+        }
+        else if (UnityEngine.AI.NavMesh.SamplePosition(transform.position, out UnityEngine.AI.NavMeshHit navHit, 5f, UnityEngine.AI.NavMesh.AllAreas))
+        {
+            Vector3 pos = transform.position;
+            pos.y = navHit.position.y;
             transform.position = pos;
         }
 
@@ -229,6 +236,11 @@ public class MagicStone_AI : MonoBehaviour
 
     void HandleFloating()
     {
+        if (Physics.Raycast(transform.position + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 8f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+        {
+            startY = hit.point.y;
+        }
+
         float newY = startY + Mathf.Sin(Time.time * floatSpeed) * floatHeight;
         transform.position = new Vector3(transform.position.x, newY, transform.position.z);
     }
@@ -253,35 +265,91 @@ public class MagicStone_AI : MonoBehaviour
 
     void Teleport()
     {
-        // 1. Calcula a posição de destino desejada (como antes)
-        Vector2 randomDirection = Random.insideUnitCircle.normalized;
-        float randomDistance = Random.Range(minTeleportDistance, maxTeleportDistance);
-        Vector3 offset = new Vector3(randomDirection.x, 0, randomDirection.y) * randomDistance;
-        Vector3 targetPosition = playerTransform.position + offset;
-        targetPosition.y = transform.position.y; // Mantém altura
+        Vector3 bestPosition = transform.position;
+        bool foundValidSpot = false;
 
-        // --- CORREÇÃO DE LIMITES (CLAMP) ---
-        // Se a sala definiu limites, usamos eles para impedir que a pedra saia
-        if (roomBounds != null)
+        // Se roomBounds for nulo, tenta localizar o RoomController da sala atual
+        if (roomBounds == null)
         {
-            // ClosestPoint retorna o ponto dentro do collider mais próximo do alvo.
-            // Se o alvo já estiver dentro, retorna o alvo. Se estiver fora, retorna a borda.
-            targetPosition = roomBounds.ClosestPoint(targetPosition);
+            RoomController rc = GetComponentInParent<RoomController>() ?? FindClosestRoomController();
+            if (rc != null && rc.spawnAreas != null && rc.spawnAreas.Count > 0 && rc.spawnAreas[0] != null)
+            {
+                roomBounds = rc.spawnAreas[0];
+            }
+        }
 
-            // Pequeno ajuste para não ficar literalmente dentro da parede
-            Vector3 directionToCenter = (roomBounds.bounds.center - targetPosition).normalized;
-            targetPosition += directionToCenter * 1.0f;
+        // Tenta até 12 direções diferentes ao redor do jogador procurando um ponto estritamente válido dentro do mapa
+        for (int attempt = 0; attempt < 12; attempt++)
+        {
+            Vector2 randomDir = Random.insideUnitCircle.normalized;
+            float randomDist = Random.Range(minTeleportDistance, Mathf.Min(maxTeleportDistance, 10f));
+            Vector3 candidate = playerTransform.position + new Vector3(randomDir.x, 0, randomDir.y) * randomDist;
 
-            // Garante a altura correta novamente após o Clamp
-            targetPosition.y = transform.position.y;
+            // 1. Confinamento em roomBounds (com margem de 1.5m para longe das paredes)
+            if (roomBounds != null)
+            {
+                candidate = roomBounds.ClosestPoint(candidate);
+                Vector3 toCenter = (roomBounds.bounds.center - candidate).normalized;
+                candidate += toCenter * 1.5f;
+            }
+
+            // 2. Amostragem rigorosa no NavMesh da sala
+            if (UnityEngine.AI.NavMesh.SamplePosition(candidate, out UnityEngine.AI.NavMeshHit navHit, 3.0f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                // 3. Raycast vertical para confirmar que existe chão físico e não é abismo/fora da caverna
+                if (Physics.Raycast(navHit.position + Vector3.up * 4f, Vector3.down, out RaycastHit groundHit, 8f))
+                {
+                    bestPosition = navHit.position;
+                    bestPosition.y = groundHit.point.y;
+                    foundValidSpot = true;
+                    break;
+                }
+            }
+        }
+
+        // Fallback de segurança máxima: se não achou spot válido, teleporta para o centro da sala ou próximo ao jogador no NavMesh
+        if (!foundValidSpot)
+        {
+            if (roomBounds != null)
+            {
+                bestPosition = roomBounds.bounds.center;
+                if (UnityEngine.AI.NavMesh.SamplePosition(bestPosition, out UnityEngine.AI.NavMeshHit centerHit, 5f, UnityEngine.AI.NavMesh.AllAreas))
+                {
+                    bestPosition = centerHit.position;
+                }
+            }
+            else if (UnityEngine.AI.NavMesh.SamplePosition(playerTransform.position + transform.forward * -4f, out UnityEngine.AI.NavMeshHit safeHit, 5f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                bestPosition = safeHit.position;
+            }
+            bestPosition.y = transform.position.y;
         }
 
         PlayTeleportSound(transform.position); // Som na posição de origem
-        transform.position = targetPosition;
-        PlayTeleportSound(targetPosition);   // Som na posição de chegada
+        transform.position = bestPosition;
+        startY = bestPosition.y;
+        PlayTeleportSound(bestPosition);   // Som na posição de chegada
         teleportTimer = teleportCooldown;
 
-        Debug.Log("MagicStone teleportou (dentro dos limites)!");
+        Debug.Log($"[MagicStone] Teleportou com validação de NavMesh para {bestPosition}!");
+    }
+
+    private RoomController FindClosestRoomController()
+    {
+        RoomController[] allRooms = FindObjectsByType<RoomController>(FindObjectsSortMode.None);
+        RoomController closest = null;
+        float minDist = float.MaxValue;
+        foreach (var r in allRooms)
+        {
+            if (r == null) continue;
+            float d = Vector3.Distance(transform.position, r.transform.position);
+            if (d < minDist)
+            {
+                minDist = d;
+                closest = r;
+            }
+        }
+        return closest;
     }
 
     IEnumerator SkybeamAttack()
@@ -359,16 +427,22 @@ public class MagicStone_AI : MonoBehaviour
 
     private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
     {
+        if (clip == null) return;
+        float effectiveVolume = volume * GlobalAudioManager.SFXVolumeMultiplier;
+        if (effectiveVolume <= 0.001f) return;
+
         GameObject audioObj = new GameObject("TempSkybeamAudio");
         audioObj.transform.position = position;
         AudioSource aSource = audioObj.AddComponent<AudioSource>();
         aSource.clip = clip;
         aSource.pitch = pitch;
-        aSource.volume = volume;
+        aSource.volume = effectiveVolume;
         aSource.spatialBlend = 0.5f; // Semi-3D
         aSource.minDistance = 5f;
         aSource.maxDistance = 50f;
         aSource.rolloffMode = AudioRolloffMode.Linear;
+        if (GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+            aSource.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
         aSource.Play();
         float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;
         Destroy(audioObj, clip.length / safePitch);

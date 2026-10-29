@@ -9,6 +9,7 @@ public class PlayerHealth : MonoBehaviour
     [Header("Configurações")]
     public int maxHealth = 100;
     public int maxArmor = 60;
+    public int defaultMaxArmor = 60;
     public int currentHealth { get; private set; }
     private int currentArmor;
     public int CurrentArmor => currentArmor;
@@ -34,6 +35,14 @@ public class PlayerHealth : MonoBehaviour
     public Image healthFillImage; // A barra verde (Filled)
     public Image gooBarImage;     // A barra de gosma (Filled)
     public Image armorBarImage;   // A barra de armadura (Filled)
+    
+    [Header("Modular Armor Plates (PlayerCanvasReal)")]
+    [Tooltip("Capacidade de armadura por placa (padrão: 60 AP, 5 placas = 300 AP)")]
+    public float armorPerPlate = 60f;
+    [Tooltip("Outlines dos 5 escudos do PlayerCanvasReal (0 = eterno, 1..4 = extras)")]
+    public GameObject[] armorOutlines = new GameObject[5];
+    [Tooltip("Fills dos 5 escudos do PlayerCanvasReal")]
+    public Image[] armorFills = new Image[5];
     
     public TextMeshProUGUI armorText;
     public TextMeshProUGUI percentageText; // O texto de %
@@ -101,10 +110,25 @@ public class PlayerHealth : MonoBehaviour
 
     void Start()
     {
+        isInvulnerable = false;
         playerLayer = gameObject.layer;
         rb = GetComponent<Rigidbody>();
 
         FindUIReferences();
+        // Reseta essência da run ao renascer na base
+        PlayerEssence essence = GetComponent<PlayerEssence>() ?? GetComponentInChildren<PlayerEssence>() ?? Object.FindFirstObjectByType<PlayerEssence>();
+        if (essence != null)
+        {
+            essence.currentEssence = 0;
+            essence.onEssenceChanged?.Invoke(0);
+        }
+
+        // Fecha e esconde texto de cochicho do Mercador
+        if (MerchantPopupController.Instance != null)
+        {
+            MerchantPopupController.Instance.EsconderPopup();
+        }
+
         FullHeal();
         
         // Buscar PlayerAttributesDefensive
@@ -112,6 +136,12 @@ public class PlayerHealth : MonoBehaviour
         if (playerAttributes == null)
         {
             Debug.LogWarning("PlayerHealth: PlayerAttributesDefensive não encontrado! Atributos defensivos não funcionarão.");
+        }
+
+        // Garante que o Sistema de Cura do Traje do Eptinho esteja ativo
+        if (GetComponent<SuitHealingSystem>() == null && FindFirstObjectByType<SuitHealingSystem>() == null)
+        {
+            gameObject.AddComponent<SuitHealingSystem>();
         }
 
         // Setup do AudioSource para heartbeat (loop contínuo)
@@ -131,6 +161,33 @@ public class PlayerHealth : MonoBehaviour
     public void TriggerBaseRespawn()
     {
         FindUIReferences();
+
+        // Reseta Armadura acumulada durante a run de volta ao valor padrão da Base (1 placa de 60)
+        maxArmor = defaultMaxArmor;
+        currentArmor = defaultMaxArmor;
+
+        // Limpa debuffs de solo e lentidão
+        PlayerDebuffs debuffs = GetComponent<PlayerDebuffs>() ?? GetComponentInChildren<PlayerDebuffs>();
+        if (debuffs != null) debuffs.ResetAllDebuffs();
+        if (playerMovement != null) playerMovement.debuffSpeedMultiplier = 1.0f;
+
+        // Reseta e destrava sistema de cura do traje
+        SuitHealingSystem.Instance?.ResetOnDeathOrRespawn();
+
+        // Reseta essência da run ao renascer na base
+        PlayerEssence essence = GetComponent<PlayerEssence>() ?? GetComponentInChildren<PlayerEssence>() ?? Object.FindFirstObjectByType<PlayerEssence>();
+        if (essence != null)
+        {
+            essence.currentEssence = 0;
+            essence.onEssenceChanged?.Invoke(0);
+        }
+
+        // Fecha e esconde texto de cochicho do Mercador
+        if (MerchantPopupController.Instance != null)
+        {
+            MerchantPopupController.Instance.EsconderPopup();
+        }
+
         FullHeal();
         isDead = false;
         gameObject.layer = playerLayer;
@@ -143,16 +200,18 @@ public class PlayerHealth : MonoBehaviour
         // Garante que o player esteja perfeitamente alinhado na superfície do chão
         SnapToGround();
 
-        // Unequip weapon ao renascer na base (player acorda sem arma na mão)
+        // Unequip weapon ao renascer na base (player acorda com mãos livres e armas voltam ao expositor)
         Player_WeaponManager weaponManager = GetComponent<Player_WeaponManager>() ?? GetComponentInChildren<Player_WeaponManager>();
         if (weaponManager != null)
         {
-            weaponManager.HolsterWeaponImmediate();
+            weaponManager.UnequipCurrentWeapon();
         }
         else if (playerAttack != null)
         {
             playerAttack.hasWeapon = false;
         }
+
+        UpdateArmorBar();
 
         if (playerAnimator == null)
         {
@@ -215,6 +274,7 @@ public class PlayerHealth : MonoBehaviour
     public void UnlockPlayer()
     {
         isDead = false;
+        isInvulnerable = false;
         if (playerMovement != null) playerMovement.enabled = true;
         if (playerAttack != null) playerAttack.enabled = true;
         gameObject.layer = playerLayer; 
@@ -238,8 +298,7 @@ public class PlayerHealth : MonoBehaviour
             GameObject gooObj = GameObject.Find("Goo_Fill");
             if (gooObj != null) gooBarImage = gooObj.GetComponent<Image>();
 
-            GameObject armorObj = GameObject.Find("ArmorBar_Fill"); 
-            if (armorObj != null) armorBarImage = armorObj.GetComponent<Image>();
+            FindArmorSlotReferences();
 
             GameObject textArmor = GameObject.Find("ArmorText");
             if (textArmor != null) armorText = textArmor.GetComponent<TextMeshProUGUI>();
@@ -284,6 +343,21 @@ public class PlayerHealth : MonoBehaviour
     public void ResetPlayerState()
     {
         isDead = false;
+        isInvulnerable = false;
+        // Reseta essência da run ao renascer na base
+        PlayerEssence essence = GetComponent<PlayerEssence>() ?? GetComponentInChildren<PlayerEssence>() ?? Object.FindFirstObjectByType<PlayerEssence>();
+        if (essence != null)
+        {
+            essence.currentEssence = 0;
+            essence.onEssenceChanged?.Invoke(0);
+        }
+
+        // Fecha e esconde texto de cochicho do Mercador
+        if (MerchantPopupController.Instance != null)
+        {
+            MerchantPopupController.Instance.EsconderPopup();
+        }
+
         FullHeal(); 
         if (playerMovement != null) playerMovement.enabled = true;
         if (playerAttack != null) playerAttack.enabled = true;
@@ -349,6 +423,25 @@ public class PlayerHealth : MonoBehaviour
 
     private void ResetAttributesOnDeath()
     {
+        // Reseta Armadura acumulada durante a run de volta ao valor padrão da Base
+        maxArmor = defaultMaxArmor;
+        currentArmor = defaultMaxArmor;
+
+        // Limpa debuffs de solo e lentidão
+        PlayerDebuffs debuffs = GetComponent<PlayerDebuffs>() ?? GetComponentInChildren<PlayerDebuffs>();
+        if (debuffs != null) debuffs.ResetAllDebuffs();
+        if (playerMovement != null) playerMovement.debuffSpeedMultiplier = 1.0f;
+
+        // Unequip weapon para que as armas voltem ao expositor do rack
+        Player_WeaponManager weaponManager = GetComponent<Player_WeaponManager>() ?? GetComponentInChildren<Player_WeaponManager>();
+        if (weaponManager != null)
+        {
+            weaponManager.UnequipCurrentWeapon();
+        }
+
+        // Reseta sistema de cura do traje para não travar
+        SuitHealingSystem.Instance?.ResetOnDeathOrRespawn();
+
         PlayerAttributesDefensive defStats = GetComponent<PlayerAttributesDefensive>() ?? GetComponentInChildren<PlayerAttributesDefensive>();
         if (defStats != null) defStats.ResetToDefaults();
 
@@ -374,9 +467,24 @@ public class PlayerHealth : MonoBehaviour
 
         MerchantHallucinationEffect.ResetImmediate();
 
-        FullHeal();
+        // Reseta essência da run ao renascer na base
+        PlayerEssence essence = GetComponent<PlayerEssence>() ?? GetComponentInChildren<PlayerEssence>() ?? Object.FindFirstObjectByType<PlayerEssence>();
+        if (essence != null)
+        {
+            essence.currentEssence = 0;
+            essence.onEssenceChanged?.Invoke(0);
+        }
 
-        Debug.Log("[PLAYER HEALTH] Todos os atributos de run, infusões e maldições foram resetados após a morte.");
+        // Fecha e esconde texto de cochicho do Mercador
+        if (MerchantPopupController.Instance != null)
+        {
+            MerchantPopupController.Instance.EsconderPopup();
+        }
+
+        FullHeal();
+        UpdateArmorBar();
+
+        Debug.Log("[PLAYER HEALTH] Todos os atributos de run, infusões, maldições e armaduras foram resetados após a morte.");
     }
 
     IEnumerator RespawnSequence()
@@ -593,6 +701,7 @@ public class PlayerHealth : MonoBehaviour
 
     public void FullHeal()
     {
+        isInvulnerable = false;
         hasPactCorrupted = false;
         canRegenArmor = true;
         cursedHealthLost = 0;
@@ -699,17 +808,147 @@ public class PlayerHealth : MonoBehaviour
 
     public bool canRegenArmor = true;
 
-    public void UpdateArmorBar()
+    /// <summary>
+    /// Localiza o ArmorBarContainer e mapeia os 5 pares de Outline e Fill do PlayerCanvasReal.
+    /// </summary>
+    public void FindArmorSlotReferences()
     {
-        if (maxArmor <= 0 || !canRegenArmor)
+        GameObject container = GameObject.Find("ArmorBarContainer");
+        if (container == null)
         {
-            if (armorBarImage != null) armorBarImage.fillAmount = 0f;
-            if (armorText != null) armorText.text = "0/0";
+            Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+            foreach (var c in canvases)
+            {
+                Transform[] transforms = c.GetComponentsInChildren<Transform>(true);
+                foreach (var t in transforms)
+                {
+                    if (t.name == "ArmorBarContainer")
+                    {
+                        container = t.gameObject;
+                        break;
+                    }
+                }
+                if (container != null) break;
+            }
+        }
+
+        if (container != null)
+        {
+            Transform[] children = container.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < 5; i++)
+            {
+                string outlineName = (i == 0) ? "ArmorOutline" : $"ArmorOutline ({i})";
+                string fillName = (i == 0) ? "ArmorBar_Fill" : $"ArmorBar_Fill ({i})";
+
+                foreach (Transform t in children)
+                {
+                    if (t.name == outlineName)
+                    {
+                        armorOutlines[i] = t.gameObject;
+                    }
+                    else if (t.name == fillName)
+                    {
+                        armorFills[i] = t.GetComponent<Image>();
+                    }
+                }
+            }
+
+            if (armorBarImage == null && armorFills[0] != null)
+            {
+                armorBarImage = armorFills[0];
+            }
         }
         else
         {
-            if (armorBarImage != null) armorBarImage.fillAmount = (float)currentArmor / maxArmor;
-            if (armorText != null) armorText.text = currentArmor + "/" + maxArmor;
+            GameObject armorObj = GameObject.Find("ArmorBar_Fill"); 
+            if (armorObj != null) armorBarImage = armorObj.GetComponent<Image>();
+        }
+    }
+
+    public void UpdateArmorBar()
+    {
+        // Garante que os slots do ArmorBarContainer estejam mapeados
+        if (armorOutlines[0] == null || armorFills[0] == null)
+        {
+            FindArmorSlotReferences();
+        }
+
+        // Se a armadura estiver zerada ou regeneração bloqueada (ex: Pacto de Sangue)
+        if (maxArmor <= 0 || !canRegenArmor)
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                if (armorOutlines[i] != null)
+                {
+                    // O primeiro escudo (Slot 0) é eterno: sua carcaça permanece
+                    armorOutlines[i].SetActive(i == 0);
+                }
+                if (armorFills[i] != null)
+                {
+                    armorFills[i].fillAmount = 0f;
+                    armorFills[i].gameObject.SetActive(i == 0);
+                }
+            }
+            if (armorBarImage != null) armorBarImage.fillAmount = 0f;
+            if (armorText != null) armorText.text = "0/0";
+            return;
+        }
+
+        float perPlate = Mathf.Max(1f, armorPerPlate);
+
+        // Atualiza individualmente cada um dos 5 escudos do PlayerCanvasReal
+        for (int i = 0; i < 5; i++)
+        {
+            float slotThreshold = i * perPlate;
+            // Slot 0 é o eterno (sempre ativo). Slots 1..4 ativam quando maxArmor ultrapassa o threshold
+            bool isSlotUnlocked = (i == 0) || (maxArmor > slotThreshold);
+
+            if (armorOutlines[i] != null)
+            {
+                if (armorOutlines[i].activeSelf != isSlotUnlocked)
+                {
+                    armorOutlines[i].SetActive(isSlotUnlocked);
+                }
+            }
+
+            if (armorFills[i] != null)
+            {
+                if (armorFills[i].gameObject.activeSelf != isSlotUnlocked)
+                {
+                    armorFills[i].gameObject.SetActive(isSlotUnlocked);
+                }
+
+                if (isSlotUnlocked)
+                {
+                    float slotCap = Mathf.Clamp(maxArmor - slotThreshold, 0f, perPlate);
+                    float slotCurrent = Mathf.Clamp(currentArmor - slotThreshold, 0f, slotCap);
+
+                    // Preenche verticalmente proporcional ao valor da placa
+                    if (slotCap > 0f)
+                    {
+                        armorFills[i].fillAmount = slotCurrent / perPlate;
+                    }
+                    else
+                    {
+                        armorFills[i].fillAmount = 0f;
+                    }
+                }
+                else
+                {
+                    armorFills[i].fillAmount = 0f;
+                }
+            }
+        }
+
+        // Compatibilidade com a referência legada armorBarImage
+        if (armorBarImage != null && armorFills[0] == null)
+        {
+            armorBarImage.fillAmount = (float)currentArmor / maxArmor;
+        }
+
+        if (armorText != null)
+        {
+            armorText.text = currentArmor + "/" + maxArmor;
         }
     }
 
@@ -1032,7 +1271,26 @@ public class PlayerHealth : MonoBehaviour
             return;
         }
 
-        if (isDead || isInvulnerable) return;
+        if (isDead) return;
+
+        if (isInvulnerable)
+        {
+            // Failsafe Duplo: se isInvulnerable estiver true mas o jogador NÃO estiver em dash ativo nem em ultimate ativo,
+            // desativa a invulnerabilidade imediatamente e prossegue com o dano!
+            bool isLegitInvulnerable = false;
+            if (dash != null && dash.isDashing) isLegitInvulnerable = true;
+            PlayerUltimate ult = GetComponent<PlayerUltimate>() ?? GetComponentInParent<PlayerUltimate>();
+            if (ult != null && ult.IsUltimateActive()) isLegitInvulnerable = true;
+
+            if (!isLegitInvulnerable)
+            {
+                isInvulnerable = false;
+            }
+            else
+            {
+                return;
+            }
+        }
 
         // Proteção Anti-Multi-Hit: Impede que múltiplos colisores no mesmo milissegundo zerem a vida do player instantaneamente!
         if (Time.time - lastDamageTime < damageIFrameCooldown) return;

@@ -1974,7 +1974,7 @@ MonoBehaviour:
   animator: {fileID: 3618305479678570340}
   debuffSpeedMultiplier: 1
   runningFootstepClip: {fileID: 8300000, guid: cbd2ad0506c6bcb4e84e17726f093dec, type: 3}
-  footstepVolume: 0.3
+  footstepVolume: 0.45
 --- !u!114 &5745442842706831329
 MonoBehaviour:
   m_ObjectHideFlags: 0

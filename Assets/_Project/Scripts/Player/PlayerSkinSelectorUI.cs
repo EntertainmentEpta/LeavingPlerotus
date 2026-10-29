@@ -6,6 +6,10 @@ using TMPro;
 [RequireComponent(typeof(Collider))]
 public class PlayerSkinSelectorUI : MonoBehaviour
 {
+    [Header("Feature Toggle")]
+    [Tooltip("Se falso, o armário de skins fica completamente desativado.")]
+    public bool skinsEnabled = false;
+
     [Header("Settings")]
     public KeyCode interactionKey = KeyCode.T;
     public string promptMessage = "Aperte [T] para abrir o Armário de Skins";
@@ -37,6 +41,13 @@ public class PlayerSkinSelectorUI : MonoBehaviour
 
     private void Start()
     {
+        if (!skinsEnabled)
+        {
+            enabled = false;
+            gameObject.SetActive(false);
+            return;
+        }
+
         // Garante que o collider é um trigger
         Collider col = GetComponent<Collider>();
         if (col != null)
@@ -50,6 +61,7 @@ public class PlayerSkinSelectorUI : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        if (!skinsEnabled) return;
         if (other.CompareTag("Player") || other.GetComponent<PlayerM>() != null)
         {
             cachedSkinManager = other.GetComponent<PlayerSkinManager>();

@@ -641,10 +641,12 @@ public class PrimaryAttackKnife : MonoBehaviour
                                  ?? enemyCollider.GetComponentInParent<Rigidbody>();
                 if (enemyRb != null)
                 {
+                    float enemyKnockbackResist = enemy != null ? enemy.knockbackResistance : 0f;
                     Vector3 knockbackDirection = (enemyCollider.transform.position - transform.position).normalized;
                     knockbackDirection.y = 0;
-                    float knockbackForce = playerAttributes.knockback * 10f;
-                    enemyRb.AddForce(knockbackDirection * knockbackForce, ForceMode.Impulse);
+                    float knockbackForce = playerAttributes.knockback * 10f * Mathf.Clamp01(1f - enemyKnockbackResist);
+                    if (knockbackForce > 0.001f)
+                        enemyRb.AddForce(knockbackDirection * knockbackForce, ForceMode.Impulse);
                 }
             }
 
@@ -980,8 +982,12 @@ public class PrimaryAttackKnife : MonoBehaviour
     private void PlayAxeSwingClip(AudioClip clip, float volume)
     {
         EnsureAxeSwingAudioSource();
+        float effectiveVolume = volume * GlobalAudioManager.SFXVolumeMultiplier;
+        if (effectiveVolume <= 0.001f) return;
         axeSwingAudioSource.pitch = Random.Range(0.93f, 1.07f);
-        axeSwingAudioSource.PlayOneShot(clip, volume);
+        if (axeSwingAudioSource.outputAudioMixerGroup == null && GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+            axeSwingAudioSource.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
+        axeSwingAudioSource.PlayOneShot(clip, effectiveVolume);
     }
 
     public void PlaySwing1() { if (IsAxeEquipped() && axeSwing1 != null) PlayAxeSwingClip(axeSwing1, swing1Volume); }
@@ -992,16 +998,22 @@ public class PrimaryAttackKnife : MonoBehaviour
     // --- Método utilitário de áudio (mesmo padrão do projeto: GoblinMove, Golem_AI, Spider_AI, etc.) ---
     private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
     {
+        if (clip == null) return;
+        float effectiveVolume = volume * GlobalAudioManager.SFXVolumeMultiplier;
+        if (effectiveVolume <= 0.001f) return;
+
         GameObject audioObj = new GameObject("TempAxeHitAudio");
         audioObj.transform.position = position;
         AudioSource aSource = audioObj.AddComponent<AudioSource>();
         aSource.clip = clip;
         aSource.pitch = pitch;
-        aSource.volume = volume;
+        aSource.volume = effectiveVolume;
         aSource.spatialBlend = 1f;
         aSource.minDistance = 3f;
         aSource.maxDistance = 30f;
         aSource.rolloffMode = AudioRolloffMode.Linear;
+        if (GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+            aSource.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
         aSource.Play();
         float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;
         Destroy(audioObj, clip.length / safePitch);
@@ -1062,9 +1074,12 @@ public class PrimaryAttackKnife : MonoBehaviour
                 Rigidbody enemyRb = hit.GetComponent<Rigidbody>();
                 if (enemyRb != null)
                 {
+                    float enemyKnockbackResist = dh != null ? dh.knockbackResistance : 0f;
                     Vector3 knockDir = (hit.transform.position - transform.position).normalized;
                     knockDir.y = 0.25f;
-                    enemyRb.AddForce(knockDir * 20f, ForceMode.Impulse);
+                    float knockForce = 20f * Mathf.Clamp01(1f - enemyKnockbackResist);
+                    if (knockForce > 0.001f)
+                        enemyRb.AddForce(knockDir * knockForce, ForceMode.Impulse);
                 }
             }
         }

@@ -116,6 +116,7 @@ public class EquipmentManager : MonoBehaviour
         EnsureBlueprintEquipment("equip_camara_infusao_2", "Câmara de Infusão Expandida II", "Sintoniza a matriz quântica do traje para permitir fusões massivas de até 4 itens simultâneos.", EquipmentEffectType.InfusionChamberExpansion, 4.0f);
         EnsureBlueprintEquipment("equip_capacidade_infusao_1", "Chassi Térmico Modular I", "Aumenta o limite de sobreaquecimento do traje, permitindo até 8 infusões ativas na mesma run.", EquipmentEffectType.InfusionCapacityExpansion, 8.0f);
         EnsureBlueprintEquipment("equip_capacidade_infusao_2", "Chassi Térmico Modular II", "Dissipação criogênica avançada. Permite até 10 infusões ativas simultâneas na mesma run.", EquipmentEffectType.InfusionCapacityExpansion, 10.0f);
+        EnsureBlueprintEquipment("equip_reservatorio_cura", "Reservatório de Biossíntese Auxiliar", "Expande os canais de síntese do traje, concedendo +1 Cápsula Máxima de Cura ao Eptinho (totalizando 3 cápsulas).", EquipmentEffectType.ExtraPotionSlot, 1.0f);
 
         BuildLookup();
 

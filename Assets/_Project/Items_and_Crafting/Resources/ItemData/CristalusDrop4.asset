@@ -20,7 +20,7 @@ MonoBehaviour:
   enemySource: Cristalus
   returnsToBase: 0
   recycleEssenceValue: 168
-  infusionEssenceCost: 420
+  infusionEssenceCost: 280
   itemAttributes:
   - attributeType: 4
     value: 1.3

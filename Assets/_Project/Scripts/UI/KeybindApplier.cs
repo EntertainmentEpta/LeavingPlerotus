@@ -52,6 +52,10 @@ public class KeybindApplier : MonoBehaviour
         GunAttack gun = GetComponentInChildren<GunAttack>();
         if (gun != null) gun.reloadKey = ParseKey("KeyReload", "R");
 
+        // Cura / Cápsula do Traje
+        SuitHealingSystem suitHeal = GetComponent<SuitHealingSystem>() ?? GetComponentInChildren<SuitHealingSystem>();
+        if (suitHeal != null) suitHeal.healKey = ParseKey("KeyHeal", "Q");
+
         // 3. Entrega a tecla para o Inventário
         if (InventoryUI.Instance != null)
         {

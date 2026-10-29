@@ -51,6 +51,21 @@ public class DashUI : MonoBehaviour
     private List<BarSlotUI> barSlots = new List<BarSlotUI>();
     private float perfectDodgeFlashTimer = 0f;
 
+    // Indicador de Perigo Iminente (Telegrafo na tela para avisar a hora exata da esquiva)
+    private GameObject telegraphAlertObj;
+    private RectTransform telegraphAlertRect;
+    private TextMeshProUGUI telegraphAlertText;
+
+    // Banner Central de Confirmação de Perfect Dash
+    private GameObject perfectDodgeBannerObj;
+    private RectTransform perfectDodgeBannerRect;
+    private CanvasGroup perfectDodgeBannerGroup;
+    private TextMeshProUGUI perfectDodgeBannerTitle;
+    private TextMeshProUGUI perfectDodgeBannerSub;
+    private float bannerTimer = 0f;
+
+
+
     void Awake()
     {
         Instance = this;
@@ -97,17 +112,24 @@ public class DashUI : MonoBehaviour
     /// </summary>
     public void TriggerPerfectDodgeFlash()
     {
-        perfectDodgeFlashTimer = 1.6f;
+        perfectDodgeFlashTimer = 1.8f;
+        bannerTimer = 1.8f;
+
+        if (perfectDodgeBannerRect != null)
+        {
+            perfectDodgeBannerRect.localScale = new Vector3(1.35f, 1.35f, 1f);
+        }
+        if (perfectDodgeBannerGroup != null)
+        {
+            perfectDodgeBannerGroup.alpha = 1f;
+        }
     }
 
     void Update()
     {
         string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         bool inMainMenu = currentScene == "MainMenu" || currentScene == "Menu";
-        bool isWakingUp = PlayerWakeUpEffect.IsWakingUp;
-        bool waitingForIntro = !EptinhoStoryDialogs.HasSeenDialog(EptinhoStoryDialogs.ID_INTRO_EPTINHO);
-
-        if (inMainMenu || isWakingUp || waitingForIntro)
+        if (inMainMenu)
         {
             if (autoCanvasObj != null && autoCanvasObj.activeSelf) autoCanvasObj.SetActive(false);
             return;
@@ -116,6 +138,44 @@ public class DashUI : MonoBehaviour
         if (autoCanvasObj != null && !autoCanvasObj.activeSelf)
         {
             autoCanvasObj.SetActive(true);
+        }
+
+
+
+        // Atualiza Banner Central de Perfect Dash
+        if (perfectDodgeBannerGroup != null && perfectDodgeBannerRect != null)
+        {
+            if (bannerTimer > 0f)
+            {
+                bannerTimer -= Time.unscaledDeltaTime;
+                perfectDodgeBannerGroup.alpha = Mathf.Clamp01(bannerTimer / 0.4f);
+                float punchScale = Mathf.Lerp(1.0f, 1.35f, Mathf.Max(0f, (bannerTimer - 1.4f) / 0.4f));
+                perfectDodgeBannerRect.localScale = new Vector3(punchScale, punchScale, 1f);
+            }
+            else
+            {
+                perfectDodgeBannerGroup.alpha = 0f;
+            }
+        }
+
+        // Atualiza Alerta Telegrafado de Esquiva Iminente ("HORA DA ESQUIVA! [ESPAÇO]")
+        if (telegraphAlertObj != null && telegraphAlertText != null)
+        {
+            bool canDodge = dashScript != null && !dashScript.isDashing && dashScript.DashesLeft > 0;
+            bool threatNearby = canDodge && dashScript.IsAnyImminentAttackNearby(out _);
+
+            if (threatNearby)
+            {
+                if (!telegraphAlertObj.activeSelf) telegraphAlertObj.SetActive(true);
+                float pulse = 1.0f + Mathf.PingPong(Time.unscaledTime * 4.5f, 0.12f);
+                if (telegraphAlertRect != null) telegraphAlertRect.localScale = new Vector3(pulse, pulse, 1f);
+                string kName = (dashScript.dashKey == KeyCode.Space) ? "ESPAÇO" : $"{dashScript.dashKey} / ESPAÇO";
+                telegraphAlertText.text = $"<color=#FFD700><b>⚡ HORA DA ESQUIVA! [{kName}] ⚡</b></color>";
+            }
+            else if (telegraphAlertObj.activeSelf)
+            {
+                telegraphAlertObj.SetActive(false);
+            }
         }
 
         if (dashScript == null)
@@ -296,13 +356,102 @@ public class DashUI : MonoBehaviour
 
         Canvas canvas = autoCanvasObj.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 95;
+        canvas.sortingOrder = 500;
 
         CanvasScaler scaler = autoCanvasObj.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
 
         autoCanvasObj.AddComponent<GraphicRaycaster>();
+
+        Sprite pixelSprite = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 1, 1), Vector2.zero);
+
+        // 1. Alerta Telegrafado de Esquiva Iminente (Perto do Centro da Tela)
+        telegraphAlertObj = new GameObject("TelegraphDodgeAlert");
+        telegraphAlertObj.transform.SetParent(autoCanvasObj.transform, false);
+        telegraphAlertRect = telegraphAlertObj.AddComponent<RectTransform>();
+        telegraphAlertRect.anchorMin = new Vector2(0.5f, 0.35f);
+        telegraphAlertRect.anchorMax = new Vector2(0.5f, 0.35f);
+        telegraphAlertRect.pivot = new Vector2(0.5f, 0.5f);
+        telegraphAlertRect.sizeDelta = new Vector2(340f, 38f);
+
+        Image taBg = telegraphAlertObj.AddComponent<Image>();
+        taBg.sprite = pixelSprite;
+        taBg.color = new Color(0.04f, 0.08f, 0.12f, 0.88f);
+        taBg.raycastTarget = false;
+
+        Outline taOutline = telegraphAlertObj.AddComponent<Outline>();
+        taOutline.effectColor = new Color(1f, 0.85f, 0.1f, 0.85f);
+        taOutline.effectDistance = new Vector2(1.5f, -1.5f);
+
+        GameObject taTextObj = new GameObject("Text");
+        taTextObj.transform.SetParent(telegraphAlertObj.transform, false);
+        RectTransform taTextRect = taTextObj.AddComponent<RectTransform>();
+        taTextRect.anchorMin = Vector2.zero;
+        taTextRect.anchorMax = Vector2.one;
+        taTextRect.offsetMin = Vector2.zero;
+        taTextRect.offsetMax = Vector2.zero;
+
+        telegraphAlertText = taTextObj.AddComponent<TextMeshProUGUI>();
+        telegraphAlertText.fontSize = 14;
+        telegraphAlertText.fontStyle = FontStyles.Bold;
+        telegraphAlertText.alignment = TextAlignmentOptions.Center;
+        telegraphAlertText.color = new Color(1f, 0.85f, 0.1f, 1f);
+        telegraphAlertText.text = "⚡ HORA DA ESQUIVA! [ESPAÇO] ⚡";
+        telegraphAlertObj.SetActive(false);
+
+        // 3. Banner Central de Confirmação de Perfect Dash (Topo-Centro da Tela)
+        perfectDodgeBannerObj = new GameObject("PerfectDashBanner");
+        perfectDodgeBannerObj.transform.SetParent(autoCanvasObj.transform, false);
+        perfectDodgeBannerRect = perfectDodgeBannerObj.AddComponent<RectTransform>();
+        perfectDodgeBannerRect.anchorMin = new Vector2(0.5f, 0.72f);
+        perfectDodgeBannerRect.anchorMax = new Vector2(0.5f, 0.72f);
+        perfectDodgeBannerRect.pivot = new Vector2(0.5f, 0.5f);
+        perfectDodgeBannerRect.sizeDelta = new Vector2(480f, 75f);
+
+        perfectDodgeBannerGroup = perfectDodgeBannerObj.AddComponent<CanvasGroup>();
+        perfectDodgeBannerGroup.alpha = 0f;
+        perfectDodgeBannerGroup.interactable = false;
+        perfectDodgeBannerGroup.blocksRaycasts = false;
+
+        Image pbBg = perfectDodgeBannerObj.AddComponent<Image>();
+        pbBg.sprite = pixelSprite;
+        pbBg.color = new Color(0.03f, 0.06f, 0.10f, 0.94f);
+        pbBg.raycastTarget = false;
+
+        Outline pbOutline = perfectDodgeBannerObj.AddComponent<Outline>();
+        pbOutline.effectColor = new Color(1.0f, 0.84f, 0.2f, 0.95f);
+        pbOutline.effectDistance = new Vector2(2f, -2f);
+
+        GameObject pbTitleObj = new GameObject("Title");
+        pbTitleObj.transform.SetParent(perfectDodgeBannerObj.transform, false);
+        RectTransform pbTitleRect = pbTitleObj.AddComponent<RectTransform>();
+        pbTitleRect.anchorMin = new Vector2(0, 0.45f);
+        pbTitleRect.anchorMax = new Vector2(1, 1f);
+        pbTitleRect.offsetMin = new Vector2(6, 0);
+        pbTitleRect.offsetMax = new Vector2(-6, -2);
+
+        perfectDodgeBannerTitle = pbTitleObj.AddComponent<TextMeshProUGUI>();
+        perfectDodgeBannerTitle.fontSize = 17;
+        perfectDodgeBannerTitle.fontStyle = FontStyles.Bold;
+        perfectDodgeBannerTitle.alignment = TextAlignmentOptions.Center;
+        perfectDodgeBannerTitle.color = Color.white;
+        perfectDodgeBannerTitle.text = "<color=#FFD700><b>⚡ PERFECT DASH! ⚡</b></color> <size=70%><color=#FFE082>SOBRECARGA ATIVA (6s)</color></size>";
+
+        GameObject pbSubObj = new GameObject("Subtitle");
+        pbSubObj.transform.SetParent(perfectDodgeBannerObj.transform, false);
+        RectTransform pbSubRect = pbSubObj.AddComponent<RectTransform>();
+        pbSubRect.anchorMin = new Vector2(0, 0);
+        pbSubRect.anchorMax = new Vector2(1, 0.48f);
+        pbSubRect.offsetMin = new Vector2(6, 2);
+        pbSubRect.offsetMax = new Vector2(-6, 0);
+
+        perfectDodgeBannerSub = pbSubObj.AddComponent<TextMeshProUGUI>();
+        perfectDodgeBannerSub.fontSize = 11;
+        perfectDodgeBannerSub.fontStyle = FontStyles.Bold;
+        perfectDodgeBannerSub.alignment = TextAlignmentOptions.Center;
+        perfectDodgeBannerSub.color = Color.white;
+        perfectDodgeBannerSub.text = "<color=#FFD700>[GOLPE]</color> 100% Crítico  |  <color=#FFFFFF>[ESPAÇO]</color> Dash Livre  |  <color=#00FF88>[Q]</color> +30s Cura";
 
         // Painel Principal
         GameObject panelObj = new GameObject("DashModularPanel");
@@ -339,8 +488,6 @@ public class DashUI : MonoBehaviour
         Shadow textShadow = textObj.AddComponent<Shadow>();
         textShadow.effectColor = new Color(0, 0, 0, 0.9f);
         textShadow.effectDistance = new Vector2(1f, -1f);
-
-        Sprite pixelSprite = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 1, 1), Vector2.zero);
 
         // Container Esquerdo: Barras de Dash Normais
         GameObject containerObj = new GameObject("BarsContainer");

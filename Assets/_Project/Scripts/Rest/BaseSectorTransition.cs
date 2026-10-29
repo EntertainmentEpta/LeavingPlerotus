@@ -15,26 +15,24 @@ public class BaseSectorTransition : MonoBehaviour
     public GameObject sectorToDeactivate;
 
     [Tooltip("How long to wait while screen is completely black (useful to allow assets to load/settle).")]
-    public float blackScreenDuration = 0.2f;
+    public float blackScreenDuration = 0.15f;
 
     // Static transition lock to prevent overlapping transitions
     private static bool isTransitioning = false;
     private static float transitionStartTime = 0f;
-    private static float nextAllowedTransitionTime = 0f;
-    private const float MAX_TRANSITION_TIMEOUT = 2.5f;
+    private static float globalTransitionCooldownUntil = 0f;
+    private const float MAX_TRANSITION_TIMEOUT = 3.0f;
 
-    // Rastreia colisores que acabaram de chegar neste setor através deste ou de outro portal próximo.
-    // Eles permanecem imunes a re-transição enquanto permanecerem parados dentro do trigger,
-    // sendo liberados assim que derem um passo para fora (OnTriggerExit) ou se afastarem mais de 3.0m.
-    private readonly HashSet<Collider> occupantsWhoTransitioned = new HashSet<Collider>();
-    private Vector3 lastArrivalSpawnPos = Vector3.zero;
+    // Se o jogador nasceu dentro da caixa de colisão da porta, ele deve sair antes dela poder ser reativada
+    [SerializeField] private bool requireTriggerExit = false;
+    private float exitTimeout = 0f;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStaticStateDomain()
     {
         isTransitioning = false;
         transitionStartTime = 0f;
-        nextAllowedTransitionTime = 0f;
+        globalTransitionCooldownUntil = 0f;
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -42,7 +40,7 @@ public class BaseSectorTransition : MonoBehaviour
     {
         isTransitioning = false;
         transitionStartTime = 0f;
-        nextAllowedTransitionTime = 0f;
+        globalTransitionCooldownUntil = 0f;
     }
 
     private void Awake()
@@ -52,13 +50,65 @@ public class BaseSectorTransition : MonoBehaviour
         {
             isTransitioning = false;
         }
+
+        AutoResolveReferences();
     }
 
     private void OnEnable()
     {
-        // Limpa estado quando o setor é reativado para prevenir travas
-        occupantsWhoTransitioned.Clear();
-        lastArrivalSpawnPos = Vector3.zero;
+        requireTriggerExit = false;
+        exitTimeout = 0f;
+    }
+
+    /// <summary>
+    /// Auto-resolve setores e spawn point caso alguma ligação de prefab tenha se perdido.
+    /// </summary>
+    public void AutoResolveReferences()
+    {
+        if (sectorToDeactivate == null)
+        {
+            // O setor que estamos deixando é o setor pai deste portal
+            Transform p = transform.parent;
+            while (p != null)
+            {
+                if (p.name.ToLower().StartsWith("sector_"))
+                {
+                    sectorToDeactivate = p.gameObject;
+                    break;
+                }
+                p = p.parent;
+            }
+        }
+
+        if (sectorToActivate == null)
+        {
+            string myName = gameObject.name.ToLower();
+            if (myName.Contains("lobby"))
+            {
+                sectorToActivate = GameObject.Find("Sector_Lobby");
+            }
+            else if (myName.Contains("lab"))
+            {
+                sectorToActivate = GameObject.Find("Sector_Laboratory");
+            }
+            else if (myName.Contains("cockpit"))
+            {
+                sectorToActivate = GameObject.Find("Sector_Cockpit");
+            }
+        }
+
+        if (spawnPoint == null && sectorToActivate != null)
+        {
+            foreach (Transform t in sectorToActivate.GetComponentsInChildren<Transform>(true))
+            {
+                string tName = t.name.ToLower();
+                if (tName.Contains("spawnpoint") || tName.Contains("spawn_point") || tName.Contains("spawn"))
+                {
+                    spawnPoint = t;
+                    break;
+                }
+            }
+        }
     }
 
     private void OnTriggerEnter(Collider other)
@@ -73,61 +123,61 @@ public class BaseSectorTransition : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        if (other != null && occupantsWhoTransitioned.Contains(other))
+        if (other != null && (other.CompareTag("Player") || other.GetComponent<PlayerM>() != null || other.GetComponentInParent<PlayerM>() != null))
         {
-            occupantsWhoTransitioned.Remove(other);
-            Debug.Log($"[BaseSectorTransition] {other.name} saiu de {gameObject.name}; portal rearmado para transição.");
-        }
-    }
-
-    private bool IsColliderImmune(Collider other)
-    {
-        if (other == null) return false;
-
-        if (occupantsWhoTransitioned.Contains(other))
-        {
-            // Fail-safe de distância: se o jogador já se afastou mais de 3.0m do ponto de chegada/portal,
-            // remove a imunidade mesmo se OnTriggerExit não tiver sido capturado pela física da Unity.
-            if (lastArrivalSpawnPos != Vector3.zero && Vector3.Distance(other.transform.position, lastArrivalSpawnPos) > 3.0f)
+            if (requireTriggerExit)
             {
-                occupantsWhoTransitioned.Remove(other);
-                return false;
+                requireTriggerExit = false;
+                Debug.Log($"[BaseSectorTransition] Jogador saiu da soleira do portal {gameObject.name}. Portal rearmado com sucesso.");
             }
-            return true; // Ainda dentro da área de chegada/trigger: NÃO retransiciona
-        }
-        return false;
-    }
-
-    public void GrantArrivalImmunity(Collider playerCollider, Vector3 arrivalPoint)
-    {
-        if (playerCollider != null)
-        {
-            occupantsWhoTransitioned.Add(playerCollider);
-            lastArrivalSpawnPos = arrivalPoint;
-            Debug.Log($"[BaseSectorTransition] Concedendo imunidade de chegada a {playerCollider.name} no portal {gameObject.name} (posição {arrivalPoint}).");
         }
     }
 
     // Compatibilidade com chamadas legadas
-    public void GrantTemporaryImmunity(Collider playerCollider, float duration = 1.0f)
+    public void GrantArrivalImmunity(Collider playerCollider, Vector3 arrivalPoint, float duration = 2.5f, float minDistance = 3.5f)
     {
-        GrantArrivalImmunity(playerCollider, transform.position);
+        Collider col = GetComponent<Collider>();
+        if (col != null && col.bounds.Contains(arrivalPoint))
+        {
+            requireTriggerExit = true;
+            exitTimeout = Time.unscaledTime + duration;
+        }
+        else
+        {
+            requireTriggerExit = false;
+        }
+    }
+
+    public void GrantTemporaryImmunity(Collider playerCollider, float duration = 2.5f)
+    {
+        GrantArrivalImmunity(playerCollider, transform.position, duration, 3.5f);
     }
 
     private void TryStartTransition(Collider other)
     {
-        // 1. Check if temporary immunity is active (just teleported here)
-        if (IsColliderImmune(other))
+        // 1. Global Cooldown (trava após qualquer transição recente para evitar efeito bate-e-volta)
+        if (Time.unscaledTime < globalTransitionCooldownUntil)
         {
             return;
         }
 
-        // 2. Watchdog check: Auto-recover if a previous transition hung
+        // 2. Se o jogador nasceu dentro da caixa de colisão, ele deve sair antes de usar
+        if (requireTriggerExit)
+        {
+            if (Time.unscaledTime < exitTimeout)
+            {
+                return;
+            }
+            // Timeout de segurança: libera após expirar
+            requireTriggerExit = false;
+        }
+
+        // 3. Watchdog check: Auto-recover if a previous transition hung
         if (isTransitioning)
         {
             if (Time.unscaledTime - transitionStartTime > MAX_TRANSITION_TIMEOUT)
             {
-                Debug.LogWarning("[BaseSectorTransition] Watchdog: Transição anterior expirou por timeout (2.5s). Resetando isTransitioning.");
+                Debug.LogWarning("[BaseSectorTransition] Watchdog: Transição anterior expirou por timeout (3.0s). Resetando isTransitioning.");
                 isTransitioning = false;
             }
             else
@@ -136,17 +186,11 @@ public class BaseSectorTransition : MonoBehaviour
             }
         }
 
-        // 3. Safety cooldown check to prevent double-fires on the same physics tick
-        if (Time.time < nextAllowedTransitionTime)
-        {
-            return;
-        }
-
         // 4. Find Player component (check both component and parent)
         PlayerM playerMovement = other.GetComponent<PlayerM>() ?? other.GetComponentInParent<PlayerM>();
         if (playerMovement != null)
         {
-            Debug.Log($"[BaseSectorTransition] Iniciando transição do setor via {gameObject.name}");
+            Debug.Log($"[BaseSectorTransition] 🚪 Iniciando transição do setor via {gameObject.name}...");
             playerMovement.StartCoroutine(DoTransition(playerMovement, other));
         }
     }
@@ -155,9 +199,12 @@ public class BaseSectorTransition : MonoBehaviour
     {
         isTransitioning = true;
         transitionStartTime = Time.unscaledTime;
+        globalTransitionCooldownUntil = Time.unscaledTime + 999f; // Trava global durante todo o processo
 
         try
         {
+            AutoResolveReferences();
+
             player.enabled = false;
             Rigidbody rb = player.GetComponent<Rigidbody>();
             if (rb != null)
@@ -188,6 +235,7 @@ public class BaseSectorTransition : MonoBehaviour
             {
                 player.transform.position = spawnPoint.position;
                 player.transform.rotation = spawnPoint.rotation;
+                Debug.Log($"[BaseSectorTransition] Jogador posicionado no spawnPoint {spawnPoint.name} em {spawnPoint.position}.");
             }
             else
             {
@@ -204,23 +252,28 @@ public class BaseSectorTransition : MonoBehaviour
             if (sectorToActivate != null) sectorToActivate.SetActive(true);
             if (sectorToDeactivate != null) sectorToDeactivate.SetActive(false);
 
-            // Força atualização da física para que as portas recém ativadas sejam detectadas
+            // Força atualização da física para que os colliders do novo setor sejam atualizados imediatamente
             Physics.SyncTransforms();
 
-            // Limpa o jogador da porta de origem para que ele possa retornar no futuro
-            occupantsWhoTransitioned.Remove(playerCollider);
-
-            if (spawnPoint != null)
+            // Configura os portais do novo setor: se algum contiver o spawnPoint, exige saída antes de rearmar
+            if (sectorToActivate != null && spawnPoint != null)
             {
-                // Concede imunidade de chegada aos portais próximos ao ponto de nascimento no novo setor.
-                // O jogador não será re-teleportado enquanto permanecer parado no ponto de chegada.
-                Collider[] hitColliders = Physics.OverlapSphere(spawnPoint.position, 2.5f);
-                foreach (var hit in hitColliders)
+                BaseSectorTransition[] destPortals = sectorToActivate.GetComponentsInChildren<BaseSectorTransition>(true);
+                foreach (var destPortal in destPortals)
                 {
-                    BaseSectorTransition destTransition = hit.GetComponent<BaseSectorTransition>() ?? hit.GetComponentInParent<BaseSectorTransition>();
-                    if (destTransition != null)
+                    if (destPortal != null)
                     {
-                        destTransition.GrantArrivalImmunity(playerCollider, spawnPoint.position);
+                        Collider col = destPortal.GetComponent<Collider>();
+                        if (col != null && col.bounds.Contains(spawnPoint.position))
+                        {
+                            destPortal.requireTriggerExit = true;
+                            destPortal.exitTimeout = Time.unscaledTime + 3.0f;
+                            Debug.Log($"[BaseSectorTransition] Portal de retorno {destPortal.name} contém o spawnPoint; requer saída do jogador.");
+                        }
+                        else
+                        {
+                            destPortal.requireTriggerExit = false;
+                        }
                     }
                 }
             }
@@ -230,7 +283,7 @@ public class BaseSectorTransition : MonoBehaviour
                 yield return new WaitForSeconds(blackScreenDuration);
             }
 
-            // Permite que o jogador se mova imediatamente enquanto a tela clareia (Game Feel rápido)
+            // Permite que o jogador se mova imediatamente enquanto a tela clareia
             if (player != null)
             {
                 player.enabled = true;
@@ -238,7 +291,7 @@ public class BaseSectorTransition : MonoBehaviour
 
             if (fader != null && player != null)
             {
-                player.StartCoroutine(fader.FadeIn());
+                yield return player.StartCoroutine(fader.FadeIn());
             }
 
             if (EquipmentManager.Instance != null && EquipmentManager.Instance.IsEquipped("equip_aprimoramento_bota"))
@@ -249,8 +302,8 @@ public class BaseSectorTransition : MonoBehaviour
         }
         finally
         {
-            // Cooldown de segurança curto (0.35s) e garantia absoluta de limpeza de estado
-            nextAllowedTransitionTime = Time.time + 0.35f;
+            // Cooldown de 1.0s após o término do fade-in antes de permitir nova transição
+            globalTransitionCooldownUntil = Time.unscaledTime + 1.0f;
             isTransitioning = false;
             if (player != null)
             {
@@ -259,4 +312,3 @@ public class BaseSectorTransition : MonoBehaviour
         }
     }
 }
-

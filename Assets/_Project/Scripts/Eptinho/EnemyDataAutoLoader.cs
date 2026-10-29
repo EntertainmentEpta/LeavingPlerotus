@@ -72,7 +72,11 @@ public class EnemyDataAutoLoader : MonoBehaviour
         lista.Add(CriarEnemyData("Golem",     "EnemySprites/Golem",          "Tanque",    "Construção mineral animada. Extremamente resistente, mas lento e previsível."));
         lista.Add(CriarEnemyData("Aranha",    "EnemySprites/spider",         "Atirador",  "Criatura ágil que dispara projéteis de teia. Difícil de alcançar em espaços abertos."));
         lista.Add(CriarEnemyData("Sentinela", "EnemySprites/ALLSEEING",      "Elite",     "Olho cristalino que patrulha áreas. Detecta movimento e alerta outros inimigos."));
-        lista.Add(CriarEnemyData("Totem",     "EnemySprites/Inimigo_Totem",  "Suporte",   "Estrutura estática que emite campos de energia. Destruí-lo enfraquece os inimigos ao redor."));
+        lista.Add(CriarEnemyData("Totem",        "EnemySprites/Inimigo_Totem",  "Suporte",   "Estrutura estática que invoca caveiras e emite ondas periódicas de repulsão."));
+        lista.Add(CriarEnemyData("Cristalus",    "EnemySprites/Cristalus",      "Blindado",  "Entidade biomineral cristalina com carapaça que atenua danos de tiros de pistola."));
+        lista.Add(CriarEnemyData("Peixe",        "EnemySprites/Peixe",          "Ambush",    "Predador das profundezas com carapaça resistente a projéteis e couraça de espinhos."));
+        lista.Add(CriarEnemyData("Sintonizador", "EnemySprites/Sintonizador",   "Suporte",   "Prisma ressonante flutuante que conecta feixes e protege inimigos próximos."));
+        lista.Add(CriarEnemyData("Enxame",       "EnemySprites/Enxame",         "Enxame",    "Cardume de estilhaços cristalinos velozes que cercam e fatiam o invasor."));
 
         return lista;
     }
