@@ -23,6 +23,9 @@ public class EnemyData : ScriptableObject
     [Tooltip("Ícone exibido no Bestiário.")]
     public Sprite icon;
 
+    [Tooltip("Prefab ou modelo 3D do inimigo para preview giratório no Bestiário.")]
+    public GameObject enemyPrefab;
+
     [Header("Lore")]
     [TextArea(3, 6)]
     [Tooltip("Descrição do inimigo exibida no Bestiário.")]

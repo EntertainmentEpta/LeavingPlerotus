@@ -745,7 +745,7 @@ Transform:
   m_GameObject: {fileID: 1264434778997470993}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 3.306, z: 0.19}
+  m_LocalPosition: {x: 0, y: 2, z: 0.19}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -762,8 +762,8 @@ Light:
   serializedVersion: 11
   m_Type: 2
   m_Color: {r: 0.8396226, g: 0.82233214, b: 0.67724276, a: 1}
-  m_Intensity: 2.97
-  m_Range: 3.07
+  m_Intensity: 5
+  m_Range: 1
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
   m_CookieSize: 10
@@ -1854,6 +1854,11 @@ MonoBehaviour:
   dashDuration: 0.2
   maxDashes: 2
   dashCooldown: 0.9
+  perfectDodgeWindowDuration: 0.14
+  visualModelTransform: {fileID: 0}
+  dashForwardLeanAngle: 22
+  enableLayerPhasing: 1
+  perfectDodgeChargeDuration: 6
   dashCountText: {fileID: 0}
   dashKey: 101
   keyUp: 119
@@ -1896,6 +1901,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
   maxHealth: 100
   maxArmor: 60
+  defaultMaxArmor: 60
   armorRegenRate: 10
   shieldRegenDelay: 3.5
   isInvulnerable: 0
@@ -1906,6 +1912,19 @@ MonoBehaviour:
   healthFillImage: {fileID: 0}
   gooBarImage: {fileID: 0}
   armorBarImage: {fileID: 0}
+  armorPerPlate: 60
+  armorOutlines:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  armorFills:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
   armorText: {fileID: 0}
   percentageText: {fileID: 0}
   mercadorHealthFillImage: {fileID: 0}
@@ -1916,6 +1935,7 @@ MonoBehaviour:
   damageTakenMultiplier: 1
   canHeal: 1
   hasDoubleLoot: 0
+  hasGreedPact: 0
   hasChaosSymphony: 0
   hasVampirism: 0
   hasNecrosis: 0
@@ -1966,6 +1986,9 @@ MonoBehaviour:
   hitboxMoveSpeed: 5
   hitboxRotationSpeed: 3
   hitboxAnimSpeed: 1
+  maxStepHeight: 0.35
+  stepCheckDistance: 0.45
+  stepSmoothSpeed: 8
   groundCheck: {fileID: 9042672255904056496}
   whatIsGround:
     serializedVersion: 2
@@ -2032,6 +2055,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AttributeDisplayOnScreenSplit
   offensiveAttributes: {fileID: 5301761075157900069}
   defensiveAttributes: {fileID: 5745442842706831329}
+  playerHealth: {fileID: 0}
+  playerMovement: {fileID: 0}
+  infusionManager: {fileID: 0}
   showDisplay: 0
   toggleKey: 286
   panelWidth: 500
@@ -2100,6 +2126,7 @@ MonoBehaviour:
   - {fileID: 8300000, guid: f828eed3c22a64947b599b80a27239e6, type: 3}
   - {fileID: 8300000, guid: c1bd6c3d31a6f434a840dbe962f29988, type: 3}
   itemPickupSoundVolume: 0.8
+  itemSlots: []
   maxSlots: 10
   onItemAdded:
     m_PersistentCalls:
@@ -2137,6 +2164,8 @@ MonoBehaviour:
   inflationAlpha: 0.1
   fusionStackMultiplier: 2
   surgeryEssenceCost: 150
+  baseChamberLimit: 2
+  baseCapacityLimit: 6
   infusedItems: []
 --- !u!114 &2622090170748288850
 MonoBehaviour:

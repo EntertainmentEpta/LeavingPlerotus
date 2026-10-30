@@ -636,7 +636,7 @@ public class ItemPickup : MonoBehaviour
         canvas.sortingOrder = 150;
 
         RectTransform rect = promptRoot.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(360f, 65f);
+        rect.sizeDelta = new Vector2(720f, 130f);
         rect.localScale = Vector3.one * 0.01f;
 
         autoPromptCanvasGroup = promptRoot.AddComponent<CanvasGroup>();
@@ -661,14 +661,14 @@ public class ItemPickup : MonoBehaviour
         textRect.anchorMax = Vector2.one;
         textRect.sizeDelta = Vector2.zero;
         autoPromptTMP = textObj.AddComponent<TextMeshProUGUI>();
-        autoPromptTMP.fontSize = 20f;
+        autoPromptTMP.fontSize = 40f;
         autoPromptTMP.fontStyle = FontStyles.Bold;
         autoPromptTMP.alignment = TextAlignmentOptions.Center;
         autoPromptTMP.color = Color.white;
         autoPromptTMP.raycastTarget = false;
         autoPromptTMP.enableAutoSizing = true;
-        autoPromptTMP.fontSizeMin = 14f;
-        autoPromptTMP.fontSizeMax = 22f;
+        autoPromptTMP.fontSizeMin = 28f;
+        autoPromptTMP.fontSizeMax = 44f;
 
         TMP_FontAsset font = Resources.Load<TMP_FontAsset>("Fonts & Materials/Oswald Bold SDF");
         if (font != null) autoPromptTMP.font = font;

@@ -14,6 +14,8 @@ public class Dagger_Pickup : MonoBehaviour
     public string actionText = "Pegar Adaga de Plasma";
     public float fadeSpeed = 6f;
     public Vector3 promptOffset = new Vector3(0f, 0.65f, 0f);
+    [Tooltip("Tamanho da fonte aumentado em 2x")]
+    public float promptFontSize = 42f;
 
     private bool playerIsNear = false;
     private GameObject playerObject;
@@ -21,6 +23,7 @@ public class Dagger_Pickup : MonoBehaviour
     private GameObject promptUI;
     private TextMeshProUGUI promptTextMesh;
     private CanvasGroup promptCanvasGroup;
+    private WeaponSelectionHighlight selectionHighlight;
 
     private void Start()
     {
@@ -33,6 +36,13 @@ public class Dagger_Pickup : MonoBehaviour
         }
 
         BuildPromptUI();
+
+        if (GetComponent<WeaponSelectionHighlight>() == null)
+        {
+            selectionHighlight = gameObject.AddComponent<WeaponSelectionHighlight>();
+            selectionHighlight.autoProximity = false;
+            selectionHighlight.outlineWidth = 0.018f;
+        }
     }
 
     private KeyCode GetCurrentInteractKey()
@@ -53,7 +63,7 @@ public class Dagger_Pickup : MonoBehaviour
         canvas.sortingOrder = 120;
 
         RectTransform rect = promptUI.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(360f, 60f);
+        rect.sizeDelta = new Vector2(720f, 120f);
         rect.localScale = new Vector3(0.01f, 0.01f, 0.01f);
 
         promptCanvasGroup = promptUI.AddComponent<CanvasGroup>();
@@ -70,6 +80,15 @@ public class Dagger_Pickup : MonoBehaviour
         bgImg.color = new Color(0.06f, 0.06f, 0.07f, 0.35f);
         bgImg.raycastTarget = false;
 
+        Shader uiShader = Shader.Find("UI/Default");
+        if (uiShader != null)
+        {
+            Material bgMat = new Material(uiShader);
+            bgMat.SetFloat(Shader.PropertyToID("unity_GUIZTestMode"), (float)UnityEngine.Rendering.CompareFunction.Always);
+            bgMat.renderQueue = 3999;
+            bgImg.material = bgMat;
+        }
+
         // Borda ciano removida completamente para visual minimalista e flutuante
 
         // Texto do prompt
@@ -80,16 +99,29 @@ public class Dagger_Pickup : MonoBehaviour
         textRect.anchorMax = Vector2.one;
         textRect.sizeDelta = Vector2.zero;
         promptTextMesh = textObj.AddComponent<TextMeshProUGUI>();
-        promptTextMesh.fontSize = 21f;
+        promptTextMesh.fontSize = promptFontSize;
         promptTextMesh.fontStyle = FontStyles.Bold;
         promptTextMesh.alignment = TextAlignmentOptions.Center;
         promptTextMesh.color = Color.white;
         promptTextMesh.raycastTarget = false;
         promptTextMesh.outlineWidth = 0.22f;
         promptTextMesh.outlineColor = new Color32(0, 0, 0, 220);
+        promptTextMesh.textWrappingMode = TextWrappingModes.NoWrap;
 
         TMP_FontAsset font = Resources.Load<TMP_FontAsset>("Fonts & Materials/Oswald Bold SDF");
         if (font != null) promptTextMesh.font = font;
+
+        if (promptTextMesh.fontSharedMaterial != null)
+        {
+            Material fontOverlayMat = new Material(promptTextMesh.fontSharedMaterial);
+            Shader overlayShader = Shader.Find("TextMeshPro/Distance Field Overlay") ??
+                                   Shader.Find("TextMeshPro/Mobile/Distance Field Overlay");
+            if (overlayShader != null) fontOverlayMat.shader = overlayShader;
+            fontOverlayMat.SetFloat(Shader.PropertyToID("unity_GUIZTestMode"), (float)UnityEngine.Rendering.CompareFunction.Always);
+            fontOverlayMat.SetFloat(Shader.PropertyToID("_ZTestMode"), (float)UnityEngine.Rendering.CompareFunction.Always);
+            fontOverlayMat.renderQueue = 4000;
+            promptTextMesh.fontSharedMaterial = fontOverlayMat;
+        }
 
         promptUI.SetActive(false);
     }
@@ -144,6 +176,11 @@ public class Dagger_Pickup : MonoBehaviour
             }
         }
 
+        if (selectionHighlight != null)
+        {
+            selectionHighlight.SetHighlighted(playerIsNear);
+        }
+
         if (playerIsNear && Input.GetKeyDown(GetCurrentInteractKey()))
         {
             PickUpDagger();
@@ -157,7 +194,8 @@ public class Dagger_Pickup : MonoBehaviour
         Player_WeaponManager wm = playerObject.GetComponent<Player_WeaponManager>();
         if (wm != null)
         {
-            // Remove a UI flutuante antes de equipar para não poluir a mão do player
+            // Remove o highlight e UI antes de equipar
+            if (selectionHighlight != null) Destroy(selectionHighlight);
             if (promptUI != null) Destroy(promptUI);
 
             ObjectiveMarker marker = GetComponent<ObjectiveMarker>();

@@ -346,7 +346,8 @@ public class CraftingUI : MonoBehaviour
             slotObj.transform.SetParent(recipesContainer, false);
 
             RecipeSlotUI slot = slotObj.AddComponent<RecipeSlotUI>();
-            slot.Initialize(OnRecipeSelected, 230f, recipeSlotHeight);
+            float effSlotHeight = Mathf.Max(recipeSlotHeight, 82f);
+            slot.Initialize(OnRecipeSelected, 230f, effSlotHeight);
 
             bool canCraft = CraftingManager.Instance != null && CraftingManager.Instance.CanCraft(recipe);
             slot.SetRecipe(recipe, canCraft);
@@ -363,7 +364,7 @@ public class CraftingUI : MonoBehaviour
         daggerRecipe.recipeId = "weapon_dagger";
         daggerRecipe.recipeName = "ADAGA DE PLASMA";
         daggerRecipe.description = "Armamento cortante inicial leve e veloz com acúmulo de combos rápidos. Já forjada e disponível para empunhar no Expositor de Armas.";
-        CreateWeaponSlotUI(daggerRecipe, "ADAGA DE PLASMA", "✔ JÁ FORJADA • NO RACK", true, false, false);
+        CreateWeaponSlotUI(daggerRecipe, "ADAGA DE PLASMA", "★ JÁ FORJADA • NO RACK", true, false, false);
 
         // 2. MACHADO DE CRISTAL (Opaco / Desbloqueado para forjar agora)
         CraftingRecipe axeRecipe = CraftingManager.Instance != null ? CraftingManager.Instance.allRecipes.Find(r => r != null && (r.recipeId == "recipe_crystal_axe" || r.recipeId == "recipe_machado_cristal")) : null;
@@ -382,7 +383,7 @@ public class CraftingUI : MonoBehaviour
         }
         bool axeOwned = SaveManager.instance != null && SaveManager.instance.GetAllCraftedEquipmentIds().Contains("eq_crystal_axe");
         bool canCraftAxe = CraftingManager.Instance != null && CraftingManager.Instance.CanCraft(axeRecipe);
-        string axeStatus = axeOwned ? "✔ JÁ FORJADA • NO RACK" : (canCraftAxe ? "Pronto para Forjar" : "Requer Materiais");
+        string axeStatus = axeOwned ? "★ JÁ FORJADA • NO RACK" : (canCraftAxe ? "Pronto para Forjar" : "Requer Materiais");
         CreateWeaponSlotUI(axeRecipe, "MACHADO DE CRISTAL", axeStatus, axeOwned, canCraftAxe, false);
 
         // 3. PISTOLA DE PLASMA - GUNFAKE (Opaco / Desbloqueado para forjar)
@@ -402,7 +403,7 @@ public class CraftingUI : MonoBehaviour
         }
         bool gunOwned = SaveManager.instance != null && SaveManager.instance.GetAllCraftedEquipmentIds().Contains("eq_arma_projetil");
         bool canCraftGun = CraftingManager.Instance != null && CraftingManager.Instance.CanCraft(gunRecipe);
-        string gunStatus = gunOwned ? "✔ JÁ FORJADA • NO RACK" : (canCraftGun ? "Pronto para Forjar" : "Requer Materiais");
+        string gunStatus = gunOwned ? "★ JÁ FORJADA • NO RACK" : (canCraftGun ? "Pronto para Forjar" : "Requer Materiais");
         CreateWeaponSlotUI(gunRecipe, "PISTOLA DE PLASMA (GUNFAKE)", gunStatus, gunOwned, canCraftGun, false);
 
         // 4, 5, 6. TRÊS ARMAS APAGADAS / CLASSIFICADAS COM TEXTO ILEGÍVEL
@@ -428,7 +429,8 @@ public class CraftingUI : MonoBehaviour
         slotObj.transform.SetParent(recipesContainer, false);
 
         RecipeSlotUI slot = slotObj.AddComponent<RecipeSlotUI>();
-        slot.Initialize(OnRecipeSelected, 230f, recipeSlotHeight);
+        float effSlotHeight = Mathf.Max(recipeSlotHeight, 82f);
+        slot.Initialize(OnRecipeSelected, 230f, effSlotHeight);
         slot.SetWeaponSlot(recipe, displayName, status, alreadyBuilt, craftable, faded);
         slot.SetSelected(selectedRecipe == recipe);
 
@@ -787,7 +789,7 @@ public class CraftingUI : MonoBehaviour
         CreateDetailSection(panelObject.transform);
         CreateEquipmentSection(panelObject.transform);
         CreateCloseButton(panelObject.transform);
-        CreateCheatButton(panelObject.transform);
+        // CreateCheatButton(panelObject.transform); // Removido a pedido do usuario
 
         // === CRIA O PAINEL DO ROBÔ ===
         if (showRobotPreview)
@@ -809,7 +811,7 @@ public class CraftingUI : MonoBehaviour
         tabsRect.anchorMax = new Vector2(1f, 1f);
         tabsRect.pivot = new Vector2(0.5f, 1f);
         tabsRect.anchoredPosition = new Vector2(0f, -48f);
-        tabsRect.sizeDelta = new Vector2(-32f, 34f);
+        tabsRect.sizeDelta = new Vector2(-32f, 48f);
 
         string[] labels = { "SELECIONAR CRAFT", "DETALHES DO CRAFT", "MELHORIAS CRAFTADAS" };
         for (int index = 0; index < labels.Length; index++)
@@ -833,7 +835,7 @@ public class CraftingUI : MonoBehaviour
 
             TextMeshProUGUI label = CreateTextElement(tabObject.transform, "Label",
                 Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f),
-                Vector2.zero, Vector2.zero, 14f, FontStyles.Bold, headerColor);
+                Vector2.zero, Vector2.zero, 22f, FontStyles.Bold, headerColor);
             label.text = labels[index];
             label.alignment = TextAlignmentOptions.Center;
         }
@@ -972,11 +974,11 @@ public class CraftingUI : MonoBehaviour
         r.anchorMax = new Vector2(1f, 1f);
         r.pivot = new Vector2(0.5f, 1f);
         r.anchoredPosition = new Vector2(0f, -6f);
-        r.sizeDelta = new Vector2(-40f, 36f);
+        r.sizeDelta = new Vector2(-40f, 40f);
         obj.AddComponent<CanvasRenderer>();
         TextMeshProUGUI txt = obj.AddComponent<TextMeshProUGUI>();
         txt.text = "MESA DE TRABALHO";
-        txt.fontSize = 18f; 
+        txt.fontSize = 24f; 
         txt.fontStyle = FontStyles.Bold;
         txt.color = headerColor;
         txt.alignment = TextAlignmentOptions.Center;
@@ -1059,7 +1061,7 @@ public class CraftingUI : MonoBehaviour
         rtPlayer.anchorMin = new Vector2(0f, 1f);
         rtPlayer.anchorMax = new Vector2(0.333f, 1f);
         rtPlayer.pivot = new Vector2(0.5f, 1f);
-        rtPlayer.sizeDelta = new Vector2(0f, 30f);
+        rtPlayer.sizeDelta = new Vector2(0f, 42f);
         rtPlayer.anchoredPosition = new Vector2(0f, 0f);
         Image imgPlayer = tabPlayer.AddComponent<Image>();
         playerTabImage = imgPlayer;
@@ -1070,7 +1072,7 @@ public class CraftingUI : MonoBehaviour
         txtPlayer.transform.SetParent(tabPlayer.transform, false);
         TextMeshProUGUI labelPlayer = txtPlayer.AddComponent<TextMeshProUGUI>();
         labelPlayer.text = "PLAYER";
-        labelPlayer.fontSize = 17f;
+        labelPlayer.fontSize = 24f;
         labelPlayer.fontStyle = FontStyles.Bold;
         labelPlayer.color = accentColor;
         labelPlayer.alignment = TextAlignmentOptions.Center;
@@ -1085,7 +1087,7 @@ public class CraftingUI : MonoBehaviour
         rtBase.anchorMin = new Vector2(0.333f, 1f);
         rtBase.anchorMax = new Vector2(0.666f, 1f);
         rtBase.pivot = new Vector2(0.5f, 1f);
-        rtBase.sizeDelta = new Vector2(0f, 30f);
+        rtBase.sizeDelta = new Vector2(0f, 42f);
         rtBase.anchoredPosition = new Vector2(0f, 0f);
         Image imgBase = tabBase2.AddComponent<Image>();
         baseTabImage = imgBase;
@@ -1096,7 +1098,7 @@ public class CraftingUI : MonoBehaviour
         txtBase.transform.SetParent(tabBase2.transform, false);
         TextMeshProUGUI labelBase = txtBase.AddComponent<TextMeshProUGUI>();
         labelBase.text = "BASE";
-        labelBase.fontSize = 17f;
+        labelBase.fontSize = 24f;
         labelBase.fontStyle = FontStyles.Bold;
         labelBase.color = accentColor;
         labelBase.alignment = TextAlignmentOptions.Center;
@@ -1111,7 +1113,7 @@ public class CraftingUI : MonoBehaviour
         rtWeapons.anchorMin = new Vector2(0.666f, 1f);
         rtWeapons.anchorMax = new Vector2(1f, 1f);
         rtWeapons.pivot = new Vector2(0.5f, 1f);
-        rtWeapons.sizeDelta = new Vector2(0f, 30f);
+        rtWeapons.sizeDelta = new Vector2(0f, 42f);
         rtWeapons.anchoredPosition = new Vector2(0f, 0f);
         Image imgWeapons = tabWeapons.AddComponent<Image>();
         weaponsTabImage = imgWeapons;
@@ -1144,7 +1146,7 @@ public class CraftingUI : MonoBehaviour
         txtWeapons.transform.SetParent(tabWeapons.transform, false);
         TextMeshProUGUI labelWeapons = txtWeapons.AddComponent<TextMeshProUGUI>();
         labelWeapons.text = "ARMAS";
-        labelWeapons.fontSize = 17f;
+        labelWeapons.fontSize = 24f;
         labelWeapons.fontStyle = FontStyles.Bold;
         labelWeapons.color = accentColor;
         labelWeapons.alignment = TextAlignmentOptions.Center;
@@ -1158,7 +1160,7 @@ public class CraftingUI : MonoBehaviour
         sr.anchorMin = new Vector2(0f, 0f);
         sr.anchorMax = new Vector2(1f, 1f);
         sr.offsetMin = new Vector2(4f, 4f);
-        sr.offsetMax = new Vector2(-34f, -26f);
+        sr.offsetMax = new Vector2(-34f, -46f);
 
         scrollObj.AddComponent<CanvasRenderer>();
         Image scrollMask = scrollObj.AddComponent<Image>();
@@ -1178,7 +1180,7 @@ public class CraftingUI : MonoBehaviour
         vlg.padding = new RectOffset(2, 2, 2, 2);
         vlg.childForceExpandWidth = true;
         vlg.childForceExpandHeight = false;
-        vlg.childControlHeight = false;
+        vlg.childControlHeight = true;
         vlg.childControlWidth = true;
 
         ContentSizeFitter fitter = contentObj.AddComponent<ContentSizeFitter>();
@@ -1281,18 +1283,18 @@ public class CraftingUI : MonoBehaviour
 
         detailDescText = CreateTextElement(detailPanel.transform, "DetailDesc",
             new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
-            new Vector2(0f, -68f), new Vector2(-16f, 60f), 18f, FontStyles.Italic,
+            new Vector2(0f, -68f), new Vector2(-16f, 60f), 22f, FontStyles.Italic,
             new Color(0.61f, 0.70f, 0.72f, 1f));
 
         ingredientsText = CreateTextElement(detailPanel.transform, "Ingredients",
             new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
-            new Vector2(0f, -140f), new Vector2(-16f, 220f), 21f, FontStyles.Normal,
+            new Vector2(0f, -140f), new Vector2(-16f, 220f), 24f, FontStyles.Normal,
             new Color(0.86f, 0.89f, 0.87f, 1f));
         ingredientsText.richText = true;
 
         resultText = CreateTextElement(detailPanel.transform, "Result",
             new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
-            new Vector2(0f, -385f), new Vector2(-16f, 110f), 21f, FontStyles.Normal,
+            new Vector2(0f, -385f), new Vector2(-16f, 110f), 24f, FontStyles.Normal,
             new Color(0.86f, 0.89f, 0.87f, 1f));
         resultText.richText = true;
 
@@ -1323,7 +1325,7 @@ public class CraftingUI : MonoBehaviour
         btnTextObj.AddComponent<CanvasRenderer>();
         craftButtonText = btnTextObj.AddComponent<TextMeshProUGUI>();
         craftButtonText.text = "CRAFTAR";
-        craftButtonText.fontSize = 23f; 
+        craftButtonText.fontSize = 26f; 
         craftButtonText.fontStyle = FontStyles.Bold;
         craftButtonText.color = Color.white;
         craftButtonText.alignment = TextAlignmentOptions.Center;
@@ -1363,7 +1365,7 @@ public class CraftingUI : MonoBehaviour
         labelObj.AddComponent<CanvasRenderer>();
         TextMeshProUGUI label = labelObj.AddComponent<TextMeshProUGUI>();
         label.text = "MELHORIAS CRAFTADAS";
-        label.fontSize = 17f;
+        label.fontSize = 22f;
         label.fontStyle = FontStyles.Bold;
         label.color = accentColor;
         label.alignment = TextAlignmentOptions.Center;
@@ -1473,7 +1475,7 @@ public class CraftingUI : MonoBehaviour
         nameObj.AddComponent<CanvasRenderer>();
         TextMeshProUGUI nameText = nameObj.AddComponent<TextMeshProUGUI>();
         nameText.text = displayName;
-        nameText.fontSize = 19f; 
+        nameText.fontSize = 23f; 
         nameText.fontStyle = FontStyles.Bold;
         nameText.color = new Color(0.9f, 0.88f, 0.95f);
         nameText.alignment = TextAlignmentOptions.Center;
@@ -1490,7 +1492,7 @@ public class CraftingUI : MonoBehaviour
         descriptionObj.AddComponent<CanvasRenderer>();
         TextMeshProUGUI descriptionText = descriptionObj.AddComponent<TextMeshProUGUI>();
         descriptionText.text = string.IsNullOrWhiteSpace(equip.description) ? "noname" : equip.description;
-        descriptionText.fontSize = 13f;
+        descriptionText.fontSize = 17f;
         descriptionText.fontStyle = FontStyles.Italic;
         descriptionText.color = new Color(0.76f, 0.78f, 0.82f, 1f);
         descriptionText.alignment = TextAlignmentOptions.Top;
@@ -1508,7 +1510,7 @@ public class CraftingUI : MonoBehaviour
         effectObj.AddComponent<CanvasRenderer>();
         TextMeshProUGUI effectText = effectObj.AddComponent<TextMeshProUGUI>();
         effectText.text = GetEffectDescription(equip);
-        effectText.fontSize = 15f; 
+        effectText.fontSize = 19f; 
         effectText.color = new Color(0.4f, 0.85f, 0.4f);
         effectText.alignment = TextAlignmentOptions.Center;
         effectText.raycastTarget = false;
@@ -1547,7 +1549,7 @@ public class CraftingUI : MonoBehaviour
         btnTextObj.AddComponent<CanvasRenderer>();
         TextMeshProUGUI btnText = btnTextObj.AddComponent<TextMeshProUGUI>();
         btnText.text = isEquipped ? "DESEQUIPAR" : "EQUIPAR";
-        btnText.fontSize = 16f; 
+        btnText.fontSize = 20f; 
         btnText.fontStyle = FontStyles.Bold;
         btnText.color = Color.white;
         btnText.alignment = TextAlignmentOptions.Center;

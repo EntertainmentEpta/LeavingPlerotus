@@ -24561,6 +24561,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EptinhoOracleInteract
   barkClip: {fileID: 8300000, guid: b932642491cd8e24a81db832f77793dd, type: 3}
   barkVolume: 0.5
+  actionText: Falar com Eptinho
+  fadeSpeed: 6
+  promptOffset: {x: 0, y: 2.2, z: 0}
+  promptUI: {fileID: 0}
+  promptTextMesh: {fileID: 0}
 --- !u!114 &4929762188268486125
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -24575,6 +24580,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EptinhoOracleInteract
   barkClip: {fileID: 8300000, guid: b932642491cd8e24a81db832f77793dd, type: 3}
   barkVolume: 0.5
+  actionText: Falar com Eptinho
+  fadeSpeed: 6
+  promptOffset: {x: 0, y: 2.2, z: 0}
+  promptUI: {fileID: 0}
+  promptTextMesh: {fileID: 0}
 --- !u!114 &2377884174543236644
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -24589,6 +24599,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EptinhoOracleInteract
   barkClip: {fileID: 8300000, guid: b932642491cd8e24a81db832f77793dd, type: 3}
   barkVolume: 0.5
+  actionText: Falar com Eptinho
+  fadeSpeed: 6
+  promptOffset: {x: 0, y: 2.2, z: 0}
+  promptUI: {fileID: 0}
+  promptTextMesh: {fileID: 0}
 --- !u!1 &3580667849160604534
 GameObject:
   m_ObjectHideFlags: 0
@@ -24601,7 +24616,7 @@ GameObject:
   - component: {fileID: 960706298563685993}
   - component: {fileID: 3076497307018893987}
   m_Layer: 0
-  m_Name: EptinhoModel
+  m_Name: CorgiEptinho
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -24615,10 +24630,10 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3580667849160604534}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0.7071068, z: 0.7071068, w: 0}
+  m_LocalRotation: {x: -0.5, y: 0.5, z: 0.5, w: 0.5}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 2, y: 2, z: 2}
-  m_ConstrainProportionsScale: 0
+  m_LocalScale: {x: 150, y: 150, z: 150}
+  m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 7086311441002906149}
   m_LocalEulerAnglesHint: {x: -90, y: 180, z: 0}
@@ -24629,7 +24644,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3580667849160604534}
-  m_Mesh: {fileID: 6047528623122488927, guid: ad2a21de366f1964db705f75b03b5e64, type: 3}
+  m_Mesh: {fileID: -9037851627997230718, guid: 562db6ae46b10a84cbe23471d4575a23, type: 3}
 --- !u!23 &3076497307018893987
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -24655,7 +24670,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: bf8313840d5f9844286ac239d3f86e6c, type: 2}
+  - {fileID: 2100000, guid: 17e078f51248822458b50270ea992bad, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

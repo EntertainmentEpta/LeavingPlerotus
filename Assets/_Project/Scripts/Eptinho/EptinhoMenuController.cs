@@ -2,6 +2,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
+using UnityEngine.EventSystems;
 
 /// <summary>
 /// Controla o menu do Oráculo Eptinho.
@@ -11,6 +12,16 @@ using System.Collections.Generic;
 public class EptinhoMenuController : MonoBehaviour
 {
     public static EptinhoMenuController instancia;
+    public static EptinhoMenuController Instance => instancia;
+
+    // Modal de Inspeção 3D de Inimigos no Bestiário
+    private GameObject enemyDetailModal;
+    private RawImage enemyPreviewRawImage;
+    private Image modalEnemyIconImg;
+    private TextMeshProUGUI modalEnemyNameTMP;
+    private TextMeshProUGUI modalEnemyClassTMP;
+    private TextMeshProUGUI modalEnemyDescTMP;
+    private TextMeshProUGUI modalEnemyStatsTMP;
 
     // ─── Configuração do Inspector (todos opcionais) ──────────────────────────
     [Header("UI Gerada por Código (auto-configurado)")]
@@ -121,11 +132,13 @@ public class EptinhoMenuController : MonoBehaviour
         BuildUI();
     }
 
-    void Update()
+        void Update()
     {
         if (isOpen && Input.GetKeyDown(KeyCode.Escape))
         {
-            if (currentTab == 3)
+            if (enemyDetailModal != null && enemyDetailModal.activeSelf)
+                FecharInspecaoInimigo();
+            else if (currentTab == 3)
                 MostrarAba(0); // Se estiver no Mapa em tela cheia, o ESC apenas volta para o menu
             else
                 FecharMenu();  // Senão, fecha tudo
@@ -166,6 +179,8 @@ public class EptinhoMenuController : MonoBehaviour
     {
         if (!isOpen) return;
         isOpen = false;
+
+        FecharInspecaoInimigo();
 
         PlayBeep();
         if (panelObj != null) panelObj.SetActive(false);
@@ -279,10 +294,10 @@ public class EptinhoMenuController : MonoBehaviour
 
         // Título e Subtítulo
         CreateLabel(panelObj.transform, "HeaderTitle", "EPTINHO  ·  ORÁCULO DA BASE",
-            new Vector2(-150f, 365f), 28, HEADER_COLOR, true, TextAlignmentOptions.Left, new Vector2(640f, 34f));
+            new Vector2(-150f, 365f), 32, HEADER_COLOR, true, TextAlignmentOptions.Left, new Vector2(640f, 34f));
 
         CreateLabel(panelObj.transform, "HeaderSubtitle", "SISTEMA DE ANÁLISE E DIRETRIZES TÁTICAS",
-            new Vector2(-150f, 340f), 13, SUBTITLE_COLOR, true, TextAlignmentOptions.Left, new Vector2(640f, 20f));
+            new Vector2(-150f, 340f), 18, SUBTITLE_COLOR, true, TextAlignmentOptions.Left, new Vector2(640f, 20f));
 
         // ── Botão Fechar ──
         GameObject btnClose = CreateButton(panelObj.transform, "BtnClose", "✕", new Vector2(535f, 350f),
@@ -293,7 +308,7 @@ public class EptinhoMenuController : MonoBehaviour
         if (bCloseTr != null)
         {
             TextMeshProUGUI cTmp = bCloseTr.GetComponent<TextMeshProUGUI>();
-            if (cTmp != null) cTmp.fontSize = 20;
+            if (cTmp != null) cTmp.fontSize = 24;
         }
 
         // Linha divisória tática
@@ -471,14 +486,14 @@ public class EptinhoMenuController : MonoBehaviour
     {
         GameObject card = new GameObject("Card_MasterObjective");
         card.transform.SetParent(parent, false);
-        StyleCardBase(card, 185f, MASTER_GOLD, 8f);
+        StyleCardBase(card, 255f, MASTER_GOLD, 8f);
 
         // Badge: "★ META SUPREMA DO JOGO"
         GameObject badgeGO = new GameObject("Badge");
         badgeGO.transform.SetParent(card.transform, false);
         TextMeshProUGUI badgeTMP = badgeGO.AddComponent<TextMeshProUGUI>();
         badgeTMP.text = "★ META SUPREMA DO JOGO";
-        badgeTMP.fontSize = 15;
+        badgeTMP.fontSize = 20;
         badgeTMP.fontStyle = FontStyles.Bold;
         badgeTMP.color = MASTER_GOLD;
         if (customFont != null) badgeTMP.font = customFont;
@@ -487,14 +502,14 @@ public class EptinhoMenuController : MonoBehaviour
         badgeRect.anchorMax = new Vector2(1f, 1f);
         badgeRect.pivot = new Vector2(0f, 1f);
         badgeRect.anchoredPosition = new Vector2(24f, -14f);
-        badgeRect.sizeDelta = new Vector2(-48f, 22f);
+        badgeRect.sizeDelta = new Vector2(-48f, 24f);
 
         // Título: "RECUPERAR OS 4 NÚCLEOS DA NAVE"
         GameObject titleGO = new GameObject("Title");
         titleGO.transform.SetParent(card.transform, false);
         TextMeshProUGUI titleTMP = titleGO.AddComponent<TextMeshProUGUI>();
         titleTMP.text = "RECUPERAR OS 4 NÚCLEOS PERDIDOS DA NAVE";
-        titleTMP.fontSize = 24;
+        titleTMP.fontSize = 30;
         titleTMP.fontStyle = FontStyles.Bold;
         titleTMP.color = TEXT_TITLE;
         if (customFont != null) titleTMP.font = customFont;
@@ -502,23 +517,24 @@ public class EptinhoMenuController : MonoBehaviour
         titleRect.anchorMin = new Vector2(0f, 1f);
         titleRect.anchorMax = new Vector2(1f, 1f);
         titleRect.pivot = new Vector2(0f, 1f);
-        titleRect.anchoredPosition = new Vector2(24f, -38f);
-        titleRect.sizeDelta = new Vector2(-48f, 30f);
+        titleRect.anchoredPosition = new Vector2(24f, -48f);
+        titleRect.sizeDelta = new Vector2(-48f, 34f);
 
         // Descrição
         GameObject descGO = new GameObject("Desc");
         descGO.transform.SetParent(card.transform, false);
         TextMeshProUGUI descTMP = descGO.AddComponent<TextMeshProUGUI>();
         descTMP.text = "Derrote as anomalias titânicas nos confins de cada setor da instalação para extrair os núcleos perdidos e restaurar os sistemas de propulsão e navegação da nave.";
-        descTMP.fontSize = 15;
+        descTMP.fontSize = 21;
         descTMP.color = TEXT_BODY;
         descTMP.textWrappingMode = TextWrappingModes.Normal;
         RectTransform descRect = descGO.GetComponent<RectTransform>();
         descRect.anchorMin = new Vector2(0f, 1f);
         descRect.anchorMax = new Vector2(1f, 1f);
         descRect.pivot = new Vector2(0f, 1f);
-        descRect.anchoredPosition = new Vector2(24f, -70f);
-        descRect.sizeDelta = new Vector2(-48f, 48f);
+        descTMP.lineSpacing = 1.15f;
+        descRect.anchoredPosition = new Vector2(24f, -92f);
+        descRect.sizeDelta = new Vector2(-48f, 72f);
 
         // Container de 4 Segmentos dos Núcleos
         GameObject segContainer = new GameObject("SegmentsContainer");
@@ -528,7 +544,7 @@ public class EptinhoMenuController : MonoBehaviour
         segRt.anchorMax = new Vector2(1f, 0f);
         segRt.pivot = new Vector2(0.5f, 0f);
         segRt.anchoredPosition = new Vector2(0f, 18f);
-        segRt.sizeDelta = new Vector2(-48f, 32f);
+        segRt.sizeDelta = new Vector2(-48f, 36f);
 
         HorizontalLayoutGroup hlg = segContainer.AddComponent<HorizontalLayoutGroup>();
         hlg.spacing = 14f;
@@ -556,7 +572,7 @@ public class EptinhoMenuController : MonoBehaviour
             segTxtGO.transform.SetParent(seg.transform, false);
             TextMeshProUGUI segTmp = segTxtGO.AddComponent<TextMeshProUGUI>();
             segTmp.text = isRecovered ? $"★ NÚCLEO 0{i + 1} [RECUPERADO]" : $"◇ NÚCLEO 0{i + 1} [PENDENTE]";
-            segTmp.fontSize = 13;
+            segTmp.fontSize = 18;
             segTmp.fontStyle = FontStyles.Bold;
             segTmp.alignment = TextAlignmentOptions.Center;
             segTmp.color = isRecovered ? MASTER_GOLD : TEXT_DIM;
@@ -574,14 +590,14 @@ public class EptinhoMenuController : MonoBehaviour
     {
         GameObject card = new GameObject("Card_ActiveQuest");
         card.transform.SetParent(parent, false);
-        StyleCardBase(card, 195f, ACTIVE_BORDER, 8f);
+        StyleCardBase(card, 210f, ACTIVE_BORDER, 8f);
 
         // Badge: "● DIRETRIZ EM ANDAMENTO"
         GameObject badgeGO = new GameObject("Badge");
         badgeGO.transform.SetParent(card.transform, false);
         TextMeshProUGUI badgeTMP = badgeGO.AddComponent<TextMeshProUGUI>();
         badgeTMP.text = "● DIRETRIZ ATIVA";
-        badgeTMP.fontSize = 15;
+        badgeTMP.fontSize = 20;
         badgeTMP.fontStyle = FontStyles.Bold;
         badgeTMP.color = ACTIVE_BORDER;
         if (customFont != null) badgeTMP.font = customFont;
@@ -597,7 +613,7 @@ public class EptinhoMenuController : MonoBehaviour
         titleGO.transform.SetParent(card.transform, false);
         TextMeshProUGUI titleTMP = titleGO.AddComponent<TextMeshProUGUI>();
         titleTMP.text = quest.questTitle.ToUpper();
-        titleTMP.fontSize = 26;
+        titleTMP.fontSize = 32;
         titleTMP.fontStyle = FontStyles.Bold;
         titleTMP.color = TEXT_TITLE;
         if (customFont != null) titleTMP.font = customFont;
@@ -605,23 +621,24 @@ public class EptinhoMenuController : MonoBehaviour
         titleRect.anchorMin = new Vector2(0f, 1f);
         titleRect.anchorMax = new Vector2(1f, 1f);
         titleRect.pivot = new Vector2(0f, 1f);
-        titleRect.anchoredPosition = new Vector2(24f, -40f);
-        titleRect.sizeDelta = new Vector2(-48f, 32f);
+        titleRect.anchoredPosition = new Vector2(24f, -44f);
+        titleRect.sizeDelta = new Vector2(-48f, 34f);
 
         // Descrição detalhada
         GameObject descGO = new GameObject("Desc");
         descGO.transform.SetParent(card.transform, false);
         TextMeshProUGUI descTMP = descGO.AddComponent<TextMeshProUGUI>();
         descTMP.text = !string.IsNullOrEmpty(quest.questDescription) ? quest.questDescription : "Siga as coordenadas e orientações do Oráculo.";
-        descTMP.fontSize = 16;
+        descTMP.fontSize = 22;
         descTMP.color = TEXT_BODY;
         descTMP.textWrappingMode = TextWrappingModes.Normal;
         RectTransform descRect = descGO.GetComponent<RectTransform>();
         descRect.anchorMin = new Vector2(0f, 1f);
         descRect.anchorMax = new Vector2(1f, 1f);
         descRect.pivot = new Vector2(0f, 1f);
-        descRect.anchoredPosition = new Vector2(24f, -76f);
-        descRect.sizeDelta = new Vector2(-48f, 54f);
+        descTMP.lineSpacing = 1.15f;
+        descRect.anchoredPosition = new Vector2(24f, -86f);
+        descRect.sizeDelta = new Vector2(-48f, 58f);
 
         // Barra de Progresso - Fundo
         GameObject progressBgGO = new GameObject("ProgressBg");
@@ -656,7 +673,7 @@ public class EptinhoMenuController : MonoBehaviour
         TextMeshProUGUI progressTMP = progressTxtGO.AddComponent<TextMeshProUGUI>();
         int pct = Mathf.RoundToInt(fillRatio * 100f);
         progressTMP.text = $"Progresso: {progress} / {required}  ({pct}%)";
-        progressTMP.fontSize = 15;
+        progressTMP.fontSize = 20;
         progressTMP.fontStyle = FontStyles.Bold;
         progressTMP.alignment = TextAlignmentOptions.Center;
         progressTMP.color = Color.white;
@@ -678,7 +695,7 @@ public class EptinhoMenuController : MonoBehaviour
         titleGO.transform.SetParent(card.transform, false);
         TextMeshProUGUI titleTMP = titleGO.AddComponent<TextMeshProUGUI>();
         titleTMP.text = "NENHUMA DIRETRIZ PENDENTE";
-        titleTMP.fontSize = 20;
+        titleTMP.fontSize = 26;
         titleTMP.fontStyle = FontStyles.Bold;
         titleTMP.color = TEXT_TITLE;
         titleTMP.alignment = TextAlignmentOptions.Center;
@@ -693,7 +710,7 @@ public class EptinhoMenuController : MonoBehaviour
         subGO.transform.SetParent(card.transform, false);
         TextMeshProUGUI subTMP = subGO.AddComponent<TextMeshProUGUI>();
         subTMP.text = "Todas as missões da base foram concluídas. Continue explorando e coletando amostras na câmara de run!";
-        subTMP.fontSize = 15;
+        subTMP.fontSize = 20;
         subTMP.color = TEXT_BODY;
         subTMP.alignment = TextAlignmentOptions.Center;
         RectTransform subRect = subGO.GetComponent<RectTransform>();
@@ -751,7 +768,7 @@ public class EptinhoMenuController : MonoBehaviour
         checkGO.transform.SetParent(card.transform, false);
         TextMeshProUGUI checkTMP = checkGO.AddComponent<TextMeshProUGUI>();
         checkTMP.text = "✔ DIRETRIZ CONCLUÍDA";
-        checkTMP.fontSize = 14;
+        checkTMP.fontSize = 18;
         checkTMP.fontStyle = FontStyles.Bold;
         checkTMP.color = SUCCESS_COLOR;
         if (customFont != null) checkTMP.font = customFont;
@@ -768,7 +785,7 @@ public class EptinhoMenuController : MonoBehaviour
         titleGO.transform.SetParent(card.transform, false);
         TextMeshProUGUI titleTMP = titleGO.AddComponent<TextMeshProUGUI>();
         titleTMP.text = title.ToUpper();
-        titleTMP.fontSize = 20;
+        titleTMP.fontSize = 26;
         titleTMP.fontStyle = FontStyles.Bold;
         titleTMP.color = TEXT_TITLE;
         if (customFont != null) titleTMP.font = customFont;
@@ -785,7 +802,7 @@ public class EptinhoMenuController : MonoBehaviour
         descGO.transform.SetParent(card.transform, false);
         TextMeshProUGUI descTMP = descGO.AddComponent<TextMeshProUGUI>();
         descTMP.text = desc;
-        descTMP.fontSize = 15;
+        descTMP.fontSize = 21;
         descTMP.color = TEXT_BODY;
         descTMP.textWrappingMode = TextWrappingModes.Normal;
         RectTransform descRect = descGO.GetComponent<RectTransform>();
@@ -859,12 +876,283 @@ public class EptinhoMenuController : MonoBehaviour
     // Criação de Cards
     // ─────────────────────────────────────────────────────────────────────────
 
+
+    // =========================================================================
+    // INSPEÇÃO 3D DO INIMIGO NO BESTIÁRIO
+    // =========================================================================
+
+    public void AtualizarAbaBestiario()
+    {
+        if (contentBestiary != null && contentBestiary.activeSelf)
+        {
+            RefreshBestiary();
+        }
+    }
+
+    public void AtualizarAbaCatalogo()
+    {
+        if (contentCatalogo != null && contentCatalogo.activeSelf)
+        {
+            RefreshCatalogo();
+        }
+    }
+
+    /// <summary>
+    /// Retorna uma cor de destaque temática e de alto contraste de acordo com a classe do inimigo.
+    /// Ex: Elite = Dourado Radiante, Tanque = Verde Robusto, Atirador = Vermelho Carmesim, etc.
+    /// </summary>
+    public static Color ObterCorDaClasse(string enemyClass)
+    {
+        if (string.IsNullOrEmpty(enemyClass)) return new Color(0.0f, 0.90f, 1.0f, 1f);
+
+        string c = enemyClass.ToLower().Trim();
+        if (c.Contains("elite") || c.Contains("boss") || c.Contains("chefe"))
+            return new Color(1.0f, 0.84f, 0.0f, 1f); // Dourado radiante
+        if (c.Contains("tanque") || c.Contains("blindado"))
+            return new Color(0.0f, 0.90f, 0.46f, 1f); // Verde esmeralda robusto
+        if (c.Contains("atirador") || c.Contains("ranged") || c.Contains("assassin") || c.Contains("aracn"))
+            return new Color(1.0f, 0.24f, 0.44f, 1f); // Vermelho carmesim neon
+        if (c.Contains("suporte") || c.Contains("healer") || c.Contains("guardian") || c.Contains("totem"))
+            return new Color(0.0f, 0.90f, 1.0f, 1f); // Azul elétrico protetor
+        if (c.Contains("enxame") || c.Contains("swarm"))
+            return new Color(0.83f, 0.0f, 0.98f, 1f); // Roxo ametista vibrante
+        if (c.Contains("mob") || c.Contains("menor") || c.Contains("comum"))
+            return new Color(0.56f, 0.79f, 0.98f, 1f); // Azul metálico suave
+
+        return new Color(0.0f, 0.90f, 1.0f, 1f);
+    }
+
+
+    private void EnsureEnemyDetailModal()
+    {
+        if (enemyDetailModal != null) return;
+
+        enemyDetailModal = new GameObject("EnemyDetailModal");
+        enemyDetailModal.transform.SetParent(panelObj.transform, false);
+
+        RectTransform r = enemyDetailModal.AddComponent<RectTransform>();
+        r.anchorMin = new Vector2(0.02f, 0.04f);
+        r.anchorMax = new Vector2(0.98f, 0.84f);
+        r.sizeDelta = Vector2.zero;
+
+        Image bg = enemyDetailModal.AddComponent<Image>();
+        bg.color = new Color(0.035f, 0.045f, 0.070f, 0.98f);
+
+        Outline outline = enemyDetailModal.AddComponent<Outline>();
+        outline.effectColor = TECH_CYAN;
+        outline.effectDistance = new Vector2(2f, -2f);
+
+        // Botão Fechar Modal posicionado com perfeição no canto superior direito
+        GameObject btnCloseModal = CreateButton(enemyDetailModal.transform, "BtnCloseModal", "✕  VOLTAR AO BESTIÁRIO",
+            new Vector2(-24f, -20f), new Vector2(230f, 42f), new Color(0.65f, 0.18f, 0.22f, 0.95f), () => FecharInspecaoInimigo());
+        RectTransform bCloseRt = btnCloseModal.GetComponent<RectTransform>();
+        bCloseRt.anchorMin = new Vector2(1f, 1f);
+        bCloseRt.anchorMax = new Vector2(1f, 1f);
+        bCloseRt.pivot = new Vector2(1f, 1f);
+        bCloseRt.anchoredPosition = new Vector2(-24f, -20f);
+        Transform bCloseTr = btnCloseModal.transform.Find("Label");
+        if (bCloseTr != null)
+        {
+            TextMeshProUGUI bTmp = bCloseTr.GetComponent<TextMeshProUGUI>();
+            if (bTmp != null) bTmp.fontSize = 18;
+        }
+
+        // --- Lado Esquerdo: Moldura Holográfica de Análise do Espécime ---
+        GameObject viewContainer = new GameObject("Holo_SpecimenContainer");
+        viewContainer.transform.SetParent(enemyDetailModal.transform, false);
+        RectTransform vcr = viewContainer.AddComponent<RectTransform>();
+        vcr.anchorMin = new Vector2(0.04f, 0.08f);
+        vcr.anchorMax = new Vector2(0.48f, 0.94f);
+        vcr.sizeDelta = Vector2.zero;
+
+        Image viewBg = viewContainer.AddComponent<Image>();
+        viewBg.color = new Color(0.015f, 0.020f, 0.035f, 1f);
+
+        Outline viewOutline = viewContainer.AddComponent<Outline>();
+        viewOutline.effectColor = new Color(0.25f, 0.65f, 0.95f, 0.5f);
+        viewOutline.effectDistance = new Vector2(1.5f, -1.5f);
+
+        // Moldura interna do retrato
+        GameObject iconFrameObj = new GameObject("SpecimenFrame");
+        iconFrameObj.transform.SetParent(viewContainer.transform, false);
+        RectTransform iconFrameRect = iconFrameObj.AddComponent<RectTransform>();
+        iconFrameRect.anchorMin = new Vector2(0.08f, 0.14f);
+        iconFrameRect.anchorMax = new Vector2(0.92f, 0.92f);
+        iconFrameRect.sizeDelta = Vector2.zero;
+        Image ifImg = iconFrameObj.AddComponent<Image>();
+        ifImg.color = new Color(0.02f, 0.035f, 0.06f, 0.95f);
+        Outline ifOutline = iconFrameObj.AddComponent<Outline>();
+        ifOutline.effectColor = new Color(0.35f, 0.75f, 0.95f, 0.35f);
+
+        // Imagem central do ícone do espécime (translúcida de fundo)
+        GameObject iconImgObj = new GameObject("SpecimenIcon");
+        iconImgObj.transform.SetParent(iconFrameObj.transform, false);
+        RectTransform iconImgRect = iconImgObj.AddComponent<RectTransform>();
+        iconImgRect.anchorMin = new Vector2(0.15f, 0.15f);
+        iconImgRect.anchorMax = new Vector2(0.85f, 0.85f);
+        iconImgRect.sizeDelta = Vector2.zero;
+        modalEnemyIconImg = iconImgObj.AddComponent<Image>();
+        modalEnemyIconImg.preserveAspect = true;
+        modalEnemyIconImg.color = new Color(1f, 1f, 1f, 0.15f); // Marca d'água sutil atrás
+
+        // Card central estilizado: "✦ EM BREVE ✦" (Modelo 3D em desenvolvimento)
+        GameObject comingSoonBox = new GameObject("3D_ComingSoonBox");
+        comingSoonBox.transform.SetParent(iconFrameObj.transform, false);
+        RectTransform csRect = comingSoonBox.AddComponent<RectTransform>();
+        csRect.anchorMin = new Vector2(0.06f, 0.10f);
+        csRect.anchorMax = new Vector2(0.94f, 0.90f);
+        csRect.sizeDelta = Vector2.zero;
+
+        Image csBg = comingSoonBox.AddComponent<Image>();
+        csBg.color = new Color(0.015f, 0.025f, 0.045f, 0.88f);
+        Outline csOutline = comingSoonBox.AddComponent<Outline>();
+        csOutline.effectColor = new Color(0.20f, 0.65f, 0.95f, 0.40f);
+        csOutline.effectDistance = new Vector2(1.5f, -1.5f);
+
+        // Texto 1: "✦ EM BREVE ✦"
+        CreateLabel(comingSoonBox.transform, "LabelEmBreve", "✦ EM BREVE ✦",
+            new Vector2(0f, 48f), 30, Color.white, true, TextAlignmentOptions.Center, new Vector2(340f, 38f));
+
+        // Texto 2: "MODELO 3D EM DESENVOLVIMENTO"
+        CreateLabel(comingSoonBox.transform, "LabelSub", "MODELO 3D INTERATIVO",
+            new Vector2(0f, 12f), 17, TECH_CYAN, true, TextAlignmentOptions.Center, new Vector2(340f, 26f));
+
+        // Texto 3: Nota explicativa solicitada pelo jogador
+        CreateLabel(comingSoonBox.transform, "LabelDesc", "A representação tridimensional 360° deste espécime será adicionada em uma futura atualização do Oráculo.",
+            new Vector2(0f, -42f), 14, TEXT_BODY, false, TextAlignmentOptions.Center, new Vector2(310f, 60f));
+
+        // Subtítulo / Legenda técnica inferior
+        CreateLabel(viewContainer.transform, "SpecimenHint", "✦ ANÁLISE DO ESPÉCIME BIOLÓGICO ✦",
+            new Vector2(0f, -200f), 16, TECH_CYAN, true, TextAlignmentOptions.Center, new Vector2(400f, 30f));
+
+        // --- Lado Direito: Dossiê e Estatísticas ---
+        GameObject dossier = new GameObject("DossierContainer");
+        dossier.transform.SetParent(enemyDetailModal.transform, false);
+        RectTransform dr = dossier.AddComponent<RectTransform>();
+        dr.anchorMin = new Vector2(0.52f, 0.08f);
+        dr.anchorMax = new Vector2(0.96f, 0.94f);
+        dr.sizeDelta = Vector2.zero;
+
+        // Nome
+        GameObject nameGO = new GameObject("ModalEnemyName");
+        nameGO.transform.SetParent(dossier.transform, false);
+        modalEnemyNameTMP = nameGO.AddComponent<TextMeshProUGUI>();
+        modalEnemyNameTMP.fontSize = 32;
+        modalEnemyNameTMP.fontStyle = FontStyles.Bold;
+        modalEnemyNameTMP.color = TEXT_TITLE;
+        if (customFont != null) modalEnemyNameTMP.font = customFont;
+        RectTransform nameRect = nameGO.GetComponent<RectTransform>();
+        nameRect.anchorMin = new Vector2(0f, 1f);
+        nameRect.anchorMax = new Vector2(1f, 1f);
+        nameRect.pivot = new Vector2(0f, 1f);
+        nameRect.anchoredPosition = new Vector2(0f, 0f);
+        nameRect.sizeDelta = new Vector2(-260f, 40f);
+
+        // Classe
+        GameObject classGO = new GameObject("ModalEnemyClass");
+        classGO.transform.SetParent(dossier.transform, false);
+        modalEnemyClassTMP = classGO.AddComponent<TextMeshProUGUI>();
+        modalEnemyClassTMP.fontSize = 20;
+        modalEnemyClassTMP.fontStyle = FontStyles.Bold;
+        modalEnemyClassTMP.color = TECH_CYAN;
+        if (customFont != null) modalEnemyClassTMP.font = customFont;
+        RectTransform classRect = classGO.GetComponent<RectTransform>();
+        classRect.anchorMin = new Vector2(0f, 1f);
+        classRect.anchorMax = new Vector2(1f, 1f);
+        classRect.pivot = new Vector2(0f, 1f);
+        classRect.anchoredPosition = new Vector2(0f, -44f);
+        classRect.sizeDelta = new Vector2(-260f, 28f);
+
+        // Estatísticas de Combate
+        GameObject statsGO = new GameObject("ModalEnemyStats");
+        statsGO.transform.SetParent(dossier.transform, false);
+        modalEnemyStatsTMP = statsGO.AddComponent<TextMeshProUGUI>();
+        modalEnemyStatsTMP.fontSize = 19;
+        modalEnemyStatsTMP.color = SUCCESS_COLOR;
+        modalEnemyStatsTMP.richText = true;
+        if (customFont != null) modalEnemyStatsTMP.font = customFont;
+        RectTransform statsRect = statsGO.GetComponent<RectTransform>();
+        statsRect.anchorMin = new Vector2(0f, 1f);
+        statsRect.anchorMax = new Vector2(1f, 1f);
+        statsRect.pivot = new Vector2(0f, 1f);
+        statsRect.anchoredPosition = new Vector2(0f, -80f);
+        statsRect.sizeDelta = new Vector2(0f, 40f);
+
+        // Descrição / Lore
+        GameObject descGO = new GameObject("ModalEnemyDesc");
+        descGO.transform.SetParent(dossier.transform, false);
+        modalEnemyDescTMP = descGO.AddComponent<TextMeshProUGUI>();
+        modalEnemyDescTMP.fontSize = 22;
+        modalEnemyDescTMP.color = TEXT_BODY;
+        modalEnemyDescTMP.textWrappingMode = TextWrappingModes.Normal;
+        if (customFont != null) modalEnemyDescTMP.font = customFont;
+        RectTransform descRect = descGO.GetComponent<RectTransform>();
+        descRect.anchorMin = new Vector2(0f, 0f);
+        descRect.anchorMax = new Vector2(1f, 1f);
+        descRect.pivot = new Vector2(0f, 1f);
+        descRect.offsetMin = new Vector2(0f, 15f);
+        descRect.offsetMax = new Vector2(0f, -135f);
+
+        enemyDetailModal.SetActive(false);
+    }
+
+    public void ExibirInspecaoInimigo(EnemyData data)
+    {
+        if (data == null) return;
+        EnsureEnemyDetailModal();
+
+        PlayBeep();
+
+        Color classColor = ObterCorDaClasse(data.enemyClass);
+        modalEnemyNameTMP.text = data.enemyName.ToUpper();
+        modalEnemyClassTMP.text = $"[ CLASSE / AMEAÇA: {(!string.IsNullOrEmpty(data.enemyClass) ? data.enemyClass.ToUpper() : "ESPÉCIME ANÔMALO")} ]";
+        modalEnemyClassTMP.color = classColor;
+
+        string hpStr = data.vidaBase > 0 ? $"{data.vidaBase}" : "Não quantificado";
+        string dmgStr = data.danoBase > 0 ? $"{data.danoBase:F0}" : "Não quantificado";
+        modalEnemyStatsTMP.text = $"<b>VIDA BASE:</b> <color=#FFE500>{hpStr}</color>   |   <b>DANO:</b> <color=#FF5555>{dmgStr}</color>   |   <b>SPAWN BUDGET:</b> <color=#38BDF8>{data.custoBudget}</color>";
+
+        modalEnemyDescTMP.text = !string.IsNullOrEmpty(data.descricao)
+            ? data.descricao
+            : "Registro preliminar coletado pelos sensores de bordo da nave. Padrões de ataque e fraquezas em análise.";
+
+        if (modalEnemyIconImg != null)
+        {
+            if (data.icon != null)
+            {
+                modalEnemyIconImg.sprite = data.icon;
+                modalEnemyIconImg.color = Color.white;
+            }
+            else
+            {
+                modalEnemyIconImg.sprite = null;
+                modalEnemyIconImg.color = new Color(0.2f, 0.4f, 0.6f, 0.3f);
+            }
+        }
+
+        enemyDetailModal.SetActive(true);
+    }
+
+    public void FecharInspecaoInimigo()
+    {
+        if (enemyDetailModal != null)
+        {
+            enemyDetailModal.SetActive(false);
+        }
+    }
+
     private void CreateEnemyCard(Transform parent, EnemyData data)
     {
-        // Card container (1080 x 155)
+        Color classColor = ObterCorDaClasse(data.enemyClass);
+
+        // Card container (1080 x 160) com borda na cor da classe!
         GameObject card = new GameObject("Card_" + data.enemyName);
         card.transform.SetParent(parent, false);
-        StyleCardBase(card, 155f, TECH_AZURE, 6f);
+        StyleCardBase(card, 160f, classColor, 6f);
+
+        Button cardBtn = card.AddComponent<Button>();
+        EnemyData capturedData = data;
+        cardBtn.onClick.AddListener(() => ExibirInspecaoInimigo(capturedData));
 
         // Moldura Inset para o Ícone do Inimigo estilo slot de inventário
         GameObject iconFrame = new GameObject("IconFrame");
@@ -880,7 +1168,7 @@ public class EptinhoMenuController : MonoBehaviour
 
         // Borda e sombra da moldura
         Outline iconOutline = iconFrame.AddComponent<Outline>();
-        iconOutline.effectColor = CARD_INSET_BORDER;
+        iconOutline.effectColor = classColor;
         iconOutline.effectDistance = new Vector2(1.5f, -1.5f);
         Shadow iconShadow = iconFrame.AddComponent<Shadow>();
         iconShadow.effectColor = new Color(0f, 0f, 0f, 0.45f);
@@ -906,7 +1194,7 @@ public class EptinhoMenuController : MonoBehaviour
         nameGO.transform.SetParent(card.transform, false);
         TextMeshProUGUI nameTMP = nameGO.AddComponent<TextMeshProUGUI>();
         nameTMP.text = data.enemyName.ToUpper();
-        nameTMP.fontSize = 24;
+        nameTMP.fontSize = 28;
         nameTMP.fontStyle = FontStyles.Bold;
         nameTMP.color = TEXT_TITLE;
         if (customFont != null) nameTMP.font = customFont;
@@ -917,14 +1205,14 @@ public class EptinhoMenuController : MonoBehaviour
         nameRect.anchoredPosition = new Vector2(165f, -16f);
         nameRect.sizeDelta = new Vector2(-380f, 30f);
 
-        // Badge de Status (Top-Right): "● REGISTRO ANALISADO"
+        // Badge de Status (Top-Right): "[ 🔍 INSPECIONAR ]"
         GameObject statusGO = new GameObject("StatusTag");
         statusGO.transform.SetParent(card.transform, false);
         TextMeshProUGUI statusTMP = statusGO.AddComponent<TextMeshProUGUI>();
-        statusTMP.text = "● REGISTRO ANALISADO";
-        statusTMP.fontSize = 13;
+        statusTMP.text = "🔍 INSPECIONAR";
+        statusTMP.fontSize = 16;
         statusTMP.fontStyle = FontStyles.Bold;
-        statusTMP.color = SUCCESS_COLOR;
+        statusTMP.color = classColor;
         statusTMP.alignment = TextAlignmentOptions.Right;
         if (customFont != null) statusTMP.font = customFont;
         RectTransform statusRect = statusGO.GetComponent<RectTransform>();
@@ -932,7 +1220,7 @@ public class EptinhoMenuController : MonoBehaviour
         statusRect.anchorMax = new Vector2(1f, 1f);
         statusRect.pivot = new Vector2(1f, 1f);
         statusRect.anchoredPosition = new Vector2(-22f, -16f);
-        statusRect.sizeDelta = new Vector2(220f, 24f);
+        statusRect.sizeDelta = new Vector2(240f, 26f);
 
         // Texto - Classe
         if (!string.IsNullOrEmpty(data.enemyClass))
@@ -941,9 +1229,9 @@ public class EptinhoMenuController : MonoBehaviour
             classGO.transform.SetParent(card.transform, false);
             TextMeshProUGUI classTMP = classGO.AddComponent<TextMeshProUGUI>();
             classTMP.text = "<i>[ CLASSE: " + data.enemyClass.ToUpper() + " ]</i>";
-            classTMP.fontSize = 13;
+            classTMP.fontSize = 18;
             classTMP.fontStyle = FontStyles.Bold;
-            classTMP.color = TECH_CYAN;
+            classTMP.color = classColor;
             RectTransform classRect = classGO.GetComponent<RectTransform>();
             classRect.anchorMin = new Vector2(0f, 1f);
             classRect.anchorMax = new Vector2(1f, 1f);
@@ -959,7 +1247,7 @@ public class EptinhoMenuController : MonoBehaviour
             descGO.transform.SetParent(card.transform, false);
             TextMeshProUGUI descTMP = descGO.AddComponent<TextMeshProUGUI>();
             descTMP.text = data.descricao;
-            descTMP.fontSize = 15;
+            descTMP.fontSize = 21;
             descTMP.color = TEXT_BODY;
             descTMP.textWrappingMode = TextWrappingModes.Normal;
             RectTransform descRect = descGO.GetComponent<RectTransform>();
@@ -1075,7 +1363,7 @@ public class EptinhoMenuController : MonoBehaviour
         }
 
         descTMP.text = descText;
-        descTMP.fontSize = 14;
+        descTMP.fontSize = 20;
         descTMP.color = TEXT_BODY;
         descTMP.textWrappingMode = TextWrappingModes.Normal;
         RectTransform descRect = descGO.GetComponent<RectTransform>();
@@ -1400,7 +1688,7 @@ public class EptinhoMenuController : MonoBehaviour
             {
                 tmp.color = isActive ? Color.white : TEXT_BODY;
                 tmp.fontStyle = isActive ? FontStyles.Bold : FontStyles.Normal;
-                tmp.fontSize = isActive ? 16 : 15;
+                tmp.fontSize = isActive ? 22 : 20;
             }
         }
     }

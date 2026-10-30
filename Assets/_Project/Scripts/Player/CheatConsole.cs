@@ -41,6 +41,15 @@ public class CheatConsole : MonoBehaviour
 
     private static readonly List<CheatEntry> SecretCheats = new List<CheatEntry>
     {
+        // ⭐ ORÁCULO EPTINHO (MASTER)
+        new CheatEntry
+        {
+            category = "⭐ ORÁCULO EPTINHO (COMPLETO)",
+            command = "desbloquear tudo do eptinho",
+            aliases = "unlock eptinho, eptinho, tudo eptinho, bestiario, itens",
+            description = "⭐ DESBLOQUEIA TUDO: Libera 100% dos Monstros válidos no Bestiário E 100% dos Itens e Minérios no Catálogo com atributos decodificados!",
+            executePayload = "desbloquear tudo do eptinho"
+        },
         // 💎 Economia & Materiais
         new CheatEntry { category = "💎 ECONOMIA & MATERIAIS", command = "recursos", aliases = "giveall, allitems, cheats", description = "Adiciona +999 de todos os itens, minérios e materiais à base.", executePayload = "recursos" },
         new CheatEntry { category = "💎 ECONOMIA & MATERIAIS", command = "orbs", aliases = "money", description = "Adiciona +99.999 Orbs à carteira do jogador para compras e upgrades.", executePayload = "orbs" },
@@ -712,6 +721,24 @@ public class CheatConsole : MonoBehaviour
                 EptinhoPopupController.instancia.MostrarPopupAviso("🔒 Painel Secreto de Comandos Aberto! [F1]");
             }
             return;
+        }
+        else if (string.Equals(command, "desbloquear tudo do eptinho", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "desbloquear tudo eptinho", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "desbloquear eptinho", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "unlock eptinho", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "eptinho all", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "eptinho", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "tudo eptinho", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "unlock bestiario", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "unlock bestiário", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "unlockbestiario", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "unlockbestiário", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "bestiario", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "bestiário", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "itens", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "catalogo", System.StringComparison.OrdinalIgnoreCase))
+        {
+            DesbloquearTudoEptinho();
         }
         else if (string.Equals(command, "EPTA", System.StringComparison.OrdinalIgnoreCase))
         {
@@ -1541,6 +1568,42 @@ public class CheatConsole : MonoBehaviour
         if (EptinhoPopupController.instancia != null)
         {
             EptinhoPopupController.instancia.MostrarPopupAviso(msg);
+        }
+    }
+
+    /// <summary>
+    /// Desbloqueia simultaneamente todo o Bestiário de Monstros (filtrando inimigos inválidos)
+    /// e todo o Catálogo de Itens/Minérios (com atributos 100% revelados), persistindo no Save.
+    /// </summary>
+    public void DesbloquearTudoEptinho()
+    {
+        Debug.Log("⭐ CHEAT APROVADO: Desbloquear Tudo do Eptinho acionado!");
+
+        // 1. Desbloqueia todos os monstros válidos no Bestiário
+        if (BestiarioManager.instancia != null)
+        {
+            BestiarioManager.instancia.DesbloquearTodosInimigos();
+        }
+
+        // 2. Desbloqueia todos os itens e minérios no Catálogo com atributos decodificados
+        if (CatalogoManager.instancia != null)
+        {
+            CatalogoManager.instancia.DesbloquearTodosItens();
+        }
+
+        // 3. Se o menu do Eptinho estiver aberto, atualiza as abas imediatamente
+        if (EptinhoMenuController.Instance != null && EptinhoMenuController.Instance.gameObject.activeInHierarchy)
+        {
+            EptinhoMenuController.Instance.AtualizarAbaBestiario();
+            EptinhoMenuController.Instance.AtualizarAbaCatalogo();
+        }
+
+        // 4. Popup visual de confirmação na tela
+        if (EptinhoPopupController.instancia != null)
+        {
+            EptinhoPopupController.instancia.MostrarPopupAviso(
+                "⭐ EPTINHO 100% DESBLOQUEADO!\nBestiário de Criaturas e Catálogo de Itens Liberados!"
+            );
         }
     }
 }

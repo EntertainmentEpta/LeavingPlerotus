@@ -73001,7 +73001,7 @@ GameObject:
   m_Layer: 0
   m_Name: Mercador
   m_TagString: Untagged
-  m_Icon: {fileID: 0}
+  m_Icon: {fileID: 5132851093641282708, guid: 0000000000000000d000000000000000, type: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
@@ -122262,7 +122262,6 @@ MonoBehaviour:
   pitchOscillationSpeed: 1.5
   minGravePitch: 0.8
   maxGravePitch: 1.02
-  enableRandomPitch: 0
   merchantFogParticles: {fileID: 7734711960137168611}
   idleFogEmission: 25
   activeFogEmission: 60
@@ -122270,23 +122269,6 @@ MonoBehaviour:
   eptinhoTensoSprite: {fileID: 1960042803, guid: eb2dc13b79fdb4d48b789d791729681d, type: 3}
   eptinhoWarningMessage: Estou sentindo uma energia perturbadora vindo dele... Tenha
     muito cuidado!
-  occultFonts:
-  - {fileID: 11400000, guid: 5714efc53ea6a1e4082235f4d4b726da, type: 2}
-  - {fileID: 11400000, guid: 16d19903888bedb48808db2f77804e01, type: 2}
-  - {fileID: 11400000, guid: b2c548b190118984c895f7070d6fbc7d, type: 2}
-  - {fileID: 11400000, guid: 30623ce910a3b73489513136390f0152, type: 2}
-  - {fileID: 11400000, guid: c40c06b28fc62bb4abcdafb54ececb6e, type: 2}
-  - {fileID: 11400000, guid: 80ba7fa18db91974d91be183fb19a7bb, type: 2}
-  - {fileID: 11400000, guid: 90f95552e44365b40b3b43b13711cca4, type: 2}
-  fontShiftInterval: 0.1
-  textPosY: 0.625
-  textPosX: 0.5
-  textWidth: 1000
-  textHeight: 100
-  minCharLength: 5
-  maxCharLength: 18
-  minFontSize: 20
-  maxFontSize: 34
 --- !u!135 &7291154756854300940
 SphereCollider:
   m_ObjectHideFlags: 0

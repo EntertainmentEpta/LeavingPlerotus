@@ -29,6 +29,7 @@ public class WeaponRackSlot
     public string requiredCraftId = "";
 
     [HideInInspector] public GameObject displayInstance;
+    [HideInInspector] public WeaponSelectionHighlight highlight;
 }
 
 /// <summary>
@@ -75,6 +76,22 @@ public class WeaponRack : MonoBehaviour
     public float interactionDistance = 2.5f;
     public float fadeSpeed = 7f;
     public KeyCode fallbackKey = KeyCode.F;
+
+    [Header("Prompt Visual & Posição")]
+    [Tooltip("Elevação em metros acima do ponto da arma para exibir o prompt (por cima do expositor).")]
+    public float promptHeightOffset = 1.45f;
+    [Tooltip("Avanço em metros na direção da câmera para ficar à frente da malha do expositor.")]
+    public float promptForwardOffset = 1.10f;
+    [Tooltip("Escala do prompt no mundo.")]
+    public float promptScale = 0.007f;
+    [Tooltip("Tamanho da fonte do prompt (aumentado em 2x para legibilidade).")]
+    public float promptFontSize = 50f;
+    [Tooltip("Se verdadeiro, renderiza o texto e fundo com ZTest Always (sempre por cima da malha do weaponrack).")]
+    public bool renderPromptOnTop = true;
+
+    [Header("Estilo Visual das Armas")]
+    [Tooltip("Se marcado, armas bloqueadas viram silhueta preta. Se desmarcado (recomendado), exibem o modelo real e destacam com outline quando selecionadas.")]
+    public bool usarSilhuetaArmaBloqueada = false;
 
     [Header("Feedback Visual & Áudio")]
     public AudioClip equipSound;
@@ -394,10 +411,47 @@ public class WeaponRack : MonoBehaviour
                 foreach (var mb in displayObj.GetComponentsInChildren<MonoBehaviour>(true)) Destroy(mb);
 
                 // Armazena materiais originais para restauração
-                foreach (Renderer r in displayObj.GetComponentsInChildren<Renderer>(true))
+                // Ativa estritamente os meshes corretos atuais e desativa meshes legados
+                if (slot.weaponType == WeaponType.Dagger)
                 {
-                    if (r != null) originalMaterials[r] = r.sharedMaterials;
+                    // Adaga: Usar estritamente o modelo Quantum Fang
+                    foreach (Transform child in displayObj.GetComponentsInChildren<Transform>(true))
+                    {
+                        if (child == null || child == displayObj.transform) continue;
+                        string cName = child.name.ToLower();
+                        bool isQuantum = cName.Contains("quantum") || cName.Contains("fang");
+                        child.gameObject.SetActive(isQuantum);
+                    }
                 }
+                else if (slot.weaponType == WeaponType.Axe)
+                {
+                    // Machado: Usar estritamente o modelo 1.0 (Amethyst Winged Axe)
+                    foreach (Transform child in displayObj.GetComponentsInChildren<Transform>(true))
+                    {
+                        if (child == null || child == displayObj.transform) continue;
+                        string cName = child.name.ToLower();
+                        bool isNewAxe = cName.Contains("winged") || cName.Contains("amethyst");
+                        bool isOldAxe = cName.Contains("crystal_axe") || cName.Contains("zero") || cName.Contains("pont");
+                        if (isOldAxe) child.gameObject.SetActive(false);
+                        else if (isNewAxe) child.gameObject.SetActive(true);
+                    }
+                }
+
+                // Armazena materiais originais APENAS de renderers ativos e habilitados
+                foreach (Renderer r in displayObj.GetComponentsInChildren<Renderer>(false))
+                {
+                    if (r != null && r.enabled && !r.gameObject.name.Contains("_OutlineProxy"))
+                    {
+                        originalMaterials[r] = r.sharedMaterials;
+                    }
+                }
+
+                // Adiciona o efeito visual de selecao com outline dourado no FUNDO
+                WeaponSelectionHighlight highlight = displayObj.AddComponent<WeaponSelectionHighlight>();
+                highlight.outlineWidth = 0.012f;
+                highlight.enablePointLight = false;
+                highlight.selectionScaleMultiplier = 1.0f;
+                slot.highlight = highlight;
 
                 slot.displayInstance = displayObj;
             }
@@ -435,15 +489,15 @@ public class WeaponRack : MonoBehaviour
     {
         if (slot.displayInstance == null) return;
 
-        Material silhouetteMat = GetDarkSilhouetteMaterial();
-
-        foreach (Renderer r in slot.displayInstance.GetComponentsInChildren<Renderer>(true))
+        foreach (Renderer r in slot.displayInstance.GetComponentsInChildren<Renderer>(false))
         {
-            if (r == null) continue;
+            if (r == null || !r.enabled) continue;
+            // NUNCA sobrescreve o material dos proxies de outline!
+            if (r.gameObject.name.Contains("_OutlineProxy")) continue;
 
-            if (!isUnlocked)
+            if (!isUnlocked && usarSilhuetaArmaBloqueada)
             {
-                // Silhueta preta URP para arma bloqueada
+                Material silhouetteMat = GetDarkSilhouetteMaterial();
                 if (silhouetteMat != null)
                 {
                     Material[] blackMats = new Material[r.sharedMaterials.Length];
@@ -453,7 +507,7 @@ public class WeaponRack : MonoBehaviour
             }
             else
             {
-                // Restaura as texturas e materiais originais para arma desbloqueada
+                // Restaura as texturas e materiais originais para arma
                 if (originalMaterials.TryGetValue(r, out Material[] orig) && orig != null && orig.Length > 0 && orig[0] != null)
                 {
                     r.sharedMaterials = orig;
@@ -476,16 +530,17 @@ public class WeaponRack : MonoBehaviour
 
         Canvas canvas = promptRoot.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.WorldSpace;
+        canvas.overrideSorting = true;
         canvas.sortingOrder = 5000;
 
         RectTransform rect = promptRoot.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(460f, 75f);
-        rect.localScale = new Vector3(0.013f, 0.013f, 0.013f);
+        rect.sizeDelta = new Vector2(680f, 130f);
+        rect.localScale = Vector3.one * promptScale;
 
         promptCanvasGroup = promptRoot.AddComponent<CanvasGroup>();
         promptCanvasGroup.alpha = 0f;
 
-        // Fundo cinza bem sutil e transparente (sem bordas ciano)
+        // Fundo cinza bem sutil e transparente
         GameObject bgObj = new GameObject("Background");
         bgObj.transform.SetParent(promptRoot.transform, false);
         RectTransform bgRect = bgObj.AddComponent<RectTransform>();
@@ -496,7 +551,17 @@ public class WeaponRack : MonoBehaviour
         bgImg.color = new Color(0.06f, 0.06f, 0.07f, 0.35f);
         bgImg.raycastTarget = false;
 
-        // Borda ciano removida completamente para visual minimalista e flutuante
+        if (renderPromptOnTop)
+        {
+            Shader uiShader = Shader.Find("UI/Default");
+            if (uiShader != null)
+            {
+                Material bgMat = new Material(uiShader);
+                bgMat.SetFloat(Shader.PropertyToID("unity_GUIZTestMode"), (float)UnityEngine.Rendering.CompareFunction.Always);
+                bgMat.renderQueue = 3999;
+                bgImg.material = bgMat;
+            }
+        }
 
         GameObject textObj = new GameObject("PromptText");
         textObj.transform.SetParent(promptRoot.transform, false);
@@ -505,16 +570,32 @@ public class WeaponRack : MonoBehaviour
         textRect.anchorMax = Vector2.one;
         textRect.sizeDelta = Vector2.zero;
         promptTMP = textObj.AddComponent<TextMeshProUGUI>();
-        promptTMP.fontSize = 24f;
+        promptTMP.fontSize = promptFontSize;
         promptTMP.fontStyle = FontStyles.Bold;
         promptTMP.alignment = TextAlignmentOptions.Center;
         promptTMP.color = Color.white;
         promptTMP.raycastTarget = false;
         promptTMP.outlineWidth = 0.22f;
         promptTMP.outlineColor = new Color32(0, 0, 0, 220);
+        promptTMP.textWrappingMode = TextWrappingModes.NoWrap;
 
         TMP_FontAsset font = Resources.Load<TMP_FontAsset>("Fonts & Materials/Oswald Bold SDF");
         if (font != null) promptTMP.font = font;
+
+        if (renderPromptOnTop && promptTMP.fontSharedMaterial != null)
+        {
+            Material fontOverlayMat = new Material(promptTMP.fontSharedMaterial);
+            Shader overlayShader = Shader.Find("TextMeshPro/Distance Field Overlay") ??
+                                   Shader.Find("TextMeshPro/Mobile/Distance Field Overlay");
+            if (overlayShader != null)
+            {
+                fontOverlayMat.shader = overlayShader;
+            }
+            fontOverlayMat.SetFloat(Shader.PropertyToID("unity_GUIZTestMode"), (float)UnityEngine.Rendering.CompareFunction.Always);
+            fontOverlayMat.SetFloat(Shader.PropertyToID("_ZTestMode"), (float)UnityEngine.Rendering.CompareFunction.Always);
+            fontOverlayMat.renderQueue = 4000;
+            promptTMP.fontMaterial = fontOverlayMat;
+        }
 
         promptRoot.SetActive(false);
     }
@@ -613,6 +694,20 @@ public class WeaponRack : MonoBehaviour
         bool isDialogActive = DialogManager.BlocksGameplayInput || GamePause.IsPaused;
         bool shouldShowPrompt = activeHoverSlot != null && !isCraftingOpen && !isDialogActive;
 
+        // Atualiza o efeito de outline dourado em todas as armas do expositor
+        for (int i = 0; i < slots.Count; i++)
+        {
+            WeaponRackSlot slot = slots[i];
+            if (slot == null) continue;
+
+            if (slot.highlight != null)
+            {
+                bool isSelected = (slot == activeHoverSlot && shouldShowPrompt);
+                bool isLocked = !IsSlotUnlocked(slot);
+                slot.highlight.SetHighlighted(isSelected, isLocked);
+            }
+        }
+
         if (promptRoot != null && promptCanvasGroup != null)
         {
             float targetAlpha = shouldShowPrompt ? 1f : 0f;
@@ -635,13 +730,19 @@ public class WeaponRack : MonoBehaviour
                 Vector3 camPos = Camera.main.transform.position;
                 Vector3 toCam = (camPos - slotPos).normalized;
 
-                // Eleva 1.0m acima da arma e avança 40cm em direção à câmera para NUNCA encavalar com o modelo 3D
-                promptRoot.transform.position = slotPos + (Vector3.up * 1.0f) + (toCam * 0.40f);
+                // Eleva por cima da arma/expositor e avança na direção da câmera para ficar por cima do mesh
+                promptRoot.transform.position = slotPos + (Vector3.up * promptHeightOffset) + (toCam * promptForwardOffset);
                 promptRoot.transform.forward = Camera.main.transform.forward;
+                promptRoot.transform.localScale = Vector3.one * promptScale;
             }
         }
 
         if (!shouldShowPrompt) return;
+
+        if (promptTMP != null && Mathf.Abs(promptTMP.fontSize - promptFontSize) > 0.1f)
+        {
+            promptTMP.fontSize = promptFontSize;
+        }
 
         KeyCode key = GetInteractKey();
         bool isUnlocked = IsSlotUnlocked(activeHoverSlot);

@@ -5,13 +5,13 @@ using TMPro;
 
 /// <summary>
 /// Componente visual de um slot individual de receita na UI de crafting.
-/// Exibe ícone, nome da receita e indicador de disponibilidade (verde/vermelho).
+/// Exibe nome da receita e indicador de disponibilidade / status.
 /// Detecta clique para selecionar a receita.
 /// </summary>
 public class RecipeSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
 {
     private Image backgroundImage;
-    private Image borderImage;
+    private Outline slotOutline;
     private TextMeshProUGUI nameText;
     private TextMeshProUGUI statusText;
 
@@ -29,9 +29,9 @@ public class RecipeSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
     private static readonly Color SLOT_BG = new Color(0.10f, 0.14f, 0.17f, 1f);
     private static readonly Color SLOT_HOVER = new Color(0.14f, 0.22f, 0.24f, 1f);
     private static readonly Color SLOT_SELECTED = new Color(0.12f, 0.31f, 0.31f, 1f);
-    private static readonly Color BORDER_DEFAULT = new Color(0.35f, 0.43f, 0.45f, 0.45f);
-    private static readonly Color BORDER_CAN_CRAFT = new Color(0.32f, 0.82f, 0.75f, 0.9f);
-    private static readonly Color BORDER_CANT_CRAFT = new Color(0.72f, 0.36f, 0.34f, 0.65f);
+    private static readonly Color BORDER_DEFAULT = new Color(0.25f, 0.35f, 0.40f, 0.85f);
+    private static readonly Color BORDER_CAN_CRAFT = new Color(0.32f, 0.82f, 0.75f, 0.95f);
+    private static readonly Color BORDER_CANT_CRAFT = new Color(0.72f, 0.36f, 0.34f, 0.85f);
     private static readonly Color TEXT_CAN_CRAFT = new Color(0.42f, 0.88f, 0.75f, 1f);
     private static readonly Color TEXT_CANT_CRAFT = new Color(0.92f, 0.48f, 0.45f, 1f);
 
@@ -44,65 +44,66 @@ public class RecipeSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
         int layer = gameObject.layer;
 
         // Background
-        backgroundImage = gameObject.AddComponent<Image>();
+        backgroundImage = gameObject.GetComponent<Image>() ?? gameObject.AddComponent<Image>();
         backgroundImage.color = SLOT_BG;
         backgroundImage.raycastTarget = true;
 
+        // Garante dimensão e LayoutElement para respeitar a altura na lista
         RectTransform rect = GetComponent<RectTransform>();
         rect.sizeDelta = new Vector2(slotWidth, slotHeight);
 
-        // Borda
-        GameObject borderObj = new GameObject("Border");
-        borderObj.transform.SetParent(transform, false);
-        borderObj.layer = layer;
-        RectTransform borderRect = borderObj.AddComponent<RectTransform>();
-        borderRect.anchorMin = Vector2.zero;
-        borderRect.anchorMax = Vector2.one;
-        borderRect.sizeDelta = Vector2.zero;
-        borderObj.AddComponent<CanvasRenderer>();
-        borderImage = borderObj.AddComponent<Image>();
-        borderImage.color = BORDER_DEFAULT;
-        borderImage.raycastTarget = false;
-        borderImage.type = Image.Type.Sliced;
-        borderImage.fillCenter = false;
+        LayoutElement le = gameObject.GetComponent<LayoutElement>() ?? gameObject.AddComponent<LayoutElement>();
+        le.minHeight = slotHeight;
+        le.preferredHeight = slotHeight;
+        le.flexibleHeight = 0;
+
+        // Borda elegante via Outline (nunca cobre o texto nem preenche o interior)
+        slotOutline = gameObject.GetComponent<Outline>() ?? gameObject.AddComponent<Outline>();
+        slotOutline.effectColor = BORDER_DEFAULT;
+        slotOutline.effectDistance = new Vector2(2f, -2f);
 
         // Nome da receita
         GameObject nameObj = new GameObject("Name");
         nameObj.transform.SetParent(transform, false);
         nameObj.layer = layer;
         RectTransform nameRect = nameObj.AddComponent<RectTransform>();
-        nameRect.anchorMin = new Vector2(0.04f, 0.35f);
-        nameRect.anchorMax = new Vector2(0.96f, 0.95f);
-        nameRect.sizeDelta = Vector2.zero;
-        nameRect.offsetMin = Vector2.zero;
-        nameRect.offsetMax = Vector2.zero;
+        nameRect.anchorMin = new Vector2(0f, 0.42f);
+        nameRect.anchorMax = new Vector2(1f, 1f);
+        nameRect.offsetMin = new Vector2(16f, 0f);
+        nameRect.offsetMax = new Vector2(-16f, -6f);
+
         nameObj.AddComponent<CanvasRenderer>();
         nameText = nameObj.AddComponent<TextMeshProUGUI>();
-        nameText.fontSize = 22f;
-        nameText.fontStyle = FontStyles.Bold;
-        nameText.color = new Color(0.9f, 0.88f, 0.95f, 1f);
+        nameText.fontSize = 20f;
+        nameText.fontSizeMin = 12f;
+        nameText.fontSizeMax = 22f;
+        nameText.enableAutoSizing = true;
+        nameText.fontStyle = FontStyles.Normal;
+        nameText.color = new Color(0.95f, 0.95f, 0.98f, 1f);
         nameText.alignment = TextAlignmentOptions.MidlineLeft;
         nameText.raycastTarget = false;
-        nameText.textWrappingMode = TextWrappingModes.NoWrap;
+        nameText.textWrappingMode = TextWrappingModes.Normal;
         nameText.overflowMode = TextOverflowModes.Ellipsis;
 
-        // Status (disponível/indisponível)
+        // Status
         GameObject statusObj = new GameObject("Status");
         statusObj.transform.SetParent(transform, false);
         statusObj.layer = layer;
         RectTransform statusRect = statusObj.AddComponent<RectTransform>();
-        statusRect.anchorMin = new Vector2(0f, 0.05f);
-        statusRect.anchorMax = new Vector2(1f, 0.40f);
-        statusRect.sizeDelta = Vector2.zero;
-        statusRect.offsetMin = new Vector2(16f, 0f);
+        statusRect.anchorMin = new Vector2(0f, 0f);
+        statusRect.anchorMax = new Vector2(1f, 0.42f);
+        statusRect.offsetMin = new Vector2(16f, 6f);
         statusRect.offsetMax = new Vector2(-16f, 0f);
+
         statusObj.AddComponent<CanvasRenderer>();
         statusText = statusObj.AddComponent<TextMeshProUGUI>();
         statusText.fontSize = 15f;
+        statusText.fontSizeMin = 10f;
+        statusText.fontSizeMax = 17f;
+        statusText.enableAutoSizing = true;
         statusText.alignment = TextAlignmentOptions.MidlineLeft;
         statusText.raycastTarget = false;
 
-        // Carrega e aplica a fonte Oswald Bold SDF consistente
         TMP_FontAsset customFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/Oswald Bold SDF");
         if (customFont != null)
         {
@@ -126,7 +127,7 @@ public class RecipeSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
             nameText.text = displayName;
             if (faded)
             {
-                nameText.color = new Color(0.48f, 0.52f, 0.58f, 0.32f);
+                nameText.color = new Color(0.48f, 0.52f, 0.58f, 0.40f);
             }
             else if (alreadyBuilt)
             {
@@ -143,7 +144,7 @@ public class RecipeSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
             statusText.text = customStatus;
             if (faded)
             {
-                statusText.color = new Color(0.38f, 0.42f, 0.48f, 0.30f);
+                statusText.color = new Color(0.38f, 0.42f, 0.48f, 0.40f);
             }
             else if (alreadyBuilt)
             {
@@ -174,25 +175,30 @@ public class RecipeSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
 
         if (recipe == null)
         {
-            nameText.text = "noname";
-            statusText.text = "";
-            borderImage.color = BORDER_DEFAULT;
+            if (nameText != null) nameText.text = "Item desconhecido";
+            if (statusText != null) statusText.text = "";
+            UpdateVisual();
             return;
         }
 
-        nameText.text = string.IsNullOrWhiteSpace(recipe.recipeName) ? "noname" : recipe.recipeName;
-
-        if (craftable)
+        if (nameText != null)
         {
-            statusText.text = "Materiais disponíveis";
-            statusText.color = TEXT_CAN_CRAFT;
-            borderImage.color = isSelected ? BORDER_CAN_CRAFT : BORDER_DEFAULT;
+            nameText.text = string.IsNullOrWhiteSpace(recipe.recipeName) ? "Item sem nome" : recipe.recipeName;
+            nameText.color = new Color(0.95f, 0.95f, 0.98f, 1f);
         }
-        else
+
+        if (statusText != null)
         {
-            statusText.text = "Materiais insuficientes";
-            statusText.color = TEXT_CANT_CRAFT;
-            borderImage.color = isSelected ? BORDER_CANT_CRAFT : BORDER_DEFAULT;
+            if (craftable)
+            {
+                statusText.text = "Materiais disponíveis";
+                statusText.color = TEXT_CAN_CRAFT;
+            }
+            else
+            {
+                statusText.text = "Materiais insuficientes";
+                statusText.color = TEXT_CANT_CRAFT;
+            }
         }
 
         UpdateVisual();
@@ -209,26 +215,41 @@ public class RecipeSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
 
     private void UpdateVisual()
     {
+        if (backgroundImage == null) return;
+
         if (isFaded)
         {
-            backgroundImage.color = new Color(0.06f, 0.08f, 0.10f, 0.35f);
-            borderImage.color = isSelected ? new Color(0.4f, 0.45f, 0.5f, 0.4f) : new Color(0.2f, 0.24f, 0.28f, 0.25f);
+            backgroundImage.color = new Color(0.06f, 0.08f, 0.10f, 0.45f);
+            if (slotOutline != null)
+            {
+                slotOutline.effectColor = isSelected ? new Color(0.4f, 0.45f, 0.5f, 0.4f) : new Color(0.2f, 0.24f, 0.28f, 0.35f);
+            }
             return;
         }
 
         if (isSelected)
         {
             backgroundImage.color = SLOT_SELECTED;
-            borderImage.color = isAlreadyBuilt ? new Color(0.0f, 0.95f, 0.65f, 0.9f) : (canCraft ? BORDER_CAN_CRAFT : BORDER_CANT_CRAFT);
+            if (slotOutline != null)
+            {
+                slotOutline.effectColor = isAlreadyBuilt ? new Color(0.0f, 0.95f, 0.65f, 0.95f) : (canCraft ? BORDER_CAN_CRAFT : BORDER_CANT_CRAFT);
+            }
         }
         else if (isHovered)
         {
             backgroundImage.color = SLOT_HOVER;
+            if (slotOutline != null)
+            {
+                slotOutline.effectColor = isAlreadyBuilt ? new Color(0.2f, 0.75f, 0.55f, 0.85f) : BORDER_DEFAULT;
+            }
         }
         else
         {
             backgroundImage.color = SLOT_BG;
-            borderImage.color = isAlreadyBuilt ? new Color(0.15f, 0.55f, 0.45f, 0.55f) : BORDER_DEFAULT;
+            if (slotOutline != null)
+            {
+                slotOutline.effectColor = isAlreadyBuilt ? new Color(0.15f, 0.55f, 0.45f, 0.65f) : BORDER_DEFAULT;
+            }
         }
     }
 
@@ -248,7 +269,9 @@ public class RecipeSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (currentRecipe != null)
+        if (eventData.button == PointerEventData.InputButton.Left)
+        {
             onSelected?.Invoke(currentRecipe);
+        }
     }
 }
