@@ -184,9 +184,16 @@ MonoBehaviour:
   isSlowed: 0
   maxHealth: 100
   debugLogDamage: 0
+  isElite: 0
+  hasRebornAsElite: 0
+  eliteRebirthChance: 0.1
+  originalPrefab: {fileID: 0}
+  owningRoom: {fileID: 0}
   healthBarSlider: {fileID: 0}
   normalColor: {r: 1, g: 0, b: 0, a: 1}
   buffedColor: {r: 0, g: 1, b: 1, a: 1}
+  projectileResistance: 0
+  knockbackResistance: 0
   floatingDamageTextPrefab: {fileID: 0}
   textOffset: {x: 0, y: 2, z: 0}
   hitColor: {r: 1, g: 0, b: 0, a: 1}
@@ -248,6 +255,14 @@ MonoBehaviour:
   wideSpinhoPrefab: {fileID: 7936005269762645577, guid: 04a5f360bf41f5e48a96dcd756facd86, type: 3}
   wideSpikeDamage: 45
   spikeShatterVFXPrefab: {fileID: 0}
+  acidPuddlePrefabForSpit: {fileID: 0}
+  acidSpitAnimTrigger: SimpleCast
+  acidSpitTelegraphDuration: 0.8
+  acidSpitCooldown: 9
+  acidSpitForce: 15
+  acidSpitMinRange: 4.5
+  acidSpitMaxRange: 12
+  acidSpitLaunchPoint: {fileID: 0}
   toxicBloodPrefab: {fileID: 4684590844720067136, guid: 35f4515f9e0ed9c40b9f52cb121327bb, type: 3}
   drippingParticlePrefab: {fileID: 7000988831508164087, guid: af4f7b8208cb6f041ad01611d21c2a63, type: 3}
   toxicBloodInterval: 1

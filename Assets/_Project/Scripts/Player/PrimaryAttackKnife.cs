@@ -111,9 +111,6 @@ public class PrimaryAttackKnife : MonoBehaviour
     [HideInInspector]
     public float comboResetTime = 1.2f;
 
-    // Machado: Ataque Pesado Carregado (Hold Attack)
-    private float axeHoldTimer = 0f;
-    private bool isAxeCharging = false;
     private int comboStep = 0;
 
     [Header("Lunge Impulse Control")]
@@ -236,40 +233,13 @@ public class PrimaryAttackKnife : MonoBehaviour
                 }
             }
 
-            // Machado: Detecção de ataque carregado segurando o botão
-            bool isAxeEquipped = IsAxeEquipped();
-            if (isAxeEquipped && (Input.GetKey(attackKey) || Input.GetMouseButton(0)))
-            {
-                if (!IsAnyUIOpen() && hasWeapon)
-                {
-                    axeHoldTimer += Time.deltaTime;
-                    if (axeHoldTimer >= 0.35f && !isAxeCharging && !isAttacking && canAttack)
-                    {
-                        isAxeCharging = true;
-                        Debug.Log("🪓 [PrimaryAttackKnife] Machado carregando Ataque Pesado...");
-                    }
-                }
-            }
+            // --- DETECÇÃO DE INPUTS DE ATAQUE ---
+            bool isLightPressed = (Input.GetKeyDown(attackKey) || Input.GetMouseButtonDown(0));
 
-            if (Input.GetKeyUp(attackKey) || Input.GetMouseButtonUp(0))
-            {
-                if (isAxeCharging)
-                {
-                    isAxeCharging = false;
-                    axeHoldTimer = 0f;
-                    ExecuteAxeHeavyAttack();
-                }
-                else
-                {
-                    axeHoldTimer = 0f;
-                }
-            }
-
-            if (Input.GetKeyDown(attackKey) || Input.GetMouseButtonDown(0))
+            if (isLightPressed)
             {
                 lastAttackInputTime = Time.time;
 
-                // Impede ataque se qualquer janela de menu/inventário/console estiver aberta
                 if (IsAnyUIOpen())
                 {
                     return;
@@ -284,7 +254,6 @@ public class PrimaryAttackKnife : MonoBehaviour
                     }
                     else
                     {
-                        // Permite bufferizar o próximo ataque mesmo durante o último golpe (loopando de volta para o Attack 1)
                         hasBufferedAttack = true;
                         int maxComboSteps = GetMaxComboSteps();
                         int nextStep = (comboStep >= maxComboSteps) ? 1 : comboStep + 1;
@@ -1018,77 +987,4 @@ public class PrimaryAttackKnife : MonoBehaviour
         float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;
         Destroy(audioObj, clip.length / safePitch);
     }
-    /// <summary>
-    /// Skill Única do Machado: Ataque Pesado Carregado em área com alto dano e knockback 360.
-    /// </summary>
-    public void ExecuteAxeHeavyAttack()
-    {
-        if (IsAnyUIOpen() || !hasWeapon) return;
-        Debug.Log("💥 [PrimaryAttackKnife] ATAQUE PESADO DO MACHADO EXECUTADO!");
-
-        canAttack = false;
-        isAttacking = true;
-
-        if (animator != null && animator.isActiveAndEnabled)
-        {
-            animator.speed = 1.35f;
-            animator.Play("Attack4", 0, 0f);
-        }
-
-        if (axeSwing4 != null) PlayAxeSwingClip(axeSwing4, 1.0f);
-
-        StartCoroutine(DoAxeHeavyRoutine());
-    }
-
-    private IEnumerator DoAxeHeavyRoutine()
-    {
-        yield return new WaitForSeconds(0.12f);
-
-        float heavyRadius = axeRange * 1.3f;
-        Collider[] hits = Physics.OverlapSphere(transform.position, heavyRadius);
-        int heavyDamage = 130;
-
-        if (playerAttributes != null)
-        {
-            heavyDamage = Mathf.RoundToInt(heavyDamage * playerAttributes.baseDamageMultiplier);
-        }
-
-        DashM dashRef = GetComponent<DashM>() ?? GetComponentInParent<DashM>();
-        bool guaranteedCrit = dashRef != null && dashRef.ConsumeGuaranteedCrit();
-        if (guaranteedCrit || (playerAttributes != null && Random.Range(0f, 100f) < playerAttributes.critChance))
-        {
-            float critMult = playerAttributes != null ? playerAttributes.critMultiplier : 1.5f;
-            heavyDamage = Mathf.RoundToInt(heavyDamage * critMult);
-        }
-
-        foreach (var hit in hits)
-        {
-            if (hit.CompareTag("Enemy") || hit.GetComponent<DummyHealth>() != null)
-            {
-                DummyHealth dh = hit.GetComponent<DummyHealth>();
-                if (dh != null)
-                {
-                    dh.TakeDamage(heavyDamage);
-                }
-
-                Rigidbody enemyRb = hit.GetComponent<Rigidbody>();
-                if (enemyRb != null)
-                {
-                    float enemyKnockbackResist = dh != null ? dh.knockbackResistance : 0f;
-                    Vector3 knockDir = (hit.transform.position - transform.position).normalized;
-                    knockDir.y = 0.25f;
-                    float knockForce = 20f * Mathf.Clamp01(1f - enemyKnockbackResist);
-                    if (knockForce > 0.001f)
-                        enemyRb.AddForce(knockDir * knockForce, ForceMode.Impulse);
-                }
-            }
-        }
-
-        yield return new WaitForSeconds(0.25f);
-
-        canAttack = true;
-        isAttacking = false;
-        if (animator != null) animator.speed = 1f;
-    }
-
 }

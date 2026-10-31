@@ -359,21 +359,14 @@ public class CraftingUI : MonoBehaviour
 
     private void BuildWeaponSlotsTab()
     {
-        // 1. ADAGA DE PLASMA (Já Forjada / Disponível no Expositor)
-        CraftingRecipe daggerRecipe = ScriptableObject.CreateInstance<CraftingRecipe>();
-        daggerRecipe.recipeId = "weapon_dagger";
-        daggerRecipe.recipeName = "ADAGA DE PLASMA";
-        daggerRecipe.description = "Armamento cortante inicial leve e veloz com acúmulo de combos rápidos. Já forjada e disponível para empunhar no Expositor de Armas.";
-        CreateWeaponSlotUI(daggerRecipe, "ADAGA DE PLASMA", "★ JÁ FORJADA • NO RACK", true, false, false);
-
-        // 2. MACHADO DE CRISTAL (Opaco / Desbloqueado para forjar agora)
+        // 1. MACHADO DE CRISTAL (Principal armamento do teste - Já Forjado / Disponível no Expositor)
         CraftingRecipe axeRecipe = CraftingManager.Instance != null ? CraftingManager.Instance.allRecipes.Find(r => r != null && (r.recipeId == "recipe_crystal_axe" || r.recipeId == "recipe_machado_cristal")) : null;
         if (axeRecipe == null)
         {
             axeRecipe = ScriptableObject.CreateInstance<CraftingRecipe>();
             axeRecipe.recipeId = "recipe_crystal_axe";
             axeRecipe.recipeName = "MACHADO DE CRISTAL";
-            axeRecipe.description = "Armamento pesado de corte cristalino. Causa alto impacto, golpes em área e estilhaços devastadores.";
+            axeRecipe.description = "Armamento pesado de corte cristalino. Causa alto impacto, golpes em área devastadores e Ground Slam sísmico. Já forjado e pronto para empunhar no Expositor de Armas.";
             axeRecipe.ingredients = new List<CraftingIngredient>
             {
                 new CraftingIngredient { itemId = "shard_splinter_t1", quantity = 3 },
@@ -381,12 +374,9 @@ public class CraftingUI : MonoBehaviour
             };
             axeRecipe.resultType = CraftingResultType.Equipment;
         }
-        bool axeOwned = SaveManager.instance != null && SaveManager.instance.GetAllCraftedEquipmentIds().Contains("eq_crystal_axe");
-        bool canCraftAxe = CraftingManager.Instance != null && CraftingManager.Instance.CanCraft(axeRecipe);
-        string axeStatus = axeOwned ? "★ JÁ FORJADA • NO RACK" : (canCraftAxe ? "Pronto para Forjar" : "Requer Materiais");
-        CreateWeaponSlotUI(axeRecipe, "MACHADO DE CRISTAL", axeStatus, axeOwned, canCraftAxe, false);
+        CreateWeaponSlotUI(axeRecipe, "MACHADO DE CRISTAL", "JÁ FORJADA • NO RACK", true, false, false);
 
-        // 3. PISTOLA DE PLASMA - GUNFAKE (Opaco / Desbloqueado para forjar)
+        // 2. PISTOLA DE PLASMA - GUNFAKE (Desbloqueável para forjar com recursos)
         CraftingRecipe gunRecipe = CraftingManager.Instance != null ? CraftingManager.Instance.allRecipes.Find(r => r != null && r.recipeId == "recipe_arma_projetil") : null;
         if (gunRecipe == null)
         {
@@ -403,14 +393,21 @@ public class CraftingUI : MonoBehaviour
         }
         bool gunOwned = SaveManager.instance != null && SaveManager.instance.GetAllCraftedEquipmentIds().Contains("eq_arma_projetil");
         bool canCraftGun = CraftingManager.Instance != null && CraftingManager.Instance.CanCraft(gunRecipe);
-        string gunStatus = gunOwned ? "★ JÁ FORJADA • NO RACK" : (canCraftGun ? "Pronto para Forjar" : "Requer Materiais");
+        string gunStatus = gunOwned ? "JÁ FORJADA • NO RACK" : (canCraftGun ? "Pronto para Forjar" : "Requer Materiais");
         CreateWeaponSlotUI(gunRecipe, "PISTOLA DE PLASMA (GUNFAKE)", gunStatus, gunOwned, canCraftGun, false);
+
+        // 3. ADAGA DE PLASMA (Inacabada / Bloqueada no Playtest)
+        CraftingRecipe daggerRecipe = ScriptableObject.CreateInstance<CraftingRecipe>();
+        daggerRecipe.recipeId = "weapon_dagger";
+        daggerRecipe.recipeName = "ADAGA DE PLASMA";
+        daggerRecipe.description = "Armamento cortante leve em desenvolvimento ativo pela equipe técnica. Indisponível para utilização no playtest atual.";
+        CreateWeaponSlotUI(daggerRecipe, "ADAGA DE PLASMA", "EM DESENVOLVIMENTO • INDISPONÍVEL", false, false, true);
 
         // 4, 5, 6. TRÊS ARMAS APAGADAS / CLASSIFICADAS COM TEXTO ILEGÍVEL
         string[] classifiedTitles = {
-            "█ █ █ █ █ █ █  [PROTÓTIPO #04]",
-            "█ █ █ █ █ █ █  [CANHÃO CINÉTICO #05]",
-            "█ █ █ █ █ █ █  [LÂMINA RESSONANTE #06]"
+            "? ? ? ? ? ? ?  [PROTÓTIPO #04]",
+            "? ? ? ? ? ? ?  [CANHÃO CINÉTICO #05]",
+            "? ? ? ? ? ? ?  [LÂMINA RESSONANTE #06]"
         };
         for (int i = 0; i < 3; i++)
         {
@@ -464,19 +461,31 @@ public class CraftingUI : MonoBehaviour
             return;
         }
 
-        // Verifica se é a Adaga de Plasma ou arma já forjada
+        // Verifica se é arma cadastrada (Axe / Gun / Dagger)
         bool isAxe = selectedRecipe.recipeId == "recipe_crystal_axe" || selectedRecipe.recipeId == "recipe_machado_cristal";
         bool isGun = selectedRecipe.recipeId == "recipe_arma_projetil";
         bool isDagger = selectedRecipe.recipeId == "weapon_dagger" || selectedRecipe.recipeId == "recipe_adaga";
 
-        bool isAxeCrafted = isAxe && SaveManager.instance != null && SaveManager.instance.GetAllCraftedEquipmentIds().Contains("eq_crystal_axe");
+        if (isDagger)
+        {
+            detailNameText.text = "<color=#FF6666>ADAGA DE PLASMA [EM DESENVOLVIMENTO]</color>";
+            detailDescText.text = selectedRecipe.description;
+            ingredientsText.text = "<color=#FFAAAA><b>Status do Projeto:</b>\n  • Armamento temporariamente indisponível para este playtest.\n  Empunhe o Machado de Cristal no Expositor de Armas!</color>";
+            resultText.text = "<color=#888888><b>Status:</b> Desativada no Playtest</color>";
+            craftButton.interactable = false;
+            craftButton.GetComponent<Image>().color = BTN_CRAFT_DISABLED;
+            craftButtonText.text = "INDISPONÍVEL";
+            return;
+        }
+
+        bool isAxeCrafted = isAxe; // Machado sempre forjado e disponível por padrão
         bool isGunCrafted = isGun && SaveManager.instance != null && SaveManager.instance.GetAllCraftedEquipmentIds().Contains("eq_arma_projetil");
 
-        if (isDagger || isAxeCrafted || isGunCrafted)
+        if (isAxeCrafted || isGunCrafted)
         {
             detailNameText.text = selectedRecipe.recipeName;
             detailDescText.text = selectedRecipe.description;
-            ingredientsText.text = "<color=#00FFAA><b>Status do Arsenal:</b>\n  ✔ Armamento já construído e forjado!</color>\n<color=#AADDFF>  Disponível no Expositor de Armas (Weapon Rack) do Lobby para empunhar com [ F ].</color>";
+            ingredientsText.text = "<color=#00FFAA><b>Status do Arsenal:</b>\n  • Armamento já construído e forjado!</color>\n<color=#AADDFF>  Disponível no Expositor de Armas (Weapon Rack) do Lobby para empunhar com [ F ].</color>";
             resultText.text = "<b>Resultado:</b> Arma Pronta no Expositor";
             craftButton.interactable = false;
             craftButton.GetComponent<Image>().color = BTN_CRAFT_DISABLED;
@@ -984,58 +993,6 @@ public class CraftingUI : MonoBehaviour
         txt.alignment = TextAlignmentOptions.Center;
         txt.raycastTarget = false;
         if (customFont != null) txt.font = customFont;
-    }
-
-    private void CreateCheatButton(Transform parent)
-    {
-        GameObject btnObj = new GameObject("CheatButton");
-        btnObj.transform.SetParent(parent, false);
-
-        RectTransform r = btnObj.AddComponent<RectTransform>();
-        r.anchorMin = new Vector2(0f, 1f);
-        r.anchorMax = new Vector2(0f, 1f);
-        r.pivot = new Vector2(0f, 1f);
-        r.anchoredPosition = new Vector2(16f, -10f);
-        r.sizeDelta = new Vector2(180f, 30f);
-
-        btnObj.AddComponent<CanvasRenderer>();
-        Image bg = btnObj.AddComponent<Image>();
-        bg.color = new Color(0.18f, 0.58f, 0.48f, 0.95f);
-
-        Button btn = btnObj.AddComponent<Button>();
-        btn.onClick.AddListener(() =>
-        {
-            if (DevCheatConsole.Instance != null)
-            {
-                DevCheatConsole.Instance.GiveAllResources(999);
-            }
-            else
-            {
-                if (SaveManager.instance != null && ItemDatabase.Instance != null)
-                {
-                    foreach (var item in ItemDatabase.Instance.allItems)
-                    {
-                        if (item != null) SaveManager.instance.AddResourceToBase(item.itemId, 999);
-                    }
-                }
-            }
-            RefreshUI();
-        });
-
-        GameObject txtObj = new GameObject("Text");
-        txtObj.transform.SetParent(btnObj.transform, false);
-        RectTransform tr = txtObj.AddComponent<RectTransform>();
-        tr.anchorMin = Vector2.zero;
-        tr.anchorMax = Vector2.one;
-        tr.sizeDelta = Vector2.zero;
-
-        txtObj.AddComponent<CanvasRenderer>();
-        TextMeshProUGUI txt = txtObj.AddComponent<TextMeshProUGUI>();
-        txt.text = "+999 RECURSOS";
-        txt.fontSize = 10f;
-        txt.fontStyle = FontStyles.Bold;
-        txt.color = Color.white;
-        txt.alignment = TextAlignmentOptions.Center;
     }
 
     private void CreateRecipeListSection(Transform parent)

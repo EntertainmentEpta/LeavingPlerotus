@@ -1591,11 +1591,23 @@ public class CheatConsole : MonoBehaviour
             CatalogoManager.instancia.DesbloquearTodosItens();
         }
 
-        // 3. Se o menu do Eptinho estiver aberto, atualiza as abas imediatamente
+        // 3. Desbloqueia todos os diálogos de história e transmissões da Lore
+        EptinhoStoryDialogs.DesbloquearTodosDialogos();
+
+        // 4. Decodifica 100% dos 20 encontros e revelações com o Mercador
+        if (SaveManager.instance != null && SaveManager.instance.CachedData != null)
+        {
+            SaveManager.instance.CachedData.merchantEncounterCount = 20;
+            SaveManager.instance.SavePersistentData();
+        }
+
+        // 5. Se o menu do Eptinho estiver aberto, atualiza todas as abas imediatamente
         if (EptinhoMenuController.Instance != null && EptinhoMenuController.Instance.gameObject.activeInHierarchy)
         {
             EptinhoMenuController.Instance.AtualizarAbaBestiario();
             EptinhoMenuController.Instance.AtualizarAbaCatalogo();
+            EptinhoMenuController.Instance.AtualizarAbaLore();
+            EptinhoMenuController.Instance.AtualizarAbaMercador();
         }
 
         // 4. Popup visual de confirmação na tela

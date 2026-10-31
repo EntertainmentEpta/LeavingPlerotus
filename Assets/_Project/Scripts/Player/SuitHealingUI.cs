@@ -39,6 +39,8 @@ public class SuitHealingUI : MonoBehaviour
     // Timers de feedback visual
     private float healFeedbackTimer = 0f;
     private float emptyWarningTimer = 0f;
+    private float perfectDodgeAlertTimer = 0f;
+    private float sobrecargaConsumedFeedbackTimer = 0f;
 
     // Lista dinâmica de cápsulas
     private List<Image> capsuleFills = new List<Image>();
@@ -69,6 +71,18 @@ public class SuitHealingUI : MonoBehaviour
     public void FlashEmptyWarning()
     {
         emptyWarningTimer = 1.6f;
+    }
+
+    /// <summary>Disparado pelo DashM quando o jogador acerta um Perfect Dash.</summary>
+    public void TriggerPerfectDodgeAlert()
+    {
+        perfectDodgeAlertTimer = 2.0f;
+    }
+
+    /// <summary>Disparado pelo SuitHealingSystem quando o jogador consome a Sobrecarga do Perfect Dash pressionando a tecla de cura.</summary>
+    public void TriggerSobrecargaConsumedFeedback()
+    {
+        sobrecargaConsumedFeedbackTimer = 1.8f;
     }
 
     private void Update()
@@ -103,6 +117,15 @@ public class SuitHealingUI : MonoBehaviour
 
         if (healFeedbackTimer > 0f) healFeedbackTimer -= Time.unscaledDeltaTime;
         if (emptyWarningTimer > 0f) emptyWarningTimer -= Time.unscaledDeltaTime;
+        if (perfectDodgeAlertTimer > 0f) perfectDodgeAlertTimer -= Time.unscaledDeltaTime;
+        if (sobrecargaConsumedFeedbackTimer > 0f) sobrecargaConsumedFeedbackTimer -= Time.unscaledDeltaTime;
+
+        DashM dash = DashM.Instance;
+        if (dash == null && healingSystem != null)
+        {
+            dash = healingSystem.GetComponent<DashM>() ?? healingSystem.GetComponentInParent<DashM>();
+        }
+        bool hasSobrecarga = dash != null && dash.HasPerfectDodgeCharge;
 
         int current = healingSystem.currentPotions;
         int max = Mathf.Max(2, healingSystem.maxPotions);
@@ -112,7 +135,17 @@ public class SuitHealingUI : MonoBehaviour
         // Feedback de flash na borda do painel
         if (panelOutline != null)
         {
-            if (healFeedbackTimer > 0f)
+            if (sobrecargaConsumedFeedbackTimer > 0f)
+            {
+                panelOutline.effectColor = Color.Lerp(readyPotionColor, new Color(0.2f, 1f, 0.6f, 1f), sobrecargaConsumedFeedbackTimer / 1.8f);
+            }
+            else if (hasSobrecarga)
+            {
+                // Pulso dourado elétrico reluzente do Perfect Dash!
+                float goldPulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 8f);
+                panelOutline.effectColor = Color.Lerp(new Color(1f, 0.84f, 0.0f, 1f), new Color(1f, 1f, 0.5f, 1f), goldPulse);
+            }
+            else if (healFeedbackTimer > 0f)
             {
                 panelOutline.effectColor = Color.Lerp(capsuleBorderColor, readyPotionColor, healFeedbackTimer / 0.5f);
             }
@@ -153,10 +186,16 @@ public class SuitHealingUI : MonoBehaviour
             {
                 // CÁPSULA ATUALMENTE SINTETIZANDO (Enchendo em tempo real)
                 capsuleFills[i].fillAmount = synthProgress;
-                capsuleFills[i].color = healingSystem.IsSlowedByDamage ? slowedDamageColor : chargingColor;
+                Color baseCol = healingSystem.IsSlowedByDamage ? slowedDamageColor : chargingColor;
+                if (hasSobrecarga)
+                {
+                    float goldBlend = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 8f);
+                    baseCol = Color.Lerp(chargingColor, new Color(1f, 0.88f, 0.2f, 1f), goldBlend);
+                }
+                capsuleFills[i].color = baseCol;
                 if (i < capsuleBorders.Count && capsuleBorders[i] != null)
                 {
-                    capsuleBorders[i].color = (healingSystem.IsSlowedByDamage ? slowedDamageColor : chargingColor) * pulse;
+                    capsuleBorders[i].color = baseCol * pulse;
                 }
             }
             else
@@ -174,7 +213,13 @@ public class SuitHealingUI : MonoBehaviour
         // 2. Atualizar Barra Horizontal de Síntese
         if (synthBarFillImage != null)
         {
-            if (current >= max)
+            if (hasSobrecarga)
+            {
+                synthBarFillImage.fillAmount = (current >= max) ? 1f : synthProgress;
+                float goldPulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 8f);
+                synthBarFillImage.color = Color.Lerp(new Color(1f, 0.82f, 0.1f, 1f), new Color(1f, 0.98f, 0.45f, 1f), goldPulse);
+            }
+            else if (current >= max)
             {
                 synthBarFillImage.fillAmount = 1f;
                 synthBarFillImage.color = readyPotionColor;
@@ -191,7 +236,15 @@ public class SuitHealingUI : MonoBehaviour
         {
             string keyHint = $"<color=#FFFFFF>[ <b>{healingSystem.healKey}</b> ]</color>";
 
-            if (emptyWarningTimer > 0f)
+            if (sobrecargaConsumedFeedbackTimer > 0f)
+            {
+                statusText.text = $"<color=#00FFAA><b>⚡ +30s SÍNTESE INJETADOS!</b></color> {keyHint}";
+            }
+            else if (hasSobrecarga)
+            {
+                statusText.text = $"<color=#FFD700><b>⚡ SOBRECARGA ATIVA!</b></color> <color=#FFFFFF>[ <b>{healingSystem.healKey}</b>: +30s SÍNTESE ]</color>";
+            }
+            else if (emptyWarningTimer > 0f)
             {
                 statusText.text = $"<color=#FF5555><b>SEM CÁPSULAS [0/{max}]</b></color> {keyHint}";
             }
@@ -208,7 +261,23 @@ public class SuitHealingUI : MonoBehaviour
 
         if (subtitleText != null)
         {
-            if (emptyWarningTimer > 0f)
+            if (sobrecargaConsumedFeedbackTimer > 0f)
+            {
+                subtitleText.text = "<color=#C8FFE0><b>Biossíntese do Eptinho avançada instantaneamente!</b></color>";
+            }
+            else if (hasSobrecarga)
+            {
+                float remTime = dash != null ? dash.PerfectDodgeChargeRemainingTime : 0f;
+                if (current >= max)
+                {
+                    subtitleText.text = $"<color=#FFE082><b>Pressione [{healingSystem.healKey}] para curar vida e injetar +30s na próxima!</b> ({remTime:F1}s)</color>";
+                }
+                else
+                {
+                    subtitleText.text = $"<color=#FFE082><b>Pressione [{healingSystem.healKey}] para injetar +30s imediatos!</b> ({remTime:F1}s)</color>";
+                }
+            }
+            else if (emptyWarningTimer > 0f)
             {
                 subtitleText.text = "<color=#FFAAAA>Aguarde a biossíntese da próxima cápsula!</color>";
             }
@@ -222,7 +291,22 @@ public class SuitHealingUI : MonoBehaviour
 
         if (synthTimerText != null)
         {
-            if (current >= max)
+            if (sobrecargaConsumedFeedbackTimer > 0f)
+            {
+                synthTimerText.text = $"<color=#00FFAA><b>⚡ SÍNTESE ACELERADA (+30s)</b></color>";
+            }
+            else if (hasSobrecarga)
+            {
+                if (current >= max)
+                {
+                    synthTimerText.text = $"<color=#FFD700><b>⚡ SOBRECARGA: 100% CARREGADO • [{healingSystem.healKey}] PARA USAR</b></color>";
+                }
+                else
+                {
+                    synthTimerText.text = $"⚡ Sintetizando #{current + 1}: <b>{elapsed:F0}s / 60s</b> <color=#FFD700><b>(+30s com [{healingSystem.healKey}])</b></color>";
+                }
+            }
+            else if (current >= max)
             {
                 synthTimerText.text = $"<color=#E8F5E9><b>100% CARREGADO • TRAJE ESTÁVEL</b></color>";
             }

@@ -17,7 +17,7 @@ public class WeaponSelectionHighlight : MonoBehaviour
 
     [Tooltip("Cor caso a arma esteja bloqueada / indisponível")]
     [ColorUsage(true, true)]
-    public Color lockedColor = new Color(1.2f, 0.35f, 0.15f, 1.0f);
+    public Color lockedColor = new Color(2.5f, 0.15f, 0.15f, 1.0f);
 
     [Tooltip("Espessura real da borda no espaço de mundo (metros)")]
     [Range(0.005f, 0.05f)]

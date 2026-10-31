@@ -173,15 +173,15 @@ MonoBehaviour:
   mobMenorPrefabs:
   - {fileID: 8934992465927708091, guid: 56182097e246d7b4b895b2c1feb0d2ba, type: 3}
   - {fileID: 4268998290841704769, guid: 54907d67b9c4ae344968f4a78411c6ac, type: 3}
-  - {fileID: 326464074420430212, guid: 75587e19386eb024c8b895034e0d087d, type: 3}
   atiradorPrefabs:
   - {fileID: 6455373743372300023, guid: 566d2c0cfd6c0f64fb1b03e316183aa5, type: 3}
   - {fileID: 6393874332621996799, guid: 7e7c3ed779af1c546bc02b3423ebde95, type: 3}
   - {fileID: 3359006950562635497, guid: 5e5b6987e167aa04eb10ca7764b6880b, type: 3}
   tanquePrefabs:
   - {fileID: 748345383327806496, guid: 1a7976a1e55d949409c9a7bb2c781cac, type: 3}
-  - {fileID: 4138484601771036003, guid: 3756182d398618847b5cad2c2be8caff, type: 3}
+  - {fileID: 4138484601771036003, guid: ab85fa72aae18184ea4dcf33ea87c8ff, type: 3}
   - {fileID: 4042323132166325984, guid: 20c57f383987e644681aab5eeb9b2c34, type: 3}
+  - {fileID: 326464074420430212, guid: 75587e19386eb024c8b895034e0d087d, type: 3}
   elitePrefabs:
   - {fileID: 2219830635270719724, guid: d8bf9856a9590de499ed775858ed6a48, type: 3}
   suportePrefabs:

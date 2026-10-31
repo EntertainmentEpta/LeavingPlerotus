@@ -144,4 +144,128 @@ public static class EptinhoStoryDialogs
         };
         return TryTriggerDialog(ID_HEALING_TUTORIAL, lines, onComplete);
     }
+
+    public struct StoryDialogRecord
+    {
+        public string id;
+        public string title;
+        public string eventContext;
+        public string[] lines;
+
+        public StoryDialogRecord(string id, string title, string eventContext, string[] lines)
+        {
+            this.id = id;
+            this.title = title;
+            this.eventContext = eventContext;
+            this.lines = lines;
+        }
+    }
+
+    public static System.Collections.Generic.List<StoryDialogRecord> GetAllRecords()
+    {
+        return new System.Collections.Generic.List<StoryDialogRecord>
+        {
+            new StoryDialogRecord(
+                ID_PORTA_CONSERTADA,
+                "01. Câmara de Descompress?o",
+                "Início do Jogo // Saída da Base & Ferramentas",
+                new string[]
+                {
+                    "Eptinho: \"Excelente! A c?mara de descompress?o est? online. Lembre-se: você não tem armas militares. Use suas ferramentas de engenharia para se defender lá fora. Se encontrar algo estranho, eu congelo seu visor para explicar.\""
+                }
+            ),
+            new StoryDialogRecord(
+                ID_DASH_TUTORIAL,
+                "02. Propulsores & Esquiva Perfeita",
+                "Mecânica de Combate // Dash & Esquiva Crítica",
+                new string[]
+                {
+                    "Eptinho: \"Calibrei os propulsores do seu traje! Pressione [Espa?o] ou [E] para dar um Dash rápido. Ele inclina seu corpo para frente e te reposiciona velozmente pelo terreno com cargas individuais.\"",
+                    "Eptinho: \"E preste muita atenção na Esquiva Perfeita: se você esquivar no momento exato em que um ataque inimigo for te atingir, o tempo desacelera, você atravessa o monstro e seu pr?ximo ataque ter? 100% de Chance Crítica! Treine esse reflexo, ele vai salvar sua vida!\""
+                }
+            ),
+            new StoryDialogRecord(
+                ID_HEALING_TUTORIAL,
+                "03. Biogel & Cura do Traje",
+                "Suporte Vital // Biossíntese Contextual [Q]",
+                new string[]
+                {
+                    "Eptinho: \"Sistemas vitais estabilizados! Pressione [Q] para injetar uma cápsula de biogel e curar seus ferimentos quando estiver em perigo.\"",
+                    "Eptinho: \"Repare na barra de síntese na sua interface: eu demoro 60 segundos para fabricar cada nova cápsula. Aten??o ? tática: usar fora de combate restaura 30% da sua vida máxima, mas no meio da pancadaria recupera apenas 15%! Se tomar dano a fabricação desacelera, mas se limpar salas sem tomar dano ou acertar Esquivas Perfeitas, eu acelero a produção!\""
+                }
+            ),
+            new StoryDialogRecord(
+                ID_FIRST_MONSTER_LOOT,
+                "04. Alquimia & Sinergias",
+                "Fus?o de Matéria // Combinação no Inventário",
+                new string[]
+                {
+                    "Eptinho: \"Opa, você pegou um pedaço de monstro! Voc? pode fundir isso na sua arma agora para ganhar atributos básicos... MAS, se tiver paciência para guardar no inventário e fundir peças específicas juntas (de 2 a 4 peças), você cria uma Sinergia Alquímica super poderosa e mais barata. Vale a pena arriscar!\""
+                }
+            ),
+            new StoryDialogRecord(
+                ID_FIRST_RESOURCE_MINED,
+                "05. Minérios & Bolsa Sintática",
+                "Extração // Recursos Persistentes da Base",
+                new string[]
+                {
+                    "Eptinho: \"Boa coleta! Preste atenção: se você morrer, o planeta vai digerir todas as partes de monstros do seu inventário. Mas, esses recursos minerais puros v?o direto para uma bolsa sintática blindada. Eles você nunca perde, e servir?o para consertar a base no futuro!\""
+                }
+            ),
+            new StoryDialogRecord(
+                ID_SINTONIZADOR_ENCOUNTER,
+                "06. Drone Sintonizador",
+                "Ameaça // Inimigo de Suporte",
+                new string[]
+                {
+                    "Eptinho: \"Alerta vermelho! Est? vendo aquele robozinho esquisito flutuando ali? Ele ? um Sintonizador. Ele injeta energia nos monstros maiores, deixando eles mais rápidos e destrutivos. Dica: Destrua o robozinho primeiro, ou eles v?o te esmagar!\""
+                }
+            ),
+            new StoryDialogRecord(
+                ID_MERCHANT_ENCOUNTER,
+                "07. O Mercador das Sombras",
+                "Encontro Especial // Cartas de Maldição",
+                new string[]
+                {
+                    "Eptinho: \"Que calafrio... Tem um nativo muito estranho ali. O dialeto dele ? bizarro, mas consegui traduzir o básico. O ponto principal dele s?o as Cartas de Maldição. Ele pode transformar completamente o seu estilo de jogo te dando poderes absurdos atrav?s dessas cartas... mas o preço não ? dinheiro, ? a sua Vida Máxima (Sangue). Negocie por sua conta e risco!\""
+                }
+            )
+        };
+    }
+
+    public static void DesbloquearTodosDialogos()
+    {
+        if (SaveManager.instance == null || SaveManager.instance.CachedData == null) return;
+        if (SaveManager.instance.CachedData.seenDialogIds == null)
+            SaveManager.instance.CachedData.seenDialogIds = new System.Collections.Generic.List<string>();
+
+        foreach (var rec in GetAllRecords())
+        {
+            if (!SaveManager.instance.CachedData.seenDialogIds.Contains(rec.id))
+            {
+                SaveManager.instance.CachedData.seenDialogIds.Add(rec.id);
+            }
+        }
+        SaveManager.instance.SavePersistentData();
+    }
+
+    /// <summary>
+    /// Reexecuta um dialogo ja gravado no HUD atraves do DialogManager.
+    /// </summary>
+    public static void ReplayDialog(string dialogId, Action onComplete = null)
+    {
+        foreach (var rec in GetAllRecords())
+        {
+            if (rec.id == dialogId)
+            {
+                DialogManager dm = DialogManager.Instance;
+                if (dm != null)
+                {
+                    dm.StartDialog(rec.lines, onComplete);
+                }
+                return;
+            }
+        }
+    }
+
 }

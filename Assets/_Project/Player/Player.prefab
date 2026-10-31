@@ -1867,6 +1867,9 @@ MonoBehaviour:
   keyRight: 100
   inputBufferWindow: 0.2
   dashDurationMultiplier: 1
+  perfectDashVfxPrefab: {fileID: 2353600328335836179, guid: b724c02464636334eb4f6b1451651005, type: 3}
+  perfectDashSound: {fileID: 8300000, guid: 01ffc8365afc9844cbb901e8b6670107, type: 3}
+  perfectDashSoundVolume: 1
 --- !u!114 &5799582598024903971
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1946,6 +1949,8 @@ MonoBehaviour:
   enemiesBuffed: 0
   heartbeatClip: {fileID: 8300000, guid: 9699e7ecb5d3f424987bd5414e8999b4, type: 3}
   heartbeatVolume: 0.55
+  healSound: {fileID: 8300000, guid: bc8910d915c400f4d802bf6bca8a2d0e, type: 3}
+  healSoundVolume: 0.9
   canRegenArmor: 1
   damageLightObj: {fileID: 0}
   damageIFrameCooldown: 0.25

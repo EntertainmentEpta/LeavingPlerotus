@@ -448,37 +448,13 @@ public class ItemPickup : MonoBehaviour
 
             if (isFish)
             {
+                // Remove qualquer LakeFishVisual adicional e exibe apenas o modelo natural do item
                 Transform fishTransform = transform.Find("LakeFishVisual");
-                if (fishTransform == null)
+                if (fishTransform != null)
                 {
-                    GameObject fishGo = new GameObject("LakeFishVisual");
-                    fishGo.transform.SetParent(transform, false);
-                    fishGo.transform.localPosition = Vector3.zero;
-
-                    ParticleSystem ps = fishGo.AddComponent<ParticleSystem>();
-                    var main = ps.main;
-                    main.startColor = new Color(0.2f, 0.9f, 1.0f, 0.8f);
-                    main.startSize = 0.45f;
-                    main.startSpeed = 0.6f;
-                    main.maxParticles = 35;
-
-                    var emission = ps.emission;
-                    emission.rateOverTime = 10;
-
-                    var shape = ps.shape;
-                    shape.shapeType = ParticleSystemShapeType.Circle;
-                    shape.radius = 0.6f;
-
-                    Light light = fishGo.AddComponent<Light>();
-                    light.type = LightType.Point;
-                    light.color = new Color(0.1f, 0.85f, 1.0f);
-                    light.range = 2.5f;
-                    light.intensity = 1.5f;
-
-                    fishTransform = fishGo.transform;
+                    Destroy(fishTransform.gameObject);
                 }
-
-                if (fishTransform != null) fishTransform.gameObject.SetActive(true);
+                EnsureMeshRenderersActiveAndLit();
             }
             else if (isFly)
             {

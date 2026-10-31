@@ -11,7 +11,7 @@ using TMPro;
 public class Dagger_Pickup : MonoBehaviour
 {
     [Header("Configuração de Interação")]
-    public string actionText = "Pegar Adaga de Plasma";
+    public string actionText = "Empunhar Machado de Cristal";
     public float fadeSpeed = 6f;
     public Vector3 promptOffset = new Vector3(0f, 0.65f, 0f);
     [Tooltip("Tamanho da fonte aumentado em 2x")]
@@ -27,6 +27,11 @@ public class Dagger_Pickup : MonoBehaviour
 
     private void Start()
     {
+        if (gameObject.name.ToLower().Contains("dagger") || gameObject.name.ToLower().Contains("adaga"))
+        {
+            gameObject.SetActive(false);
+            return;
+        }
         // Garante que a adaga tenha o ObjectiveMarker enquanto estiver no chão
         if (GetComponent<ObjectiveMarker>() == null)
         {
@@ -208,11 +213,14 @@ public class Dagger_Pickup : MonoBehaviour
             // Completa o tutorial e quests
             if (TutorialManager.Instance != null)
             {
-                TutorialManager.Instance.CompleteStep(TutorialStep.PegarAdaga);
+                TutorialManager.Instance.CompleteStep(TutorialStep.PegarMachado);
+                TutorialManager.Instance.CompleteStep(TutorialStep.EquiparNoRack);
             }
 
             if (QuestManager.Instance != null)
             {
+                QuestManager.Instance.AdvanceQuest(QuestType.Interact, "weapon_equipped", 1);
+                QuestManager.Instance.AdvanceQuest(QuestType.Interact, "axe_pickup", 1);
                 QuestManager.Instance.AdvanceQuest(QuestType.Interact, "dagger_pickup", 1);
             }
 

@@ -773,9 +773,16 @@ MonoBehaviour:
   isSlowed: 0
   maxHealth: 70
   debugLogDamage: 0
+  isElite: 0
+  hasRebornAsElite: 0
+  eliteRebirthChance: 0.1
+  originalPrefab: {fileID: 0}
+  owningRoom: {fileID: 0}
   healthBarSlider: {fileID: 5599566073086435795}
   normalColor: {r: 1, g: 0, b: 0, a: 1}
   buffedColor: {r: 0, g: 1, b: 1, a: 1}
+  projectileResistance: 0
+  knockbackResistance: 0
   floatingDamageTextPrefab: {fileID: 119183615461286708, guid: e1f50e2f4933445c94ed847caa8c7a3c, type: 3}
   textOffset: {x: 0, y: 2, z: 0}
   hitColor: {r: 1, g: 0, b: 0, a: 1}
@@ -840,8 +847,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 2, z: 1}
-  m_Center: {x: 0, y: 1, z: 0}
+  m_Size: {x: 1, y: 2, z: 0.54047775}
+  m_Center: {x: 0, y: 1, z: -0.024307251}
 --- !u!114 &4781713666066581098
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -857,6 +864,7 @@ MonoBehaviour:
   essencePrefab: {fileID: 1526004001283604428, guid: aac8898d50c757240944683fe67b0d7c, type: 3}
   essenceAmount: 10
   essenceVariation: 3
+  isEliteDrops: 0
   globalDropChance: 0.28
   itemAmount: 1
   lootPool:

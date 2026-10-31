@@ -19588,6 +19588,95 @@ ParticleSystemRenderer:
   m_MeshWeighting2: 1
   m_MeshWeighting3: 1
   m_MaskInteraction: 0
+--- !u!1 &2504711172377567270
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2993017053158587036}
+  - component: {fileID: 2172580772693357881}
+  - component: {fileID: 4162023121771807219}
+  m_Layer: 0
+  m_Name: StandEptin
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2993017053158587036
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2504711172377567270}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0.7071068, z: 0.7071068, w: 0}
+  m_LocalPosition: {x: 0, y: -0.75, z: -0.264}
+  m_LocalScale: {x: 150, y: 150, z: 150}
+  m_ConstrainProportionsScale: 1
+  m_Children: []
+  m_Father: {fileID: 7086311441002906149}
+  m_LocalEulerAnglesHint: {x: -90, y: 180, z: 0}
+--- !u!33 &2172580772693357881
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2504711172377567270}
+  m_Mesh: {fileID: 5461320835613783329, guid: e6bf357a0d7dc93428688f82b2d20859, type: 3}
+--- !u!23 &4162023121771807219
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2504711172377567270}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: e04959f0a2c250e439e3357b058498c9, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_AdditionalVertexStreams: {fileID: 0}
 --- !u!1 &2726994831871246327
 GameObject:
   m_ObjectHideFlags: 0
@@ -24563,7 +24652,10 @@ MonoBehaviour:
   barkVolume: 0.5
   actionText: Falar com Eptinho
   fadeSpeed: 6
-  promptOffset: {x: 0, y: 2.2, z: 0}
+  promptHeightOffset: 0.95
+  promptForwardOffset: 0.25
+  promptScale: 0.008
+  fontSize: 30
   promptUI: {fileID: 0}
   promptTextMesh: {fileID: 0}
 --- !u!114 &4929762188268486125
@@ -24582,7 +24674,10 @@ MonoBehaviour:
   barkVolume: 0.5
   actionText: Falar com Eptinho
   fadeSpeed: 6
-  promptOffset: {x: 0, y: 2.2, z: 0}
+  promptHeightOffset: 0.95
+  promptForwardOffset: 0.25
+  promptScale: 0.008
+  fontSize: 30
   promptUI: {fileID: 0}
   promptTextMesh: {fileID: 0}
 --- !u!114 &2377884174543236644
@@ -24601,7 +24696,10 @@ MonoBehaviour:
   barkVolume: 0.5
   actionText: Falar com Eptinho
   fadeSpeed: 6
-  promptOffset: {x: 0, y: 2.2, z: 0}
+  promptHeightOffset: 0.95
+  promptForwardOffset: 0.25
+  promptScale: 0.008
+  fontSize: 30
   promptUI: {fileID: 0}
   promptTextMesh: {fileID: 0}
 --- !u!1 &3580667849160604534
@@ -29632,6 +29730,7 @@ Transform:
   - {fileID: 697292682929552532}
   - {fileID: 431957074386638143}
   - {fileID: 1509847206175454154}
+  - {fileID: 2993017053158587036}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &859301239335962146

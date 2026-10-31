@@ -4,7 +4,8 @@ using System.Collections.Generic;
 // Todos os passos do tutorial da Base e Onboarding em ordem
 public enum TutorialStep
 {
-    PegarAdaga,             // 0: Pegar a Adaga de Plasma no chão do lobby
+    PegarMachado,           // 0: Empunhar o Machado de Cristal no Expositor de Armas (Weapon Rack)
+    PegarAdaga = PegarMachado, // Alias de compatibilidade
     FalarComRobozinho,      // 1: Interagir com o Robozinho (Mesa de Trabalho)
     AbrirAbaArmas,          // 2: Clicar na aba de ARMAS no Robozinho
     ForjarArma,             // 3: Forjar um armamento (Machado de Cristal ou Pistola)
@@ -36,7 +37,7 @@ public class TutorialManager : MonoBehaviour
     }
 
     [Header("Progresso Atual")]
-    public TutorialStep currentStep = TutorialStep.PegarAdaga;
+    public TutorialStep currentStep = TutorialStep.PegarMachado;
 
     // Um evento (aviso) disparado toda vez que o passo muda
     public delegate void OnStepChanged(TutorialStep newStep);
@@ -103,12 +104,12 @@ public class TutorialManager : MonoBehaviour
     /// </summary>
     public void ResetTutorial()
     {
-        currentStep = TutorialStep.PegarAdaga;
+        currentStep = TutorialStep.PegarMachado;
         if (SaveManager.instance != null && SaveManager.instance.CachedData != null)
         {
             SaveManager.instance.CachedData.tutorialStep = (int)currentStep;
         }
         stepChangedEvent?.Invoke(currentStep);
-        Debug.Log("[TutorialManager] Tutorial resetado para o início: PegarAdaga.");
+        Debug.Log("[TutorialManager] Tutorial resetado para o início: PegarMachado.");
     }
 }

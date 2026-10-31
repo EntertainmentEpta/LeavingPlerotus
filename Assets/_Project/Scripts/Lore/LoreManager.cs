@@ -490,9 +490,19 @@ public class LoreManager : MonoBehaviour
 
     private void ShowEptinhoScriptureNotification(LoreScriptureData data, bool isFirstTime)
     {
-        string header = isFirstTime ? "📜 <color=#FFE500>NOVA ESCRITURA CATALOGADA!</color>" : "📜 <color=#4DEEEA>REGISTRO ANCESTRAL REVISITADO</color>";
-        string blueprintNotice = data.hasBlueprint ? $"\n<color=#4DEEEA><b>[BLUEPRINT DO ROBOZINHO DESBLOQUEADO]</b></color>\n<size=85%>{data.blueprintTitle}: {data.blueprintDescription}</size>" : "";
-        string message = $"{header}\n<b>{data.title}</b>\n<size=80%><i>{data.excerptLore}</i></size>{blueprintNotice}";
+        string header = isFirstTime 
+            ? "📜 <color=#FFE500>FOLHA DO CADERNO ENCONTRADA!</color>" 
+            : "📜 <color=#4DEEEA>PÁGINA JÁ CATALOGADA</color>";
+
+        string speech = isFirstTime
+            ? "<i>\"Au! Mais uma página do antigo pesquisador! Salvei a anotação para você ler com calma no caderno da base.\"</i>"
+            : "<i>\"Já temos uma cópia dessas anotações salva no nosso caderno de campo.\"</i>";
+
+        string blueprintNotice = (data.hasBlueprint && !string.IsNullOrEmpty(data.blueprintTitle))
+            ? $"\n<color=#4DEEEA><b>[NOVO BLUEPRINT NO ROBOZINHO: {data.blueprintTitle}]</b></color>"
+            : "";
+
+        string message = $"{header}\n<b>{data.title}</b>\n<size=85%>{speech}</size>{blueprintNotice}";
 
         if (EptinhoPopupController.instancia != null)
         {

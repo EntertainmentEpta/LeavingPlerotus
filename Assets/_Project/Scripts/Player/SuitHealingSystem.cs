@@ -185,21 +185,21 @@ public class SuitHealingSystem : MonoBehaviour
 
     private void HandleHealKeyInput()
     {
-        bool consumedSobrecarga = false;
-
-        // Se estiver com a Sobrecarga do Perfect Dash ativa, consome a barra e injeta +30s na síntese!
+        bool hadSobrecarga = false;
         DashM dash = DashM.Instance ?? GetComponent<DashM>() ?? GetComponentInParent<DashM>();
         if (dash != null && dash.HasPerfectDodgeCharge)
         {
+            hadSobrecarga = true;
             dash.ConsumePerfectDodgeCharge();
-            AccelerateSynthesis(30f);
-            consumedSobrecarga = true;
         }
+
+        bool usedPotion = false;
 
         // Se o jogador estiver vivo e com cápsula disponível:
         if (playerHealth != null && !playerHealth.isDead && currentPotions > 0)
         {
             currentPotions--;
+            usedPotion = true;
 
             int maxHp = playerHealth.maxHealth > 0 ? playerHealth.maxHealth : 100;
             float pct = (isInCombat && !isInAnomalyRoom) ? combatHealPercent : safeRoomHealPercent;
@@ -215,7 +215,18 @@ public class SuitHealingSystem : MonoBehaviour
 
             Debug.Log($"💚 [SuitHealing] Cápsula utilizada! Curado: +{healAmount} HP ({(pct * 100):F0}% da vida max). Restam: {currentPotions}/{maxPotions}");
         }
-        else if (!consumedSobrecarga && currentPotions <= 0)
+
+        // Se o jogador utilizou a Sobrecarga do Perfect Dash, injeta +30s de Síntese
+        // (aproveitando imediatamente o slot liberado se uma poção foi gasta, ou preenchendo a síntese atual!)
+        if (hadSobrecarga)
+        {
+            AccelerateSynthesis(30f);
+            if (SuitHealingUI.Instance != null)
+            {
+                SuitHealingUI.Instance.TriggerSobrecargaConsumedFeedback();
+            }
+        }
+        else if (!usedPotion && currentPotions <= 0)
         {
             if (SuitHealingUI.Instance != null)
             {

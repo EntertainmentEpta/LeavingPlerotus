@@ -25,11 +25,19 @@ Shader "Custom/DitherWall_URP"
 
         [Header(Dither Camera Proximity Fade)]
         [Toggle] _EnableDitherFade("Ativar Efeito Dither Fade", Float) = 1.0
-        _FadeNearDistance("Distancia Minima (100% Invisivel)", Float) = 0.5
-        _FadeFarDistance("Distancia Maxima (Totalmente Solido)", Float) = 2.2
+        _FadeNearDistance("Distancia Minima (100% Invisivel)", Float) = 1.0
+        _FadeFarDistance("Distancia Maxima (Totalmente Solido)", Float) = 2.5
+        _FadeOffsetY("Ajuste de Altura do Fade no Eixo Y (Subir ou Descer)", Range(-3.0, 6.0)) = 1.5
+        _VerticalDistanceWeight("Peso Vertical da Parede (0 = Reto Vertical, 1 = Diagonal)", Range(0.0, 1.0)) = 0.2
         _MinDitherAlpha("Alpha Minimo no Ponto Proximo (0 = Invisivel)", Range(0.0, 0.4)) = 0.0
         _DitherDotSize("Tamanho dos Pontinhos (1 = Fino, 2-3 = Textura Bonita, 4 = Retro)", Range(1.0, 6.0)) = 3.0
         _DitherPattern("Padrao Dither (0 = Bayer 8x8 Artistico, 1 = Bayer 4x4 Marcante)", Range(0.0, 1.0)) = 0.0
+
+        [Header(Foco no Player)]
+        [Toggle] _EnablePlayerFade("Ativar Recorte ao Redor do Player", Float) = 1.0
+        _PlayerFadeRadius("Raio ao Redor do Player", Float) = 2.2
+        _PlayerFadeFeather("Suavidade da Borda do Player", Float) = 1.0
+        _PlayerYOffset("Deslocar Altura do Player no Eixo Y", Range(-2.0, 4.0)) = 0.5
     }
 
     SubShader
@@ -62,11 +70,20 @@ Shader "Custom/DitherWall_URP"
             half _OcclusionStrength;
             float _FadeNearDistance;
             float _FadeFarDistance;
+            float _FadeOffsetY;
+            float _VerticalDistanceWeight;
             float _MinDitherAlpha;
             float _DitherDotSize;
             float _DitherPattern;
             float _EnableDitherFade;
+            float _EnablePlayerFade;
+            float _PlayerFadeRadius;
+            float _PlayerFadeFeather;
+            float _PlayerYOffset;
         CBUFFER_END
+
+        // Posicao global do Player (atualizada por script via Shader.SetGlobalVector)
+        float4 _PlayerPos;
 
         TEXTURE2D(_BaseMap);            SAMPLER(sampler_BaseMap);
         TEXTURE2D(_BumpMap);            SAMPLER(sampler_BumpMap);
@@ -114,30 +131,62 @@ Shader "Custom/DitherWall_URP"
         {
             if (_EnableDitherFade < 0.5) return;
 
-            float dist = distance(_WorldSpaceCameraPos.xyz, positionWS);
-            if (dist >= _FadeFarDistance) return;
+            float finalDitherAlpha = 1.0;
 
-            // Transicao acentuada colada com a camera
-            float t = saturate((dist - _FadeNearDistance) / max(0.01, (_FadeFarDistance - _FadeNearDistance)));
-            
-            // Curva smoothstep para a texturinha abrir de forma harmonica, estetica e marcante
-            float fade = smoothstep(0.0, 1.0, t);
-            float ditherAlpha = lerp(_MinDitherAlpha, 1.0, fade);
+            // 1. Proximidade da Camera com ajuste direto de Altura Y
+            float effectiveY = positionWS.y - _FadeOffsetY;
+            float3 camDiff = float3(positionWS.x - _WorldSpaceCameraPos.x, effectiveY - _WorldSpaceCameraPos.y, positionWS.z - _WorldSpaceCameraPos.z);
+            float camDist = length(float3(camDiff.x, camDiff.y * _VerticalDistanceWeight, camDiff.z));
 
-            // Quando bem colado com a camera (<= _FadeNearDistance e _MinDitherAlpha == 0), 100% invisivel
-            if (ditherAlpha <= 0.001)
+            if (camDist < _FadeFarDistance)
+            {
+                float t = saturate((camDist - _FadeNearDistance) / max(0.01, (_FadeFarDistance - _FadeNearDistance)));
+                float fade = smoothstep(0.0, 1.0, t);
+                float camAlpha = lerp(_MinDitherAlpha, 1.0, fade);
+                finalDitherAlpha = min(finalDitherAlpha, camAlpha);
+            }
+
+            // 2. Foco no Player: Cilindro de Visibilidade ao redor do Astronauta
+            // Apenas paredes que ficam entre a camera e o jogador desaparecem!
+            // Paredes que estao atras do jogador permanecem 100% solidas.
+            if (_EnablePlayerFade > 0.5 && _PlayerPos.w > 0.5)
+            {
+                float3 camToPlayer = _PlayerPos.xyz - _WorldSpaceCameraPos.xyz;
+                float3 camToWall = positionWS - _WorldSpaceCameraPos.xyz;
+                float distCamToPlayer = length(camToPlayer);
+                float distAlongView = dot(camToWall, camToPlayer) / max(0.001, distCamToPlayer);
+
+                // So ativa se a parede estiver a frente do player (mais perto da camera)
+                if (distAlongView <= (distCamToPlayer + 0.5))
+                {
+                    float horizDist = length(positionWS.xz - _PlayerPos.xz);
+                    float playerFocusY = _PlayerPos.y + _PlayerYOffset;
+                    float yDiff = positionWS.y - playerFocusY;
+
+                    if (yDiff > -1.5 && yDiff < 5.0)
+                    {
+                        float pt = saturate((horizDist - _PlayerFadeRadius) / max(0.01, _PlayerFadeFeather));
+                        float pFade = smoothstep(0.0, 1.0, pt);
+                        float playerAlpha = lerp(_MinDitherAlpha, 1.0, pFade);
+                        finalDitherAlpha = min(finalDitherAlpha, playerAlpha);
+                    }
+                }
+            }
+
+            if (finalDitherAlpha >= 0.999) return;
+
+            if (finalDitherAlpha <= 0.001)
             {
                 clip(-1.0);
                 return;
+    
             }
-
-            if (ditherAlpha >= 0.999) return;
 
             float bayerVal = (_DitherPattern > 0.5) 
                 ? GetBayer4x4(positionCS.xy, _DitherDotSize) 
                 : GetBayer8x8(positionCS.xy, _DitherDotSize);
 
-            clip(ditherAlpha - bayerVal);
+            clip(finalDitherAlpha - bayerVal);
         }
         ENDHLSL
 

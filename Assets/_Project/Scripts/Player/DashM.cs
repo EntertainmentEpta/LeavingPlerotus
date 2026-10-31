@@ -17,6 +17,36 @@ public class DashM : MonoBehaviour
     public float dashSpeed = 38f;
     public float dashDuration = 0.22f;
 
+    [Header("Som do Dash Comum")]
+    [Tooltip("Som reproduzido ao realizar o Dash comum. Arraste seu arquivo de áudio aqui.")]
+    public AudioClip dashSound;
+
+    [Tooltip("Variações opcionais de som do dash (sorteia entre elas caso queira variedade). Se vazio, usa dashSound.")]
+    public AudioClip[] dashSoundVariations;
+
+    [Range(0f, 1f)]
+    [Tooltip("Volume do som do dash (integrado ao controle global de SFX).")]
+    public float dashSoundVolume = 0.85f;
+
+    [Range(0.1f, 3.0f)]
+    [Tooltip("Pitch mínimo para variação de tom do dash (0.1 = super grave / slow-mo, 1.0 = normal, 3.0 = super agudo / veloz).")]
+    public float dashPitchMin = 0.80f;
+
+    [Range(0.1f, 3.0f)]
+    [Tooltip("Pitch máximo para variação de tom do dash.")]
+    public float dashPitchMax = 1.25f;
+
+    [Header("Camada Secundária (2 Sons Simultâneos no Dash)")]
+    [Tooltip("Segundo som reproduzido ao mesmo tempo que o Dash Sound (Audio Layering: ex som de vento + som de impacto/energia).")]
+    public AudioClip dashSoundLayer2;
+
+    [Range(0f, 1f)]
+    [Tooltip("Volume da segunda camada de som do dash.")]
+    public float dashSoundLayer2Volume = 0.85f;
+
+    [Tooltip("Se verdadeiro, sincroniza a variação de tom (pitch) entre os dois sons para tocarem na mesma tonalidade.")]
+    public bool syncLayer2Pitch = true;
+
     [Header("Dash Charges (Modular & Cargas Independentes)")]
     public int maxDashes = 2;
     private int bonusDashes = 0;
@@ -38,6 +68,20 @@ public class DashM : MonoBehaviour
     private bool isNextAttackGuaranteedCrit = false;
     private float critBuffEndTime = 0f;
 
+    [Header("Efeitos do Perfect Dash (VFX & Áudio)")]
+    [Tooltip("Prefab do VFX de impacto/explosão do Perfect Dash (ex: PerfectDash.prefab)")]
+    public GameObject perfectDashVfxPrefab;
+
+    [Tooltip("Som do Perfect Dash. Arraste o arquivo 'Perfect Dash.ogg' aqui.")]
+    public AudioClip perfectDashSound;
+
+    [Range(0f, 1f)]
+    public float perfectDashSoundVolume = 1.0f;
+
+    [Range(0.5f, 2.0f)]
+    [Tooltip("Escala relativa do After-Image (1.0 = tamanho natural 1:1 do jogador).")]
+    public float afterImageScale = 1.0f;
+
     [Header("Animação / Inclinação Procedural")]
     [Tooltip("Transform do modelo visual do jogador para inclinação procedural.")]
     public Transform visualModelTransform;
@@ -56,6 +100,15 @@ public class DashM : MonoBehaviour
     [Header("Sobrecarga de Esquiva Perfeita (Hyper Charge)")]
     [Tooltip("Duração em segundos que a barra de sobrecarga do Perfect Dash permanece ativa.")]
     public float perfectDodgeChargeDuration = 6.0f;
+
+    [Header("Invencibilidade do Perfect Dash (I-Frames de Recompensa)")]
+    [Tooltip("Tempo adicional de invulnerabilidade (em segundos reais) concedido após a normalização do tempo do Perfect Dash.")]
+    public float perfectDodgePostInvulnerability = 0.35f;
+    private float perfectDodgePostInvulTimer = 0f;
+    private bool isPerfectDodgeRoutineRunning = false;
+    private bool isCurrentDashPerfectTriggered = false;
+
+    public bool IsPerfectDodgeInvulnerable => isPerfectDodgeRoutineRunning || perfectDodgePostInvulTimer > 0f;
     private bool hasPerfectDodgeCharge = false;
     private float perfectDodgeChargeTimer = 0f;
 
@@ -377,6 +430,24 @@ public class DashM : MonoBehaviour
             isNextAttackGuaranteedCrit = false;
         }
 
+        // 3.1 Gerencia o Timer de Invulnerabilidade Pós-Perfect Dash (I-Frames generosos para o jogador)
+        if (perfectDodgePostInvulTimer > 0f)
+        {
+            perfectDodgePostInvulTimer -= Time.unscaledDeltaTime;
+            if (playerHealth != null)
+            {
+                playerHealth.isInvulnerable = true;
+            }
+            if (perfectDodgePostInvulTimer <= 0f)
+            {
+                perfectDodgePostInvulTimer = 0f;
+                if (!isDashing && !isPerfectDodgeRoutineRunning && playerHealth != null)
+                {
+                    playerHealth.isInvulnerable = false;
+                }
+            }
+        }
+
         HandleDashUI();
     }
 
@@ -385,6 +456,8 @@ public class DashM : MonoBehaviour
         isDashing = true;
         isInPerfectDodgeWindow = true;
 
+        PlayDashSound();
+
         if (invulEndCoroutine != null)
         {
             StopCoroutine(invulEndCoroutine);
@@ -392,15 +465,15 @@ public class DashM : MonoBehaviour
         }
 
         // Checagem proativa de Esquiva Perfeita no instante exato da ativação
-        bool isPerfectDodgeTriggered = false;
+        isCurrentDashPerfectTriggered = false;
         if (IsAnyImminentAttackNearby(out GameObject imminentAttacker))
         {
-            isPerfectDodgeTriggered = true;
+            isCurrentDashPerfectTriggered = true;
             TriggerPerfectDodge(imminentAttacker);
         }
 
         // Layer Phasing (Atravessar inimigos como fantasma) APENAS no Perfect Dash!
-        if (isPerfectDodgeTriggered && enableLayerPhasing)
+        if (isCurrentDashPerfectTriggered && enableLayerPhasing)
         {
             if (restoreCollisionCoroutine != null)
             {
@@ -410,8 +483,8 @@ public class DashM : MonoBehaviour
             EnablePhasingCollision();
         }
 
-        // Invulnerabilidade (I-Frames) APENAS no Perfect Dash! No dash normal, o jogador pode tomar dano se for descuidado!
-        if (isPerfectDodgeTriggered && playerHealth != null)
+        // Invulnerabilidade (I-Frames) no Perfect Dash
+        if (isCurrentDashPerfectTriggered && playerHealth != null)
         {
             playerHealth.isInvulnerable = true;
         }
@@ -492,7 +565,7 @@ public class DashM : MonoBehaviour
             }
 
             // No Dash Normal (sem Perfect Dash): aplica repulsão radial suave lateral para contornar inimigos fluidamente
-            if (!isPerfectDodgeTriggered)
+            if (!isCurrentDashPerfectTriggered)
             {
                 ApplyRadialSoftRepulsion(dashDirection);
             }
@@ -510,16 +583,10 @@ public class DashM : MonoBehaviour
         RestoreVisualLeanImmediate();
 
         // Restaura colisões com inimigos se estava em Phasing
-        if (isPerfectDodgeTriggered && enableLayerPhasing)
+        if (isCurrentDashPerfectTriggered && enableLayerPhasing)
         {
             if (restoreCollisionCoroutine != null) StopCoroutine(restoreCollisionCoroutine);
             restoreCollisionCoroutine = StartCoroutine(RestoreEnemyCollisionDelayed());
-        }
-
-        // Finaliza I-Frames do Perfect Dash
-        if (isPerfectDodgeTriggered && playerHealth != null)
-        {
-            playerHealth.isInvulnerable = false;
         }
 
         // Verifica se o jogador está segurando teclas de movimento WASD ao sair do dash
@@ -535,7 +602,6 @@ public class DashM : MonoBehaviour
         else
         {
             // Se o jogador estava parado (sem segurar WASD), freia imediatamente no chão!
-            // Evita o efeito "sabão / patinando no gelo" em pose Idle.
             rb.linearVelocity = Vector3.zero;
             if (anim != null && anim.isActiveAndEnabled)
             {
@@ -543,8 +609,8 @@ public class DashM : MonoBehaviour
             }
         }
         
-        // Failsafe garantido de invulnerabilidade ao sair do dash
-        if (playerHealth != null)
+        // Failsafe de invulnerabilidade ao sair do dash (respeitando I-Frames do Perfect Dash se estiverem ativos)
+        if (playerHealth != null && !IsPerfectDodgeInvulnerable)
         {
             float extraInvul = (playerAttributes != null) ? Mathf.Max(0f, playerAttributes.dashInvulnerability) : 0f;
             if (extraInvul > 0f)
@@ -573,7 +639,19 @@ public class DashM : MonoBehaviour
 
     public void TriggerPerfectDodge(GameObject attacker = null)
     {
+        isCurrentDashPerfectTriggered = true;
         isInPerfectDodgeWindow = false;
+
+        if (enableLayerPhasing)
+        {
+            EnablePhasingCollision();
+        }
+
+        if (playerHealth != null)
+        {
+            playerHealth.isInvulnerable = true;
+        }
+
         StartCoroutine(DoPerfectDodgeRoutine(attacker));
     }
 
@@ -773,7 +851,7 @@ public class DashM : MonoBehaviour
 
                 // Ignora totens e suportes pacíficos que não golpeiam (como Crystal Tuner)
                 string eName = enemy.gameObject.name.ToLower();
-                if (eName.Contains("tuner") || eName.Contains("totem") || eName.Contains("sintonizador")) continue;
+                if (eName.Contains("tuner") || eName.Contains("totem") || eName.Contains("sintonizador") || eName.Contains("magicstone") || eName.Contains("stone") || eName.Contains("pedra")) continue;
 
                 Vector3 toPlayer = playerPos - enemy.transform.position;
                 float dist = toPlayer.magnitude;
@@ -869,6 +947,12 @@ public class DashM : MonoBehaviour
     {
         Debug.Log("⚡ [DashM] PERFECT DASH EXECUTADO COM SUCESSO!");
 
+        // Toca o som do Perfect Dash
+        PlayPerfectDashSound();
+
+        // Spawna o VFX de impacto/mini explosão do Perfect Dash
+        SpawnPerfectDashVFX(attacker);
+
         // 1. Spawna sequência de 5 After-Images translúcidas brancas ao longo do dash (sem ciano)
         StartCoroutine(SpawnAfterImageSequence(5, 0.04f));
 
@@ -893,6 +977,19 @@ public class DashM : MonoBehaviour
             DashUI.Instance.TriggerPerfectDodgeFlash();
         }
 
+        // 5.1 Feedback Visual no HUD de Cura do Traje
+        if (SuitHealingUI.Instance != null)
+        {
+            SuitHealingUI.Instance.TriggerPerfectDodgeAlert();
+        }
+
+        // Garante invulnerabilidade contínua durante todo o bullet time
+        isPerfectDodgeRoutineRunning = true;
+        if (playerHealth != null)
+        {
+            playerHealth.isInvulnerable = true;
+        }
+
         // 6. Duração de desaceleração reduzida em 10% (de 1.0s para 0.90s)
         yield return new WaitForSecondsRealtime(0.90f);
 
@@ -905,6 +1002,16 @@ public class DashM : MonoBehaviour
             float t = restoreElapsed / restoreDuration;
             Time.timeScale = Mathf.Lerp(0.35f, 1.0f, t);
             yield return null;
+        }
+        Time.timeScale = 1.0f;
+
+        isPerfectDodgeRoutineRunning = false;
+
+        // 8. Recompensa estendida ao jogador: I-frames generosos adicionais (milissegundos vitais)
+        perfectDodgePostInvulTimer = perfectDodgePostInvulnerability;
+        if (playerHealth != null)
+        {
+            playerHealth.isInvulnerable = true;
         }
 
         Time.timeScale = 1.0f;
@@ -951,18 +1058,24 @@ public class DashM : MonoBehaviour
         ghostMat.SetInt("_ZWrite", 0);
         ghostMat.renderQueue = 3100;
 
+        List<Mesh> bakedMeshes = new List<Mesh>();
+
         foreach (var smr in smrs)
         {
             if (smr == null || !smr.gameObject.activeInHierarchy || !smr.enabled) continue;
 
             Mesh baked = new Mesh();
             smr.BakeMesh(baked);
+            bakedMeshes.Add(baked);
 
             GameObject part = new GameObject($"GhostPart_{smr.gameObject.name}");
             part.transform.SetParent(ghostObj.transform, false);
             part.transform.position = smr.transform.position;
             part.transform.rotation = smr.transform.rotation;
-            part.transform.localScale = smr.transform.lossyScale;
+            // Correção: BakeMesh já deforma os vértices na escala visual real do esqueleto.
+            // Aplicar lossyScale (110x) inflava o fantasma para proporções colossais.
+            // Usar Vector3.one * afterImageScale garante reprodução 1:1 exata do tamanho do jogador.
+            part.transform.localScale = Vector3.one * afterImageScale;
 
             MeshFilter mf = part.AddComponent<MeshFilter>();
             mf.mesh = baked;
@@ -973,10 +1086,10 @@ public class DashM : MonoBehaviour
             mr.receiveShadows = false;
         }
 
-        StartCoroutine(FadeAndDestroyGhost(ghostObj, ghostMat, 0.90f));
+        StartCoroutine(FadeAndDestroyGhost(ghostObj, ghostMat, bakedMeshes, 0.90f));
     }
 
-    private IEnumerator FadeAndDestroyGhost(GameObject ghost, Material mat, float duration)
+    private IEnumerator FadeAndDestroyGhost(GameObject ghost, Material mat, List<Mesh> meshes, float duration)
     {
         float elapsed = 0f;
         Color initialColor = mat != null ? mat.color : new Color(1f, 1f, 1f, 0.55f);
@@ -998,6 +1111,14 @@ public class DashM : MonoBehaviour
         }
 
         if (ghost != null) Destroy(ghost);
+        if (mat != null) Destroy(mat);
+        if (meshes != null)
+        {
+            for (int i = 0; i < meshes.Count; i++)
+            {
+                if (meshes[i] != null) Destroy(meshes[i]);
+            }
+        }
     }
 
     /// <summary>
@@ -1075,4 +1196,208 @@ public class DashM : MonoBehaviour
         dashesLeft = Mathf.Min(targetMax, dashesLeft + amount);
         Debug.Log($"Dashes recarregados! Total agora: {dashesLeft}/{targetMax}");
     }
+
+    private void PlayDashSound()
+    {
+        AudioClip clipToPlay = dashSound;
+
+        if (dashSoundVariations != null && dashSoundVariations.Length > 0)
+        {
+            List<AudioClip> validList = new List<AudioClip>();
+            for (int i = 0; i < dashSoundVariations.Length; i++)
+            {
+                if (dashSoundVariations[i] != null) validList.Add(dashSoundVariations[i]);
+            }
+            if (validList.Count > 0)
+            {
+                clipToPlay = validList[Random.Range(0, validList.Count)];
+            }
+        }
+
+        #if UNITY_EDITOR
+        if (clipToPlay == null && (dashSoundVariations == null || dashSoundVariations.Length == 0))
+        {
+            string[] guids = UnityEditor.AssetDatabase.FindAssets("t:AudioClip dash");
+            foreach (string g in guids)
+            {
+                string p = UnityEditor.AssetDatabase.GUIDToAssetPath(g).ToLower();
+                if (p.Contains("player") && !p.Contains("perfect"))
+                {
+                    clipToPlay = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(UnityEditor.AssetDatabase.GUIDToAssetPath(g));
+                    dashSound = clipToPlay;
+                    break;
+                }
+            }
+        }
+        #endif
+
+        float minPitch = Mathf.Min(dashPitchMin, dashPitchMax);
+        float maxPitch = Mathf.Max(dashPitchMin, dashPitchMax);
+        float chosenPitch = Random.Range(minPitch, maxPitch);
+
+        // 1. Toca o som principal (Camada 1)
+        if (clipToPlay != null)
+        {
+            float effectiveVol = dashSoundVolume * GlobalAudioManager.SFXVolumeMultiplier;
+            if (effectiveVol > 0.001f)
+            {
+                GameObject sfxObj = new GameObject("Dash_SFX");
+                sfxObj.transform.position = transform.position;
+                AudioSource source = sfxObj.AddComponent<AudioSource>();
+                source.clip = clipToPlay;
+                source.volume = effectiveVol;
+                source.spatialBlend = 0f;
+                source.pitch = chosenPitch;
+
+                if (GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+                {
+                    source.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
+                }
+
+                source.Play();
+                float safePitch = Mathf.Max(0.1f, source.pitch);
+                Destroy(sfxObj, (clipToPlay.length / safePitch) + 0.2f);
+            }
+        }
+
+        // 2. Toca simultaneamente o segundo som (Camada 2 / Layering), caso configurado
+        if (dashSoundLayer2 != null)
+        {
+            float effectiveVol2 = dashSoundLayer2Volume * GlobalAudioManager.SFXVolumeMultiplier;
+            if (effectiveVol2 > 0.001f)
+            {
+                GameObject sfxObj2 = new GameObject("Dash_SFX_Layer2");
+                sfxObj2.transform.position = transform.position;
+                AudioSource source2 = sfxObj2.AddComponent<AudioSource>();
+                source2.clip = dashSoundLayer2;
+                source2.volume = effectiveVol2;
+                source2.spatialBlend = 0f;
+                source2.pitch = syncLayer2Pitch ? chosenPitch : Random.Range(minPitch, maxPitch);
+
+                if (GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+                {
+                    source2.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
+                }
+
+                source2.Play();
+                float safePitch2 = Mathf.Max(0.1f, source2.pitch);
+                Destroy(sfxObj2, (dashSoundLayer2.length / safePitch2) + 0.2f);
+            }
+        }
+    }
+
+    private void PlayPerfectDashSound()
+    {
+        AudioClip clipToPlay = perfectDashSound;
+
+        #if UNITY_EDITOR
+        if (clipToPlay == null)
+        {
+            string[] guids = UnityEditor.AssetDatabase.FindAssets("t:AudioClip Perfect Dash");
+            if (guids.Length > 0)
+            {
+                clipToPlay = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]));
+            }
+        }
+        #endif
+
+        if (clipToPlay != null)
+        {
+            float effectiveVol = perfectDashSoundVolume * GlobalAudioManager.SFXVolumeMultiplier;
+            if (effectiveVol <= 0.001f) return;
+
+            GameObject sfxObj = new GameObject("PerfectDash_SFX");
+            sfxObj.transform.position = transform.position;
+            AudioSource source = sfxObj.AddComponent<AudioSource>();
+            source.clip = clipToPlay;
+            source.volume = effectiveVol;
+            source.spatialBlend = 0f;
+            source.pitch = Random.Range(0.98f, 1.02f);
+
+            if (GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+            {
+                source.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
+            }
+
+            source.Play();
+            Destroy(sfxObj, clipToPlay.length + 0.5f);
+        }
+    }
+
+    private void SpawnPerfectDashVFX(GameObject attacker)
+    {
+        GameObject prefabToSpawn = perfectDashVfxPrefab;
+
+        #if UNITY_EDITOR
+        if (prefabToSpawn == null)
+        {
+            string[] guids = UnityEditor.AssetDatabase.FindAssets("PerfectDash t:Prefab");
+            if (guids.Length > 0)
+            {
+                prefabToSpawn = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]));
+            }
+        }
+        #endif
+
+        if (prefabToSpawn == null) return;
+
+        Vector3 spawnPos = transform.position + Vector3.up * 0.75f;
+        if (attacker != null)
+        {
+            Vector3 toAttacker = (attacker.transform.position - transform.position);
+            toAttacker.y = 0f;
+            if (toAttacker.sqrMagnitude > 0.1f)
+            {
+                spawnPos += toAttacker.normalized * 0.45f;
+            }
+        }
+
+        GameObject vfxInstance = Instantiate(prefabToSpawn, spawnPos, transform.rotation);
+        vfxInstance.transform.SetParent(null);
+        vfxInstance.SetActive(true);
+
+        ParticleSystem[] systems = vfxInstance.GetComponentsInChildren<ParticleSystem>(true);
+        foreach (var ps in systems)
+        {
+            ps.Clear();
+            ps.Play();
+        }
+
+        Destroy(vfxInstance, 3.5f);
+    }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        if (perfectDashVfxPrefab == null)
+        {
+            string[] guids = UnityEditor.AssetDatabase.FindAssets("PerfectDash t:Prefab");
+            if (guids.Length > 0)
+            {
+                perfectDashVfxPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]));
+            }
+        }
+        if (perfectDashSound == null)
+        {
+            string[] guids = UnityEditor.AssetDatabase.FindAssets("t:AudioClip Perfect Dash");
+            if (guids.Length > 0)
+            {
+                perfectDashSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]));
+            }
+        }
+        if (dashSound == null)
+        {
+            string[] guids = UnityEditor.AssetDatabase.FindAssets("t:AudioClip dash");
+            foreach (string g in guids)
+            {
+                string p = UnityEditor.AssetDatabase.GUIDToAssetPath(g).ToLower();
+                if (p.Contains("player") && !p.Contains("perfect"))
+                {
+                    dashSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(UnityEditor.AssetDatabase.GUIDToAssetPath(g));
+                    break;
+                }
+            }
+        }
+    }
+#endif
 }

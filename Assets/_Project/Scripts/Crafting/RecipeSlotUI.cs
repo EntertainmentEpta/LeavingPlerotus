@@ -60,47 +60,40 @@ public class RecipeSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
         // Borda elegante via Outline (nunca cobre o texto nem preenche o interior)
         slotOutline = gameObject.GetComponent<Outline>() ?? gameObject.AddComponent<Outline>();
         slotOutline.effectColor = BORDER_DEFAULT;
-        slotOutline.effectDistance = new Vector2(2f, -2f);
-
-        // Nome da receita
+        slotOutline.effectDistance = new Vector2(2f, -2f);        // Nome da receita
         GameObject nameObj = new GameObject("Name");
         nameObj.transform.SetParent(transform, false);
         nameObj.layer = layer;
         RectTransform nameRect = nameObj.AddComponent<RectTransform>();
-        nameRect.anchorMin = new Vector2(0f, 0.42f);
-        nameRect.anchorMax = new Vector2(1f, 1f);
-        nameRect.offsetMin = new Vector2(16f, 0f);
-        nameRect.offsetMax = new Vector2(-16f, -6f);
+        nameRect.anchorMin = new Vector2(0.04f, 0.45f);
+        nameRect.anchorMax = new Vector2(0.96f, 0.95f);
+        nameRect.sizeDelta = Vector2.zero;
+        nameRect.offsetMin = Vector2.zero;
+        nameRect.offsetMax = Vector2.zero;
 
         nameObj.AddComponent<CanvasRenderer>();
         nameText = nameObj.AddComponent<TextMeshProUGUI>();
-        nameText.fontSize = 20f;
-        nameText.fontSizeMin = 12f;
-        nameText.fontSizeMax = 22f;
-        nameText.enableAutoSizing = true;
-        nameText.fontStyle = FontStyles.Normal;
+        nameText.fontSize = 21f;
+        nameText.fontStyle = FontStyles.Bold;
         nameText.color = new Color(0.95f, 0.95f, 0.98f, 1f);
         nameText.alignment = TextAlignmentOptions.MidlineLeft;
         nameText.raycastTarget = false;
-        nameText.textWrappingMode = TextWrappingModes.Normal;
-        nameText.overflowMode = TextOverflowModes.Ellipsis;
 
         // Status
         GameObject statusObj = new GameObject("Status");
         statusObj.transform.SetParent(transform, false);
         statusObj.layer = layer;
         RectTransform statusRect = statusObj.AddComponent<RectTransform>();
-        statusRect.anchorMin = new Vector2(0f, 0f);
-        statusRect.anchorMax = new Vector2(1f, 0.42f);
-        statusRect.offsetMin = new Vector2(16f, 6f);
-        statusRect.offsetMax = new Vector2(-16f, 0f);
+        statusRect.anchorMin = new Vector2(0.04f, 0.08f);
+        statusRect.anchorMax = new Vector2(0.96f, 0.44f);
+        statusRect.sizeDelta = Vector2.zero;
+        statusRect.offsetMin = Vector2.zero;
+        statusRect.offsetMax = Vector2.zero;
 
         statusObj.AddComponent<CanvasRenderer>();
         statusText = statusObj.AddComponent<TextMeshProUGUI>();
         statusText.fontSize = 15f;
-        statusText.fontSizeMin = 10f;
-        statusText.fontSizeMax = 17f;
-        statusText.enableAutoSizing = true;
+        statusText.fontStyle = FontStyles.Normal;
         statusText.alignment = TextAlignmentOptions.MidlineLeft;
         statusText.raycastTarget = false;
 

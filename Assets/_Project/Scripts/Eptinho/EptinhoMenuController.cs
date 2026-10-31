@@ -14,6 +14,13 @@ public class EptinhoMenuController : MonoBehaviour
     public static EptinhoMenuController instancia;
     public static EptinhoMenuController Instance => instancia;
 
+    // Modal de Transcrição e Leitura de Diálogos da Lore
+    private GameObject dialogTranscriptModal;
+    private TextMeshProUGUI dialogModalTitleTMP;
+    private TextMeshProUGUI dialogModalContextTMP;
+    private Transform dialogModalScrollContent;
+    private string currentTranscriptDialogId;
+
     // Modal de Inspeção 3D de Inimigos no Bestiário
     private GameObject enemyDetailModal;
     private RawImage enemyPreviewRawImage;
@@ -72,12 +79,14 @@ public class EptinhoMenuController : MonoBehaviour
     private GameObject  tabQuests;
     private GameObject  tabBestiary;
     private GameObject  tabCatalogo;
-    private GameObject  tabSinergia;
+    private GameObject  tabLore;
+    private GameObject  tabMercador;
     private GameObject  contentQuests;
     private GameObject  contentBestiary;
     private GameObject  contentCatalogo;
-    private GameObject  contentSinergia;
-    private int         currentTab = 0; // 0 = Quests, 1 = Bestiary, 2 = Catalogo, 3 = Sinergia
+    private GameObject  contentLore;
+    private GameObject  contentMercador;
+    private int         currentTab = 0; // 0 = Quests, 1 = Bestiary, 2 = Catalogo, 3 = Lore, 4 = Mercador
     private bool        isOpen = false;
     private bool        uiBuilt = false;
     private TMP_FontAsset customFont;
@@ -136,12 +145,12 @@ public class EptinhoMenuController : MonoBehaviour
     {
         if (isOpen && Input.GetKeyDown(KeyCode.Escape))
         {
-            if (enemyDetailModal != null && enemyDetailModal.activeSelf)
+            if (dialogTranscriptModal != null && dialogTranscriptModal.activeSelf)
+                FecharTranscricaoDialogo();
+            else if (enemyDetailModal != null && enemyDetailModal.activeSelf)
                 FecharInspecaoInimigo();
-            else if (currentTab == 3)
-                MostrarAba(0); // Se estiver no Mapa em tela cheia, o ESC apenas volta para o menu
             else
-                FecharMenu();  // Senão, fecha tudo
+                FecharMenu();
         }
     }
 
@@ -180,11 +189,11 @@ public class EptinhoMenuController : MonoBehaviour
         if (!isOpen) return;
         isOpen = false;
 
+        FecharTranscricaoDialogo();
         FecharInspecaoInimigo();
 
         PlayBeep();
         if (panelObj != null) panelObj.SetActive(false);
-        if (contentSinergia != null) contentSinergia.SetActive(false); // Garante que a tela cheia fecha também
 
         if (HUDCanvas != null) HUDCanvas.SetActive(true);
 
@@ -320,22 +329,25 @@ public class EptinhoMenuController : MonoBehaviour
         lineRect.sizeDelta = new Vector2(1120f, 2f);
         lineRect.anchoredPosition = new Vector2(0f, 310f);
 
-        // ── Abas ──
+        // ── 5 Abas de Navegação Tática ──
         float tabY = 265f;
-        float tabW = 265f;
+        float tabW = 216f;
         tabQuests = CreateButton(panelObj.transform, "TabQuests", "MISSÕES",
-            new Vector2(-400f, tabY), new Vector2(tabW, 48f), TAB_ACTIVE, () => MostrarAba(0));
+            new Vector2(-448f, tabY), new Vector2(tabW, 48f), TAB_ACTIVE, () => MostrarAba(0));
 
         tabBestiary = CreateButton(panelObj.transform, "TabBestiary", "BESTIÁRIO",
-            new Vector2(-133f, tabY), new Vector2(tabW, 48f), TAB_INACTIVE, () => MostrarAba(1));
+            new Vector2(-224f, tabY), new Vector2(tabW, 48f), TAB_INACTIVE, () => MostrarAba(1));
 
         tabCatalogo = CreateButton(panelObj.transform, "TabCatalogo", "CATÁLOGO",
-            new Vector2(133f, tabY), new Vector2(tabW, 48f), TAB_INACTIVE, () => MostrarAba(2));
+            new Vector2(0f, tabY), new Vector2(tabW, 48f), TAB_INACTIVE, () => MostrarAba(2));
 
-        tabSinergia = CreateButton(panelObj.transform, "TabSinergia", "MAPA DE SINERGIAS",
-            new Vector2(400f, tabY), new Vector2(tabW, 48f), TAB_INACTIVE, () => MostrarAba(3));
+        tabLore = CreateButton(panelObj.transform, "TabLore", "REGISTROS LORE",
+            new Vector2(224f, tabY), new Vector2(tabW, 48f), TAB_INACTIVE, () => MostrarAba(3));
 
-        // ── Área de conteúdo ──
+        tabMercador = CreateButton(panelObj.transform, "TabMercador", "O MERCADOR",
+            new Vector2(448f, tabY), new Vector2(tabW, 48f), TAB_INACTIVE, () => MostrarAba(4));
+
+        // ── Áreas de Conteúdo com Scroll ──
         contentQuests = CreateScrollArea(panelObj.transform, "ContentQuests",
             new Vector2(0f, -80f), new Vector2(1120f, 560f));
 
@@ -347,23 +359,13 @@ public class EptinhoMenuController : MonoBehaviour
             new Vector2(0f, -80f), new Vector2(1120f, 560f));
         contentCatalogo.SetActive(false);
 
-        // Painel do Mapa de Sinergias (FULL SCREEN)
-        contentSinergia = CreatePanel(canvasObj.transform, "ContentSinergia", Vector2.zero, PANEL_BG);
-        RectTransform sinRect = contentSinergia.GetComponent<RectTransform>();
-        sinRect.anchorMin = Vector2.zero; sinRect.anchorMax = Vector2.one;
-        sinRect.sizeDelta = Vector2.zero; // Stretch for Full Screen
-        
-        // Close Button (X) for Synergy Map
-        GameObject btnCloseSin = CreateButton(contentSinergia.transform, "BtnCloseSinergia", "✕ VOLTAR AO MENU", Vector2.zero, new Vector2(200f, 50f), new Color(0.12f, 0.18f, 0.28f, 0.95f), () => MostrarAba(0));
-        Outline bSinOutline = btnCloseSin.GetComponent<Outline>();
-        if (bSinOutline != null) bSinOutline.effectColor = TECH_CYAN;
-        RectTransform btnRect = btnCloseSin.GetComponent<RectTransform>();
-        btnRect.anchorMin = new Vector2(1, 1);
-        btnRect.anchorMax = new Vector2(1, 1);
-        btnRect.anchoredPosition = new Vector2(-120f, -50f); // Top-Right offset
+        contentLore = CreateScrollArea(panelObj.transform, "ContentLore",
+            new Vector2(0f, -80f), new Vector2(1120f, 560f));
+        contentLore.SetActive(false);
 
-        contentSinergia.AddComponent<SynergyMapBuilder>();
-        contentSinergia.SetActive(false);
+        contentMercador = CreateScrollArea(panelObj.transform, "ContentMercador",
+            new Vector2(0f, -80f), new Vector2(1120f, 560f));
+        contentMercador.SetActive(false);
 
         menuUI = panelObj;
         panelObj.SetActive(false);
@@ -372,49 +374,40 @@ public class EptinhoMenuController : MonoBehaviour
         UpdateTabVisuals(tabQuests, true);
         UpdateTabVisuals(tabBestiary, false);
         UpdateTabVisuals(tabCatalogo, false);
-        UpdateTabVisuals(tabSinergia, false);
+        UpdateTabVisuals(tabLore, false);
+        UpdateTabVisuals(tabMercador, false);
     }
 
     private void MostrarAba(int abaIndex)
     {
+        FecharTranscricaoDialogo();
+        FecharInspecaoInimigo();
+
         currentTab = abaIndex;
         PlayBeep();
 
         contentQuests.SetActive(abaIndex == 0);
         contentBestiary.SetActive(abaIndex == 1);
         contentCatalogo.SetActive(abaIndex == 2);
-        contentSinergia.SetActive(abaIndex == 3);
+        contentLore.SetActive(abaIndex == 3);
+        contentMercador.SetActive(abaIndex == 4);
 
         UpdateTabVisuals(tabQuests, abaIndex == 0);
         UpdateTabVisuals(tabBestiary, abaIndex == 1);
         UpdateTabVisuals(tabCatalogo, abaIndex == 2);
-        UpdateTabVisuals(tabSinergia, abaIndex == 3);
+        UpdateTabVisuals(tabLore, abaIndex == 3);
+        UpdateTabVisuals(tabMercador, abaIndex == 4);
 
         RefreshCurrentTab();
     }
 
     private void RefreshCurrentTab()
     {
-        // Verifica se a tab de Sinergia está desbloqueada
-        bool hasSynergyMap = false;
-        if (SaveManager.instance != null && SaveManager.instance.GetAllCraftedEquipmentIds().Contains("eq_mapa_sinergias"))
-        {
-            hasSynergyMap = true;
-        }
-
-        if (hasSynergyMap)
-        {
-            tabSinergia.SetActive(true);
-        }
-        else
-        {
-            tabSinergia.SetActive(false);
-            if (currentTab == 3) MostrarAba(0);
-        }
-
         if (currentTab == 0) RefreshQuests();
         else if (currentTab == 1) RefreshBestiary();
         else if (currentTab == 2) RefreshCatalogo();
+        else if (currentTab == 3) RefreshLore();
+        else if (currentTab == 4) RefreshMercador();
     }
 
     private void RefreshQuests()
@@ -761,14 +754,14 @@ public class EptinhoMenuController : MonoBehaviour
     {
         GameObject card = new GameObject("Card_Completed_" + questId);
         card.transform.SetParent(parent, false);
-        StyleCardBase(card, 95f, SUCCESS_COLOR, 6f);
+        StyleCardBase(card, 112f, SUCCESS_COLOR, 6f);
 
         // Badge concluída
         GameObject checkGO = new GameObject("Check");
         checkGO.transform.SetParent(card.transform, false);
         TextMeshProUGUI checkTMP = checkGO.AddComponent<TextMeshProUGUI>();
         checkTMP.text = "✔ DIRETRIZ CONCLUÍDA";
-        checkTMP.fontSize = 18;
+        checkTMP.fontSize = 15;
         checkTMP.fontStyle = FontStyles.Bold;
         checkTMP.color = SUCCESS_COLOR;
         if (customFont != null) checkTMP.font = customFont;
@@ -776,16 +769,16 @@ public class EptinhoMenuController : MonoBehaviour
         checkRect.anchorMin = new Vector2(0f, 1f);
         checkRect.anchorMax = new Vector2(1f, 1f);
         checkRect.pivot = new Vector2(0f, 1f);
-        checkRect.anchoredPosition = new Vector2(24f, -10f);
-        checkRect.sizeDelta = new Vector2(-48f, 20f);
+        checkRect.anchoredPosition = new Vector2(24f, -12f);
+        checkRect.sizeDelta = new Vector2(-48f, 18f);
 
-        // Título
+        // Título nítido e proporcional
         string title = data != null ? data.questTitle : questId;
         GameObject titleGO = new GameObject("Title");
         titleGO.transform.SetParent(card.transform, false);
         TextMeshProUGUI titleTMP = titleGO.AddComponent<TextMeshProUGUI>();
         titleTMP.text = title.ToUpper();
-        titleTMP.fontSize = 26;
+        titleTMP.fontSize = 21;
         titleTMP.fontStyle = FontStyles.Bold;
         titleTMP.color = TEXT_TITLE;
         if (customFont != null) titleTMP.font = customFont;
@@ -796,20 +789,21 @@ public class EptinhoMenuController : MonoBehaviour
         titleRect.anchoredPosition = new Vector2(24f, -34f);
         titleRect.sizeDelta = new Vector2(-48f, 26f);
 
-        // Descrição curta
+        // Descrição curta limpa, sem cortes
         string desc = data != null && !string.IsNullOrEmpty(data.questDescription) ? data.questDescription : "Diretriz cumprida e registrada pelo Eptinho.";
         GameObject descGO = new GameObject("Desc");
         descGO.transform.SetParent(card.transform, false);
         TextMeshProUGUI descTMP = descGO.AddComponent<TextMeshProUGUI>();
         descTMP.text = desc;
-        descTMP.fontSize = 21;
+        descTMP.fontSize = 15;
         descTMP.color = TEXT_BODY;
+        descTMP.lineSpacing = 1.15f;
         descTMP.textWrappingMode = TextWrappingModes.Normal;
         RectTransform descRect = descGO.GetComponent<RectTransform>();
         descRect.anchorMin = new Vector2(0f, 0f);
         descRect.anchorMax = new Vector2(1f, 1f);
-        descRect.offsetMin = new Vector2(24f, 8f);
-        descRect.offsetMax = new Vector2(-24f, -62f);
+        descRect.offsetMin = new Vector2(24f, 10f);
+        descRect.offsetMax = new Vector2(-24f, -64f);
     }
 
     private void RefreshBestiary()
@@ -872,6 +866,414 @@ public class EptinhoMenuController : MonoBehaviour
         }
     }
 
+    // ── Aba: REGISTROS LORE (Transmissões e Diálogos do Eptinho) ──
+
+    private void RefreshLore()
+    {
+        Transform grid = contentLore.transform.Find("Viewport/Content");
+        if (grid == null)
+        {
+            Debug.LogError("[EPTINHO MENU] Viewport/Content nao encontrado em ContentLore!");
+            return;
+        }
+
+        foreach (Transform child in grid) Destroy(child.gameObject);
+
+        // Card de Topo: Cabeçalho elegante e limpo (altura 84f)
+        GameObject topCard = new GameObject("HeaderCard");
+        topCard.transform.SetParent(grid, false);
+        StyleCardBase(topCard, 84f, TECH_CYAN, 4f);
+
+        // Tag superior do cabeçalho
+        GameObject hTagGO = new GameObject("HeaderTag");
+        hTagGO.transform.SetParent(topCard.transform, false);
+        TextMeshProUGUI hTagTMP = hTagGO.AddComponent<TextMeshProUGUI>();
+        hTagTMP.text = "● REGISTROS DO ORÁCULO // ARQUIVO DE TRANSMISSÕES";
+        hTagTMP.fontSize = 13;
+        hTagTMP.fontStyle = FontStyles.Bold;
+        hTagTMP.color = TECH_CYAN;
+        hTagTMP.alignment = TextAlignmentOptions.Left;
+        if (customFont != null) hTagTMP.font = customFont;
+        RectTransform hTagRt = hTagGO.GetComponent<RectTransform>();
+        hTagRt.anchorMin = new Vector2(0f, 0.5f);
+        hTagRt.anchorMax = new Vector2(1f, 0.5f);
+        hTagRt.pivot = new Vector2(0f, 0.5f);
+        hTagRt.anchoredPosition = new Vector2(24f, 15f);
+        hTagRt.sizeDelta = new Vector2(-48f, 22f);
+
+        // Título do cabeçalho
+        GameObject hTitleGO = new GameObject("HeaderTitle");
+        hTitleGO.transform.SetParent(topCard.transform, false);
+        TextMeshProUGUI hTitleTMP = hTitleGO.AddComponent<TextMeshProUGUI>();
+        hTitleTMP.text = "HISTÓRICO DE DIRETRIZES TÁTICAS & DIÁLOGOS DE CAMPO";
+        hTitleTMP.fontSize = 21;
+        hTitleTMP.fontStyle = FontStyles.Bold;
+        hTitleTMP.color = TEXT_TITLE;
+        hTitleTMP.alignment = TextAlignmentOptions.Left;
+        if (customFont != null) hTitleTMP.font = customFont;
+        RectTransform hTitleRt = hTitleGO.GetComponent<RectTransform>();
+        hTitleRt.anchorMin = new Vector2(0f, 0.5f);
+        hTitleRt.anchorMax = new Vector2(1f, 0.5f);
+        hTitleRt.pivot = new Vector2(0f, 0.5f);
+        hTitleRt.anchoredPosition = new Vector2(24f, -14f);
+        hTitleRt.sizeDelta = new Vector2(-48f, 28f);
+
+        var records = EptinhoStoryDialogs.GetAllRecords();
+        foreach (var rec in records)
+        {
+            CreateLoreCard(grid, rec);
+        }
+    }
+
+    private void CreateLoreCard(Transform parent, EptinhoStoryDialogs.StoryDialogRecord rec)
+    {
+        bool seen = EptinhoStoryDialogs.HasSeenDialog(rec.id);
+        float cardHeight = 84f;
+
+        GameObject card = new GameObject("Lore_" + rec.id);
+        card.transform.SetParent(parent, false);
+
+        Color borderColor = seen ? new Color(0.20f, 0.65f, 0.85f, 0.70f) : new Color(0.15f, 0.20f, 0.28f, 0.40f);
+        StyleCardBase(card, cardHeight, borderColor, 4f);
+
+        // Se visto, o card inteiro pode ser clicado para abrir o diálogo
+        if (seen)
+        {
+            Button cardBtn = card.AddComponent<Button>();
+            EptinhoStoryDialogs.StoryDialogRecord capturedRec = rec;
+            cardBtn.onClick.AddListener(() => ExibirTranscricaoDialogo(capturedRec));
+        }
+
+        // Tag / Contexto (Centralizado verticalmente na metade superior: y = +15)
+        // Container vertical à esquerda para Tag e Título (evita sobreposições e centraliza perfeitamente)
+        GameObject textContainer = new GameObject("TextContainer");
+        textContainer.transform.SetParent(card.transform, false);
+        RectTransform tcRt = textContainer.AddComponent<RectTransform>();
+        tcRt.anchorMin = new Vector2(0f, 0f);
+        tcRt.anchorMax = new Vector2(1f, 1f);
+        tcRt.offsetMin = new Vector2(24f, 8f);
+        tcRt.offsetMax = new Vector2(-200f, -8f);
+
+        VerticalLayoutGroup tcVlg = textContainer.AddComponent<VerticalLayoutGroup>();
+        tcVlg.spacing = 4f;
+        tcVlg.childAlignment = TextAnchor.MiddleLeft;
+        tcVlg.childControlWidth = true;
+        tcVlg.childControlHeight = true;
+        tcVlg.childForceExpandWidth = true;
+        tcVlg.childForceExpandHeight = false;
+
+        // Tag / Contexto
+        GameObject tagGO = new GameObject("Tag");
+        tagGO.transform.SetParent(textContainer.transform, false);
+        TextMeshProUGUI tagTMP = tagGO.AddComponent<TextMeshProUGUI>();
+        tagTMP.fontSize = 12;
+        tagTMP.fontStyle = FontStyles.Bold;
+        tagTMP.alignment = TextAlignmentOptions.Left;
+        if (customFont != null) tagTMP.font = customFont;
+        LayoutElement tagLe = tagGO.AddComponent<LayoutElement>();
+        tagLe.preferredHeight = 18f;
+
+        // Título
+        GameObject titleGO = new GameObject("Title");
+        titleGO.transform.SetParent(textContainer.transform, false);
+        TextMeshProUGUI titleTMP = titleGO.AddComponent<TextMeshProUGUI>();
+        titleTMP.fontSize = 20;
+        titleTMP.fontStyle = FontStyles.Bold;
+        titleTMP.alignment = TextAlignmentOptions.Left;
+        if (customFont != null) titleTMP.font = customFont;
+        LayoutElement titleLe = titleGO.AddComponent<LayoutElement>();
+        titleLe.preferredHeight = 28f;
+
+        if (seen)
+        {
+            tagTMP.text = $"<color=#00FFAA>●</color> <color=#38BDF8>{rec.eventContext.ToUpper()}</color>";
+            titleTMP.text = rec.title.ToUpper();
+            titleTMP.color = TEXT_TITLE;
+
+            EptinhoStoryDialogs.StoryDialogRecord capturedRec = rec;
+            GameObject btnLer = CreateButton(card.transform, "BtnLer", "LER DIÁLOGO",
+                new Vector2(-20f, 0f), new Vector2(170f, 44f), new Color(0.10f, 0.28f, 0.44f, 0.95f), () =>
+                {
+                    ExibirTranscricaoDialogo(capturedRec);
+                });
+            RectTransform bRt = btnLer.GetComponent<RectTransform>();
+            bRt.anchorMin = new Vector2(1f, 0.5f);
+            bRt.anchorMax = new Vector2(1f, 0.5f);
+            bRt.pivot = new Vector2(1f, 0.5f);
+            bRt.anchoredPosition = new Vector2(-20f, 0f);
+            Outline bOut = btnLer.GetComponent<Outline>();
+            if (bOut != null) bOut.effectColor = TECH_CYAN;
+            Transform lbl = btnLer.transform.Find("Label");
+            if (lbl != null)
+            {
+                var lTmp = lbl.GetComponent<TextMeshProUGUI>();
+                if (lTmp != null)
+                {
+                    lTmp.fontSize = 15;
+                    lTmp.fontStyle = FontStyles.Bold;
+                }
+            }
+        }
+        else
+        {
+            tagTMP.text = $"<color=#64748B>○</color> <color=#94A3B8>{rec.eventContext.ToUpper()}</color>";
+            titleTMP.text = $"[ BLOQUEADO ]  {rec.title.ToUpper()}";
+            titleTMP.color = new Color(0.55f, 0.60f, 0.70f, 0.55f);
+
+            GameObject btnLock = CreateButton(card.transform, "BtnLock", "BLOQUEADO",
+                new Vector2(-20f, 0f), new Vector2(150f, 40f), new Color(0.12f, 0.15f, 0.20f, 0.60f), null);
+            RectTransform bRt = btnLock.GetComponent<RectTransform>();
+            bRt.anchorMin = new Vector2(1f, 0.5f);
+            bRt.anchorMax = new Vector2(1f, 0.5f);
+            bRt.pivot = new Vector2(1f, 0.5f);
+            bRt.anchoredPosition = new Vector2(-20f, 0f);
+            Button bComp = btnLock.GetComponent<Button>();
+            if (bComp != null) bComp.interactable = false;
+            Outline bOut = btnLock.GetComponent<Outline>();
+            if (bOut != null) bOut.effectColor = new Color(0.25f, 0.35f, 0.45f, 0.30f);
+            Transform lbl = btnLock.transform.Find("Label");
+            if (lbl != null)
+            {
+                var lTmp = lbl.GetComponent<TextMeshProUGUI>();
+                if (lTmp != null)
+                {
+                    lTmp.fontSize = 14;
+                    lTmp.color = new Color(0.50f, 0.55f, 0.65f, 0.70f);
+                }
+            }
+        }
+    }
+
+    // ── Aba: O MERCADOR (Decodificação Progressiva de Frequência) ──
+
+    private void RefreshMercador()
+    {
+        Transform grid = contentMercador.transform.Find("Viewport/Content");
+        if (grid == null)
+        {
+            Debug.LogError("[EPTINHO MENU] Viewport/Content nao encontrado em ContentMercador!");
+            return;
+        }
+
+        foreach (Transform child in grid) Destroy(child.gameObject);
+
+        int encounterCount = SaveManager.instance != null && SaveManager.instance.CachedData != null
+            ? SaveManager.instance.CachedData.merchantEncounterCount
+            : 0;
+
+        int totalEnigmas = MerchantEncounterDialogueSystem.TotalEnigmas;
+        int pct = Mathf.Clamp(encounterCount * 5, 0, 100);
+
+        // ── Card Superior: Dossiê e Estado de Cifragem da Entidade ──
+        GameObject topCard = new GameObject("MerchantDossierCard");
+        topCard.transform.SetParent(grid, false);
+        float topHeight = encounterCount >= 20 ? 195f : 165f;
+        Color topBorder = encounterCount >= 20 ? new Color(0.95f, 0.20f, 0.25f, 0.90f) : TECH_CYAN;
+        StyleCardBase(topCard, topHeight, topBorder, 4f);
+
+        string statusText = encounterCount == 0
+            ? "◆ STATUS: 0% DECODIFICADO // SINAL DESCONHECIDO"
+            : (encounterCount >= 20
+                ? "<color=#EF4444>⚠ ALERTA CRÍTICO // IDENTIDADE REVELADA: ENTIDADE HOSTIL SUPREMA (100%)</color>"
+                : $"<color=#38BDF8>✦ DECODIFICAÇÃO DE FREQUÊNCIA: {pct}% CONCLUÍDA ({encounterCount}/{totalEnigmas} ENCONTROS)</color>");
+
+        Color statusColor = encounterCount == 0 ? new Color(0.95f, 0.35f, 0.35f, 1f) : TECH_CYAN;
+
+        string titleText = encounterCount == 0
+            ? "A ENTIDADE DAS PROFUNDEZAS // O MERCADOR"
+            : (encounterCount >= 20
+                ? "O ARQUITETO DO ESPORO // EX-MERCADOR"
+                : "DOSSIÊ DE CAMPO // O MERCADOR DAS SOMBRAS");
+
+        string briefingText = "";
+        if (encounterCount == 0)
+        {
+            briefingText = "Sensores da nave captaram vibrações sonoras e atrito mineral na faixa ultra-baixa vindas dos níveis inferiores.\n" +
+                           "Exploradores relatam uma figura misteriosa negociando artefatos nas cavernas. Nenhuma linha de seu dialeto foi decodificada.\n" +
+                           "<color=#FFE500>Diretriz:</color> Encontre a entidade durante suas incursões pelo planeta Plerotus para interceptar transmissões e decifrar o mistério.";
+        }
+        else if (encounterCount < 5)
+        {
+            briefingText = "A entidade comunica-se por atritos ásperos de anéis minerais nos dedos. Ela parece consciente da queda da nossa nave na cratera e demonstra desdém pelos tripulantes humanos.";
+        }
+        else if (encounterCount < 10)
+        {
+            briefingText = "O Oráculo identificou menções a uma civilização antiga chamada 'Os Lapidadores'. O Mercador revela uma fixação obsessiva e perturbadora pelo sangue do Piloto, tratando-o como catalisador.";
+        }
+        else if (encounterCount < 15)
+        {
+            briefingText = "O suposto comerciante conhece os segredos da infecção por esporos e os segredos das armas ancestrais. O comércio de Cartas de Maldição foi planejado para drenar a força vital dos invasores.";
+        }
+        else if (encounterCount < 20)
+        {
+            briefingText = "A linguagem foi quase 100% traduzida! O tom do Mercador abandonou a fachada de negócios. Uma revelação crítica sobre o destino do planeta Plerotus está prestes a emergir.";
+        }
+        else
+        {
+            briefingText = "<color=#FFAAAA>A MÁSCARA CAIU! O Mercador é o arquiteto da calamidade de Plerotus, responsável direto pelo esporo parasitário e pela ruína dos mineradores originais. Ele não quer negociar — ele quer seu sangue ancestral!</color>";
+        }
+
+        // 1. Tag de Status (Top-Left)
+        GameObject statusGO = new GameObject("StatusTag");
+        statusGO.transform.SetParent(topCard.transform, false);
+        TextMeshProUGUI statusTMP = statusGO.AddComponent<TextMeshProUGUI>();
+        statusTMP.text = statusText;
+        statusTMP.fontSize = 14;
+        statusTMP.fontStyle = FontStyles.Bold;
+        statusTMP.color = statusColor;
+        if (customFont != null) statusTMP.font = customFont;
+        RectTransform statusRect = statusGO.GetComponent<RectTransform>();
+        statusRect.anchorMin = new Vector2(0f, 1f);
+        statusRect.anchorMax = new Vector2(1f, 1f);
+        statusRect.pivot = new Vector2(0f, 1f);
+        statusRect.anchoredPosition = new Vector2(24f, -14f);
+        statusRect.sizeDelta = new Vector2(-48f, 20f);
+
+        // 2. Título Imponente e Nítido
+        GameObject titleGO = new GameObject("Title");
+        titleGO.transform.SetParent(topCard.transform, false);
+        TextMeshProUGUI titleTMP = titleGO.AddComponent<TextMeshProUGUI>();
+        titleTMP.text = titleText;
+        titleTMP.fontSize = 22;
+        titleTMP.fontStyle = FontStyles.Bold;
+        titleTMP.color = TEXT_TITLE;
+        if (customFont != null) titleTMP.font = customFont;
+        RectTransform titleRect = titleGO.GetComponent<RectTransform>();
+        titleRect.anchorMin = new Vector2(0f, 1f);
+        titleRect.anchorMax = new Vector2(1f, 1f);
+        titleRect.pivot = new Vector2(0f, 1f);
+        titleRect.anchoredPosition = new Vector2(24f, -38f);
+        titleRect.sizeDelta = new Vector2(-48f, 28f);
+
+        // 3. Briefing de Leitura Limpa e Confortável
+        GameObject briefGO = new GameObject("Briefing");
+        briefGO.transform.SetParent(topCard.transform, false);
+        TextMeshProUGUI briefTMP = briefGO.AddComponent<TextMeshProUGUI>();
+        briefTMP.text = briefingText;
+        briefTMP.fontSize = 15;
+        briefTMP.color = TEXT_BODY;
+        briefTMP.lineSpacing = 1.15f;
+        briefTMP.textWrappingMode = TextWrappingModes.Normal;
+        RectTransform briefRect = briefGO.GetComponent<RectTransform>();
+        briefRect.anchorMin = new Vector2(0f, 1f);
+        briefRect.anchorMax = new Vector2(1f, 1f);
+        briefRect.pivot = new Vector2(0f, 1f);
+        briefRect.anchoredPosition = new Vector2(24f, -70f);
+        briefRect.sizeDelta = new Vector2(-48f, topHeight - 78f);
+
+        // ── Lista de 20 Registros de Encontros Decodificados ──
+        for (int i = 0; i < totalEnigmas; i++)
+        {
+            bool isUnlocked = i < encounterCount;
+            CreateMerchantEncounterCard(grid, i, isUnlocked);
+        }
+    }
+
+    private void CreateMerchantEncounterCard(Transform parent, int encounterIndex, bool isUnlocked)
+    {
+        int encNum = encounterIndex + 1;
+        int pct = encNum * 5;
+
+        GameObject card = new GameObject($"MerchantEncounter_{encNum}");
+        card.transform.SetParent(parent, false);
+
+        if (isUnlocked)
+        {
+            var line = MerchantEncounterDialogueSystem.GetEncounterByIndex(encounterIndex);
+            float cardHeight = 152f;
+
+            Color borderColor = encNum == 20
+                ? new Color(0.95f, 0.20f, 0.25f, 0.90f)
+                : new Color(0.25f, 0.70f, 0.90f, 0.70f);
+
+            StyleCardBase(card, cardHeight, borderColor, 4f);
+
+            string badgeColor = encNum == 20 ? "#EF4444" : "#38BDF8";
+
+            // Tag do Encontro
+            GameObject tagGO = new GameObject("Tag");
+            tagGO.transform.SetParent(card.transform, false);
+            TextMeshProUGUI tagTMP = tagGO.AddComponent<TextMeshProUGUI>();
+            tagTMP.text = $"<color={badgeColor}>● ENCONTRO #{encNum} // {line.percentageBadge}</color>";
+            tagTMP.fontSize = 14;
+            tagTMP.fontStyle = FontStyles.Bold;
+            tagTMP.color = TECH_CYAN;
+            if (customFont != null) tagTMP.font = customFont;
+            RectTransform tagRt = tagGO.GetComponent<RectTransform>();
+            tagRt.anchorMin = new Vector2(0f, 1f);
+            tagRt.anchorMax = new Vector2(1f, 1f);
+            tagRt.pivot = new Vector2(0f, 1f);
+            tagRt.anchoredPosition = new Vector2(24f, -14f);
+            tagRt.sizeDelta = new Vector2(-48f, 20f);
+
+            // Fala do Mercador
+            GameObject speechGO = new GameObject("Speech");
+            speechGO.transform.SetParent(card.transform, false);
+            TextMeshProUGUI speechTMP = speechGO.AddComponent<TextMeshProUGUI>();
+            speechTMP.text = "<i>\"" + line.merchantSpeech + "\"</i>";
+            speechTMP.fontSize = 15;
+            speechTMP.color = new Color(0.92f, 0.94f, 0.97f, 1f);
+            speechTMP.lineSpacing = 1.15f;
+            speechTMP.textWrappingMode = TextWrappingModes.Normal;
+            RectTransform speechRt = speechGO.GetComponent<RectTransform>();
+            speechRt.anchorMin = new Vector2(0f, 1f);
+            speechRt.anchorMax = new Vector2(1f, 1f);
+            speechRt.pivot = new Vector2(0f, 1f);
+            speechRt.anchoredPosition = new Vector2(24f, -38f);
+            speechRt.sizeDelta = new Vector2(-48f, 44f);
+
+            // Anotação do Eptinho
+            GameObject noteGO = new GameObject("EptinhoNote");
+            noteGO.transform.SetParent(card.transform, false);
+            TextMeshProUGUI noteTMP = noteGO.AddComponent<TextMeshProUGUI>();
+            noteTMP.text = $"<color=#FBBF24>ANOTAÇÃO DO EPTINHO:</color> {line.eptinhoComment}";
+            noteTMP.fontSize = 14;
+            noteTMP.color = new Color(0.70f, 0.85f, 1.0f, 0.95f);
+            noteTMP.lineSpacing = 1.15f;
+            noteTMP.textWrappingMode = TextWrappingModes.Normal;
+            RectTransform noteRt = noteGO.GetComponent<RectTransform>();
+            noteRt.anchorMin = new Vector2(0f, 1f);
+            noteRt.anchorMax = new Vector2(1f, 1f);
+            noteRt.pivot = new Vector2(0f, 1f);
+            noteRt.anchoredPosition = new Vector2(24f, -90f);
+            noteRt.sizeDelta = new Vector2(-48f, 48f);
+        }
+        else
+        {
+            StyleCardBase(card, 84f, new Color(0.15f, 0.20f, 0.28f, 0.40f), 4f);
+
+            // Tag Bloqueada
+            GameObject tagGO = new GameObject("Tag");
+            tagGO.transform.SetParent(card.transform, false);
+            TextMeshProUGUI tagTMP = tagGO.AddComponent<TextMeshProUGUI>();
+            tagTMP.text = $"○ ENCONTRO #{encNum} // SINAL CRIPTOGRAFADO ({pct}%)";
+            tagTMP.fontSize = 14;
+            tagTMP.fontStyle = FontStyles.Bold;
+            tagTMP.color = TEXT_DIM;
+            if (customFont != null) tagTMP.font = customFont;
+            RectTransform tagRt = tagGO.GetComponent<RectTransform>();
+            tagRt.anchorMin = new Vector2(0f, 1f);
+            tagRt.anchorMax = new Vector2(1f, 1f);
+            tagRt.pivot = new Vector2(0f, 1f);
+            tagRt.anchoredPosition = new Vector2(24f, -16f);
+            tagRt.sizeDelta = new Vector2(-48f, 20f);
+
+            // Texto criptografado
+            GameObject encGO = new GameObject("Encrypted");
+            encGO.transform.SetParent(card.transform, false);
+            TextMeshProUGUI encTMP = encGO.AddComponent<TextMeshProUGUI>();
+            encTMP.text = "██████████████████████████████████████████████████ (Intercepte o Mercador em campo para decodificar)";
+            encTMP.fontSize = 14;
+            encTMP.color = new Color(0.40f, 0.45f, 0.55f, 0.6f);
+            encTMP.textWrappingMode = TextWrappingModes.Normal;
+            RectTransform encRt = encGO.GetComponent<RectTransform>();
+            encRt.anchorMin = new Vector2(0f, 1f);
+            encRt.anchorMax = new Vector2(1f, 1f);
+            encRt.pivot = new Vector2(0f, 1f);
+            encRt.anchoredPosition = new Vector2(24f, -44f);
+            encRt.sizeDelta = new Vector2(-48f, 26f);
+        }
+    }
     // ─────────────────────────────────────────────────────────────────────────
     // Criação de Cards
     // ─────────────────────────────────────────────────────────────────────────
@@ -894,6 +1296,22 @@ public class EptinhoMenuController : MonoBehaviour
         if (contentCatalogo != null && contentCatalogo.activeSelf)
         {
             RefreshCatalogo();
+        }
+    }
+
+    public void AtualizarAbaLore()
+    {
+        if (contentLore != null && contentLore.activeSelf)
+        {
+            RefreshLore();
+        }
+    }
+
+    public void AtualizarAbaMercador()
+    {
+        if (contentMercador != null && contentMercador.activeSelf)
+        {
+            RefreshMercador();
         }
     }
 
@@ -931,8 +1349,8 @@ public class EptinhoMenuController : MonoBehaviour
         enemyDetailModal.transform.SetParent(panelObj.transform, false);
 
         RectTransform r = enemyDetailModal.AddComponent<RectTransform>();
-        r.anchorMin = new Vector2(0.02f, 0.04f);
-        r.anchorMax = new Vector2(0.98f, 0.84f);
+        r.anchorMin = new Vector2(0.015f, 0.03f);
+        r.anchorMax = new Vector2(0.985f, 0.97f);
         r.sizeDelta = Vector2.zero;
 
         Image bg = enemyDetailModal.AddComponent<Image>();
@@ -942,28 +1360,54 @@ public class EptinhoMenuController : MonoBehaviour
         outline.effectColor = TECH_CYAN;
         outline.effectDistance = new Vector2(2f, -2f);
 
-        // Botão Fechar Modal posicionado com perfeição no canto superior direito
-        GameObject btnCloseModal = CreateButton(enemyDetailModal.transform, "BtnCloseModal", "✕  VOLTAR AO BESTIÁRIO",
-            new Vector2(-24f, -20f), new Vector2(230f, 42f), new Color(0.65f, 0.18f, 0.22f, 0.95f), () => FecharInspecaoInimigo());
+        // ── Top Header Bar (Dedicação exclusiva para título e botão fechar) ──
+        GameObject headerBar = new GameObject("ModalHeaderBar");
+        headerBar.transform.SetParent(enemyDetailModal.transform, false);
+        RectTransform headerRt = headerBar.AddComponent<RectTransform>();
+        headerRt.anchorMin = new Vector2(0f, 1f);
+        headerRt.anchorMax = new Vector2(1f, 1f);
+        headerRt.pivot = new Vector2(0.5f, 1f);
+        headerRt.anchoredPosition = Vector2.zero;
+        headerRt.sizeDelta = new Vector2(0f, 52f);
+
+        Image headerBg = headerBar.AddComponent<Image>();
+        headerBg.color = new Color(0.055f, 0.075f, 0.115f, 0.92f);
+
+        GameObject hLine = new GameObject("HeaderSepLine");
+        hLine.transform.SetParent(headerBar.transform, false);
+        RectTransform hlRt = hLine.AddComponent<RectTransform>();
+        hlRt.anchorMin = new Vector2(0f, 0f);
+        hlRt.anchorMax = new Vector2(1f, 0f);
+        hlRt.pivot = new Vector2(0.5f, 0f);
+        hlRt.sizeDelta = new Vector2(0f, 1.5f);
+        Image hlImg = hLine.AddComponent<Image>();
+        hlImg.color = new Color(0.25f, 0.45f, 0.70f, 0.50f);
+
+        CreateLabel(headerBar.transform, "HeaderTag", "● REGISTRO DO ORÁCULO // ANÁLISE DE ESPÉCIME BIOLÓGICO",
+            new Vector2(20f, -15f), 16, TECH_CYAN, true, TextAlignmentOptions.Left, new Vector2(650f, 26f));
+
+        GameObject btnCloseModal = CreateButton(headerBar.transform, "BtnCloseModal", "←  VOLTAR AO BESTIÁRIO",
+            new Vector2(-16f, -7f), new Vector2(220f, 38f), new Color(0.65f, 0.18f, 0.22f, 0.95f), () => FecharInspecaoInimigo());
         RectTransform bCloseRt = btnCloseModal.GetComponent<RectTransform>();
         bCloseRt.anchorMin = new Vector2(1f, 1f);
         bCloseRt.anchorMax = new Vector2(1f, 1f);
         bCloseRt.pivot = new Vector2(1f, 1f);
-        bCloseRt.anchoredPosition = new Vector2(-24f, -20f);
+        bCloseRt.anchoredPosition = new Vector2(-16f, -7f);
         Transform bCloseTr = btnCloseModal.transform.Find("Label");
         if (bCloseTr != null)
         {
             TextMeshProUGUI bTmp = bCloseTr.GetComponent<TextMeshProUGUI>();
-            if (bTmp != null) bTmp.fontSize = 18;
+            if (bTmp != null) bTmp.fontSize = 15;
         }
 
-        // --- Lado Esquerdo: Moldura Holográfica de Análise do Espécime ---
+        // ── Lado Esquerdo: Moldura Holográfica de Análise do Espécime ──
         GameObject viewContainer = new GameObject("Holo_SpecimenContainer");
         viewContainer.transform.SetParent(enemyDetailModal.transform, false);
         RectTransform vcr = viewContainer.AddComponent<RectTransform>();
-        vcr.anchorMin = new Vector2(0.04f, 0.08f);
-        vcr.anchorMax = new Vector2(0.48f, 0.94f);
-        vcr.sizeDelta = Vector2.zero;
+        vcr.anchorMin = new Vector2(0.025f, 0.04f);
+        vcr.anchorMax = new Vector2(0.44f, 1f);
+        vcr.offsetMin = new Vector2(0f, 10f);
+        vcr.offsetMax = new Vector2(0f, -66f);
 
         Image viewBg = viewContainer.AddComponent<Image>();
         viewBg.color = new Color(0.015f, 0.020f, 0.035f, 1f);
@@ -972,19 +1416,17 @@ public class EptinhoMenuController : MonoBehaviour
         viewOutline.effectColor = new Color(0.25f, 0.65f, 0.95f, 0.5f);
         viewOutline.effectDistance = new Vector2(1.5f, -1.5f);
 
-        // Moldura interna do retrato
         GameObject iconFrameObj = new GameObject("SpecimenFrame");
         iconFrameObj.transform.SetParent(viewContainer.transform, false);
         RectTransform iconFrameRect = iconFrameObj.AddComponent<RectTransform>();
-        iconFrameRect.anchorMin = new Vector2(0.08f, 0.14f);
-        iconFrameRect.anchorMax = new Vector2(0.92f, 0.92f);
+        iconFrameRect.anchorMin = new Vector2(0.06f, 0.12f);
+        iconFrameRect.anchorMax = new Vector2(0.94f, 0.92f);
         iconFrameRect.sizeDelta = Vector2.zero;
         Image ifImg = iconFrameObj.AddComponent<Image>();
         ifImg.color = new Color(0.02f, 0.035f, 0.06f, 0.95f);
         Outline ifOutline = iconFrameObj.AddComponent<Outline>();
         ifOutline.effectColor = new Color(0.35f, 0.75f, 0.95f, 0.35f);
 
-        // Imagem central do ícone do espécime (translúcida de fundo)
         GameObject iconImgObj = new GameObject("SpecimenIcon");
         iconImgObj.transform.SetParent(iconFrameObj.transform, false);
         RectTransform iconImgRect = iconImgObj.AddComponent<RectTransform>();
@@ -993,14 +1435,13 @@ public class EptinhoMenuController : MonoBehaviour
         iconImgRect.sizeDelta = Vector2.zero;
         modalEnemyIconImg = iconImgObj.AddComponent<Image>();
         modalEnemyIconImg.preserveAspect = true;
-        modalEnemyIconImg.color = new Color(1f, 1f, 1f, 0.15f); // Marca d'água sutil atrás
+        modalEnemyIconImg.color = new Color(1f, 1f, 1f, 0.15f);
 
-        // Card central estilizado: "✦ EM BREVE ✦" (Modelo 3D em desenvolvimento)
         GameObject comingSoonBox = new GameObject("3D_ComingSoonBox");
         comingSoonBox.transform.SetParent(iconFrameObj.transform, false);
         RectTransform csRect = comingSoonBox.AddComponent<RectTransform>();
-        csRect.anchorMin = new Vector2(0.06f, 0.10f);
-        csRect.anchorMax = new Vector2(0.94f, 0.90f);
+        csRect.anchorMin = new Vector2(0.06f, 0.12f);
+        csRect.anchorMax = new Vector2(0.94f, 0.88f);
         csRect.sizeDelta = Vector2.zero;
 
         Image csBg = comingSoonBox.AddComponent<Image>();
@@ -1009,89 +1450,109 @@ public class EptinhoMenuController : MonoBehaviour
         csOutline.effectColor = new Color(0.20f, 0.65f, 0.95f, 0.40f);
         csOutline.effectDistance = new Vector2(1.5f, -1.5f);
 
-        // Texto 1: "✦ EM BREVE ✦"
         CreateLabel(comingSoonBox.transform, "LabelEmBreve", "✦ EM BREVE ✦",
-            new Vector2(0f, 48f), 30, Color.white, true, TextAlignmentOptions.Center, new Vector2(340f, 38f));
+            new Vector2(0f, 52f), 30, MASTER_GOLD, true, TextAlignmentOptions.Center, new Vector2(340f, 38f));
 
-        // Texto 2: "MODELO 3D EM DESENVOLVIMENTO"
         CreateLabel(comingSoonBox.transform, "LabelSub", "MODELO 3D INTERATIVO",
-            new Vector2(0f, 12f), 17, TECH_CYAN, true, TextAlignmentOptions.Center, new Vector2(340f, 26f));
+            new Vector2(0f, 16f), 17, TECH_CYAN, true, TextAlignmentOptions.Center, new Vector2(340f, 26f));
 
-        // Texto 3: Nota explicativa solicitada pelo jogador
-        CreateLabel(comingSoonBox.transform, "LabelDesc", "A representação tridimensional 360° deste espécime será adicionada em uma futura atualização do Oráculo.",
-            new Vector2(0f, -42f), 14, TEXT_BODY, false, TextAlignmentOptions.Center, new Vector2(310f, 60f));
+        CreateLabel(comingSoonBox.transform, "LabelDesc", "A representação tridimensional e rotação em 360° deste espécime será adicionada em uma futura transmissão do Oráculo.",
+            new Vector2(0f, -42f), 15, TEXT_BODY, false, TextAlignmentOptions.Center, new Vector2(330f, 65f));
 
-        // Subtítulo / Legenda técnica inferior
-        CreateLabel(viewContainer.transform, "SpecimenHint", "✦ ANÁLISE DO ESPÉCIME BIOLÓGICO ✦",
-            new Vector2(0f, -200f), 16, TECH_CYAN, true, TextAlignmentOptions.Center, new Vector2(400f, 30f));
+        CreateLabel(viewContainer.transform, "SpecimenHint", "● ANÁLISE DO ESPÉCIME BIOLÓGICO ●",
+            new Vector2(0f, -220f), 15, TECH_CYAN, true, TextAlignmentOptions.Center, new Vector2(400f, 30f));
 
-        // --- Lado Direito: Dossiê e Estatísticas ---
+        // ── Lado Direito: Dossiê e Estatísticas ──
         GameObject dossier = new GameObject("DossierContainer");
         dossier.transform.SetParent(enemyDetailModal.transform, false);
         RectTransform dr = dossier.AddComponent<RectTransform>();
-        dr.anchorMin = new Vector2(0.52f, 0.08f);
-        dr.anchorMax = new Vector2(0.96f, 0.94f);
-        dr.sizeDelta = Vector2.zero;
+        dr.anchorMin = new Vector2(0.47f, 0.04f);
+        dr.anchorMax = new Vector2(0.975f, 1f);
+        dr.offsetMin = new Vector2(0f, 16f);
+        dr.offsetMax = new Vector2(0f, -66f);
 
-        // Nome
+        VerticalLayoutGroup dVlg = dossier.AddComponent<VerticalLayoutGroup>();
+        dVlg.padding = new RectOffset(6, 6, 8, 8);
+        dVlg.spacing = 10f;
+        dVlg.childControlWidth = true;
+        dVlg.childControlHeight = false;
+        dVlg.childForceExpandWidth = true;
+        dVlg.childForceExpandHeight = false;
+
+        // 1. Nome do Inimigo
         GameObject nameGO = new GameObject("ModalEnemyName");
         nameGO.transform.SetParent(dossier.transform, false);
         modalEnemyNameTMP = nameGO.AddComponent<TextMeshProUGUI>();
         modalEnemyNameTMP.fontSize = 32;
         modalEnemyNameTMP.fontStyle = FontStyles.Bold;
         modalEnemyNameTMP.color = TEXT_TITLE;
+        modalEnemyNameTMP.textWrappingMode = TextWrappingModes.NoWrap;
         if (customFont != null) modalEnemyNameTMP.font = customFont;
-        RectTransform nameRect = nameGO.GetComponent<RectTransform>();
-        nameRect.anchorMin = new Vector2(0f, 1f);
-        nameRect.anchorMax = new Vector2(1f, 1f);
-        nameRect.pivot = new Vector2(0f, 1f);
-        nameRect.anchoredPosition = new Vector2(0f, 0f);
-        nameRect.sizeDelta = new Vector2(-260f, 40f);
+        LayoutElement nameLe = nameGO.AddComponent<LayoutElement>();
+        nameLe.preferredHeight = 38f;
+        nameLe.flexibleHeight = 0f;
 
-        // Classe
+        // 2. Classe / Categoria
         GameObject classGO = new GameObject("ModalEnemyClass");
         classGO.transform.SetParent(dossier.transform, false);
         modalEnemyClassTMP = classGO.AddComponent<TextMeshProUGUI>();
-        modalEnemyClassTMP.fontSize = 20;
+        modalEnemyClassTMP.fontSize = 17;
         modalEnemyClassTMP.fontStyle = FontStyles.Bold;
         modalEnemyClassTMP.color = TECH_CYAN;
+        modalEnemyClassTMP.textWrappingMode = TextWrappingModes.Normal;
         if (customFont != null) modalEnemyClassTMP.font = customFont;
-        RectTransform classRect = classGO.GetComponent<RectTransform>();
-        classRect.anchorMin = new Vector2(0f, 1f);
-        classRect.anchorMax = new Vector2(1f, 1f);
-        classRect.pivot = new Vector2(0f, 1f);
-        classRect.anchoredPosition = new Vector2(0f, -44f);
-        classRect.sizeDelta = new Vector2(-260f, 28f);
+        LayoutElement classLe = classGO.AddComponent<LayoutElement>();
+        classLe.preferredHeight = 24f;
+        classLe.flexibleHeight = 0f;
 
-        // Estatísticas de Combate
+        // 3. Linha divisória
+        GameObject dLine = new GameObject("DossierSepLine");
+        dLine.transform.SetParent(dossier.transform, false);
+        Image dlImg = dLine.AddComponent<Image>();
+        dlImg.color = new Color(0.20f, 0.40f, 0.60f, 0.45f);
+        LayoutElement dlLe = dLine.AddComponent<LayoutElement>();
+        dlLe.preferredHeight = 2f;
+        dlLe.flexibleHeight = 0f;
+
+        // 4. Estatísticas de Combate
         GameObject statsGO = new GameObject("ModalEnemyStats");
         statsGO.transform.SetParent(dossier.transform, false);
         modalEnemyStatsTMP = statsGO.AddComponent<TextMeshProUGUI>();
-        modalEnemyStatsTMP.fontSize = 19;
+        modalEnemyStatsTMP.fontSize = 16;
         modalEnemyStatsTMP.color = SUCCESS_COLOR;
         modalEnemyStatsTMP.richText = true;
+        modalEnemyStatsTMP.textWrappingMode = TextWrappingModes.Normal;
         if (customFont != null) modalEnemyStatsTMP.font = customFont;
-        RectTransform statsRect = statsGO.GetComponent<RectTransform>();
-        statsRect.anchorMin = new Vector2(0f, 1f);
-        statsRect.anchorMax = new Vector2(1f, 1f);
-        statsRect.pivot = new Vector2(0f, 1f);
-        statsRect.anchoredPosition = new Vector2(0f, -80f);
-        statsRect.sizeDelta = new Vector2(0f, 40f);
+        LayoutElement statsLe = statsGO.AddComponent<LayoutElement>();
+        statsLe.preferredHeight = 30f;
+        statsLe.flexibleHeight = 0f;
 
-        // Descrição / Lore
+        // 5. Cabeçalho Descrição
+        GameObject descHeadGO = new GameObject("DescHeader");
+        descHeadGO.transform.SetParent(dossier.transform, false);
+        TextMeshProUGUI descHeadTMP = descHeadGO.AddComponent<TextMeshProUGUI>();
+        descHeadTMP.text = "● DIRETRIZES TÁTICAS & COMPORTAMENTO:";
+        descHeadTMP.fontSize = 13;
+        descHeadTMP.fontStyle = FontStyles.Bold;
+        descHeadTMP.color = TECH_CYAN;
+        if (customFont != null) descHeadTMP.font = customFont;
+        LayoutElement dhLe = descHeadGO.AddComponent<LayoutElement>();
+        dhLe.preferredHeight = 20f;
+        dhLe.flexibleHeight = 0f;
+
+        // 6. Descrição (expande verticalmente de forma limpa)
         GameObject descGO = new GameObject("ModalEnemyDesc");
         descGO.transform.SetParent(dossier.transform, false);
         modalEnemyDescTMP = descGO.AddComponent<TextMeshProUGUI>();
-        modalEnemyDescTMP.fontSize = 22;
+        modalEnemyDescTMP.fontSize = 17;
         modalEnemyDescTMP.color = TEXT_BODY;
         modalEnemyDescTMP.textWrappingMode = TextWrappingModes.Normal;
+        modalEnemyDescTMP.lineSpacing = 1.15f;
         if (customFont != null) modalEnemyDescTMP.font = customFont;
-        RectTransform descRect = descGO.GetComponent<RectTransform>();
-        descRect.anchorMin = new Vector2(0f, 0f);
-        descRect.anchorMax = new Vector2(1f, 1f);
-        descRect.pivot = new Vector2(0f, 1f);
-        descRect.offsetMin = new Vector2(0f, 15f);
-        descRect.offsetMax = new Vector2(0f, -135f);
+        LayoutElement descLe = descGO.AddComponent<LayoutElement>();
+        descLe.minHeight = 80f;
+        descLe.preferredHeight = 160f;
+        descLe.flexibleHeight = 1f;
 
         enemyDetailModal.SetActive(false);
     }
@@ -1105,12 +1566,12 @@ public class EptinhoMenuController : MonoBehaviour
 
         Color classColor = ObterCorDaClasse(data.enemyClass);
         modalEnemyNameTMP.text = data.enemyName.ToUpper();
-        modalEnemyClassTMP.text = $"[ CLASSE / AMEAÇA: {(!string.IsNullOrEmpty(data.enemyClass) ? data.enemyClass.ToUpper() : "ESPÉCIME ANÔMALO")} ]";
-        modalEnemyClassTMP.color = classColor;
+        string cName = !string.IsNullOrEmpty(data.enemyClass) ? data.enemyClass.ToUpper() : "ESPÉCIME ANÔMALO";
+        modalEnemyClassTMP.text = $"CLASSE: <color=#{ColorUtility.ToHtmlStringRGB(classColor)}>{cName}</color>";
 
         string hpStr = data.vidaBase > 0 ? $"{data.vidaBase}" : "Não quantificado";
         string dmgStr = data.danoBase > 0 ? $"{data.danoBase:F0}" : "Não quantificado";
-        modalEnemyStatsTMP.text = $"<b>VIDA BASE:</b> <color=#FFE500>{hpStr}</color>   |   <b>DANO:</b> <color=#FF5555>{dmgStr}</color>   |   <b>SPAWN BUDGET:</b> <color=#38BDF8>{data.custoBudget}</color>";
+        modalEnemyStatsTMP.text = $"<b>VIDA:</b> <color=#FFE500>{hpStr}</color>   ✦   <b>DANO:</b> <color=#FF5555>{dmgStr}</color>   ✦   <b>BUDGET:</b> <color=#38BDF8>{data.custoBudget}</color>";
 
         modalEnemyDescTMP.text = !string.IsNullOrEmpty(data.descricao)
             ? data.descricao
@@ -1131,6 +1592,285 @@ public class EptinhoMenuController : MonoBehaviour
         }
 
         enemyDetailModal.SetActive(true);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Modal de Transcrição e Leitura de Diálogos da Lore
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private void EnsureDialogTranscriptModal()
+    {
+        if (dialogTranscriptModal != null) return;
+
+        dialogTranscriptModal = new GameObject("DialogTranscriptModal");
+        dialogTranscriptModal.transform.SetParent(panelObj.transform, false);
+
+        RectTransform r = dialogTranscriptModal.AddComponent<RectTransform>();
+        r.anchorMin = new Vector2(0.02f, 0.03f);
+        r.anchorMax = new Vector2(0.98f, 0.97f);
+        r.sizeDelta = Vector2.zero;
+
+        Image bg = dialogTranscriptModal.AddComponent<Image>();
+        bg.color = new Color(0.035f, 0.045f, 0.070f, 0.98f);
+
+        Outline outline = dialogTranscriptModal.AddComponent<Outline>();
+        outline.effectColor = TECH_CYAN;
+        outline.effectDistance = new Vector2(2f, -2f);
+
+        Shadow shadow = dialogTranscriptModal.AddComponent<Shadow>();
+        shadow.effectColor = new Color(0f, 0f, 0f, 0.75f);
+        shadow.effectDistance = new Vector2(10f, -10f);
+
+        AddCornerBrackets(dialogTranscriptModal, TECH_CYAN_DIM, 26f, 2.5f);
+
+        // ── Top Header Bar (Dedicação para contexto, título e botão fechar) ──
+        GameObject headerBar = new GameObject("ModalHeaderBar");
+        headerBar.transform.SetParent(dialogTranscriptModal.transform, false);
+        RectTransform headerRt = headerBar.AddComponent<RectTransform>();
+        headerRt.anchorMin = new Vector2(0f, 1f);
+        headerRt.anchorMax = new Vector2(1f, 1f);
+        headerRt.pivot = new Vector2(0.5f, 1f);
+        headerRt.anchoredPosition = Vector2.zero;
+        headerRt.sizeDelta = new Vector2(0f, 62f);
+
+        Image headerBg = headerBar.AddComponent<Image>();
+        headerBg.color = new Color(0.055f, 0.075f, 0.115f, 0.95f);
+
+        GameObject hLine = new GameObject("HeaderSepLine");
+        hLine.transform.SetParent(headerBar.transform, false);
+        RectTransform hlRt = hLine.AddComponent<RectTransform>();
+        hlRt.anchorMin = new Vector2(0f, 0f);
+        hlRt.anchorMax = new Vector2(1f, 0f);
+        hlRt.pivot = new Vector2(0.5f, 0f);
+        hlRt.sizeDelta = new Vector2(0f, 1.5f);
+        Image hlImg = hLine.AddComponent<Image>();
+        hlImg.color = new Color(0.25f, 0.45f, 0.70f, 0.50f);
+
+        // Contexto (Tag no topo esquerdo da barra)
+        GameObject contextGO = new GameObject("ModalContext");
+        contextGO.transform.SetParent(headerBar.transform, false);
+        dialogModalContextTMP = contextGO.AddComponent<TextMeshProUGUI>();
+        dialogModalContextTMP.fontSize = 13;
+        dialogModalContextTMP.fontStyle = FontStyles.Bold;
+        dialogModalContextTMP.color = TECH_CYAN;
+        dialogModalContextTMP.alignment = TextAlignmentOptions.Left;
+        if (customFont != null) dialogModalContextTMP.font = customFont;
+        RectTransform ctxRt = contextGO.GetComponent<RectTransform>();
+        ctxRt.anchorMin = new Vector2(0f, 0.5f);
+        ctxRt.anchorMax = new Vector2(1f, 0.5f);
+        ctxRt.pivot = new Vector2(0f, 0.5f);
+        ctxRt.anchoredPosition = new Vector2(24f, 13f);
+        ctxRt.sizeDelta = new Vector2(-260f, 20f);
+
+        // Título (Linha de baixo da barra)
+        GameObject titleGO = new GameObject("ModalTitle");
+        titleGO.transform.SetParent(headerBar.transform, false);
+        dialogModalTitleTMP = titleGO.AddComponent<TextMeshProUGUI>();
+        dialogModalTitleTMP.fontSize = 22;
+        dialogModalTitleTMP.fontStyle = FontStyles.Bold;
+        dialogModalTitleTMP.color = TEXT_TITLE;
+        dialogModalTitleTMP.alignment = TextAlignmentOptions.Left;
+        if (customFont != null) dialogModalTitleTMP.font = customFont;
+        RectTransform titRt = titleGO.GetComponent<RectTransform>();
+        titRt.anchorMin = new Vector2(0f, 0.5f);
+        titRt.anchorMax = new Vector2(1f, 0.5f);
+        titRt.pivot = new Vector2(0f, 0.5f);
+        titRt.anchoredPosition = new Vector2(24f, -13f);
+        titRt.sizeDelta = new Vector2(-260f, 26f);
+
+        // Botão Fechar no Top-Right
+        GameObject btnClose = CreateButton(headerBar.transform, "BtnCloseModal", "←  VOLTAR À LISTA",
+            new Vector2(-16f, -11f), new Vector2(190f, 40f), new Color(0.65f, 0.18f, 0.22f, 0.95f), () => FecharTranscricaoDialogo());
+        RectTransform bCloseRt = btnClose.GetComponent<RectTransform>();
+        bCloseRt.anchorMin = new Vector2(1f, 1f);
+        bCloseRt.anchorMax = new Vector2(1f, 1f);
+        bCloseRt.pivot = new Vector2(1f, 1f);
+        bCloseRt.anchoredPosition = new Vector2(-16f, -11f);
+        Transform bCloseTr = btnClose.transform.Find("Label");
+        if (bCloseTr != null)
+        {
+            TextMeshProUGUI bTmp = bCloseTr.GetComponent<TextMeshProUGUI>();
+            if (bTmp != null) bTmp.fontSize = 15;
+        }
+
+        // ── Scroll Area para Transcrição de Falas ──
+        GameObject scrollRoot = CreateScrollArea(dialogTranscriptModal.transform, "TranscriptScroll",
+            new Vector2(0f, -8f), new Vector2(1100f, 530f));
+        RectTransform srRt = scrollRoot.GetComponent<RectTransform>();
+        srRt.anchorMin = new Vector2(0f, 0f);
+        srRt.anchorMax = new Vector2(1f, 1f);
+        srRt.pivot = new Vector2(0.5f, 0.5f);
+        srRt.offsetMin = new Vector2(24f, 65f);
+        srRt.offsetMax = new Vector2(-24f, -68f);
+
+        dialogModalScrollContent = scrollRoot.transform.Find("Viewport/Content");
+
+        // ── Bottom Action Bar (Ações adicionais: Reouvir / Atalho ESC) ──
+        GameObject bottomBar = new GameObject("ModalBottomBar");
+        bottomBar.transform.SetParent(dialogTranscriptModal.transform, false);
+        RectTransform botRt = bottomBar.AddComponent<RectTransform>();
+        botRt.anchorMin = new Vector2(0f, 0f);
+        botRt.anchorMax = new Vector2(1f, 0f);
+        botRt.pivot = new Vector2(0.5f, 0f);
+        botRt.anchoredPosition = Vector2.zero;
+        botRt.sizeDelta = new Vector2(0f, 54f);
+
+        Image botBg = bottomBar.AddComponent<Image>();
+        botBg.color = new Color(0.04f, 0.055f, 0.085f, 0.90f);
+
+        GameObject bLine = new GameObject("BottomSepLine");
+        bLine.transform.SetParent(bottomBar.transform, false);
+        RectTransform blRt = bLine.AddComponent<RectTransform>();
+        blRt.anchorMin = new Vector2(0f, 1f);
+        blRt.anchorMax = new Vector2(1f, 1f);
+        blRt.pivot = new Vector2(0.5f, 1f);
+        blRt.sizeDelta = new Vector2(0f, 1.5f);
+        Image blImg = bLine.AddComponent<Image>();
+        blImg.color = new Color(0.20f, 0.40f, 0.60f, 0.40f);
+
+        // Atalho ESC
+        GameObject hintGO = new GameObject("ModalHint");
+        hintGO.transform.SetParent(bottomBar.transform, false);
+        TextMeshProUGUI hintTMP = hintGO.AddComponent<TextMeshProUGUI>();
+        hintTMP.text = "Pressione [ESC] ou clique em Voltar para retornar à lista de transmissões.";
+        hintTMP.fontSize = 14;
+        hintTMP.color = TEXT_DIM;
+        hintTMP.alignment = TextAlignmentOptions.Left;
+        if (customFont != null) hintTMP.font = customFont;
+        RectTransform hintRt = hintGO.GetComponent<RectTransform>();
+        hintRt.anchorMin = new Vector2(0f, 0.5f);
+        hintRt.anchorMax = new Vector2(0.6f, 0.5f);
+        hintRt.pivot = new Vector2(0f, 0.5f);
+        hintRt.anchoredPosition = new Vector2(24f, 0f);
+        hintRt.sizeDelta = new Vector2(0f, 30f);
+
+        // Botão Reouvir no HUD da Nave (Opcional)
+        GameObject btnReplay = CreateButton(bottomBar.transform, "BtnModalReplay", "▷  REOUVIR NO HUD DA NAVE",
+            new Vector2(-20f, 0f), new Vector2(240f, 38f), new Color(0.12f, 0.28f, 0.44f, 0.95f), () =>
+            {
+                string idToPlay = currentTranscriptDialogId;
+                FecharMenu();
+                if (!string.IsNullOrEmpty(idToPlay))
+                {
+                    EptinhoStoryDialogs.ReplayDialog(idToPlay);
+                }
+            });
+        RectTransform brRt = btnReplay.GetComponent<RectTransform>();
+        brRt.anchorMin = new Vector2(1f, 0.5f);
+        brRt.anchorMax = new Vector2(1f, 0.5f);
+        brRt.pivot = new Vector2(1f, 0.5f);
+        brRt.anchoredPosition = new Vector2(-20f, 0f);
+        Outline brOut = btnReplay.GetComponent<Outline>();
+        if (brOut != null) brOut.effectColor = TECH_CYAN;
+        Transform brLbl = btnReplay.transform.Find("Label");
+        if (brLbl != null)
+        {
+            var lTmp = brLbl.GetComponent<TextMeshProUGUI>();
+            if (lTmp != null) lTmp.fontSize = 14;
+        }
+
+        dialogTranscriptModal.SetActive(false);
+    }
+
+    public void ExibirTranscricaoDialogo(EptinhoStoryDialogs.StoryDialogRecord rec)
+    {
+        if (string.IsNullOrEmpty(rec.id)) return;
+        EnsureDialogTranscriptModal();
+        currentTranscriptDialogId = rec.id;
+
+        dialogModalContextTMP.text = $"● CONTEXTO // {rec.eventContext.ToUpper()}";
+        dialogModalTitleTMP.text = rec.title.ToUpper();
+
+        if (dialogModalScrollContent != null)
+        {
+            foreach (Transform child in dialogModalScrollContent) Destroy(child.gameObject);
+
+            if (rec.lines != null && rec.lines.Length > 0)
+            {
+                for (int i = 0; i < rec.lines.Length; i++)
+                {
+                    string rawLine = rec.lines[i];
+                    string speaker = "EPTINHO";
+                    string body = rawLine;
+
+                    if (rawLine.StartsWith("Eptinho:", System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        body = rawLine.Substring("Eptinho:".Length).Trim();
+                        if (body.StartsWith("\"") && body.EndsWith("\"") && body.Length >= 2)
+                        {
+                            body = body.Substring(1, body.Length - 2).Trim();
+                        }
+                    }
+
+                    // Card do Balão de Fala
+                    GameObject bubbleGO = new GameObject($"Bubble_{i}");
+                    bubbleGO.transform.SetParent(dialogModalScrollContent, false);
+                    Image bubbleBg = bubbleGO.AddComponent<Image>();
+                    bubbleBg.color = new Color(0.055f, 0.08f, 0.125f, 0.95f);
+
+                    Outline bubbleOut = bubbleGO.AddComponent<Outline>();
+                    bubbleOut.effectColor = new Color(0.20f, 0.45f, 0.70f, 0.40f);
+                    bubbleOut.effectDistance = new Vector2(1.5f, -1.5f);
+
+                    // Faixa de destaque na lateral esquerda
+                    GameObject barGO = new GameObject("SideBar");
+                    barGO.transform.SetParent(bubbleGO.transform, false);
+                    Image barImg = barGO.AddComponent<Image>();
+                    barImg.color = TECH_CYAN;
+                    RectTransform barRt = barGO.GetComponent<RectTransform>();
+                    barRt.anchorMin = new Vector2(0f, 0f);
+                    barRt.anchorMax = new Vector2(0f, 1f);
+                    barRt.pivot = new Vector2(0f, 0.5f);
+                    barRt.sizeDelta = new Vector2(4f, 0f);
+                    barRt.anchoredPosition = Vector2.zero;
+
+                    VerticalLayoutGroup bVlg = bubbleGO.AddComponent<VerticalLayoutGroup>();
+                    bVlg.padding = new RectOffset(24, 24, 18, 18);
+                    bVlg.spacing = 10f;
+                    bVlg.childControlWidth = true;
+                    bVlg.childControlHeight = true;
+                    bVlg.childForceExpandWidth = true;
+                    bVlg.childForceExpandHeight = false;
+
+                    ContentSizeFitter bCsf = bubbleGO.AddComponent<ContentSizeFitter>();
+                    bCsf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+                    // Orador e Parte
+                    GameObject spkGO = new GameObject("SpeakerTag");
+                    spkGO.transform.SetParent(bubbleGO.transform, false);
+                    TextMeshProUGUI spkTMP = spkGO.AddComponent<TextMeshProUGUI>();
+                    string partTag = rec.lines.Length > 1 ? $"  ✦  PARTE {i + 1} DE {rec.lines.Length}" : "";
+                    spkTMP.text = $"<color=#38BDF8><b>{speaker}</b></color> <color=#64748B>// ORÁCULO DE BORDO{partTag}</color>";
+                    spkTMP.fontSize = 15;
+                    spkTMP.alignment = TextAlignmentOptions.Left;
+                    if (customFont != null) spkTMP.font = customFont;
+
+                    // Linha do Texto Falado
+                    GameObject txtGO = new GameObject("SpeechText");
+                    txtGO.transform.SetParent(bubbleGO.transform, false);
+                    TextMeshProUGUI txtTMP = txtGO.AddComponent<TextMeshProUGUI>();
+                    txtTMP.text = body;
+                    txtTMP.fontSize = 20;
+                    txtTMP.color = new Color(0.92f, 0.96f, 1.0f, 1.0f);
+                    txtTMP.lineSpacing = 1.25f;
+                    txtTMP.textWrappingMode = TextWrappingModes.Normal;
+                    txtTMP.alignment = TextAlignmentOptions.Left;
+                    if (customFont != null) txtTMP.font = customFont;
+                }
+            }
+        }
+
+        dialogTranscriptModal.SetActive(true);
+        PlayBeep();
+    }
+
+    public void FecharTranscricaoDialogo()
+    {
+        if (dialogTranscriptModal != null && dialogTranscriptModal.activeSelf)
+        {
+            dialogTranscriptModal.SetActive(false);
+            PlayBeep();
+        }
     }
 
     public void FecharInspecaoInimigo()

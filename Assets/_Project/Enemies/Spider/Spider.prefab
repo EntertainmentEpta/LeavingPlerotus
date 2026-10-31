@@ -36,8 +36,8 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_LocalScale: {x: 0.8, y: 0.8, z: 0.8}
+  m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 4691346377027083492}
   - {fileID: 1211663840597194670}
@@ -118,7 +118,7 @@ CapsuleCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 1
+  m_Radius: 1.25
   m_Height: 2
   m_Direction: 1
   m_Center: {x: 0.000000059604645, y: 0, z: -0.00000008940697}
@@ -164,9 +164,16 @@ MonoBehaviour:
   isSlowed: 0
   maxHealth: 45
   debugLogDamage: 0
+  isElite: 0
+  hasRebornAsElite: 0
+  eliteRebirthChance: 0.1
+  originalPrefab: {fileID: 0}
+  owningRoom: {fileID: 0}
   healthBarSlider: {fileID: 0}
   normalColor: {r: 0.47589064, g: 1, b: 0, a: 1}
   buffedColor: {r: 0, g: 1, b: 1, a: 1}
+  projectileResistance: 0
+  knockbackResistance: 0
   floatingDamageTextPrefab: {fileID: 119183615461286708, guid: e1f50e2f4933445c94ed847caa8c7a3c, type: 3}
   textOffset: {x: 0, y: 2, z: 0}
   hitColor: {r: 1, g: 0, b: 0, a: 1}
@@ -251,6 +258,7 @@ MonoBehaviour:
   essencePrefab: {fileID: 1526004001283604428, guid: aac8898d50c757240944683fe67b0d7c, type: 3}
   essenceAmount: 10
   essenceVariation: 3
+  isEliteDrops: 0
   globalDropChance: 0.35
   itemAmount: 1
   lootPool:

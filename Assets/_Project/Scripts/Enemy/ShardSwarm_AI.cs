@@ -1322,4 +1322,16 @@ public class ShardSwarm_AI : MonoBehaviour
         float destroyDelay = (clip.length / safePitch) + (addReverb ? 1.5f : 0.1f);
         Destroy(audioObj, destroyDelay);
     }
+
+    public void TakeDamage(int damage, bool isCritical = false, bool isPoison = false)
+    {
+        if (health == null) health = GetComponent<ShardSwarmHealth>();
+        if (health != null) health.TakeDamage(damage, isCritical, isPoison);
+    }
+
+    public void ApplySlow(float percent, float duration)
+    {
+        if (health == null) health = GetComponent<ShardSwarmHealth>();
+        if (health != null) health.ApplySlow(percent, duration);
+    }
 }

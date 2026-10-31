@@ -91,7 +91,7 @@ public class WeaponRack : MonoBehaviour
 
     [Header("Estilo Visual das Armas")]
     [Tooltip("Se marcado, armas bloqueadas viram silhueta preta. Se desmarcado (recomendado), exibem o modelo real e destacam com outline quando selecionadas.")]
-    public bool usarSilhuetaArmaBloqueada = false;
+    public bool usarSilhuetaArmaBloqueada = true;
 
     [Header("Feedback Visual & Áudio")]
     public AudioClip equipSound;
@@ -115,6 +115,7 @@ public class WeaponRack : MonoBehaviour
 
     private void Awake()
     {
+        usarSilhuetaArmaBloqueada = true;
         if (Application.isPlaying)
         {
             if (Instance != null && Instance != this)
@@ -153,7 +154,7 @@ public class WeaponRack : MonoBehaviour
             {
                 ObjectiveMarker marker = gameObject.AddComponent<ObjectiveMarker>();
                 marker.condition = ObjectiveMarker.TriggerCondition.ByTutorialStep;
-                marker.activeOnStep = TutorialStep.EquiparNoRack;
+                marker.activeOnStep = TutorialStep.PegarMachado;
                 marker.heightOffset = 1.9f;
                 marker.markerSize = new Vector2(48f, 48f);
             }
@@ -312,9 +313,9 @@ public class WeaponRack : MonoBehaviour
             {
                 weaponId = "dagger",
                 displayName = "ADAGA DE PLASMA",
-                description = "Golpes velozes de curto alcance com acúmulo de combo ágil.",
+                description = "Armamento leve em desenvolvimento. Indisponível no teste atual.",
                 weaponType = WeaponType.Dagger,
-                unlockedByDefault = true,
+                unlockedByDefault = false,
                 requiredCraftId = "",
                 weaponPrefab = Resources.Load<GameObject>("dagger_low")
             });
@@ -630,9 +631,9 @@ public class WeaponRack : MonoBehaviour
             bool isUnlocked = IsSlotUnlocked(slot);
             bool isEquipped = IsWeaponCurrentlyEquipped(slot);
 
-            // A Adaga fica 100% invisível no expositor se ainda estiver caída no chão do dormitório
-            bool isDaggerStillOnFloor = (slot.weaponType == WeaponType.Dagger && !isUnlocked);
-            bool shouldDisplayWeapon = !isEquipped && !isDaggerStillOnFloor;
+            // Todas as armas (mesmo bloqueadas como Adaga e Pistola) aparecem no expositor com silhueta preta;
+            // só ocultamos a arma do expositor se ela estiver atualmente equipada na mão do jogador.
+            bool shouldDisplayWeapon = !isEquipped;
 
             slot.displayInstance.SetActive(shouldDisplayWeapon);
 
@@ -764,14 +765,7 @@ public class WeaponRack : MonoBehaviour
             }
             else
             {
-                if (activeHoverSlot.weaponType == WeaponType.Dagger)
-                {
-                    promptTMP.text = $"<color=#FFE500><b>{activeHoverSlot.displayName}</b></color>\n<size=75%><color=#E0E0E0>Colete no dormitório primeiro</color></size>";
-                }
-                else
-                {
-                    promptTMP.text = $"<color=#FFE500><b>{activeHoverSlot.displayName}</b></color>\n<size=75%><color=#E0E0E0>Forje no Robozinho para liberar</color></size>";
-                }
+                promptTMP.text = $"<color=#FF3333><b>{activeHoverSlot.displayName}</b></color>\n<size=75%><color=#FF6666>[ EM DESENVOLVIMENTO • INDISPONÍVEL ]</color></size>";
             }
         }
 
@@ -803,7 +797,7 @@ public class WeaponRack : MonoBehaviour
             if (lockedSound != null) AudioSource.PlayClipAtPoint(lockedSound, transform.position);
             if (EptinhoPopupController.instancia != null)
             {
-                EptinhoPopupController.instancia.MostrarPopupAviso("Esta arma ainda não foi forjada! Use o Robozinho para construí-la.");
+                EptinhoPopupController.instancia.MostrarPopupAviso($"<color=#FF4444>{slot.displayName}</color> está em desenvolvimento e indisponível para este teste. Empunhe o Machado de Cristal!");
             }
             return;
         }
@@ -816,39 +810,33 @@ public class WeaponRack : MonoBehaviour
 
             if (equipSound != null) AudioSource.PlayClipAtPoint(equipSound, transform.position);
 
+            if (slot.weaponType == WeaponType.Axe)
+            {
+                TutorialManager.Instance?.CompleteStep(TutorialStep.PegarMachado);
+                TutorialManager.Instance?.CompleteStep(TutorialStep.EquiparNoRack);
+            }
             TutorialManager.Instance?.CompleteStep(TutorialStep.EquiparNoRack);
 
             if (QuestManager.Instance != null)
             {
                 QuestManager.Instance.AdvanceQuest(QuestType.Interact, "weapon_equipped", 1);
+                QuestManager.Instance.AdvanceQuest(QuestType.Interact, "axe_pickup", 1);
+                QuestManager.Instance.AdvanceQuest(QuestType.Interact, "dagger_pickup", 1);
             }
         }
     }
 
     private bool IsSlotUnlocked(WeaponRackSlot slot)
     {
-        if (slot.weaponType == WeaponType.Dagger)
+        if (slot == null) return false;
+
+        // Apenas o Machado de Cristal está liberado para o playtest
+        if (slot.weaponType == WeaponType.Axe)
         {
-            // A Adaga de Plasma só fica disponível no expositor após ser coletada no chão do dormitório
-            if (TutorialManager.Instance != null && TutorialManager.Instance.currentStep == TutorialStep.PegarAdaga)
-            {
-                return false;
-            }
-            if (SaveManager.instance != null && SaveManager.instance.CachedData != null && SaveManager.instance.CachedData.tutorialStep == (int)TutorialStep.PegarAdaga)
-            {
-                return false;
-            }
             return true;
         }
 
-        if (slot.unlockedByDefault) return true;
-        if (string.IsNullOrEmpty(slot.requiredCraftId)) return true;
-
-        if (SaveManager.instance != null)
-        {
-            return SaveManager.instance.GetAllCraftedEquipmentIds().Contains(slot.requiredCraftId);
-        }
-
+        // Adaga de Plasma e Pistola de Plasma estão temporariamente indisponíveis (em desenvolvimento)
         return false;
     }
 

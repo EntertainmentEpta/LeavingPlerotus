@@ -11,10 +11,10 @@ public class KeybindManager : MonoBehaviour
     public TextMeshProUGUI txtUp; public TextMeshProUGUI txtDown; public TextMeshProUGUI txtLeft; public TextMeshProUGUI txtRight;
 
     [Header("Botões de Ação")]
-    public Button btnAttack; public Button btnDash; public Button btnUlt; 
+    public Button btnAttack; public Button btnHeavyAttack; public Button btnDash; public Button btnUlt; 
     public Button btnInteract; public Button btnInventory; public Button btnReload; public Button btnHeal;
     
-    public TextMeshProUGUI txtAttack; public TextMeshProUGUI txtDash; public TextMeshProUGUI txtUlt; 
+    public TextMeshProUGUI txtAttack; public TextMeshProUGUI txtHeavyAttack; public TextMeshProUGUI txtDash; public TextMeshProUGUI txtUlt; 
     public TextMeshProUGUI txtInteract; public TextMeshProUGUI txtInventory; public TextMeshProUGUI txtReload; public TextMeshProUGUI txtHeal;
 
     [Header("Modo de Mira")]
@@ -27,7 +27,7 @@ public class KeybindManager : MonoBehaviour
     // Lista de todas as chaves salvas para podermos procurar duplicatas
     private string[] allPrefsKeys = { 
         "KeyUp", "KeyDown", "KeyLeft", "KeyRight", 
-        "KeyAttack", "KeyDash", "KeyUlt", "KeyInteract", "KeyInventory", "KeyReload", "KeyHeal" 
+        "KeyAttack", "KeyHeavyAttack", "KeyDash", "KeyUlt", "KeyInteract", "KeyInventory", "KeyReload", "KeyHeal" 
     };
 
     private void OnEnable()
@@ -48,10 +48,8 @@ public class KeybindManager : MonoBehaviour
 
     void Start()
     {
-        // 1. Garante que o botão de Modo de Mira existe e está configurado
-        EnsureAimModeButton();
-        EnsureReloadButton();
-        EnsureHealButton();
+        // 1. Garante referências caso não tenham sido conectadas no Inspector (sem instanciar nem alterar posições)
+        EnsureButtonReferences();
 
         // 2. Carrega todas as teclas ao iniciar
         UpdateAllButtonTexts();
@@ -63,6 +61,7 @@ public class KeybindManager : MonoBehaviour
         if (btnRight != null) btnRight.onClick.AddListener(() => StartRebind("KeyRight", txtRight));
         
         if (btnAttack != null) btnAttack.onClick.AddListener(() => StartRebind("KeyAttack", txtAttack));
+        if (btnHeavyAttack != null) btnHeavyAttack.gameObject.SetActive(false);
         if (btnDash != null) btnDash.onClick.AddListener(() => StartRebind("KeyDash", txtDash));
         if (btnUlt != null) btnUlt.onClick.AddListener(() => StartRebind("KeyUlt", txtUlt));
         if (btnInteract != null) btnInteract.onClick.AddListener(() => StartRebind("KeyInteract", txtInteract));
@@ -82,6 +81,7 @@ public class KeybindManager : MonoBehaviour
         if (txtRight != null) txtRight.text = "Direita: " + PlayerPrefs.GetString("KeyRight", "D");
 
         if (txtAttack != null) txtAttack.text = "Ataque: " + PlayerPrefs.GetString("KeyAttack", "Q");
+        if (txtHeavyAttack != null) txtHeavyAttack.text = "Ataque Pesado: " + PlayerPrefs.GetString("KeyHeavyAttack", "Mouse1");
         if (txtDash != null) txtDash.text = "Dash: " + PlayerPrefs.GetString("KeyDash", "E");
         if (txtUlt != null) txtUlt.text = "Ultimate: " + PlayerPrefs.GetString("KeyUlt", "U");
         if (txtInteract != null) txtInteract.text = "Interagir: " + PlayerPrefs.GetString("KeyInteract", "F");
@@ -99,84 +99,50 @@ public class KeybindManager : MonoBehaviour
         Debug.Log($"[KeybindManager] Modo de mira alternado para: {AimSettings.CurrentMode}");
     }
 
-    
-    private void EnsureHealButton()
+    private void EnsureButtonReferences()
     {
-        if (btnHeal != null) return;
-
-        Transform found = transform.Find("Btn_Curar") ?? transform.Find("Btn_RecuperarVida") ?? transform.Find("Btn_Heal");
-        if (found != null)
+        if (btnHeal == null)
         {
-            btnHeal = found.GetComponent<Button>();
-            txtHeal = found.GetComponentInChildren<TextMeshProUGUI>();
-            return;
-        }
-    }
-
-    private void EnsureReloadButton()
-    {
-        if (btnReload != null) return;
-
-        Transform found = transform.Find("Btn_Reload") ?? transform.Find("Btn_Recarregar");
-        if (found != null)
-        {
-            btnReload = found.GetComponent<Button>();
-            txtReload = found.GetComponentInChildren<TextMeshProUGUI>();
-            return;
-        }
-
-        Button template = btnInventory != null ? btnInventory : (btnInteract != null ? btnInteract : btnAttack);
-        if (template != null)
-        {
-            GameObject cloned = Instantiate(template.gameObject, template.transform.parent);
-            cloned.name = "Btn_Reload";
-            btnReload = cloned.GetComponent<Button>();
-            txtReload = cloned.GetComponentInChildren<TextMeshProUGUI>();
-
-            btnReload.onClick.RemoveAllListeners();
-            btnReload.onClick.AddListener(() => StartRebind("KeyReload", txtReload));
-
-            RectTransform rect = cloned.GetComponent<RectTransform>();
-            RectTransform templateRect = template.GetComponent<RectTransform>();
-            if (rect != null && templateRect != null)
+            Transform found = transform.Find("Btn_Curar") ?? transform.Find("Btn_RecuperarVida") ?? transform.Find("Btn_Heal");
+            if (found != null)
             {
-                rect.anchoredPosition = new Vector2(templateRect.anchoredPosition.x, templateRect.anchoredPosition.y - 45f);
+                btnHeal = found.GetComponent<Button>();
+                txtHeal = found.GetComponentInChildren<TextMeshProUGUI>();
             }
         }
-    }
 
-    private void EnsureAimModeButton()
-    {
-        if (btnAimMode != null) return;
-
-        Transform found = transform.Find("Btn_AimMode") ?? transform.Find("Btn_Mira");
-        if (found != null)
+        if (btnReload == null)
         {
-            btnAimMode = found.GetComponent<Button>();
-            txtAimMode = found.GetComponentInChildren<TextMeshProUGUI>();
-            RectTransform foundRect = found.GetComponent<RectTransform>();
-            if (foundRect != null)
+            Transform found = transform.Find("Btn_Reload") ?? transform.Find("Btn_Recarregar");
+            if (found != null)
             {
-                foundRect.anchoredPosition = new Vector2(240f, 33f);
+                btnReload = found.GetComponent<Button>();
+                txtReload = found.GetComponentInChildren<TextMeshProUGUI>();
             }
-            return;
         }
 
-        Button template = btnAttack != null ? btnAttack : (btnDash != null ? btnDash : GetComponentInChildren<Button>());
-        if (template != null)
+        if (btnAimMode == null)
         {
-            GameObject cloned = Instantiate(template.gameObject, template.transform.parent);
-            cloned.name = "Btn_AimMode";
-            btnAimMode = cloned.GetComponent<Button>();
-            txtAimMode = cloned.GetComponentInChildren<TextMeshProUGUI>();
-
-            btnAimMode.onClick.RemoveAllListeners();
-
-            RectTransform rect = cloned.GetComponent<RectTransform>();
-            if (rect != null)
+            Transform found = transform.Find("Btn_AimMode") ?? transform.Find("Btn_Mira");
+            if (found != null)
             {
-                rect.anchoredPosition = new Vector2(240f, 33f);
+                btnAimMode = found.GetComponent<Button>();
+                txtAimMode = found.GetComponentInChildren<TextMeshProUGUI>();
             }
+        }
+
+        if (btnHeavyAttack == null)
+        {
+            Transform found = transform.Find("Btn_AtaquePesado") ?? transform.Find("Btn_HeavyAttack");
+            if (found != null)
+            {
+                btnHeavyAttack = found.GetComponent<Button>();
+                txtHeavyAttack = found.GetComponentInChildren<TextMeshProUGUI>();
+            }
+        }
+        if (btnHeavyAttack != null)
+        {
+            btnHeavyAttack.gameObject.SetActive(false);
         }
     }
 
@@ -202,8 +168,8 @@ public class KeybindManager : MonoBehaviour
             {
                 if (Input.GetKeyDown(keyCode))
                 {
-                    // Se o cara apertar ESC, cancela
-                    if (keyCode == KeyCode.Escape || keyCode == KeyCode.Mouse0)
+                    // Se o cara apertar ESC ou clicar com Mouse0 no texto para cancelar
+                    if (keyCode == KeyCode.Escape)
                     {
                         UpdateAllButtonTexts();
                         isWaitingForKey = false;
@@ -260,8 +226,8 @@ public class KeybindManager : MonoBehaviour
         switch(prefsKey)
         {
             case "KeyUp": return "W"; case "KeyDown": return "S"; case "KeyLeft": return "A"; case "KeyRight": return "D";
-            case "KeyAttack": return "Q"; case "KeyDash": return "E"; case "KeyUlt": return "U"; 
-            case "KeyInteract": return "F"; case "KeyInventory": return "Tab"; case "KeyHeal": return "Q"; default: return "None";
+            case "KeyAttack": return "Q"; case "KeyHeavyAttack": return "Mouse1"; case "KeyDash": return "E"; case "KeyUlt": return "U"; 
+            case "KeyInteract": return "F"; case "KeyInventory": return "Tab"; case "KeyReload": return "R"; case "KeyHeal": return "Q"; default: return "None";
         }
     }
 }

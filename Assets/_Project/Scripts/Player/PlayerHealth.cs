@@ -99,6 +99,12 @@ public class PlayerHealth : MonoBehaviour
     [Tooltip("Som de coração batendo quando o player está sem armadura. Arraste o AudioClip HeartBeat aqui.")]
     public AudioClip heartbeatClip;
 
+    [Header("Áudio de Cura (Recuperação de Vida)")]
+    [Tooltip("Som executado ao recuperar vida. Arraste confirmation_002.ogg ou seu áudio de cura aqui.")]
+    public AudioClip healSound;
+    [Range(0f, 1f)]
+    public float healSoundVolume = 0.9f;
+
     [Tooltip("Volume do som de heartbeat (0.0 a 1.0)")]
     [Range(0f, 1f)]
     public float heartbeatVolume = 0.7f;
@@ -1146,6 +1152,8 @@ public class PlayerHealth : MonoBehaviour
         currentHealth += amount;
         if (currentHealth > maxHealth) currentHealth = maxHealth;
         UpdateHealthBar();
+
+        PlayHealSound();
     }
     
     [Header("Luz de Dano (DAMAGELIGHT)")]
@@ -1271,14 +1279,20 @@ public class PlayerHealth : MonoBehaviour
             return;
         }
 
+        // Se estiver nos I-Frames estendidos do Perfect Dash, bloqueia 100% de qualquer dano residual
+        if (dash != null && dash.IsPerfectDodgeInvulnerable)
+        {
+            return;
+        }
+
         if (isDead) return;
 
         if (isInvulnerable)
         {
-            // Failsafe Duplo: se isInvulnerable estiver true mas o jogador NÃO estiver em dash ativo nem em ultimate ativo,
+            // Failsafe Duplo: se isInvulnerable estiver true mas o jogador NÃO estiver em dash ativo nem em ultimate ativo nem em Perfect Dash,
             // desativa a invulnerabilidade imediatamente e prossegue com o dano!
             bool isLegitInvulnerable = false;
-            if (dash != null && dash.isDashing) isLegitInvulnerable = true;
+            if (dash != null && (dash.isDashing || dash.IsPerfectDodgeInvulnerable)) isLegitInvulnerable = true;
             PlayerUltimate ult = GetComponent<PlayerUltimate>() ?? GetComponentInParent<PlayerUltimate>();
             if (ult != null && ult.IsUltimateActive()) isLegitInvulnerable = true;
 
@@ -1423,4 +1437,47 @@ public class PlayerHealth : MonoBehaviour
             }
         }
     }
+
+    private void PlayHealSound()
+    {
+        AudioClip clipToPlay = healSound;
+
+        #if UNITY_EDITOR
+        if (clipToPlay == null)
+        {
+            string[] guids = UnityEditor.AssetDatabase.FindAssets("t:AudioClip confirmation_002");
+            if (guids.Length > 0)
+            {
+                clipToPlay = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]));
+            }
+        }
+        #endif
+
+        if (clipToPlay != null)
+        {
+            GameObject sfxObj = new GameObject("Heal_SFX");
+            sfxObj.transform.position = transform.position;
+            AudioSource source = sfxObj.AddComponent<AudioSource>();
+            source.clip = clipToPlay;
+            source.volume = healSoundVolume;
+            source.spatialBlend = 0f;
+            source.pitch = Random.Range(0.98f, 1.02f);
+            source.Play();
+            Destroy(sfxObj, clipToPlay.length + 0.5f);
+        }
+    }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        if (healSound == null)
+        {
+            string[] guids = UnityEditor.AssetDatabase.FindAssets("t:AudioClip confirmation_002");
+            if (guids.Length > 0)
+            {
+                healSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]));
+            }
+        }
+    }
+#endif
 }

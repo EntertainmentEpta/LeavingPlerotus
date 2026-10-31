@@ -28,10 +28,22 @@ public class MagicStone_AI : MonoBehaviour
     private float startY;
 
     [Header("Teleporte")]
-    public float teleportRange = 6f;
-    public float minTeleportDistance = 8f;
-    public float maxTeleportDistance = 14f;
-    public float teleportCooldown = 8f;
+    [Tooltip("Distância máxima que o player precisa se aproximar para acionar fuga")]
+    public float teleportRange = 3.6f;
+    [Tooltip("Distância mínima de teleporte (mantém dentro da tela: 5.5m)")]
+    public float minTeleportDistance = 5.5f;
+    [Tooltip("Distância máxima de teleporte (mantém dentro da tela: 8.5m)")]
+    public float maxTeleportDistance = 8.5f;
+    [Tooltip("Tempo de recarga longo entre teleportes para o jogador poder combá-la")]
+    public float teleportCooldown = 7.5f;
+    [Tooltip("Prefab do efeito visual de teleporte (ex: Hovl Studio Teleport). Se nulo, procura automaticamente um filho chamado 'Teleport'.")]
+    public GameObject teleportVfxPrefab;
+    [Tooltip("Duração do efeito de teleporte antes de ser destruído.")]
+    public float teleportVfxDuration = 3f;
+    [Tooltip("Gera o efeito visual no ponto de chegada também (Ponto B)?")]
+    public bool spawnVfxOnArrival = true;
+
+    private bool hasTeleportedOnFirstHit = false;
 
     [Header("Ataque")]
     public float attackInterval = 5f;
@@ -112,6 +124,17 @@ public class MagicStone_AI : MonoBehaviour
 
         startY = transform.position.y;
 
+        // Configura VFX de teleporte (se não foi passado via inspector, procura filho 'Teleport' e desativa para não mover junto)
+        if (teleportVfxPrefab == null)
+        {
+            Transform childTeleport = transform.Find("Teleport");
+            if (childTeleport != null)
+            {
+                teleportVfxPrefab = childTeleport.gameObject;
+                childTeleport.gameObject.SetActive(false);
+            }
+        }
+
         if (Random.value > 0.5f) orbitDirection = -1;
 
         // Configura o som de flutuação/hover constante
@@ -121,11 +144,37 @@ public class MagicStone_AI : MonoBehaviour
         DummyHealth health = GetComponent<DummyHealth>();
         if (health != null)
         {
-            if (hitSounds != null && hitSounds.Length > 0)
-                health.onDamageTaken += (damage, attacker) => PlayHitSound();
+            health.onDamageTaken += OnDamageTaken;
 
             if (dieSounds != null && dieSounds.Length > 0)
                 health.onDeath += PlayDieSound;
+        }
+    }
+
+    private void OnDamageTaken(int damage, GameObject attacker)
+    {
+        PlayHitSound();
+
+        if (!isAwake)
+        {
+            WakeUp();
+        }
+
+        // Esquiva reativa no PRIMEIRO golpe da luta:
+        if (!hasTeleportedOnFirstHit)
+        {
+            hasTeleportedOnFirstHit = true;
+            teleportTimer = teleportCooldown; // Trava por 7.5s
+            Teleport(awayFromPlayer: true);
+            return;
+        }
+
+        // Golpes subsequentes: só teleporta se o cooldown de 7.5s já expirou!
+        // Isso permite ao jogador combá-la livremente sem que ela fique pulando sem parar.
+        if (teleportTimer <= 0f)
+        {
+            teleportTimer = teleportCooldown;
+            Teleport(awayFromPlayer: true);
         }
     }
 
@@ -205,7 +254,7 @@ public class MagicStone_AI : MonoBehaviour
     void WakeUp()
     {
         isAwake = true;
-        teleportTimer = 0;
+        teleportTimer = 3.0f; // Dá 3 segundos livres ao player antes de poder teleportar
         attackTimer = attackInterval / 2;
 
         EnemyIdentity id = GetComponent<EnemyIdentity>() ?? GetComponentInChildren<EnemyIdentity>() ?? GetComponentInParent<EnemyIdentity>();
@@ -245,15 +294,6 @@ public class MagicStone_AI : MonoBehaviour
         transform.position = new Vector3(transform.position.x, newY, transform.position.z);
     }
 
-    void HandleTeleport()
-    {
-        float distance = Vector3.Distance(transform.position, playerTransform.position);
-        if (distance < teleportRange && teleportTimer <= 0)
-        {
-            Teleport();
-        }
-    }
-
     void HandleAttack()
     {
         if (attackTimer <= 0)
@@ -263,9 +303,23 @@ public class MagicStone_AI : MonoBehaviour
         }
     }
 
-    void Teleport()
+    void HandleTeleport()
     {
-        Vector3 bestPosition = transform.position;
+        if (playerTransform == null) return;
+
+        // Só tenta fuga por aproximação se o cooldown estiver 100% pronto (<= 0)
+        // e o jogador estiver colado em distância de machado (<= 3.6m)
+        float distance = Vector3.Distance(transform.position, playerTransform.position);
+        if (distance <= teleportRange && teleportTimer <= 0f)
+        {
+            teleportTimer = teleportCooldown;
+            Teleport(awayFromPlayer: true);
+        }
+    }
+
+    void Teleport(bool awayFromPlayer = true)
+    {
+        Vector3 bestPosition = Vector3.zero;
         bool foundValidSpot = false;
 
         // Se roomBounds for nulo, tenta localizar o RoomController da sala atual
@@ -278,14 +332,39 @@ public class MagicStone_AI : MonoBehaviour
             }
         }
 
-        // Tenta até 12 direções diferentes ao redor do jogador procurando um ponto estritamente válido dentro do mapa
-        for (int attempt = 0; attempt < 12; attempt++)
+        // Vetor de fuga para longe do player
+        Vector3 baseFleeDir = Vector3.back;
+        if (playerTransform != null)
         {
-            Vector2 randomDir = Random.insideUnitCircle.normalized;
-            float randomDist = Random.Range(minTeleportDistance, Mathf.Min(maxTeleportDistance, 10f));
-            Vector3 candidate = playerTransform.position + new Vector3(randomDir.x, 0, randomDir.y) * randomDist;
+            Vector3 diff = transform.position - playerTransform.position;
+            diff.y = 0f;
+            if (diff.sqrMagnitude > 0.05f)
+            {
+                baseFleeDir = diff.normalized;
+            }
+            else
+            {
+                baseFleeDir = -playerTransform.forward;
+                baseFleeDir.y = 0f;
+                baseFleeDir.Normalize();
+            }
+        }
 
-            // 1. Confinamento em roomBounds (com margem de 1.5m para longe das paredes)
+        float curPlayerDist = playerTransform != null ? Vector3.Distance(transform.position, playerTransform.position) : 0f;
+        float bestDistanceToPlayer = 0f;
+
+        // 1ª Tentativa: Leque de Fuga (16 ângulos de -85° a +85° na direção oposta ao player)
+        // Usa Raycast físico de chão (funciona tanto com NavMesh quanto sem NavMesh na EnemyTestScene!)
+        for (int attempt = 0; attempt < 16; attempt++)
+        {
+            float angleOffset = (attempt == 0) ? 0f : Random.Range(-85f, 85f);
+            Vector3 fleeDir = Quaternion.Euler(0f, angleOffset, 0f) * baseFleeDir;
+            // Distância equilibrada na tela da câmera: 5.5m a 8.5m (não mais 15-20m longe do player)
+            float randomDist = Random.Range(Mathf.Clamp(minTeleportDistance, 5.0f, 6.5f), Mathf.Clamp(maxTeleportDistance, 7.5f, 8.8f));
+
+            Vector3 candidate = transform.position + fleeDir * randomDist;
+
+            // Confinamento em roomBounds (se existir na cena)
             if (roomBounds != null)
             {
                 candidate = roomBounds.ClosestPoint(candidate);
@@ -293,45 +372,119 @@ public class MagicStone_AI : MonoBehaviour
                 candidate += toCenter * 1.5f;
             }
 
-            // 2. Amostragem rigorosa no NavMesh da sala
+            // Tenta NavMesh se existir
             if (UnityEngine.AI.NavMesh.SamplePosition(candidate, out UnityEngine.AI.NavMeshHit navHit, 3.0f, UnityEngine.AI.NavMesh.AllAreas))
             {
-                // 3. Raycast vertical para confirmar que existe chão físico e não é abismo/fora da caverna
-                if (Physics.Raycast(navHit.position + Vector3.up * 4f, Vector3.down, out RaycastHit groundHit, 8f))
+                candidate = navHit.position;
+            }
+
+            // Validação por Raycast físico de chão (garante colisão com chão em qualquer cena!)
+            if (Physics.Raycast(candidate + Vector3.up * 6f, Vector3.down, out RaycastHit groundHit, 15f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+            {
+                candidate.y = groundHit.point.y;
+                float pDist = playerTransform != null ? Vector3.Distance(candidate, playerTransform.position) : 10f;
+                float moveDist = Vector3.Distance(candidate, transform.position);
+
+                // Garante que a pedra realmente se moveu (pelo menos 5m) e se afastou do player
+                if (moveDist >= 5f && pDist >= curPlayerDist * 0.95f && pDist > bestDistanceToPlayer)
                 {
-                    bestPosition = navHit.position;
-                    bestPosition.y = groundHit.point.y;
+                    bestPosition = candidate;
+                    bestDistanceToPlayer = pDist;
                     foundValidSpot = true;
-                    break;
                 }
             }
         }
 
-        // Fallback de segurança máxima: se não achou spot válido, teleporta para o centro da sala ou próximo ao jogador no NavMesh
+        // 2ª Tentativa: 360 Graus com distâncias variadas caso esteja encurralada contra a parede
         if (!foundValidSpot)
         {
-            if (roomBounds != null)
+            for (int a = 0; a < 12; a++)
             {
-                bestPosition = roomBounds.bounds.center;
-                if (UnityEngine.AI.NavMesh.SamplePosition(bestPosition, out UnityEngine.AI.NavMeshHit centerHit, 5f, UnityEngine.AI.NavMesh.AllAreas))
+                Vector2 r = Random.insideUnitCircle.normalized;
+                Vector3 candidate = transform.position + new Vector3(r.x, 0f, r.y) * Random.Range(5.5f, 7.5f);
+
+                if (roomBounds != null)
                 {
-                    bestPosition = centerHit.position;
+                    candidate = roomBounds.ClosestPoint(candidate);
+                }
+
+                if (Physics.Raycast(candidate + Vector3.up * 6f, Vector3.down, out RaycastHit groundHit, 15f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+                {
+                    candidate.y = groundHit.point.y;
+                    float moveDist = Vector3.Distance(candidate, transform.position);
+                    if (moveDist >= 4.5f)
+                    {
+                        bestPosition = candidate;
+                        foundValidSpot = true;
+                        break;
+                    }
                 }
             }
-            else if (UnityEngine.AI.NavMesh.SamplePosition(playerTransform.position + transform.forward * -4f, out UnityEngine.AI.NavMeshHit safeHit, 5f, UnityEngine.AI.NavMesh.AllAreas))
-            {
-                bestPosition = safeHit.position;
-            }
-            bestPosition.y = transform.position.y;
         }
 
-        PlayTeleportSound(transform.position); // Som na posição de origem
+        // Fallback Absoluto: Desloca diretamente no plano físico para longe do jogador
+        if (!foundValidSpot)
+        {
+            Vector3 fallbackPos = transform.position + baseFleeDir * 6.5f;
+            if (Physics.Raycast(fallbackPos + Vector3.up * 6f, Vector3.down, out RaycastHit fHit, 15f))
+            {
+                fallbackPos.y = fHit.point.y;
+            }
+            bestPosition = fallbackPos;
+        }
+
+        Vector3 departurePos = transform.position;
+
+        // 1. Efeito visual no Ponto A (onde ela estava / saiu)
+        SpawnTeleportVfx(departurePos);
+        PlayTeleportSound(departurePos);
+
+        // 2. Teleporta o monstro fisicamente para o Ponto B e zera inércias físicas do Rigidbody
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.position = bestPosition;
+        }
         transform.position = bestPosition;
         startY = bestPosition.y;
-        PlayTeleportSound(bestPosition);   // Som na posição de chegada
-        teleportTimer = teleportCooldown;
 
-        Debug.Log($"[MagicStone] Teleportou com validação de NavMesh para {bestPosition}!");
+        // 3. Efeito visual no Ponto B (onde ela reapareceu)
+        if (spawnVfxOnArrival)
+        {
+            SpawnTeleportVfx(bestPosition);
+        }
+        PlayTeleportSound(bestPosition);
+
+        teleportTimer = teleportCooldown;
+        Debug.Log($"[MagicStone] Teleportou com sucesso para {bestPosition}! (Deslocamento: {Vector3.Distance(departurePos, bestPosition):F1}m | Dist Player: {Vector3.Distance(bestPosition, playerTransform != null ? playerTransform.position : Vector3.zero):F1}m)");
+    }
+
+    private void SpawnTeleportVfx(Vector3 position)
+    {
+        if (teleportVfxPrefab == null) return;
+
+        GameObject vfxInstance = Instantiate(teleportVfxPrefab, position, Quaternion.identity);
+        vfxInstance.transform.SetParent(null); // Desanexa do monstro para ficar estático no mundo!
+        vfxInstance.SetActive(true);
+
+        // Reinicia sistemas de partículas se existirem
+        ParticleSystem[] systems = vfxInstance.GetComponentsInChildren<ParticleSystem>(true);
+        foreach (var ps in systems)
+        {
+            ps.Clear();
+            ps.Play();
+        }
+
+        // Reinicia Animator se existir
+        Animator anim = vfxInstance.GetComponentInChildren<Animator>();
+        if (anim != null)
+        {
+            anim.Rebind();
+            anim.Update(0f);
+        }
+
+        Destroy(vfxInstance, teleportVfxDuration);
     }
 
     private RoomController FindClosestRoomController()
@@ -378,6 +531,9 @@ public class MagicStone_AI : MonoBehaviour
         {
             beamScript.owner = gameObject;
         }
+
+        // Cria a área eletrocutada no solo por 2 segundos (mesmo efeito de eletrocutado da Star!)
+        ElectricGroundHazard.Spawn(targetPosition, radius: 1.8f, duration: 2.0f, damage: 5);
     }
 
     // =============================================
