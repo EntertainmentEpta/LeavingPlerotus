@@ -181,6 +181,7 @@ public class CheatConsole : MonoBehaviour
 
     void Update()
     {
+#if UNITY_EDITOR
         bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
         bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
@@ -191,7 +192,7 @@ public class CheatConsole : MonoBehaviour
             return;
         }
 
-        // Atalho secreto de Desenvolvedor: F1 (direto ou com Ctrl + Shift) abre/fecha a lista visual secreta
+                // Atalho secreto de Desenvolvedor: F1 (direto ou com Ctrl + Shift) abre/fecha a lista visual secreta (Apenas Editor)
         if (Input.GetKeyDown(KeyCode.F1) || (ctrl && shift && Input.GetKeyDown(KeyCode.F1)))
         {
             ToggleSecretCheatPanel();
@@ -238,6 +239,7 @@ public class CheatConsole : MonoBehaviour
                 Debug.LogError("🚨 CHEAT ERROR: O componente 'consoleInput' está NULL! Você não arrastou ele no Inspector.");
             }
         }
+#endif
     }
 
     private void UpdateOpenState()
@@ -1618,4 +1620,5 @@ public class CheatConsole : MonoBehaviour
             );
         }
     }
-}
+
+    }

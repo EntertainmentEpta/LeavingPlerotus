@@ -39,6 +39,7 @@ public class KeybindManager : MonoBehaviour
     private void OnDisable()
     {
         AimSettings.OnAimModeChanged -= HandleAimModeChanged;
+        KeybindApplier.ApplyKeysToAll();
     }
 
     private void HandleAimModeChanged(AimMode mode)
@@ -203,15 +204,8 @@ public class KeybindManager : MonoBehaviour
 
                     // === A MÁGICA ACONTECE AQUI ===
                     // Usa a linha direta com o Player para aplicar as teclas instantaneamente!
-                    if (KeybindApplier.Instance != null)
-                    {
-                        KeybindApplier.Instance.ApplyKeys();
-                        Debug.Log("Teclas atualizadas no Player com sucesso!");
-                    }
-                    else
-                    {
-                        Debug.LogWarning("O Player não foi encontrado! A tecla foi salva e será aplicada quando ele nascer.");
-                    }
+                    KeybindApplier.ApplyKeysToAll();
+                    Debug.Log("Teclas atualizadas no Player com sucesso!");
 
                     isWaitingForKey = false;
                     break;

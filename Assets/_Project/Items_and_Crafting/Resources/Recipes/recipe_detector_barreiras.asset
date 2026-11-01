@@ -14,9 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CraftingRecipe
   recipeId: recipe_detector_barreiras
   recipeName: "Detector de Barreiras"
-  description: "Mapeador portátil gratuito que exibe na tela o progresso das salas do nível."
+  description: "Mapeador sônico acoplado ao HUD. Detecta e monitora em tempo real o ciclo de ondas e a liberação de barreiras em cada setor."
   icon: {fileID: 0}
-  ingredients: []
+  ingredients:
+  - itemId: po_de_cristal
+    quantity: 3
+  - itemId: lithos
+    quantity: 2
   resultType: 1
   resultItemId: ""
   resultEquipment: {fileID: 11400000, guid: e31866c5ea326c74fbe71613556564ac, type: 2}

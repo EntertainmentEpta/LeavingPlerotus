@@ -28,11 +28,20 @@ using System.Linq;
 public class LevelGenerator : MonoBehaviour
 {
     public static LevelGenerator Instance { get; private set; }
+    private GameObject startRoomInstance;
 
     void Awake()
     {
         Instance = this;
         EnsureAudioListenerInGameScene();
+        if (barrierPrefab == null)
+        {
+            barrierPrefab = Resources.Load<GameObject>("Barreira");
+#if UNITY_EDITOR
+            if (barrierPrefab == null)
+                barrierPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Enviroment/Map/New map/BossRoom/Barreira.prefab");
+#endif
+        }
     }
 
     void Start()
@@ -116,6 +125,13 @@ public class LevelGenerator : MonoBehaviour
     [Tooltip("Prefab da sala de Boss Fight (Round 4). Deve ter 1 ConnectionPoint(Entrada).\nQuando o round boss for detectado, apenas Safe Room + Boss Room são gerados.")]
     public GameObject bossRoomPrefab;
 
+    [Header("Barreiras de Combate")]
+    [Tooltip("Prefab do modelo 3D da barreira (ex: Barreira.prefab). Se atribuído, é repassado automaticamente para todas as salas.")]
+    public GameObject barrierPrefab;
+
+    [Tooltip("Ajuste vertical de altura (eixo Y) da barreira na porta.")]
+    public float barrierYOffset = 1.0f;
+
     [Header("Regras de Geração")]
     [Tooltip("Número alvo de salas principais (sem contar especiais).")]
     public int maxMainRooms = 10;
@@ -195,6 +211,12 @@ public class LevelGenerator : MonoBehaviour
         anomalyRoomSpawned = false;
         roomSequenceCounter = 0;
 
+        RoomBarrier[] lingering = FindObjectsByType<RoomBarrier>(FindObjectsSortMode.None);
+        foreach (var lb in lingering)
+        {
+            if (lb != null) Destroy(lb.gameObject);
+        }
+
         // --- Progressão de Rounds: ajusta maxMainRooms dinamicamente ---
         bool isBossRound = false;
         if (RunManager.instance != null)
@@ -214,6 +236,7 @@ public class LevelGenerator : MonoBehaviour
         // --- Instancia a Safe Room na origem ---
         // Usa a rotação salva no prefab (não força identity) para respeitar correções de eixo do FBX
         GameObject startRoom = Instantiate(startRoomPrefab, Vector3.zero, startRoomPrefab.transform.rotation);
+        startRoomInstance = startRoom;
 
         playerSpawnPoint = FindNamedChild(startRoom.transform, "Player_StartPoint");
         if (playerSpawnPoint == null)
@@ -224,6 +247,9 @@ public class LevelGenerator : MonoBehaviour
 
         // Registra bounds da Safe Room como âncora para o sistema anti-sobreposição
         RegisterRoomBounds(startRoom);
+
+        // Sanitiza a Safe Room inicial (remove colisores de portas residuais e configura RoomController)
+        SanitizeStartRoom(startRoom);
 
         // Registra as saídas da Safe Room (pula a Entrada, que fica no West/Nave)
         RegisterOutputPoints(startRoom, isStartRoom: true);
@@ -288,6 +314,7 @@ public class LevelGenerator : MonoBehaviour
         TriggerItemSpawning();
         TrySpawnScripturePageInDungeon();
 
+        EnsureSafeRoomExitUnobstructed();
         BakeGlobalNavMesh();
 
         if (GameManager.instance != null)
@@ -343,6 +370,7 @@ public class LevelGenerator : MonoBehaviour
                 if (selectedTransitionPrefab == null) continue;
 
                 GameObject transitionRoom = Instantiate(selectedTransitionPrefab);
+                SanitizeTransitionRoom(transitionRoom);
                 ConnectionPoint[] transCPs = transitionRoom.GetComponentsInChildren<ConnectionPoint>();
 
                 ConnectionPoint transEntrada = null;
@@ -432,7 +460,12 @@ public class LevelGenerator : MonoBehaviour
 
                 RoomController roomCtrl = newRoom.GetComponentInChildren<RoomController>();
                 if (roomCtrl != null)
+                {
+                    if (barrierPrefab != null) roomCtrl.barrierPrefab = barrierPrefab;
+                    roomCtrl.barrierYOffset = barrierYOffset;
                     roomCtrl.Initialize(roomSequenceCounter);
+                    roomCtrl.EnsureRuntimeDoorBarriers();
+                }
 
                 RegisterOutputPoints(newRoom, isStartRoom: false);
 
@@ -665,6 +698,7 @@ public class LevelGenerator : MonoBehaviour
         TriggerItemSpawning();
         TrySpawnScripturePageInDungeon();
 
+        EnsureSafeRoomExitUnobstructed();
         BakeGlobalNavMesh();
 
         if (BarrierCounterUI.Instance != null)
@@ -680,6 +714,12 @@ public class LevelGenerator : MonoBehaviour
 
     bool TrySpawnSpecialRoom(GameObject prefab, ConnectionPoint targetOutput, string label, bool useTransition = true)
     {
+        return TrySpawnSpecialRoom(prefab, targetOutput, label, useTransition, out _);
+    }
+
+    bool TrySpawnSpecialRoom(GameObject prefab, ConnectionPoint targetOutput, string label, bool useTransition, out GameObject spawnedRoom)
+    {
+        spawnedRoom = null;
         if (prefab == null || targetOutput == null) return false;
 
         GameObject sourceRoom = targetOutput.transform.root.gameObject;
@@ -693,6 +733,7 @@ public class LevelGenerator : MonoBehaviour
                 if (transPrefab == null) continue;
 
                 GameObject transitionRoom = Instantiate(transPrefab);
+                SanitizeTransitionRoom(transitionRoom);
                 ConnectionPoint[] transCPs = transitionRoom.GetComponentsInChildren<ConnectionPoint>();
                 ConnectionPoint transEntrada = transCPs.FirstOrDefault(cp => cp.pointType == ConnectionPoint.PointType.Entrada && !cp.isOccupied);
                 ConnectionPoint transSaida   = transCPs.FirstOrDefault(cp => cp.pointType == ConnectionPoint.PointType.Saida && !cp.isOccupied);
@@ -740,6 +781,7 @@ public class LevelGenerator : MonoBehaviour
 
                 RegisterRoomBounds(transitionRoom);
                 RegisterRoomBounds(roomWithTrans);
+                spawnedRoom = roomWithTrans;
 
                 Debug.Log($"[LevelGenerator] ✅ {label} criado (com corredor de transição).");
                 return true;
@@ -769,6 +811,8 @@ public class LevelGenerator : MonoBehaviour
         targetOutput.isOccupied = true;
         entradaDirect.isOccupied = true;
         RegisterRoomBounds(directRoom);
+        spawnedRoom = directRoom;
+
         Debug.Log($"[LevelGenerator] ✅ {label} criado (conexão direta).");
         return true;
     }
@@ -890,9 +934,9 @@ public class LevelGenerator : MonoBehaviour
             // Tenta encaixe direto sem transição (becos nunca usam transição para não alongar nem colidir)
             foreach (GameObject p in shuffled)
             {
-                if (TrySpawnSpecialRoom(p, targetOutput, "Beco Sem Saída", useTransition: false))
+                if (TrySpawnSpecialRoom(p, targetOutput, "Beco Sem Saída", false, out GameObject spawnedDeadEnd))
                 {
-                    SanitizeDeadEndRoom(targetOutput.transform.root.gameObject);
+                    SanitizeDeadEndRoom(spawnedDeadEnd);
                     return true;
                 }
             }
@@ -907,42 +951,65 @@ public class LevelGenerator : MonoBehaviour
     void SealDoorwayCleanly(ConnectionPoint cp)
     {
         if (cp == null) return;
+
+        // A Safe Room / Start Room NUNCA deve receber blocos pretos nem tampas
+        string rootName = cp.transform.root != null ? cp.transform.root.gameObject.name : "";
+        if (rootName.Contains("Safe") || (startRoomPrefab != null && rootName.Contains(startRoomPrefab.name)))
+        {
+            cp.isOccupied = true;
+            return;
+        }
+
         cp.isOccupied = true;
 
+        Vector3 horizontalFwd = Vector3.ProjectOnPlane(cp.transform.forward, Vector3.up);
+        if (horizontalFwd.sqrMagnitude < 0.01f) horizontalFwd = Vector3.forward;
+        horizontalFwd.Normalize();
+        Quaternion doorRot = Quaternion.LookRotation(horizontalFwd, Vector3.up);
+        Vector3 doorPos = cp.transform.position + horizontalFwd * 0.2f + Vector3.up * 2.0f;
+
+        // Cria parede de pedra sólida para fechar o portal sem criar barreiras de combate (nunca usa barrierPrefab)
         GameObject capObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        capObj.name = "[Door_Capped_Barrier] " + cp.gameObject.name;
-        capObj.transform.position = cp.transform.position + cp.transform.forward * 0.4f;
-        capObj.transform.rotation = cp.transform.rotation;
-        capObj.transform.localScale = new Vector3(4.0f, 4.0f, 0.6f);
+        capObj.name = "[Door_Capped_Wall] " + cp.gameObject.name;
+        capObj.transform.position = doorPos;
+        capObj.transform.rotation = doorRot;
+        capObj.transform.localScale = new Vector3(6.0f, 6.0f, 1.2f);
+        capObj.layer = cp.gameObject.layer;
 
         Renderer r = capObj.GetComponent<Renderer>();
         if (r != null)
         {
             Shader litShader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             Material m = new Material(litShader);
-            m.color = new Color(0.12f, 0.12f, 0.15f);
+            m.name = "Mat_DungeonWallPlug";
+            m.color = new Color(0.12f, 0.12f, 0.15f); // Tom de rocha vulcânica escura do mapa
             r.material = m;
         }
 
         Collider col = capObj.GetComponent<Collider>();
         if (col != null) col.isTrigger = false;
 
-        RegisterRoomBounds(capObj);
-        Debug.Log($"[LevelGenerator] 🛡️ Saída '{cp.gameObject.name}' selada de forma limpa (sem sobrepor salas vizinhas).");
+        capObj.transform.SetParent(cp.transform.root, true);
     }
 
-    void SanitizeDeadEndRoom(GameObject room)
+    /// <summary>
+    /// Sanitiza a Safe Room inicial para garantir que o jogador nunca seja bloqueado
+    /// por portas, colisores residuais ou triggers de combate, e que NENHUM mob ou item invasivo apareça.
+    /// </summary>
+    void SanitizeStartRoom(GameObject startRoom)
     {
-        if (room == null) return;
-        RoomController rc = room.GetComponent<RoomController>();
-        if (rc != null)
+        if (startRoom == null) return;
+
+        RoomController[] allRCs = startRoom.GetComponentsInChildren<RoomController>(true);
+        foreach (var rc in allRCs)
         {
+            if (rc == null) continue;
             rc.isSafeRoom = true;
-            rc.roomCategory = RoomController.RoomCategory.Contemplation;
+            rc.roomCategory = RoomController.RoomCategory.SafeRoom;
             rc.minWaves = 0;
             rc.maxWaves = 0;
             rc.minEnemiesPerWave = 0;
-            rc.enemyPoolConfig = null;
+                        rc.enemyPoolConfig = null;
             rc.doorsAreLocked = false;
             rc.isCleared = true;
             if (rc.doors != null)
@@ -954,34 +1021,286 @@ public class LevelGenerator : MonoBehaviour
                         d.SetActive(false);
                         Collider c = d.GetComponent<Collider>();
                         if (c != null) c.enabled = false;
+                        Destroy(d);
                     }
                 }
                 rc.doors = new GameObject[0];
             }
-            if (rc.spawnAreas != null)
+            if (rc.spawnAreas != null) rc.spawnAreas.Clear();
+            rc.enabled = false;
+        }
+
+        // Remove quaisquer SpawnAreas, AutoSpawnAreas ou marcações de SpawnPoint na Safe Room,
+        // bem como quaisquer tampas ou blocos pretos residuais (ex: [Door_Capped_Wall])
+        Transform[] allTransforms = startRoom.GetComponentsInChildren<Transform>(true);
+        foreach (var t in allTransforms)
+        {
+            if (t == null) continue;
+            if (t.CompareTag("SpawnPoint"))
             {
-                rc.spawnAreas.Clear();
+                t.tag = "Untagged";
+            }
+            string tName = t.gameObject.name.ToLower();
+            if (tName.Contains("autospawnarea") || tName.Contains("spawnarea") || tName.Contains("spawn_area") ||
+                tName.Contains("door_capped_wall") || tName.Contains("capped") || tName.Contains("plug"))
+            {
+                if (t.gameObject != startRoom)
+                {
+                    Destroy(t.gameObject);
+                }
             }
         }
 
-        // Desativa quaisquer colisores invisíveis de barreira de porta
+        // Remove quaisquer RoomBarriers na Safe Room
+        RoomBarrier[] allBarriers = startRoom.GetComponentsInChildren<RoomBarrier>(true);
+        foreach (var b in allBarriers)
+        {
+            if (b != null)
+            {
+                b.ForceLowerImmediate();
+                Destroy(b.gameObject);
+            }
+        }
+
+        // Desativa e destrói colisores de portas residuais (ex: 'Door' no prefab da SafeRoomFinal)
+        Collider[] allCols = startRoom.GetComponentsInChildren<Collider>(true);
+        foreach (var col in allCols)
+        {
+            if (col == null) continue;
+            string colName = col.gameObject.name.ToLower();
+            if (colName == "door" || colName.Contains("barrier") || colName.Contains("barreira") || colName.Contains("door_capped_wall") || colName.Contains("capped"))
+            {
+                col.isTrigger = true;
+                col.enabled = false;
+                if (col.gameObject != startRoom)
+                {
+                    Destroy(col.gameObject);
+                }
+            }
+        }
+
+        // Garante que ConnectionPoints na Safe Room não tenham colisores bloqueadores
+        ConnectionPoint[] startCps = startRoom.GetComponentsInChildren<ConnectionPoint>(true);
+        foreach (var cp in startCps)
+        {
+            if (cp == null) continue;
+            Collider c = cp.GetComponent<Collider>();
+            if (c != null)
+            {
+                c.isTrigger = true;
+                c.enabled = false;
+            }
+            for (int i = cp.transform.childCount - 1; i >= 0; i--)
+            {
+                Transform ch = cp.transform.GetChild(i);
+                if (ch != null && (ch.name.StartsWith("Barrier") || ch.name.StartsWith("Barreira") || ch.name.StartsWith("Door") || ch.name.StartsWith("ThornBarrier")))
+                {
+                    Destroy(ch.gameObject);
+                }
+            }
+        }
+
+// O BoxCollider da Safe Room é o chão físico da sala e deve permanecer ativo!
+    }
+
+    /// <summary>
+    /// Garante que todas as saídas da Safe Room e os sockets de entrada conectados estejam 100%
+    /// livres de qualquer barreira invisível, plug ou colisor residual.
+    /// </summary>
+    void EnsureSafeRoomExitUnobstructed()
+    {
+        if (startRoomInstance == null) return;
+
+        ConnectionPoint[] startCps = startRoomInstance.GetComponentsInChildren<ConnectionPoint>(true);
+        foreach (var cp in startCps)
+        {
+            if (cp == null) continue;
+            Vector3 pos = cp.transform.position;
+            Collider[] nearby = Physics.OverlapSphere(pos, 8.0f);
+            foreach (var col in nearby)
+            {
+                if (col == null) continue;
+                string colName = col.gameObject.name.ToLower();
+                if (colName.Contains("barrier") || colName.Contains("barreira") || colName.Contains("thornbarrier") ||
+                    colName.Contains("door_capped_wall") || colName.Contains("capped") || colName.Contains("plug") ||
+                    col.GetComponent<ConnectionPoint>() != null)
+                {
+                    col.isTrigger = true;
+                    col.enabled = false;
+                    if (col.gameObject != startRoomInstance && !col.gameObject.name.Contains("SafeRoomFinal"))
+                    {
+                        Destroy(col.gameObject);
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Sanitiza salas e corredores de transição (ex: 3ways, Transition1, etc.)
+    /// para garantir que NUNCA tenham inimigos, portas bloqueadas ou barreiras de combate.
+    /// </summary>
+    void SanitizeTransitionRoom(GameObject transitionRoom)
+    {
+        if (transitionRoom == null) return;
+
+        RoomController[] allRCs = transitionRoom.GetComponentsInChildren<RoomController>(true);
+        foreach (var rc in allRCs)
+        {
+            if (rc == null) continue;
+            rc.isSafeRoom = true;
+            rc.roomCategory = RoomController.RoomCategory.Contemplation;
+            rc.minWaves = 0;
+            rc.maxWaves = 0;
+            rc.minEnemiesPerWave = 0;
+                        rc.enemyPoolConfig = null;
+            rc.doorsAreLocked = false;
+            rc.isCleared = true;
+            if (rc.doors != null)
+            {
+                foreach (var d in rc.doors)
+                {
+                    if (d != null)
+                    {
+                        d.SetActive(false);
+                        Collider c = d.GetComponent<Collider>();
+                        if (c != null) c.enabled = false;
+                        Destroy(d);
+                    }
+                }
+                rc.doors = new GameObject[0];
+            }
+            if (rc.spawnAreas != null) rc.spawnAreas.Clear();
+            rc.enabled = false;
+        }
+
+        Transform[] allTransforms = transitionRoom.GetComponentsInChildren<Transform>(true);
+        foreach (var t in allTransforms)
+        {
+            if (t == null) continue;
+            if (t.CompareTag("SpawnPoint"))
+            {
+                t.tag = "Untagged";
+            }
+            string tName = t.gameObject.name.ToLower();
+            if (tName.Contains("autospawnarea") || tName.Contains("spawnarea") || tName.Contains("spawn_area"))
+            {
+                Destroy(t.gameObject);
+            }
+        }
+
+        RoomBarrier[] allBarriers = transitionRoom.GetComponentsInChildren<RoomBarrier>(true);
+        foreach (var b in allBarriers)
+        {
+            if (b != null)
+            {
+                b.ForceLowerImmediate();
+                Destroy(b.gameObject);
+            }
+        }
+
+        // Garante que ConnectionPoints na transição não tenham filhos de barreira nem colisores bloqueadores
+        ConnectionPoint[] transCps = transitionRoom.GetComponentsInChildren<ConnectionPoint>(true);
+        foreach (var cp in transCps)
+        {
+            if (cp == null) continue;
+            Collider c = cp.GetComponent<Collider>();
+            if (c != null)
+            {
+                c.isTrigger = true;
+                c.enabled = false;
+            }
+            for (int i = cp.transform.childCount - 1; i >= 0; i--)
+            {
+                Transform ch = cp.transform.GetChild(i);
+                if (ch != null && (ch.name.StartsWith("Barrier") || ch.name.StartsWith("Barreira") || ch.name.StartsWith("Door") || ch.name.StartsWith("ThornBarrier") || ch.name.ToLower().Contains("plug") || ch.name.ToLower().Contains("capped")))
+                {
+                    Destroy(ch.gameObject);
+                }
+            }
+        }
+
+        Collider[] allCols = transitionRoom.GetComponentsInChildren<Collider>(true);
+        foreach (var col in allCols)
+        {
+            if (col == null) continue;
+            string colName = col.gameObject.name.ToLower();
+            if (colName == "door" || colName.Contains("barrier") || colName.Contains("barreira") || colName.Contains("capped") || colName.Contains("plug"))
+            {
+                col.isTrigger = true;
+                col.enabled = false;
+                if (col.gameObject != transitionRoom)
+                {
+                    Destroy(col.gameObject);
+                }
+            }
+        }
+    }
+
+    void SanitizeDeadEndRoom(GameObject room)
+    {
+        if (room == null) return;
+        RoomController[] allRCs = room.GetComponentsInChildren<RoomController>(true);
+        foreach (var rc in allRCs)
+        {
+            if (rc == null) continue;
+            rc.isSafeRoom = true;
+            rc.roomCategory = RoomController.RoomCategory.Contemplation;
+            rc.minWaves = 0;
+            rc.maxWaves = 0;
+            rc.minEnemiesPerWave = 0;
+                        rc.enemyPoolConfig = null;
+            rc.doorsAreLocked = false;
+            rc.isCleared = true;
+            if (rc.doors != null)
+            {
+                foreach (var d in rc.doors)
+                {
+                    if (d != null)
+                    {
+                        d.SetActive(false);
+                        Collider c = d.GetComponent<Collider>();
+                        if (c != null) c.enabled = false;
+                        Destroy(d);
+                    }
+                }
+                rc.doors = new GameObject[0];
+            }
+            if (rc.spawnAreas != null) rc.spawnAreas.Clear();
+            rc.enabled = false;
+        }
+
+        Transform[] allTransforms = room.GetComponentsInChildren<Transform>(true);
+        foreach (var t in allTransforms)
+        {
+            if (t == null) continue;
+            if (t.CompareTag("SpawnPoint")) t.tag = "Untagged";
+            string tName = t.gameObject.name.ToLower();
+            if (tName.Contains("autospawnarea") || tName.Contains("spawnarea") || tName.Contains("spawn_area"))
+            {
+                Destroy(t.gameObject);
+            }
+        }
+
+        RoomBarrier[] allBarriers = room.GetComponentsInChildren<RoomBarrier>(true);
+        foreach (var b in allBarriers)
+        {
+            if (b != null)
+            {
+                b.ForceLowerImmediate();
+                Destroy(b.gameObject);
+            }
+        }
+
         Collider[] allCols = room.GetComponentsInChildren<Collider>(true);
         foreach (var col in allCols)
         {
-            if (col.gameObject.name.IndexOf("barrier", System.StringComparison.OrdinalIgnoreCase) >= 0 || col.gameObject.name.IndexOf("door", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            if (col == null) continue;
+            string colName = col.gameObject.name.ToLower();
+            if (colName == "door" || colName.Contains("barrier") || colName.Contains("barreira"))
             {
-                col.gameObject.SetActive(false);
+                col.isTrigger = true;
                 col.enabled = false;
-            }
-        }
-
-        // Destrói pontos de spawn de mobs se existirem
-        Transform[] allChildren = room.GetComponentsInChildren<Transform>(true);
-        foreach (var child in allChildren)
-        {
-            if (child != null && child.gameObject.name.Contains("AutoSpawnArea"))
-            {
-                Destroy(child.gameObject);
             }
         }
     }
@@ -1076,16 +1395,17 @@ public class LevelGenerator : MonoBehaviour
             room.AddComponent<AnomalyRoomController>();
         }
 
-        // 2. Configura RoomController como seguro / contemplação
-        RoomController rc = room.GetComponent<RoomController>();
-        if (rc != null)
+        // 2. Configura RoomController como 100% seguro / contemplação desativado
+        RoomController[] allRCs = room.GetComponentsInChildren<RoomController>(true);
+        foreach (var rc in allRCs)
         {
+            if (rc == null) continue;
             rc.isSafeRoom = true;
             rc.roomCategory = RoomController.RoomCategory.Contemplation;
             rc.minWaves = 0;
             rc.maxWaves = 0;
             rc.minEnemiesPerWave = 0;
-            rc.enemyPoolConfig = null;
+                        rc.enemyPoolConfig = null;
             rc.doorsAreLocked = false;
             rc.isCleared = true;
 
@@ -1098,6 +1418,7 @@ public class LevelGenerator : MonoBehaviour
                         d.SetActive(false);
                         Collider c = d.GetComponent<Collider>();
                         if (c != null) c.enabled = false;
+                        Destroy(d);
                     }
                 }
                 rc.doors = new GameObject[0];
@@ -1106,12 +1427,24 @@ public class LevelGenerator : MonoBehaviour
             {
                 rc.spawnAreas.Clear();
             }
+            rc.enabled = false;
         }
 
-        // 3. Remove barreiras invisíveis de entrada (evita parede invisível)
+        // 3. Remove barreiras e colisores de portas residuais
+        RoomBarrier[] allBarriers = room.GetComponentsInChildren<RoomBarrier>(true);
+        foreach (var b in allBarriers)
+        {
+            if (b != null)
+            {
+                b.ForceLowerImmediate();
+                Destroy(b.gameObject);
+            }
+        }
+
         Collider[] allCols = room.GetComponentsInChildren<Collider>(true);
         foreach (var col in allCols)
         {
+            if (col == null) continue;
             if (col.gameObject.name.IndexOf("barrier", System.StringComparison.OrdinalIgnoreCase) >= 0 || col.gameObject.name.IndexOf("door", System.StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 col.gameObject.SetActive(false);
@@ -1119,11 +1452,14 @@ public class LevelGenerator : MonoBehaviour
             }
         }
 
-        // 4. Remove quaisquer AutoSpawnArea para NUNCA spawnar inimigos
+        // 4. Remove quaisquer AutoSpawnArea e untag SpawnPoints para NUNCA spawnar inimigos ou itens invasivos
         Transform[] allChildren = room.GetComponentsInChildren<Transform>(true);
         foreach (var child in allChildren)
         {
-            if (child != null && child.gameObject.name.Contains("AutoSpawnArea"))
+            if (child == null) continue;
+            if (child.CompareTag("SpawnPoint")) child.tag = "Untagged";
+            string cName = child.gameObject.name.ToLower();
+            if (cName.Contains("autospawnarea") || cName.Contains("spawnarea") || cName.Contains("spawn_area"))
             {
                 Destroy(child.gameObject);
             }
@@ -1155,9 +1491,11 @@ public class LevelGenerator : MonoBehaviour
     GameObject GetCompatibleRoomPrefab(string requiredTag)
     {
         List<GameObject> valid = new List<GameObject>();
+        if (mainRoomPrefabs == null) return null;
 
         foreach (GameObject prefab in mainRoomPrefabs)
         {
+            if (prefab == null) continue;
             string prefabName = prefab.name;
             int count = roomCounts.ContainsKey(prefabName) ? roomCounts[prefabName] : 0;
             if (count >= roomLimitPerType) continue;
@@ -1202,20 +1540,27 @@ public class LevelGenerator : MonoBehaviour
                 .ToList();
 
             ConnectionPoint chosenStartOutput = null;
+            // Preferência pela saída frontal principal ("CP_Exit") para que o jogador sempre saia pelo portal frontal
             if (validStart.Count > 0)
-                chosenStartOutput = validStart[Random.Range(0, validStart.Count)];
+            {
+                chosenStartOutput = validStart.FirstOrDefault(cp => cp.gameObject.name == "CP_Exit") ?? validStart[0];
+            }
             else if (outputs.Count > 0)
-                chosenStartOutput = outputs[Random.Range(0, outputs.Count)];
+            {
+                chosenStartOutput = outputs.FirstOrDefault(cp => cp.gameObject.name == "CP_Exit") ?? outputs[0];
+            }
 
             if (chosenStartOutput != null)
                 openOutputs.Add(chosenStartOutput);
 
-            // Marca todas as outras saídas da sala inicial como ocupadas para que o gerador NUNCA anexe becos nelas
+            // Na Safe Room, as outras saídas permanecem totalmente abertas e sem blocos pretos nem tampas artificiais.
+            // Apenas marcamos como ocupadas para que o gerador não tente ramificar a dungeon nelas.
             foreach (var op in outputs)
             {
                 if (op != chosenStartOutput)
                 {
                     op.isOccupied = true;
+                    // SafeRoom1 NÃO usa tampas nem blocos pretos (SealDoorwayCleanly).
                 }
             }
         }
@@ -1359,9 +1704,26 @@ public class LevelGenerator : MonoBehaviour
         Renderer[] renderers = room.GetComponentsInChildren<Renderer>();
         if (renderers.Length == 0) return new Bounds();
 
-        Bounds combined = renderers[0].bounds;
-        for (int i = 1; i < renderers.Length; i++)
-            combined.Encapsulate(renderers[i].bounds);
+        Bounds combined = new Bounds();
+        bool init = false;
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer r = renderers[i];
+            if (r == null || !r.enabled) continue;
+            if (r.gameObject.name.IndexOf("barrier", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                r.gameObject.name.IndexOf("door", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                continue;
+
+            if (!init)
+            {
+                combined = r.bounds;
+                init = true;
+            }
+            else
+            {
+                combined.Encapsulate(r.bounds);
+            }
+        }
         return combined;
     }
 
@@ -1468,7 +1830,7 @@ public class LevelGenerator : MonoBehaviour
     [Tooltip("Tamanho do voxel de amostragem (metros). " +
              "Regra: AgentRadius / 3 = resolução ideal. Menor = mais preciso.")]
     [Range(0.03f, 0.2f)]
-    public float navMeshVoxelSize = 0.0667f;
+    public float navMeshVoxelSize = 0.15f;
 
     [Tooltip("Área mínima de regiões isoladas do NavMesh (m²). " +
              "Regiões menores são removidas. Valor baixo preserva passagens estreitas.")]
@@ -1780,11 +2142,8 @@ public class LevelGenerator : MonoBehaviour
             }
             else
             {
-                // Box, Sphere, Capsule — posição extraída da coluna 3 da matrix
-                Vector3 worldCenter = new Vector3(
-                    src.transform.m03, src.transform.m13, src.transform.m23
-                );
-                srcBounds = new Bounds(worldCenter, src.size);
+                // Box, Sphere, Capsule — transforma tamanho e posição corretamente via matrix
+                srcBounds = TransformBounds(src.transform, new Bounds(Vector3.zero, src.size));
             }
 
             if (!initialized)

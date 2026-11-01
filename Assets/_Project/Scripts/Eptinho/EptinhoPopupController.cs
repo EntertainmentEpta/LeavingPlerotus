@@ -481,6 +481,17 @@ public class EptinhoPopupController : MonoBehaviour
         MostrarPopupGenerico(eptinhoFace, mensagem);
     }
 
+    /// <summary>Popup de alerta quando a armadura do explorador é destruída/rompida em combate.</summary>
+    public void MostrarPopupArmaduraQuebrada(string mensagem = "Sua armadura quebrou!")
+    {
+        Sprite faceTenso = eptinhoTensoSprite;
+        if (faceTenso == null) faceTenso = Resources.Load<Sprite>("tensoeptinho_0");
+        if (faceTenso == null) faceTenso = Resources.Load<Sprite>("EPTONHO_TENSO");
+        if (faceTenso == null) faceTenso = Resources.Load<Sprite>("EPTONHO");
+
+        MostrarPopupGenerico(faceTenso, mensagem);
+    }
+
     /// <summary>Popup especial de alerta do Mercador (usa a expressão Eptinho Tenso no retrato de forma protegida).</summary>
     public void MostrarPopupMercador(string mensagem)
     {

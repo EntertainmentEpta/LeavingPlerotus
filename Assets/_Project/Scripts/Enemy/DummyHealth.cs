@@ -97,6 +97,12 @@ public class DummyHealth : MonoBehaviour
     private void Awake()
     {
         CurrentHealth = maxHealth;
+        if (floatingDamageTextPrefab == null)
+        {
+#if UNITY_EDITOR
+            floatingDamageTextPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/UI/DamageVFX_CFXR.prefab");
+#endif
+        }
     }
 
     private void Start()
@@ -202,6 +208,23 @@ public class DummyHealth : MonoBehaviour
             if (projectileResistance <= 0f) projectileResistance = 0.50f;
             if (knockbackResistance <= 0f) knockbackResistance = 0.50f;
         }
+
+        // Garante que o inimigo possui EnemyIdentity e DetectorDeInimigo para o Bestiario
+        if (!BestiarioManager.IsInimigoInvalido(gameObject.name))
+        {
+            EnemyIdentity eid = GetComponent<EnemyIdentity>() ?? GetComponentInChildren<EnemyIdentity>() ?? GetComponentInParent<EnemyIdentity>();
+            if (eid == null)
+            {
+                eid = gameObject.AddComponent<EnemyIdentity>();
+            }
+            if (GetComponent<DetectorDeInimigo>() == null)
+            {
+                DetectorDeInimigo det = gameObject.AddComponent<DetectorDeInimigo>();
+                det.enemyIdentity = eid;
+                det.usarDistancia = true;
+                det.distanciaDeteccao = 25f;
+            }
+        }
     }
 
     // --- NOVA FUNÇÃO CHAMADA PELO SINTONIZADOR ---
@@ -232,6 +255,16 @@ public class DummyHealth : MonoBehaviour
 
         if (isInvulnerable) return;
         if (CurrentHealth <= 0) return;
+
+        // Ao ser atingido pelo jogador, garante registro imediato no Bestiario
+        if (BestiarioManager.instancia != null && !BestiarioManager.IsInimigoInvalido(gameObject.name))
+        {
+            EnemyIdentity eid = GetComponent<EnemyIdentity>() ?? GetComponentInChildren<EnemyIdentity>() ?? GetComponentInParent<EnemyIdentity>();
+            if (eid != null && !eid.foiEncontrado)
+            {
+                BestiarioManager.instancia.Registrar(eid);
+            }
+        }
 
         // Pilar 4: Inimigos blindados/com couraça reduzem dano de projéteis
         if (isProjectile && projectileResistance > 0f)
@@ -468,15 +501,26 @@ public class DummyHealth : MonoBehaviour
         ShowRebirthFloatingText(transform.position);
 
         RoomController rc = FindRoomController();
+        GameObject prefabRef = originalPrefab;
+        if (prefabRef == null && rc != null)
+        {
+            string clean = gameObject.name.Replace("(Clone)", "").Trim();
+            var allPrefabs = rc.GetAllUniqueEnemyPrefabs();
+            if (allPrefabs != null)
+            {
+                prefabRef = allPrefabs.Find(p => p != null && p.name.Equals(clean, System.StringComparison.OrdinalIgnoreCase));
+            }
+        }
+
         if (rc != null && rc.gameObject.activeInHierarchy)
         {
             rc.enemiesPendingSpawn++;
             rc.activeEnemies.Remove(gameObject);
-            rc.StartCoroutine(rc.RebirthAsEliteRoutine(transform.position, transform.rotation, originalPrefab != null ? originalPrefab : gameObject, gameObject.name));
+            rc.StartCoroutine(rc.RebirthAsEliteRoutine(transform.position, transform.rotation, prefabRef != null ? prefabRef : gameObject, gameObject.name));
         }
         else if (RunManager.instance != null && RunManager.instance.gameObject.activeInHierarchy)
         {
-            RunManager.instance.StartCoroutine(RebirthFallbackRoutine(transform.position, transform.rotation, originalPrefab != null ? originalPrefab : gameObject, gameObject.name));
+            RunManager.instance.StartCoroutine(RebirthFallbackRoutine(transform.position, transform.rotation, prefabRef != null ? prefabRef : gameObject, gameObject.name));
         }
 
         Destroy(gameObject);

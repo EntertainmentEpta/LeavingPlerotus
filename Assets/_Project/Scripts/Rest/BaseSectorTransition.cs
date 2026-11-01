@@ -23,6 +23,9 @@ public class BaseSectorTransition : MonoBehaviour
     private static float globalTransitionCooldownUntil = 0f;
     private const float MAX_TRANSITION_TIMEOUT = 3.0f;
 
+    /// <summary>Disparado quando um setor da nave (Lobby, Lab, etc.) é ativado.</summary>
+    public static event System.Action<GameObject> OnSectorActivated;
+
     // Se o jogador nasceu dentro da caixa de colisão da porta, ele deve sair antes dela poder ser reativada
     [SerializeField] private bool requireTriggerExit = false;
     private float exitTimeout = 0f;
@@ -249,7 +252,11 @@ public class BaseSectorTransition : MonoBehaviour
                 cameraController.transform.position = player.transform.position + cameraController.offset;
             }
 
-            if (sectorToActivate != null) sectorToActivate.SetActive(true);
+            if (sectorToActivate != null)
+            {
+                sectorToActivate.SetActive(true);
+                OnSectorActivated?.Invoke(sectorToActivate);
+            }
             if (sectorToDeactivate != null) sectorToDeactivate.SetActive(false);
 
             // Força atualização da física para que os colliders do novo setor sejam atualizados imediatamente

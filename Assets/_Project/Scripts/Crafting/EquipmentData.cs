@@ -36,7 +36,8 @@ public enum EquipmentEffectType
     AncestralCatalyst,       // Amplifica o poder crítico e dano base da arma (Arma/Composto Ancestral)
     InfusionChamberExpansion, // Expande a câmara de infusão (permite infundir 3 ou 4 itens simultâneos)
     InfusionCapacityExpansion, // Expande o limite de infusões ativas no traje por run
-    ExtraPotionSlot          // Expande compartimentos do traje, concedendo +1 Cápsula Máxima de Cura
+    ExtraPotionSlot,         // Expande compartimentos do traje, concedendo +1 Cápsula Máxima de Cura
+    BaseFireExtinguisher     // Extingue chamas e Ship Embers no Lobby e Laboratório da Base
 }
 
 /// <summary>

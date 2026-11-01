@@ -12,19 +12,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 14407b66bb5115143b7628a725db5631, type: 3}
   m_Name: BossPhaseConfig
   m_EditorClassIdentifier: Assembly-CSharp::BossPhaseConfig
-  maxHealth: 1000
-  phase2Threshold: 0.8
+  maxHealth: 2800
+  phase2Threshold: 0.7
   phase3Threshold: 0.35
   baseSpeed: 4.8
   sprintSpeed: 8.5
   sprintDistanceThreshold: 5.5
   rotationSpeed: 360
-  baseMeleeDamage: 35
+  baseMeleeDamage: 28
   baseMeleeRange: 4.5
   baseMeleeCooldown: 2.5
   phase1MaxMobs: 5
-  phase1SpawnCooldown: 8
+  phase1SpawnCooldown: 5
   phase1HitCounterThreshold: 4
   phase1SpawnRadius: 15
-  phase1FirstWaveThreshold: 0.95
-  phase1SecondWaveThreshold: 0.85
+  phase1FirstWaveThreshold: 0.98
+  phase1SecondWaveThreshold: 0.88

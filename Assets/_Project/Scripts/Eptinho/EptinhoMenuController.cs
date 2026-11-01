@@ -121,13 +121,13 @@ public class EptinhoMenuController : MonoBehaviour
 
     void OnEnable()
     {
-        if (QuestManager.Instance != null)
+        if (QuestManager.HasInstance)
             QuestManager.Instance.StateChanged += HandleQuestStateChanged;
     }
 
     void OnDisable()
     {
-        if (QuestManager.Instance != null)
+        if (QuestManager.HasInstance)
             QuestManager.Instance.StateChanged -= HandleQuestStateChanged;
     }
 
@@ -166,7 +166,7 @@ public class EptinhoMenuController : MonoBehaviour
         if (isOpen) return;
 
         // Garante subscrição caso o QuestManager tenha nascido depois
-        if (QuestManager.Instance != null)
+        if (QuestManager.HasInstance)
         {
             QuestManager.Instance.StateChanged -= HandleQuestStateChanged;
             QuestManager.Instance.StateChanged += HandleQuestStateChanged;

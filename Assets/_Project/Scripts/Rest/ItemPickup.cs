@@ -71,7 +71,10 @@ public class ItemPickup : MonoBehaviour
         { "Lotus", "lithos" },
         { "Lithos", "lithos" },
         { "Cristal", "po_de_cristal" },
-        { "Peixe", "peixe_lagoa" }
+        { "Peixe", "peixe_lagoa" },
+        { "Resto", "resta_geobionte" },
+        { "Resta", "resta_geobionte" },
+        { "Geobionte", "resta_geobionte" }
     };
 
     public void EnsureItemData()
@@ -144,7 +147,7 @@ public class ItemPickup : MonoBehaviour
             if (h.collider.CompareTag("Player") || h.collider.CompareTag("Enemy")) continue;
 
             string n = h.collider.gameObject.name.ToLower();
-            if (n.Contains("crystal") || n.Contains("prop") || h.collider.CompareTag("Prop")) continue;
+            if (n.Contains("crystal") || n.Contains("prop") || IsPropCollider(h.collider)) continue;
             if (h.collider.isTrigger && !n.Contains("water")) continue;
 
             float d = h.distance;
@@ -880,5 +883,11 @@ public class ItemPickup : MonoBehaviour
 
         Debug.Log("[ITEM] Coletado com sucesso: " + interactable.NomeDisplay);
         Destroy(gameObject);
+    }
+
+    private static bool IsPropCollider(Collider col)
+    {
+        if (col == null) return false;
+        try { return col.CompareTag("Prop"); } catch { return false; }
     }
 }

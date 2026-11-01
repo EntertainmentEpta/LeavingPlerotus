@@ -4,16 +4,11 @@ using System.Collections;
 /// <summary>
 /// Trigger de início do combate com o Boss.
 ///
-/// SETUP NO UNITY:
-///   1. Coloque este componente no GameObject RAIZ do prefab BossRoom_Cromatico
-///      (o mesmo que tem o Box Collider com Is Trigger = true)
-///   2. Arraste o GameObject "ArenaSeal" no campo "arenaSeal"
-///   3. Arraste o GameObject "Boss_Cromatico" (que tem o BossController) no campo "bossController"
-///   4. Opcional: arraste GameObjects de portas no array "entranceDoors"
-///
 /// FLUXO:
-///   1. Player entra no trigger → selo ativa → boss começa a lutar
-///   2. Boss morre → selo é destruído pelo BossController
+///   1. Player entra na arena passando pela entrada.
+///   2. Após sealDelay, a barreira gigante sela a entrada nas costas do player.
+///   3. O boss começa a lutar (StartFight).
+///   4. Boss morre → a barreira é destruída/aberta pelo BossController.
 /// </summary>
 [RequireComponent(typeof(Collider))]
 public class BossCombatTrigger : MonoBehaviour
@@ -26,12 +21,21 @@ public class BossCombatTrigger : MonoBehaviour
              "Começa DESATIVADO e é ativado quando o player entra.")]
     public GameObject arenaSeal;
 
-    [Tooltip("GameObjects de portas extras que trancam durante o combate (opcional).\n" +
-             "Funciona igual ao sistema do RoomController.")]
+    [Tooltip("GameObjects de portas extras que trancam durante o combate (opcional).")]
     public GameObject[] entranceDoors;
 
+    [Header("Barreira Customizada (Prefab)")]
+    [Tooltip("Prefab do modelo 3D da barreira (ex: Barreira.prefab). Se vazio, carrega automaticamente.")]
+    public GameObject barrierPrefab;
+
+    [Tooltip("Escala monumental para a barreira cobrir a entrada do Boss.")]
+    public Vector3 barrierScale = new Vector3(6f, 5.5f, 3.5f);
+
+    [Tooltip("Ajuste vertical de altura (eixo Y) da barreira.")]
+    public float barrierYOffset = 1.0f;
+
     [Header("Configuração")]
-    [Tooltip("Delay em segundos após o player entrar antes de ativar o selo.\n" +
+    [Tooltip("Delay em segundos após o player entrar antes de ativar a barreira.\n" +
              "Dá tempo do player entrar completamente na arena.")]
     public float sealDelay = 1.0f;
 
@@ -46,6 +50,8 @@ public class BossCombatTrigger : MonoBehaviour
 
     void Start()
     {
+        EnsureBossArenaBarrier();
+
         // Garante que o selo começa desativado
         if (arenaSeal != null)
             arenaSeal.SetActive(false);
@@ -56,6 +62,76 @@ public class BossCombatTrigger : MonoBehaviour
         {
             col.isTrigger = true;
             Debug.LogWarning("[BossCombatTrigger] Collider não era trigger — corrigido automaticamente.");
+        }
+    }
+
+    private void EnsureBossArenaBarrier()
+    {
+        if (barrierPrefab == null)
+        {
+            barrierPrefab = Resources.Load<GameObject>("Barreira");
+#if UNITY_EDITOR
+            if (barrierPrefab == null)
+                barrierPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Enviroment/Map/New map/BossRoom/Barreira.prefab");
+#endif
+        }
+
+        ConnectionPoint cp = GetComponentInChildren<ConnectionPoint>();
+        if (cp == null) return;
+
+        // Se o arenaSeal antigo for aquele objeto genérico primitivo, desativa
+        if (arenaSeal != null && arenaSeal.name == "ArenaSeal")
+        {
+            arenaSeal.SetActive(false);
+        }
+
+        Transform existing = transform.Find("[Boss_ArenaBarrier]");
+        if (existing == null && barrierPrefab != null)
+        {
+            // Posiciona a barreira exatamente no ConnectionPoint da entrada
+            Vector3 barrierPos = cp.transform.position + Vector3.up * barrierYOffset;
+
+            // Direção horizontal perpendicular da porta
+            Vector3 horizontalFwd = Vector3.ProjectOnPlane(cp.transform.forward, Vector3.up);
+            if (horizontalFwd.sqrMagnitude < 0.01f)
+                horizontalFwd = Vector3.ProjectOnPlane(cp.transform.up, Vector3.up);
+            if (horizontalFwd.sqrMagnitude < 0.01f)
+                horizontalFwd = Vector3.forward;
+            horizontalFwd.Normalize();
+
+            Quaternion rot = Quaternion.LookRotation(horizontalFwd, Vector3.up);
+
+            GameObject wall = Instantiate(barrierPrefab, barrierPos, rot);
+            wall.name = "[Boss_ArenaBarrier]";
+            wall.transform.localScale = barrierScale;
+            wall.transform.SetParent(this.transform, true);
+
+            // Garante um BoxCollider sólido e largo para vedar 100% da passagem
+            BoxCollider blocker = wall.GetComponent<BoxCollider>();
+            if (blocker == null)
+            {
+                blocker = wall.AddComponent<BoxCollider>();
+            }
+            blocker.isTrigger = false;
+            blocker.size = new Vector3(16f, 12f, 3f);
+            blocker.center = new Vector3(0, 5f, 0);
+
+            arenaSeal = wall;
+            if (bossController != null)
+            {
+                bossController.arenaSeal = wall;
+            }
+
+            wall.SetActive(false);
+        }
+        else if (existing != null)
+        {
+            arenaSeal = existing.gameObject;
+            if (bossController != null)
+            {
+                bossController.arenaSeal = existing.gameObject;
+            }
+            existing.gameObject.SetActive(false);
         }
     }
 
@@ -73,23 +149,26 @@ public class BossCombatTrigger : MonoBehaviour
 
     private IEnumerator StartBossFightSequence()
     {
-        // Espera o player entrar completamente
+        // Espera o player entrar completamente na arena
         yield return new WaitForSeconds(sealDelay);
 
-        // Ativa o selo (tranca a arena)
+        // Ativa o selo/barreira (tranca a arena)
         if (arenaSeal != null)
         {
             arenaSeal.SetActive(true);
-            if (showDebugLog) Debug.Log("[BossCombatTrigger] 🔒 Selo ativado — arena trancada!");
+            if (showDebugLog) Debug.Log("[BossCombatTrigger] 🔒 Barreira ativada — arena do Boss trancada!");
         }
 
-        // Tranca portas extras
-        foreach (GameObject door in entranceDoors)
+        // Tranca portas extras se houver
+        if (entranceDoors != null)
         {
-            if (door != null) door.SetActive(true);
+            foreach (GameObject door in entranceDoors)
+            {
+                if (door != null) door.SetActive(true);
+            }
         }
 
-        // Momento dramático
+        // Momento dramático antes do boss atacar
         yield return new WaitForSeconds(fightStartDelay);
 
         // Inicia a luta

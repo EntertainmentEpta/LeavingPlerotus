@@ -64,6 +64,32 @@ public class ItemSpawner : MonoBehaviour
 
         foreach (var point in spawnPoints)
         {
+            if (point == null) continue;
+
+            // Safe Room, Transition Room e Anomaly Room JAMAIS recebem itens coletáveis, minérios ou armadilhas
+            Transform rootT = point.transform.root;
+            string rootName = rootT != null ? rootT.name.ToLower() : "";
+            if (rootName.Contains("safe") || rootName.Contains("start") ||
+                rootName.Contains("transition") || rootName.Contains("anomaly") ||
+                rootName.Contains("anomalia") || rootName.Contains("3way") ||
+                rootName.Contains("treeway") || rootName.Contains("deadend") ||
+                rootName.Contains("beco") || rootName.Contains("semsaida") ||
+                rootName.Contains("merchant"))
+            {
+                continue;
+            }
+
+            RoomController rc = point.GetComponentInParent<RoomController>();
+            if (rc != null && (rc.isSafeRoom || rc.roomCategory != RoomController.RoomCategory.Combat))
+            {
+                continue;
+            }
+
+            if (point.GetComponentInParent<AnomalyRoomController>() != null)
+            {
+                continue;
+            }
+
             if (Random.value > spawnChancePerPoint)
                 continue;
 

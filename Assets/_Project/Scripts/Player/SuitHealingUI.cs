@@ -87,6 +87,18 @@ public class SuitHealingUI : MonoBehaviour
 
     private void Update()
     {
+        if (autoCanvasObj != null)
+        {
+            CanvasGroup cg = autoCanvasObj.GetComponent<CanvasGroup>();
+            if (cg != null)
+            {
+                bool hideForInventory = (InventoryUI.Instance != null && InventoryUI.Instance.IsOpen()) ||
+                                       (SyntheticBagUI.Instance != null && SyntheticBagUI.Instance.IsOpen()) ||
+                                       (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen());
+                cg.alpha = hideForInventory ? 0f : 1f;
+                cg.blocksRaycasts = !hideForInventory;
+            }
+        }
         string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         bool inMainMenu = currentScene == "MainMenu" || currentScene == "Menu";
         if (inMainMenu)
@@ -394,13 +406,14 @@ public class SuitHealingUI : MonoBehaviour
 
         Canvas canvas = autoCanvasObj.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 500;
+        canvas.sortingOrder = 1;
 
         CanvasScaler scaler = autoCanvasObj.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
 
         autoCanvasObj.AddComponent<GraphicRaycaster>();
+        autoCanvasObj.AddComponent<CanvasGroup>();
 
         // Painel Principal
         GameObject panelObj = new GameObject("HealingPanel");

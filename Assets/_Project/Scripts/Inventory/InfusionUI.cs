@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections;
@@ -1004,12 +1004,12 @@ public class InfusionUI : MonoBehaviour
 
     private string FormatterName(string attribute)
     {
-         if (attribute.ToLower().Contains("health")) return "Vida MÃƒÂ¡xima";
+         if (attribute.ToLower().Contains("health")) return "Vida M\u00E1xima";
          if (attribute.ToLower().Contains("damage")) return "Poder de Dano";
          if (attribute.ToLower().Contains("speed")) return "Velocidade de Movimento";
          if (attribute.ToLower().Contains("armor")) return "Armadura";
-         if (attribute.ToLower().Contains("critchance")) return "Chance de CrÃƒÂ­tico";
-         if (attribute.ToLower().Contains("critmultiplier")) return "Dano CrÃƒÂ­tico";
+         if (attribute.ToLower().Contains("critchance")) return "Chance de Cr\u00EDtico";
+         if (attribute.ToLower().Contains("critmultiplier")) return "Dano Cr\u00EDtico";
          return attribute;
     }
 

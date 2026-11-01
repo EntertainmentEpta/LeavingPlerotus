@@ -94,6 +94,8 @@ public class Geobionte_AI : MonoBehaviour
 
     private OreNode targetOre;
     private bool hasFused = false; // Flag por ciclo (reset após derrota)
+    private Vector3 consumedOrePosition = Vector3.zero; // Posição original do minério absorvido
+    private float interruptedWatchdogTimer = 0f; // Flag por ciclo (reset após derrota)
 
     [Header("Debug / Teste")]
     [Tooltip("Quantas derrotas como Bismutado já ocorreram. Defina como 2 para virar Sentinela na próxima derrota (fusionsToSentinel=3). Valor é sobrescrito pelo RunManager no Start se existir.")]
@@ -543,6 +545,11 @@ public class Geobionte_AI : MonoBehaviour
                 {
                     EnterSeekingOre();
                 }
+                else
+                {
+                    FleeAndDespawnNoOre();
+                    return;
+                }
             }
             // Se já fundiu ou não encontrou minério, continua vagando
         }
@@ -632,9 +639,9 @@ public class Geobionte_AI : MonoBehaviour
             FindNearestOre();
             if (targetOre == null)
             {
-                Debug.Log("[GEOBIONTE] Sem minério disponível! Voltando a vagar.");
+                Debug.Log("[GEOBIONTE] Sem minério disponível! Fugindo da sala...");
                 ExitSeekingOre();
-                ChangeState(GeobionteState.Idle);
+                FleeAndDespawnNoOre();
                 oreStallTimer = 0f;
                 return;
             }
@@ -701,6 +708,64 @@ public class Geobionte_AI : MonoBehaviour
     /// Chamado quando o player dá 7 hits no Geobionte enquanto ele busca minério.
     /// O Geobionte é impedido de transformar, foge para um canto da fase e despawna.
     /// </summary>
+    
+    /// <summary>
+    /// Chamado quando não há nenhum minério disponível na sala para o Geobionte se fundir.
+    /// Foge imediatamente para o canto e despawna, liberando as portas da sala.
+    /// </summary>
+    public void FleeAndDespawnNoOre()
+    {
+        if (isPrevented) return;
+        Debug.Log("[GEOBIONTE] Nenhum minério disponível para fusão na sala! Fugindo para a borda e liberando a sala...");
+        OnPrevented();
+    }
+
+    /// <summary>
+    /// Reaparece o minério original transformado em 'Resto de Geobionte' após derrotar o Bismutado.
+    /// </summary>
+    private void SpawnRestoGeobionteDrop(Vector3 pos)
+    {
+        GameObject prefab = Resources.Load<GameObject>("geobionte_bismuto_t2");
+#if UNITY_EDITOR
+        if (prefab == null)
+            prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Items_and_Crafting/Drops/geobionte_bismuto_t2.prefab");
+#endif
+
+        GameObject dropObj = null;
+        if (prefab != null)
+        {
+            dropObj = Instantiate(prefab, pos + Vector3.up * 0.35f, Quaternion.identity);
+        }
+        else
+        {
+            dropObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            dropObj.transform.position = pos + Vector3.up * 0.35f;
+            dropObj.transform.localScale = Vector3.one * 0.5f;
+
+            Renderer r = dropObj.GetComponent<Renderer>();
+            if (r != null)
+            {
+                Shader s = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+                Material m = new Material(s);
+                m.color = new Color(0.9f, 0.4f, 0.9f);
+                r.material = m;
+            }
+        }
+
+        dropObj.name = "Resto_de_Geobionte";
+
+        CharacteristicItemPickup pickup = dropObj.GetComponent<CharacteristicItemPickup>() ?? dropObj.AddComponent<CharacteristicItemPickup>();
+        pickup.itemId = "resta_geobionte";
+        pickup.itemName = "Resto de Geobionte";
+        pickup.itemDescription = "Matéria fóssil bismutada remanescente da fusão do Geobionte com o cristal da caverna. Componente único para expandir a câmara de infusão quádrupla.";
+
+        SphereCollider sc = dropObj.GetComponent<SphereCollider>() ?? dropObj.AddComponent<SphereCollider>();
+        sc.isTrigger = true;
+        sc.radius = 1.35f;
+
+        Debug.Log($"[GEOBIONTE] Resto de Geobionte reapareceu na posição original do minério ({pos})!");
+    }
+
     void OnPrevented()
     {
         Debug.Log("[GEOBIONTE] IMPEDIDO! Player conseguiu impedir a fusão!");
@@ -793,14 +858,16 @@ public class Geobionte_AI : MonoBehaviour
 
     void HandleInterrupted()
     {
-        // Verifica se chegou ao canto (ignora Y)
+        interruptedWatchdogTimer += Time.deltaTime;
+
+        // Verifica se chegou ao canto (ignora Y) ou se atingiu o timeout de 5 segundos
         Vector2 pos2D = new Vector2(transform.position.x, transform.position.z);
         Vector2 target2D = new Vector2(interruptedTargetCorner.x, interruptedTargetCorner.z);
         float dist = Vector2.Distance(pos2D, target2D);
 
-        if (dist <= 2f)
+        if (dist <= 2.5f || interruptedWatchdogTimer >= 5.0f)
         {
-            Debug.Log("[GEOBIONTE] Chegou ao canto da fase. Despawnando...");
+            Debug.Log("[GEOBIONTE] Fuga concluída (dist=" + dist.ToString("F1") + ", timer=" + interruptedWatchdogTimer.ToString("F1") + "s). Despawnando...");
             StartCoroutine(DespawnSequence());
         }
     }
@@ -928,6 +995,7 @@ public class Geobionte_AI : MonoBehaviour
         // Grava o valor do cristal e consome
         if (targetOre != null)
         {
+            consumedOrePosition = targetOre.transform.position;
             absorbedOreValue = targetOre.oreValue;
             targetOre.Consume(); // Destrói o cristal (some da cena)
         }
@@ -1498,6 +1566,13 @@ public class Geobionte_AI : MonoBehaviour
 
         // Incrementa contador de derrotas como Bismutado
         bismutadoDefeatCount++;
+
+        // Reaparece o minério original transformado em "Resto de Geobionte"
+        if (hasFused)
+        {
+            Vector3 dropPos = (consumedOrePosition != Vector3.zero) ? consumedOrePosition : transform.position;
+            SpawnRestoGeobionteDrop(dropPos);
+        }
         Debug.Log("[BISMUTADO] Derrotado! Derrota #" + bismutadoDefeatCount + "/" + fusionsToSentinel);
 
         // PROGRESSÃO MULTI-FASE: Salva progresso no RunManager
@@ -2617,6 +2692,13 @@ public class Geobionte_AI : MonoBehaviour
             // Sentinela usa lerp mais suave para a transição alta/baixa
             float lerpSpeed = isSentinel ? hoverLerpSpeed * 0.5f : hoverLerpSpeed;
             float yVelocity = Mathf.Clamp(yError * lerpSpeed, -10f, 10f);
+
+            // Garante que se estiver flutuando muito alto acima do chão/teto, puxa com firmeza para baixo
+            if (transform.position.y > groundHit.point.y + currentHoverHeight + 0.8f)
+            {
+                yVelocity = -8f;
+            }
+
             rb.linearVelocity = new Vector3(rb.linearVelocity.x, yVelocity, rb.linearVelocity.z);
         }
         else

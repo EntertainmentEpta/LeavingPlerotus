@@ -48,6 +48,10 @@ public class RoomController : MonoBehaviour
     public bool isSafeRoom = false;
     [Tooltip("Categoria da sala (Combat = combate normal, Contemplation = sala pacífica sem combate, SafeRoom = sala inicial, Merchant = mercador).")]
     public RoomCategory roomCategory = RoomCategory.Combat;
+
+    [Header("Barreiras de Combate")]
+    public GameObject barrierPrefab;
+    public float barrierYOffset = 1.0f;
     [HideInInspector] public bool doorsAreLocked = false;
     public bool isCleared { get; set; } = false;
 
@@ -194,8 +198,59 @@ public class RoomController : MonoBehaviour
     // UNITY LIFECYCLE
     // =====================================================
 
+        /// <summary>
+    /// Retorna verdadeiro se a sala for pacífica (Safe Room, Transition Room, Contemplation / Anomaly, Merchant ou Beco).
+    /// Salas pacíficas NUNCA devem ter inimigos, ondas, armadilhas, minérios invasivos ou portas bloqueadas.
+    /// </summary>
+    public bool IsPeacefulRoom()
+    {
+        if (isSafeRoom || roomCategory != RoomCategory.Combat) return true;
+        if (GetComponent<AnomalyRoomController>() != null || GetComponentInParent<AnomalyRoomController>() != null) return true;
+
+        string lowerName = gameObject.name.ToLower();
+        string rootName = transform.root != null ? transform.root.name.ToLower() : "";
+        if (lowerName.Contains("safe") || rootName.Contains("safe") ||
+            lowerName.Contains("start") || rootName.Contains("start") ||
+            lowerName.Contains("transition") || rootName.Contains("transition") ||
+            lowerName.Contains("anomaly") || rootName.Contains("anomaly") ||
+            lowerName.Contains("anomalia") || rootName.Contains("anomalia") ||
+            lowerName.Contains("3way") || rootName.Contains("3way") ||
+            lowerName.Contains("treeway") || rootName.Contains("treeway") ||
+            lowerName.Contains("deadend") || rootName.Contains("deadend") ||
+            lowerName.Contains("beco") || rootName.Contains("beco") ||
+            lowerName.Contains("semsaida") || rootName.Contains("semsaida") ||
+            lowerName.Contains("merchant") || rootName.Contains("merchant"))
+        {
+            return true;
+        }
+        return false;
+    }
+
     void Awake()
     {
+        if (IsPeacefulRoom())
+        {
+            string lowerName = gameObject.name.ToLower();
+            string rootName = transform.root != null ? transform.root.name.ToLower() : "";
+            bool isSafe = lowerName.Contains("safe") || rootName.Contains("safe") || lowerName.Contains("start") || rootName.Contains("start") || isSafeRoom || roomCategory == RoomCategory.SafeRoom;
+            isSafeRoom = true;
+            roomCategory = isSafe ? RoomCategory.SafeRoom : RoomCategory.Contemplation;
+            isCleared = true;
+            doorsAreLocked = false;
+            minWaves = 0;
+            maxWaves = 0;
+            minEnemiesPerWave = 0;
+            if (spawnAreas != null) spawnAreas.Clear();
+            if (doors != null)
+            {
+                foreach (GameObject d in doors) if (d) d.SetActive(false);
+                doors = new GameObject[0];
+            }
+            RemoveAllSafeRoomBarriers();
+            this.enabled = false;
+            return;
+        }
+
         EnsureValidSpawnAreas();
         EnsureDefaultCollectibleEntries();
 
@@ -228,39 +283,47 @@ public class RoomController : MonoBehaviour
 
     void Start()
     {
-        string lowerName = gameObject.name.ToLower();
-        if (lowerName.Contains("3way") || lowerName.Contains("treeway") ||
-            lowerName.Contains("anomaly") || lowerName.Contains("anomalia") ||
-            lowerName.Contains("deadend") || lowerName.Contains("beco") ||
-            lowerName.Contains("semsaida") || GetComponent<AnomalyRoomController>() != null)
+        if (IsPeacefulRoom())
         {
             isSafeRoom = true;
-            roomCategory = RoomCategory.Contemplation;
-            doorsAreLocked = false;
             isCleared = true;
+            doorsAreLocked = false;
+            minWaves = 0;
+            maxWaves = 0;
+            minEnemiesPerWave = 0;
+            if (spawnAreas != null) spawnAreas.Clear();
             if (doors != null)
             {
                 foreach (GameObject d in doors) if (d) d.SetActive(false);
+                doors = new GameObject[0];
             }
-        }
-
-        if (isSafeRoom || roomCategory != RoomCategory.Combat || GetComponent<AnomalyRoomController>() != null)
-        {
-            doorsAreLocked = false;
-            isCleared = true;
-            if (doors != null)
-            {
-                foreach (GameObject d in doors) if (d) d.SetActive(false);
-            }
+            RemoveAllSafeRoomBarriers();
+            this.enabled = false;
             return;
         }
 
         EnsureValidSpawnAreas();
         totalWavesThisRoom = Random.Range(minWaves, maxWaves + 1);
 
+        EnsureRuntimeDoorBarriers();
+
         doorsAreLocked = false;
         isCleared = false;
-        foreach (GameObject d in doors) if (d) d.SetActive(false);
+        foreach (GameObject d in doors)
+        {
+            if (d == null) continue;
+            RoomBarrier rb = d.GetComponent<RoomBarrier>();
+            if (rb != null)
+            {
+                rb.SetLocked(false, animate: false);
+            }
+            else
+            {
+                Collider[] cols = d.GetComponentsInChildren<Collider>(true);
+                foreach (var c in cols) if (c != null) { c.isTrigger = true; c.enabled = false; }
+                d.SetActive(false);
+            }
+        }
     }
 
     void Update()
@@ -281,7 +344,7 @@ public class RoomController : MonoBehaviour
     /// </summary>
     public void OnPlayerEnteredRoom(Collider other)
     {
-        if (other.CompareTag("Player") && !isSafeRoom && roomCategory == RoomCategory.Combat && !hasTriggered)
+        if (!IsPeacefulRoom() && !isCleared && other.CompareTag("Player") && !isSafeRoom && roomCategory == RoomCategory.Combat && !hasTriggered)
         {
             hasTriggered = true;
 
@@ -299,6 +362,7 @@ public class RoomController : MonoBehaviour
 
     IEnumerator StartCombatEncounter()
     {
+        if (IsPeacefulRoom() || isCleared || isSafeRoom || roomCategory != RoomCategory.Combat) yield break;
         // Spawna os 3 tipos de coletáveis (Minérios, Fauna, Flora) antes do combate iniciar
         SpawnRoomCollectibles();
 
@@ -1056,16 +1120,193 @@ public class RoomController : MonoBehaviour
 
     void LockDoors()
     {
+        if (IsPeacefulRoom() || isCleared || isSafeRoom || roomCategory != RoomCategory.Combat) return;
         doorsAreLocked = true;
-        foreach (GameObject d in doors) if (d) d.SetActive(true);
+        foreach (GameObject d in doors)
+        {
+            if (d == null) continue;
+            d.SetActive(true);
+            RoomBarrier rb = d.GetComponent<RoomBarrier>();
+            if (rb != null)
+            {
+                rb.SetLocked(true, animate: true);
+            }
+            else
+            {
+                Collider[] cols = d.GetComponentsInChildren<Collider>(true);
+                foreach (var c in cols) if (c != null) { c.isTrigger = false; c.enabled = true; }
+            }
+        }
     }
 
     void UnlockDoors()
     {
         isCleared = true;
         doorsAreLocked = false;
-        foreach (GameObject d in doors) if (d) d.SetActive(false);
+        foreach (GameObject d in doors)
+        {
+            if (d == null) continue;
+            RoomBarrier rb = d.GetComponent<RoomBarrier>();
+            if (rb != null)
+            {
+                rb.SetLocked(false, animate: true);
+            }
+            else
+            {
+                Collider[] cols = d.GetComponentsInChildren<Collider>(true);
+                foreach (var c in cols) if (c != null) { c.isTrigger = true; c.enabled = false; }
+                d.SetActive(false);
+            }
+        }
         OnRoomCleared?.Invoke(this);
+    }
+
+    /// <summary>
+    /// Garante que salas de combate instanciem o prefab de espinhos da barreira (Barreira.prefab)
+    /// cobrindo perfeitamente as passagens de portas e registrem os RoomBarriers.
+    /// </summary>
+    public void EnsureRuntimeDoorBarriers()
+    {
+        if (IsPeacefulRoom() || isSafeRoom || roomCategory != RoomCategory.Combat) return;
+
+        if (barrierPrefab == null)
+        {
+            barrierPrefab = Resources.Load<GameObject>("Barreira");
+        }
+
+        bool needsSpawning = false;
+        if (doors == null || doors.Length == 0)
+        {
+            needsSpawning = true;
+        }
+        else
+        {
+            foreach (var d in doors)
+            {
+                if (d == null || d.GetComponent<ConnectionPoint>() != null || d.GetComponent<RoomBarrier>() == null)
+                {
+                    needsSpawning = true;
+                    break;
+                }
+            }
+        }
+
+        if (needsSpawning)
+        {
+            List<GameObject> barrierInstances = new List<GameObject>();
+            ConnectionPoint[] cps = GetComponentsInChildren<ConnectionPoint>(true);
+
+            foreach (ConnectionPoint cp in cps)
+            {
+                if (cp == null) continue;
+
+                // Desativa colisores brutos do próprio socket para nunca gerar parede invisível
+                Collider cpCol = cp.GetComponent<Collider>();
+                if (cpCol != null)
+                {
+                    cpCol.isTrigger = true;
+                    cpCol.enabled = false;
+                }
+
+                // Remove filhos antigos de barreira no socket
+                for (int i = cp.transform.childCount - 1; i >= 0; i--)
+                {
+                    Transform ch = cp.transform.GetChild(i);
+                    if (ch != null && (ch.name.StartsWith("Barrier_") || ch.name.StartsWith("Barreira_") || ch.name.StartsWith("ThornBarrier_")))
+                    {
+                        Destroy(ch.gameObject);
+                    }
+                }
+
+                // NUNCA herda o transform do socket cp.transform (que em modelos FBX de salas pode ter escala de 1850x a 2600x!)
+                // Ancoramos a barreira em um container global com escala neutra (1, 1, 1), preservando a escala original do prefab de espinhos.
+                Transform barrierContainer = LevelGenerator.Instance != null ? LevelGenerator.Instance.transform : null;
+
+                GameObject barrierObj = null;
+                if (barrierPrefab != null)
+                {
+                    barrierObj = Instantiate(barrierPrefab, cp.transform.position + Vector3.up * barrierYOffset, cp.transform.rotation, barrierContainer);
+                    barrierObj.name = "ThornBarrier_" + cp.gameObject.name;
+                    // Garante a escala exata e natural projetada no prefab (sem distorção de escala herdada dos modelos)
+                    barrierObj.transform.localScale = barrierPrefab.transform.localScale;
+                }
+                else
+                {
+                    barrierObj = new GameObject("ThornBarrier_" + cp.gameObject.name);
+                    if (barrierContainer != null) barrierObj.transform.SetParent(barrierContainer, false);
+                    barrierObj.transform.position = cp.transform.position + Vector3.up * barrierYOffset;
+                    barrierObj.transform.rotation = cp.transform.rotation;
+                    barrierObj.transform.localScale = Vector3.one;
+                }
+
+                RoomBarrier rb = barrierObj.GetComponent<RoomBarrier>() ?? barrierObj.AddComponent<RoomBarrier>();
+
+                // Utiliza o colisor já existente e perfeitamente ajustado no próprio prefab
+                BoxCollider col = barrierObj.GetComponentInChildren<BoxCollider>(true);
+                if (col == null)
+                {
+                    col = barrierObj.AddComponent<BoxCollider>();
+                    float w = cp.doorWidth > 0 ? cp.doorWidth : 3.8f;
+                    float h = cp.doorHeight > 0 ? cp.doorHeight : 2.5f;
+                    col.size = new Vector3(w, h, 1.2f);
+                    col.center = new Vector3(0f, h * 0.5f, 0f);
+                }
+
+                col.isTrigger = true;
+                col.enabled = false;
+
+                rb.barrierCollider = col;
+                rb.visualRoot = barrierObj;
+
+                rb.SetLocked(false, animate: false);
+                barrierObj.SetActive(false);
+
+                barrierInstances.Add(barrierObj);
+            }
+
+            doors = barrierInstances.ToArray();
+        }
+    }
+
+    /// <summary>
+    /// Limpeza definitiva de barreiras físicas e portas em salas seguras/contemplativas.
+    /// </summary>
+    public void RemoveAllSafeRoomBarriers()
+    {
+        RoomBarrier[] barriers = GetComponentsInChildren<RoomBarrier>(true);
+        foreach (var b in barriers)
+        {
+            if (b != null)
+            {
+                b.ForceLowerImmediate();
+                Destroy(b.gameObject);
+            }
+        }
+
+        Collider[] allCols = GetComponentsInChildren<Collider>(true);
+        foreach (var c in allCols)
+        {
+            if (c == null) continue;
+            string n = c.gameObject.name.ToLower();
+            if (n == "door" || n.Contains("barrier") || n.Contains("barreira"))
+            {
+                c.isTrigger = true;
+                c.enabled = false;
+                Destroy(c.gameObject);
+            }
+        }
+
+        ConnectionPoint[] cps = GetComponentsInChildren<ConnectionPoint>(true);
+        foreach (var cp in cps)
+        {
+            if (cp == null) continue;
+            Collider c = cp.GetComponent<Collider>();
+            if (c != null)
+            {
+                c.isTrigger = true;
+                c.enabled = false;
+            }
+        }
     }
 
     // =====================================================
@@ -1160,7 +1401,7 @@ public class RoomController : MonoBehaviour
     /// </summary>
     public void EnsureValidSpawnAreas()
     {
-        if (isSafeRoom || roomCategory != RoomCategory.Combat || GetComponent<AnomalyRoomController>() != null)
+        if (IsPeacefulRoom() || isSafeRoom || roomCategory != RoomCategory.Combat || GetComponent<AnomalyRoomController>() != null)
         {
             return;
         }
@@ -1546,6 +1787,7 @@ public class RoomController : MonoBehaviour
 
     private void SpawnRoomCollectibles()
     {
+        if (IsPeacefulRoom() || isCleared || isSafeRoom || roomCategory != RoomCategory.Combat) return;
         EnsureValidSpawnAreas();
         if (spawnAreas == null || spawnAreas.Count == 0) return;
 
@@ -1649,6 +1891,17 @@ public class RoomController : MonoBehaviour
     {
         if (list == null || list.Count == 0) return null;
         return list[Random.Range(0, list.Count)];
+    }
+
+    private void OnDestroy()
+    {
+        if (doors != null)
+        {
+            foreach (var d in doors)
+            {
+                if (d != null) Destroy(d);
+            }
+        }
     }
 }
 

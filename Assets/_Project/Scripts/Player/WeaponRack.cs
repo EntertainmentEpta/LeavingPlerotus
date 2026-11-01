@@ -163,7 +163,7 @@ public class WeaponRack : MonoBehaviour
 
     private void OnEnable()
     {
-        if (TutorialManager.Instance != null)
+        if (TutorialManager.HasInstance)
         {
             TutorialManager.Instance.stepChangedEvent += OnTutorialStepChanged;
         }
@@ -171,7 +171,7 @@ public class WeaponRack : MonoBehaviour
 
     private void OnDisable()
     {
-        if (TutorialManager.Instance != null)
+        if (TutorialManager.HasInstance)
         {
             TutorialManager.Instance.stepChangedEvent -= OnTutorialStepChanged;
         }

@@ -18,9 +18,9 @@ public class RochaGeocinese : MonoBehaviour
     public float tempoDeEsperaAntesDoDisparo = 2.0f;
 
     [Header("Disparo & Dano AoE")]
-    public float velocidadeArremesso = 28f;
-    public int danoExplosaoAoE = 15;
-    public float raioExplosaoAoE = 2.5f;
+    public float velocidadeArremesso = 38f;
+    public int danoExplosaoAoE = 22;
+    public float raioExplosaoAoE = 3.6f;
 
     [Header("VFX")]
     public GameObject hitVFXPrefab;
@@ -190,7 +190,7 @@ public class RochaGeocinese : MonoBehaviour
     {
         Vector3 posCarga = transform.position;
         float elapsed = 0f;
-        float tempoDeCarga = 2.0f; // Tempo de carga ágil e dinâmico
+        float tempoDeCarga = 0.80f; // Tempo de carga ágil e dinâmico
 
         // Carga tremeluzente no ar
         while (elapsed < tempoDeCarga)
@@ -205,12 +205,20 @@ public class RochaGeocinese : MonoBehaviour
         Vector3 direcaoDisparo = (alvo - transform.position).normalized;
 
         float tempoVoo = 0f;
-        float velocidadeFinal = 28f;
+        float velocidadeFinal = 38f;
 
         while (tempoVoo < 1.5f)
         {
             tempoVoo += Time.deltaTime;
             
+            // Perseguição inteligente (Homing): curva em direção ao jogador em alta velocidade
+            if (player != null)
+            {
+                alvo = player.transform.position + Vector3.up * 1.0f;
+                Vector3 targetDir = (alvo - transform.position).normalized;
+                direcaoDisparo = Vector3.RotateTowards(direcaoDisparo, targetDir, 3.5f * Time.deltaTime, 0f);
+            }
+
             // Avança pelo ar apontando para a direção de voo sem afundar no solo
             transform.position += direcaoDisparo * velocidadeFinal * Time.deltaTime;
             if (direcaoDisparo != Vector3.zero)
@@ -219,7 +227,7 @@ public class RochaGeocinese : MonoBehaviour
             }
 
             // Checa impacto por proximidade ou choque com o solo
-            if (Vector3.Distance(transform.position, alvo) <= 0.9f || transform.position.y <= 0.2f)
+            if (Vector3.Distance(transform.position, alvo) <= 1.2f || transform.position.y <= 0.3f)
             {
                 break;
             }
@@ -258,7 +266,7 @@ public class RochaGeocinese : MonoBehaviour
         // Notifica o casulo para regenerar um novo orbe após 4 segundos
         if (casuloPai != null)
         {
-            casuloPai.AgendarRegeneracaoDeOrbe(4.0f);
+            casuloPai.AgendarRegeneracaoDeOrbe(2.5f);
         }
 
         Destroy(gameObject);

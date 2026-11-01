@@ -103,6 +103,22 @@ public class EquipmentManager : MonoBehaviour
             BuildLookup();
         }
 
+        // Garante que o Sistema de Supressão de Incêndio da Nave esteja registrado (Melhoria de Base)
+        if (GetEquipmentData("eq_extintor_nave") == null)
+        {
+            EquipmentData fireData = ScriptableObject.CreateInstance<EquipmentData>();
+            fireData.equipmentId   = "eq_extintor_nave";
+            fireData.equipmentName = "Sistema de Supressão de Incêndio";
+            fireData.description   = "Extingue focos de fogo, fumaça e brasas residuais (Ship Embers) no Lobby e no Laboratório.";
+            fireData.effectType    = EquipmentEffectType.BaseFireExtinguisher;
+            fireData.effectValue   = 1.0f;
+            fireData.maxStack      = 1;
+            fireData.isBaseUpgrade = true; // Pertence à aba da BASE no Crafting!
+
+            allEquipmentDefinitions.Add(fireData);
+            BuildLookup();
+        }
+
         // Registra definições canônicas de Blueprints do Robozinho (Escrituras)
         EnsureBlueprintEquipment("equip_filtro_acido", "Filtro Químico de Decomposição", "Reduz em 40% o dano de veneno e poças ácidas em Plerotus.", EquipmentEffectType.AcidPoisonResist, 0.40f);
         EnsureBlueprintEquipment("equip_quebra_casca", "Solenoide de Quebra-Casca", "Aumenta em 20% o dano contra armadura e couraça pesada de monstros (Golems e Peixe).", EquipmentEffectType.ShellBreakerArmorDmg, 0.20f);
@@ -418,6 +434,10 @@ public class EquipmentManager : MonoBehaviour
                 BarrierCounterUI.EnsureExistsAndSetVisible(true);
                 break;
 
+            case EquipmentEffectType.BaseFireExtinguisher:
+                BaseFireExtinguisherManager.ApplyFireState();
+                break;
+
             case EquipmentEffectType.AttributeDisplayModule:
                 AttributeDisplayOnScreenSplit.EnsureExistsAndSetVisible(true);
                 break;
@@ -544,6 +564,10 @@ public class EquipmentManager : MonoBehaviour
 
             case EquipmentEffectType.BarrierCounterDisplay:
                 BarrierCounterUI.EnsureExistsAndSetVisible(false);
+                break;
+
+            case EquipmentEffectType.BaseFireExtinguisher:
+                BaseFireExtinguisherManager.ApplyFireState();
                 break;
 
             case EquipmentEffectType.AttributeDisplayModule:

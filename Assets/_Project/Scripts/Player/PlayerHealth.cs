@@ -60,6 +60,8 @@ public class PlayerHealth : MonoBehaviour
     /// Parâmetros: (int danoRecebido, GameObject atacante)
     /// </summary>
     public static event System.Action<int, GameObject> OnPlayerDamaged;
+    /// <summary>Disparado quando a armadura do jogador zera em combate.</summary>
+    public static event System.Action OnArmorBroken;
 
     public bool hasPactCorrupted = false;
     public Color darkPactHealthColor = new Color(0.38f, 0.04f, 0.08f, 1.0f); // Sangue Escuro Obscuro (#610a14)
@@ -91,6 +93,7 @@ public class PlayerHealth : MonoBehaviour
     private int playerLayer;
     private bool diedFallingForward = false;
     private float sentinelLegCooldownEndTime = 0f;
+    private float lastArmorBreakPopupTime = -999f;
 
     private float armorRegenAccumulator = 0f;
     private float healthRegenAccumulator = 0f;
@@ -1357,6 +1360,8 @@ public class PlayerHealth : MonoBehaviour
         
         int totalDamageTakenThisHit = 0;
 
+        int armorBefore = currentArmor;
+
         // Aplicar dano em armor primeiro, depois health
         if (currentArmor > 0)
         {
@@ -1366,6 +1371,8 @@ public class PlayerHealth : MonoBehaviour
             totalDamageTakenThisHit += damageToArmor;
             UpdateArmorBar();
         }
+
+        bool armorBrokeThisHit = (armorBefore > 0 && currentArmor <= 0 && maxArmor > 0);
         
         if (finalDamage > 0)
         {
@@ -1415,14 +1422,21 @@ public class PlayerHealth : MonoBehaviour
             }
         }
 
-        // Dispara o evento desacoplado de dano e o indicador de dano recebido na tela via Eptinho Popup
+        // Dispara o evento desacoplado de dano
         if (totalDamageTakenThisHit > 0)
         {
             OnPlayerDamaged?.Invoke(totalDamageTakenThisHit, attacker);
+        }
+
+        // Eptinho avisa SOMENTE quando a armadura quebrar
+        if (armorBrokeThisHit && !isDead && (Time.time - lastArmorBreakPopupTime >= 3.5f))
+        {
+            lastArmorBreakPopupTime = Time.time;
+            OnArmorBroken?.Invoke();
 
             if (EptinhoPopupController.instancia != null)
             {
-                EptinhoPopupController.instancia.MostrarPopupAviso($"💥 Você recebeu -{totalDamageTakenThisHit} de Dano!");
+                EptinhoPopupController.instancia.MostrarPopupArmaduraQuebrada();
             }
         }
         

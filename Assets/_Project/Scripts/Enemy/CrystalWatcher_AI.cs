@@ -264,7 +264,10 @@ public class CrystalWatcher_AI : MonoBehaviour
             isActivated = true;
             Debug.Log("[WATCHER] Ativado! Player detectado a " + distToPlayer.ToString("F1") + "m");
 
-            // Inicia o ciclo de ataque (Coroutine = função que pode "pausar" e esperar)
+            EnemyIdentity id = GetComponent<EnemyIdentity>() ?? GetComponentInChildren<EnemyIdentity>() ?? GetComponentInParent<EnemyIdentity>();
+            if (id != null && BestiarioManager.instancia != null)
+                BestiarioManager.instancia.Registrar(id);
+
             StartCoroutine(AttackCycle());
         }
     }

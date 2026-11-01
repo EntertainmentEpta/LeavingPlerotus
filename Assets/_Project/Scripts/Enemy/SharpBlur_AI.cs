@@ -153,12 +153,22 @@ public class SharpBlur : MonoBehaviour
         }
     }
 
+    private bool registradoNoBestiario = false;
+
     void HandleIdle()
     {
         if (Vector3.Distance(transform.position, playerTransform.position) <= activationDistance)
         {
             currentState = State.Chasing;
             if (anim != null) anim.SetBool("isChasing", true);
+
+            if (!registradoNoBestiario)
+            {
+                registradoNoBestiario = true;
+                EnemyIdentity id = GetComponent<EnemyIdentity>() ?? GetComponentInChildren<EnemyIdentity>() ?? GetComponentInParent<EnemyIdentity>();
+                if (id != null && BestiarioManager.instancia != null)
+                    BestiarioManager.instancia.Registrar(id);
+            }
         }
     }
 

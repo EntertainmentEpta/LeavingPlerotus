@@ -78,6 +78,15 @@ public class PlayerM : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         rb.freezeRotation = true;
+
+        // SEGURANÇA NAVMESH: O jogador usa Rigidbody (linearVelocity).
+        // Desativa updatePosition e updateRotation no NavMeshAgent para nunca criar paredes invisíveis em portas.
+        UnityEngine.AI.NavMeshAgent navAgent = GetComponent<UnityEngine.AI.NavMeshAgent>() ?? GetComponentInParent<UnityEngine.AI.NavMeshAgent>() ?? GetComponentInChildren<UnityEngine.AI.NavMeshAgent>();
+        if (navAgent != null)
+        {
+            navAgent.updatePosition = false;
+            navAgent.updateRotation = false;
+        }
         if (attackScript == null) attackScript = GetComponent<PrimaryAttackKnife>() ?? GetComponentInChildren<PrimaryAttackKnife>();
         if (dashScript == null) dashScript = GetComponent<DashM>() ?? GetComponentInChildren<DashM>() ?? GetComponentInParent<DashM>();
         
@@ -110,6 +119,15 @@ public class PlayerM : MonoBehaviour
         {
             gameObject.AddComponent<KeybindApplier>();
         }
+        ReloadKeybinds();
+    }
+
+    public void ReloadKeybinds()
+    {
+        keyUp = KeybindApplier.ParseKey("KeyUp", "W");
+        keyDown = KeybindApplier.ParseKey("KeyDown", "S");
+        keyLeft = KeybindApplier.ParseKey("KeyLeft", "A");
+        keyRight = KeybindApplier.ParseKey("KeyRight", "D");
     }
 
     private void Update()

@@ -233,7 +233,22 @@ public class DashM : MonoBehaviour
     private void Awake()
     {
         Instance = this;
+        ReloadKeybinds();
         InitSlotTimers();
+    }
+
+    private void OnEnable()
+    {
+        ReloadKeybinds();
+    }
+
+    public void ReloadKeybinds()
+    {
+        dashKey = KeybindApplier.ParseKey("KeyDash", "E");
+        keyUp = KeybindApplier.ParseKey("KeyUp", "W");
+        keyDown = KeybindApplier.ParseKey("KeyDown", "S");
+        keyLeft = KeybindApplier.ParseKey("KeyLeft", "A");
+        keyRight = KeybindApplier.ParseKey("KeyRight", "D");
     }
 
     private void Start()

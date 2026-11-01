@@ -17,14 +17,20 @@ public enum TutorialStep
 public class TutorialManager : MonoBehaviour
 {
     private static TutorialManager _instance;
+    private static bool isApplicationQuitting = false;
+
+    public static bool HasInstance => _instance != null;
     public static TutorialManager Instance
     {
         get
         {
+            if (isApplicationQuitting || !Application.isPlaying)
+                return _instance;
+
             if (_instance == null)
             {
                 _instance = FindFirstObjectByType<TutorialManager>();
-                if (_instance == null)
+                if (_instance == null && !isApplicationQuitting && Application.isPlaying)
                 {
                     GameObject go = new GameObject("TutorialManager_Auto");
                     _instance = go.AddComponent<TutorialManager>();
@@ -71,7 +77,23 @@ public class TutorialManager : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (Instance == this) Instance = null;
+        if (_instance == this)
+        {
+            _instance = null;
+            isApplicationQuitting = true;
+        }
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStaticState()
+    {
+        isApplicationQuitting = false;
+        _instance = null;
+    }
+
+    private void OnApplicationQuit()
+    {
+        isApplicationQuitting = true;
     }
 
     /// <summary>

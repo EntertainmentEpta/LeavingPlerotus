@@ -236,7 +236,7 @@ public class BossController : MonoBehaviour
 
     [Header("Configuração de Root Motion")]
     [Tooltip("Ativa a aplicação orgânica de Root Motion durante animações para que passos, socos e a pisada (Stomp) movimentem o Boss sem patinar no lugar.")]
-    public bool useRootMotion = true;
+    public bool useRootMotion = false;
 
     [Header("Debug & Sandbox")]
     public bool showDebugLog = true;
@@ -273,18 +273,22 @@ public class BossController : MonoBehaviour
     // =====================================================
 
     private DummyHealth health;
-    private NavMeshAgent agent;
+    public NavMeshAgent agent;
     public Transform playerTransform;
 
     // Ataque melee e Locomoção
     private float meleeTimer = 0f;
     private float acidSpitTimer = 0f;
-    private bool isAttacking = false;
+    public bool isAttacking = false;
     private bool isSprinting = false;
     private string lastMeleeAttack = "";
     private float lastStompImpactTime = -10f;
     private float lastJumpImpactTime = -10f;
     [HideInInspector] public List<BossHandHitbox> allHandHitboxes = new List<BossHandHitbox>();
+    [HideInInspector] public float lastMeleeHitPlayerTime = -10f;
+
+    [Header("🔊 Áudio do Boss")]
+    public BossAudio bossAudio;
 
     public void DesativarTodosOsTrails()
     {
@@ -413,13 +417,25 @@ public class BossController : MonoBehaviour
         health = GetComponent<DummyHealth>();
         agent = GetComponent<NavMeshAgent>();
 
-        // Rigidbody do Boss: ultra pesado para o player NUNCA conseguir empurrá-lo
+        // Rigidbody do Boss: Cinemático e com todas as posições travadas para o player NUNCA conseguir empurrá-lo
         Rigidbody rbBoss = GetComponent<Rigidbody>();
         if (rbBoss != null)
         {
+            rbBoss.isKinematic = true;
             rbBoss.mass = 5000f;
-            rbBoss.constraints = RigidbodyConstraints.FreezeRotation;
+            rbBoss.constraints = RigidbodyConstraints.FreezeAll;
         }
+
+        if (agent != null)
+        {
+            agent.avoidancePriority = 0; // Prioridade máxima: outros agentes e o player contornam o Boss
+        }
+
+        // Garante que o Spawner de Mobs e os Modificadores da Fase 3 estejam ativos e funcionando
+        var mobSpawner = GetComponent<BossPhase1_MobSpawner>();
+        if (mobSpawner != null) mobSpawner.enabled = true;
+        var phase3Mods = GetComponent<BossPhase3Modifiers>();
+        if (phase3Mods != null) phase3Mods.enabled = true;
 
         // Sanitiza colisores: Garante que APENAS o CapsuleCollider raiz (raio 0.45m) seja sólido
         SanitizeBossColliders();
@@ -427,13 +443,13 @@ public class BossController : MonoBehaviour
         // Auto-detecta os modelos visuais da Fase 2 e Fase 3 se não estiverem atribuídos no Inspector
         if (visualPhase2 == null)
         {
-            Transform t2 = transform.Find("IdleNovoBoss") ?? transform.Find("Orc Idle");
+            Transform t2 = transform.Find("Phase 2") ?? transform.Find("IdleNovoBoss") ?? transform.Find("Orc Idle");
             if (t2 != null) visualPhase2 = t2.gameObject;
         }
 
         if (visualPhase3 == null)
         {
-            Transform t3 = transform.Find("Neutral Idle") ?? transform.Find("Fase3") ?? transform.Find("Visual_Phase3") ?? transform.Find("Boss_Fase3");
+            Transform t3 = transform.Find("Phase 3") ?? transform.Find("Neutral Idle") ?? transform.Find("Fase3") ?? transform.Find("Visual_Phase3") ?? transform.Find("Boss_Fase3");
             if (t3 != null) visualPhase3 = t3.gameObject;
         }
 
@@ -445,6 +461,9 @@ public class BossController : MonoBehaviour
 #endif
 
         // Garante que no início apenas o modelo da fase correta esteja ativo
+        if (bossAudio == null)
+            bossAudio = GetComponent<BossAudio>() ?? GetComponentInChildren<BossAudio>() ?? gameObject.AddComponent<BossAudio>();
+
         if (visualPhase3 != null && CurrentPhase < 3)
         {
             visualPhase3.SetActive(false);
@@ -467,7 +486,7 @@ public class BossController : MonoBehaviour
 
         if (animator != null)
         {
-            animator.applyRootMotion = useRootMotion;
+            animator.applyRootMotion = false; // Impede que animações como Crouch ou Stomp puxem o Boss/pés para fora do chão
 
             if (animator.GetComponent<BossAnimationEvents>() == null)
             {
@@ -651,6 +670,7 @@ public class BossController : MonoBehaviour
     /// </summary>
     public virtual void CastSpell()
     {
+        if (bossAudio != null) { bossAudio.PlaySpellCast(); bossAudio.PlayCrystalSpikes(); }
         AnimEvent_GroundImpact();
         TriggerCameraShake(0.3f, 0.18f);
         if (showDebugLog) Debug.Log("[BossController] 🪄 CastSpell executado via Animation Event!");
@@ -658,6 +678,7 @@ public class BossController : MonoBehaviour
 
     public void AnimEvent_StompImpact()
     {
+        if (bossAudio != null) bossAudio.PlayStompImpact();
         // Previne disparo duplo consecutivo (ex: AnimationEvent no FBX + chamada de segurança no script)
         if (Time.time - lastStompImpactTime < 0.35f)
         {
@@ -741,6 +762,7 @@ public class BossController : MonoBehaviour
 
     public void AnimEvent_JumpImpact()
     {
+        if (bossAudio != null) bossAudio.PlayJumpImpact();
         // Previne disparo duplo consecutivo (ex: AnimationEvent no FBX + chamada de segurança no script)
         if (Time.time - lastJumpImpactTime < 0.35f)
         {
@@ -767,24 +789,35 @@ public class BossController : MonoBehaviour
             if (found != null) jumpAttackVFXChildObject = found.gameObject;
         }
 
-        // 2. Dispara o VFX nativo de salto do Prefab (Stomp_Radial_360) mantendo sua rotação (-90° Y) e escala (0.65) intactas!
+        // 2. Dispara o VFX de salto DESACOPLADO no World Space para ficar 100% fixo no solo no ponto de pouso!
         if (jumpAttackVFXChildObject != null)
         {
-            jumpAttackVFXChildObject.SetActive(true);
+            Vector3 spawnPos = transform.position;
+            Quaternion spawnRot = jumpAttackVFXChildObject.transform.rotation;
+            Vector3 spawnScale = jumpAttackVFXChildObject.transform.lossyScale;
 
-            ParticleSystem[] psList = jumpAttackVFXChildObject.GetComponentsInChildren<ParticleSystem>(true);
+            GameObject worldJump = Instantiate(jumpAttackVFXChildObject, spawnPos, spawnRot, null);
+            worldJump.transform.localScale = spawnScale;
+            worldJump.SetActive(true);
+
+            jumpAttackVFXChildObject.SetActive(false);
+
+            ParticleSystem[] psList = worldJump.GetComponentsInChildren<ParticleSystem>(true);
             if (psList != null && psList.Length > 0)
             {
                 foreach (var ps in psList)
                 {
                     ps.gameObject.SetActive(true);
+                    var main = ps.main;
+                    main.simulationSpace = ParticleSystemSimulationSpace.World;
                     ps.Clear(true);
                     ps.time = 0f;
                     ps.Play(true);
                 }
             }
 
-            Debug.Log($"💥 [BOSS JUMP ATTACK] ✅ Disparou VFX Nativo de Salto (Stomp_Radial_360): '{jumpAttackVFXChildObject.name}'!");
+            Destroy(worldJump, 4.0f);
+            Debug.Log($"💥 [BOSS JUMP ATTACK] ✅ Disparou VFX Desacoplado no Solo: '{worldJump.name}' (100% fixo no chão)!");
         }
         else
         {
@@ -875,8 +908,8 @@ public class BossController : MonoBehaviour
 
     void LateUpdate()
     {
-        // Garante que o modelo filho (Orc Idle) permaneça perfeitamente alinhado no chão sem flutuar no ar
-        if (animator != null && animator.transform != transform)
+        // Garante que o modelo filho permaneça perfeitamente alinhado no chão quando não estiver em salto aéreo
+        if (!isAttacking && animator != null && animator.transform != transform)
         {
             Vector3 localPos = animator.transform.localPosition;
             if (Mathf.Abs(localPos.y) > 0.01f || Mathf.Abs(localPos.x) > 0.01f || Mathf.Abs(localPos.z) > 0.01f)
@@ -1073,9 +1106,17 @@ public class BossController : MonoBehaviour
             isMoving = currentMoveSpeed > 0.15f;
         }
 
-        animator.SetBool("IsWalking", isMoving && !isSprinting);
+        // Na Fase 3 não há clipe de sprint separado (apenas Walk), então locomover-se ativa IsWalking
+        bool walkCondition = isMoving && (!isSprinting || CurrentPhase == 3);
+        animator.SetBool("IsWalking", walkCondition);
         animator.SetBool("isSprinting", isMoving && isSprinting);
         animator.SetFloat("Speed", isMoving ? currentMoveSpeed : 0f);
+
+        // Se estiver na Fase 3 e em sprint, acelera o ciclo de passadas para sincronizar com a velocidade
+        if (CurrentPhase == 3 && !isAttacking && !isRecovering && hitstopCoroutine == null && animator != null)
+        {
+            animator.speed = (isMoving && isSprinting) ? 1.35f : 1.0f;
+        }
     }
 
     private Vector3 lastDripPosition;
@@ -1255,6 +1296,7 @@ public class BossController : MonoBehaviour
     /// </summary>
     public void TriggerPowerUP(float invulnerabilityDuration = 2.5f)
     {
+        if (bossAudio != null) bossAudio.PlayRoarOrPhaseTransition();
         DesativarTodosOsTrails();
         isCastingSpell = true;
         isSprinting = false;
@@ -2433,6 +2475,18 @@ public class BossController : MonoBehaviour
         // Na Fase 1 (Casulo) OU quando Invisível (Refração), o Boss NÃO ataca corpo a corpo (somente spells/mobs)!
         if (CurrentPhase == 1 || IsInvisible) return;
 
+        // SE O BOSS ESTIVER EXECUTANDO QUALQUER ATAQUE, RECUPERAÇÃO, MAGIA OU COMBO,
+        // NUNCA SOBREPÕE NEM CANCELA! TRAVA ROTAÇÃO E MOVIMENTO IMEDIATAMENTE!
+        if (!CanInitiateAction || isAttacking || isRecovering || isCastingSpell || isExecutingCombo)
+        {
+            if (agent != null && agent.enabled && agent.isOnNavMesh)
+            {
+                agent.isStopped = true;
+                agent.velocity = Vector3.zero;
+            }
+            return;
+        }
+
         // Orientação em direção ao player
         HandleRotation();
 
@@ -2844,6 +2898,8 @@ public class BossController : MonoBehaviour
         selectedTrigger = candidateAttacks[UnityEngine.Random.Range(0, candidateAttacks.Count)];
         lastMeleeAttack = selectedTrigger;
 
+        if (bossAudio != null) bossAudio.PlayAttackSwing(selectedTrigger);
+
         if (animator != null)
         {
             string stateName = selectedTrigger;
@@ -2925,12 +2981,12 @@ public class BossController : MonoBehaviour
         float trackingCutoffTime = Mathf.Max(0.10f, windUp - trackingCutoffWindow);
         float elapsedWindUp = 0f;
 
-        // SALTO PERSEGUIDOR (Gap-Closer Aéreo no Jump Attack):
+        // SALTO PERSEGUIDOR (Gap-Closer Aéreo no Jump Attack com Arco Parabólico 3D):
         if (selectedTrigger == "bossJumpAttack")
         {
             Vector3 startJumpPos = transform.position;
             Vector3 targetLandingPos = playerTransform != null ? playerTransform.position : (startJumpPos + transform.forward * 5f);
-            if (UnityEngine.AI.NavMesh.SamplePosition(targetLandingPos, out UnityEngine.AI.NavMeshHit navHit, 6.0f, UnityEngine.AI.NavMesh.AllAreas))
+            if (UnityEngine.AI.NavMesh.SamplePosition(targetLandingPos, out UnityEngine.AI.NavMeshHit navHit, 8.0f, UnityEngine.AI.NavMesh.AllAreas))
             {
                 targetLandingPos = navHit.position;
             }
@@ -2939,17 +2995,22 @@ public class BossController : MonoBehaviour
             float leapLand = 1.95f;
             float leapDuration = leapLand - leapTakeoff;
 
+            if (agent != null && agent.enabled)
+            {
+                agent.updatePosition = false;
+            }
+
             while (elapsedWindUp < windUp)
             {
                 elapsedWindUp += Time.deltaTime;
 
                 if (elapsedWindUp < leapTakeoff)
                 {
-                    // Mira e gira suavemente em direção ao player antes da decolagem e atualiza ponto de pouso
+                    // Mira e vira em direção ao player antes da decolagem e fixa o ponto de pouso
                     if (playerTransform != null)
                     {
                         targetLandingPos = playerTransform.position;
-                        if (UnityEngine.AI.NavMesh.SamplePosition(targetLandingPos, out UnityEngine.AI.NavMeshHit hit2, 6.0f, UnityEngine.AI.NavMesh.AllAreas))
+                        if (UnityEngine.AI.NavMesh.SamplePosition(targetLandingPos, out UnityEngine.AI.NavMeshHit hit2, 8.0f, UnityEngine.AI.NavMesh.AllAreas))
                         {
                             targetLandingPos = hit2.position;
                         }
@@ -2960,29 +3021,37 @@ public class BossController : MonoBehaviour
                 {
                     float leapProgress = Mathf.Clamp01((elapsedWindUp - leapTakeoff) / leapDuration);
                     float t = Mathf.SmoothStep(0f, 1f, leapProgress);
-                    Vector3 currentPos = Vector3.Lerp(startJumpPos, targetLandingPos, t);
-
-                    if (agent != null && agent.enabled && agent.isOnNavMesh)
-                    {
-                        agent.Warp(currentPos);
-                    }
-                    else
-                    {
-                        transform.position = currentPos;
-                    }
+                    // Curva Parabólica Vertical: o Boss sobe 4.5m no ar e cai sobre o alvo!
+                    float jumpHeight = Mathf.Sin(leapProgress * Mathf.PI) * 4.5f;
+                    Vector3 horizPos = Vector3.Lerp(startJumpPos, targetLandingPos, t);
+                    transform.position = horizPos + Vector3.up * jumpHeight;
+                }
+                else
+                {
+                    transform.position = targetLandingPos;
                 }
 
                 yield return null;
             }
+
+            transform.position = targetLandingPos;
+            if (agent != null && agent.enabled)
+            {
+                agent.Warp(targetLandingPos);
+                agent.updatePosition = true;
+            }
         }
         else
         {
+            // Para o Stomp (pisada no chão), congela a rotação nos primeiros 0.30s para NUNCA girar o cone!
+            float maxTrackTime = (selectedTrigger == "bossStomp") ? 0.30f : trackingCutoffTime;
+
             while (elapsedWindUp < windUp)
             {
                 elapsedWindUp += Time.deltaTime;
                 
-                // Rastreia o player responsivamente até os últimos 0.25s antes do golpe para esquiva justa de reflexo!
-                if (elapsedWindUp <= trackingCutoffTime)
+                // Rastreia o player apenas durante o início da antecipação; no golpe, fica 100% travado no solo!
+                if (elapsedWindUp <= maxTrackTime)
                 {
                     HandleRotationSmooth(turnSmoothSpeed * 1.6f);
                 }
@@ -3058,6 +3127,7 @@ public class BossController : MonoBehaviour
     /// </summary>
     public virtual void TriggerAcidSpit()
     {
+        if (bossAudio != null) bossAudio.PlayAcidSpit();
         if (animator != null)
         {
             animator.ResetTrigger("AcidSpit");
@@ -3072,6 +3142,7 @@ public class BossController : MonoBehaviour
     /// </summary>
     public virtual void TriggerThornVolley()
     {
+        if (bossAudio != null) bossAudio.PlayThornVolley();
         if (animator != null)
         {
             animator.ResetTrigger("ThornVolley");
@@ -3199,6 +3270,8 @@ public class BossController : MonoBehaviour
 
         CurrentState = BossState.Dead;
         CurrentPhase = 0;
+
+        if (bossAudio != null) bossAudio.PlayDeathSound();
 
         if (showDebugLog) Debug.Log("[BossController] 💀 BOSS DERROTADO NO FINAL DA FASE 3!");
 

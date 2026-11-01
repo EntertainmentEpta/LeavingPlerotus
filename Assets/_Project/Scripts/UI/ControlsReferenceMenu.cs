@@ -171,12 +171,14 @@ public class ControlsReferenceMenu : MonoBehaviour
 
         y -= 6f;
 
-        // ══ DEBUG / DEV ══
+        #if UNITY_EDITOR
+// ══ DEBUG / DEV ══
         y = AddSection(parent, "🔧  DEBUG / DEV", y);
         y = AddKeybind(parent, "/", "Cheat Console", y, C_RED);
         y = AddKeybind(parent, "F1", "Debug (reservado)", y, C_TEXT_DIM);
         y = AddKeybind(parent, ";", "Dev tools (reservado)", y, C_TEXT_DIM);
 
+        #endif
         return y;
     }
 
