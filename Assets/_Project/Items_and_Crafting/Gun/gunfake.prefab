@@ -20231,7 +20231,7 @@ MonoBehaviour:
   projectilePrefab: {fileID: -6173952573389582666, guid: 62990efdbcb116b43a5a0174988292a8, type: 3}
   muzzle: {fileID: 577326026319440339}
   muzzleFlashVFX: {fileID: 4522574764164905149}
-  fireCooldown: 0.1
+  fireCooldown: 0.4
   baseDamage: 10
   maxExtraProjectiles: 5
   minimumProjectileRange: 200

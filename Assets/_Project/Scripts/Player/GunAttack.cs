@@ -26,6 +26,13 @@ public class GunAttack : MonoBehaviour
     [Tooltip("Tempo da recarga manual punitiva após a bateria zerar.")]
     [Min(0.1f)] public float batteryRechargeDuration = 2.0f;
     public KeyCode reloadKey = KeyCode.R;
+
+    private KeyCode GetReloadKey()
+    {
+        string saved = PlayerPrefs.GetString("KeyReload", "R");
+        if (System.Enum.TryParse<KeyCode>(saved, out KeyCode parsed)) return parsed;
+        return reloadKey;
+    }
     [Min(1)] public int chargePerTrigger = 1;
 
     [Header("HUD de Carga")]
@@ -125,7 +132,27 @@ public class GunAttack : MonoBehaviour
 
     private void OnEnable()
     {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
         AimSettings.OnAimModeChanged += HandleAimModeChanged;
+        RefreshOwnerReferences();
+        if (batteryHUDCanvas != null) batteryHUDCanvas.gameObject.SetActive(true);
+    }
+
+    private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+    {
+        aimCamera = null;
+        isAimSessionActive = false;
+        RefreshOwnerReferences();
+        if (batteryHUDCanvas != null)
+        {
+            batteryOrbImages.Clear();
+            lastHUDCapacity = -1;
+            lastHUDCharge = -1;
+            lastHUDTint = new Color(-1f, -1f, -1f, -1f);
+            batteryHUDCanvas.gameObject.SetActive(IsEquippedInPlayerHand());
+        }
+        EnsureBatteryHUD();
+        RefreshBatteryHUD();
     }
 
     private void Update()
@@ -142,7 +169,7 @@ public class GunAttack : MonoBehaviour
         }
 
         EnsureBatteryHUD();
-        if (batteryCharge <= 0 && !IsRecharging && Input.GetKeyDown(reloadKey))
+        if (batteryCharge < batteryCapacity && !IsRecharging && Input.GetKeyDown(GetReloadKey()))
             BeginManualReload();
         UpdateBattery();
         RefreshBatteryHUD();
@@ -205,6 +232,7 @@ public class GunAttack : MonoBehaviour
 
     private void OnDisable()
     {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
         AimSettings.OnAimModeChanged -= HandleAimModeChanged;
         RestoreAimCursor();
         if (playerMovement != null) playerMovement.SetPlasmaFiring(false);
@@ -223,8 +251,10 @@ public class GunAttack : MonoBehaviour
 
     private void OnDestroy()
     {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
         if (aimConeMesh != null) Destroy(aimConeMesh);
         if (aimConeMaterial != null) Destroy(aimConeMaterial);
+        if (aimConeObject != null) Destroy(aimConeObject);
         if (batteryHUDCanvas != null) Destroy(batteryHUDCanvas.gameObject);
     }
 
@@ -245,13 +275,26 @@ public class GunAttack : MonoBehaviour
 
     private bool IsEquippedInPlayerHand()
     {
-        if (!gameObject.activeInHierarchy || playerMovement == null || weaponManager == null)
-            return false;
+        if (!gameObject.activeInHierarchy) return false;
 
-        if (!weaponManager.isWeaponDrawn || weaponManager.currentWeapon != gameObject)
-            return false;
+        if (playerMovement == null || weaponManager == null)
+        {
+            RefreshOwnerReferences();
+            if (playerMovement == null || weaponManager == null) return false;
+        }
 
-        return weaponManager.rightHand != null && transform.IsChildOf(weaponManager.rightHand);
+        if (!weaponManager.isWeaponDrawn) return false;
+
+        bool isCurrentWeapon = weaponManager.currentWeapon == gameObject ||
+                               (weaponManager.currentWeapon != null && weaponManager.currentWeapon.GetComponent<GunAttack>() == this);
+        if (!isCurrentWeapon) return false;
+
+        if (weaponManager.rightHand != null)
+        {
+            return transform.IsChildOf(weaponManager.rightHand);
+        }
+
+        return transform.IsChildOf(weaponManager.transform);
     }
 
     private void UpdateAimCursor()
@@ -359,7 +402,7 @@ public class GunAttack : MonoBehaviour
 
         if (!hasMissing) return;
 
-        // Fallback: search loaded sprites across memory by asset name
+        // Fallback 1: search loaded sprites across memory by asset name
         Sprite[] allSprites = Resources.FindObjectsOfTypeAll<Sprite>();
         foreach (Sprite s in allSprites)
         {
@@ -370,6 +413,50 @@ public class GunAttack : MonoBehaviour
             else if (batteryOrbSprites[3] == null && s.name == "3_carga") batteryOrbSprites[3] = s;
             else if (batteryOrbSprites[4] == null && s.name == "4_carga") batteryOrbSprites[4] = s;
         }
+
+        // Fallback 2: Generate procedural circular sprites if sprites are ever not loaded
+        for (int i = 0; i < 5; i++)
+        {
+            if (batteryOrbSprites[i] == null)
+            {
+                batteryOrbSprites[i] = CreateFallbackOrbSprite(i);
+            }
+        }
+    }
+
+    private static Sprite CreateFallbackOrbSprite(int chargeLevel)
+    {
+        int size = 64;
+        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        Color transparent = new Color(0, 0, 0, 0);
+        Color ringColor = new Color(0.3f, 0.7f, 1f, 0.8f);
+        Color fillColor = chargeLevel == 0 ? new Color(0.1f, 0.1f, 0.2f, 0.5f) : new Color(0.1f, 0.85f, 1f, 0.9f);
+
+        float center = size / 2f;
+        float radius = size / 2f - 2f;
+        float innerRadius = radius * 0.75f;
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dist = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
+                if (dist > radius)
+                {
+                    tex.SetPixel(x, y, transparent);
+                }
+                else if (dist >= innerRadius)
+                {
+                    tex.SetPixel(x, y, ringColor);
+                }
+                else
+                {
+                    tex.SetPixel(x, y, chargeLevel > 0 ? fillColor : transparent);
+                }
+            }
+        }
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
     }
 
     private void EnsureBatteryHUD()
@@ -397,7 +484,13 @@ public class GunAttack : MonoBehaviour
 
         if (batteryHUDCanvas == null)
         {
+            batteryOrbImages.Clear();
+            lastHUDCapacity = -1;
+            lastHUDCharge = -1;
+            lastHUDTint = new Color(-1f, -1f, -1f, -1f);
+
             GameObject canvasObject = new GameObject("PlasmaBatteryHUD");
+            DontDestroyOnLoad(canvasObject);
             batteryHUDCanvas = canvasObject.AddComponent<Canvas>();
             batteryHUDCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
             batteryHUDCanvas.sortingOrder = 20;
@@ -416,6 +509,24 @@ public class GunAttack : MonoBehaviour
             batteryHUDRoot.anchorMin = new Vector2(0f, 1f);
             batteryHUDRoot.anchorMax = new Vector2(0f, 1f);
             batteryHUDRoot.pivot = new Vector2(0f, 1f);
+        }
+
+        // Limpa referências a imagens destruídas em transição de cena
+        bool hasDeadImage = false;
+        for (int i = 0; i < batteryOrbImages.Count; i++)
+        {
+            if (batteryOrbImages[i] == null)
+            {
+                hasDeadImage = true;
+                break;
+            }
+        }
+        if (hasDeadImage)
+        {
+            batteryOrbImages.Clear();
+            lastHUDCapacity = -1;
+            lastHUDCharge = -1;
+            lastHUDTint = new Color(-1f, -1f, -1f, -1f);
         }
 
         batteryHUDCanvas.gameObject.SetActive(true);
@@ -488,11 +599,23 @@ public class GunAttack : MonoBehaviour
     private bool TryGetAimPoint(out Vector3 aimPoint)
     {
         aimPoint = Vector3.zero;
-        if (aimCamera == null) aimCamera = Camera.main;
+        if (aimCamera == null || !aimCamera.isActiveAndEnabled)
+        {
+            aimCamera = Camera.main;
+            if (aimCamera == null)
+            {
+                aimCamera = FindFirstObjectByType<Camera>();
+            }
+        }
         if (aimCamera == null) return false;
 
         Transform aimOrigin = playerMovement != null ? playerMovement.transform : ownerRoot;
-        if (aimOrigin == null) return false;
+        if (aimOrigin == null)
+        {
+            RefreshOwnerReferences();
+            aimOrigin = playerMovement != null ? playerMovement.transform : ownerRoot;
+            if (aimOrigin == null) return false;
+        }
 
         Ray mouseRay = aimCamera.ScreenPointToRay(Input.mousePosition);
         Plane aimPlane = new Plane(Vector3.up, aimOrigin.position);
@@ -591,7 +714,9 @@ public class GunAttack : MonoBehaviour
         Shader coneShader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
         if (coneShader == null) return;
 
+        if (aimConeObject != null) return;
         aimConeObject = new GameObject("PlasmaAimRange");
+        DontDestroyOnLoad(aimConeObject);
         aimConeTransform = aimConeObject.transform;
         MeshFilter meshFilter = aimConeObject.AddComponent<MeshFilter>();
         MeshRenderer meshRenderer = aimConeObject.AddComponent<MeshRenderer>();
@@ -621,6 +746,10 @@ public class GunAttack : MonoBehaviour
 
     private void UpdateAimCone(bool visible, Vector3 aimDirection)
     {
+        if (aimConeObject == null)
+        {
+            CreateAimCone();
+        }
         if (aimConeObject == null) return;
         if (aimConeObject.activeSelf != visible) aimConeObject.SetActive(visible);
         if (!visible) return;
@@ -729,6 +858,11 @@ public class GunAttack : MonoBehaviour
         float spread = attributes != null ? attributes.spread : 0f;
         int extraProjectiles = GetExtraProjectileCount(attributes);
         float critChance = attributes != null ? attributes.critChance : 0f;
+        DashM dashScriptRef = dashController != null ? dashController : GetComponentInParent<DashM>();
+        if (dashScriptRef != null && dashScriptRef.ConsumeGuaranteedCrit())
+        {
+            critChance = 100f;
+        }
         float critMultiplier = attributes != null ? attributes.critMultiplier : 1f;
         float knockback = attributes != null ? attributes.knockback : 1f;
         int piercing = attributes != null ? attributes.piercing : 0;
@@ -819,7 +953,7 @@ public class GunAttack : MonoBehaviour
 
     private void BeginManualReload()
     {
-        if (batteryCharge > 0 || IsRecharging) return;
+        if (batteryCharge >= batteryCapacity || IsRecharging) return;
 
         IsRecharging = true;
         batteryRechargeElapsed = 0f;

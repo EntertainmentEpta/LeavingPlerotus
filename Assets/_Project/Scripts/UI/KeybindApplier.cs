@@ -49,6 +49,9 @@ public class KeybindApplier : MonoBehaviour
         PlayerInteraction interact = GetComponent<PlayerInteraction>();
         if (interact != null) interact.interactKey = ParseKey("KeyInteract", "F");
 
+        GunAttack gun = GetComponentInChildren<GunAttack>();
+        if (gun != null) gun.reloadKey = ParseKey("KeyReload", "R");
+
         // 3. Entrega a tecla para o Inventário
         if (InventoryUI.Instance != null)
         {

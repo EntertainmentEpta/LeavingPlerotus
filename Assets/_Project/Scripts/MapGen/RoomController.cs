@@ -971,6 +971,8 @@ public class RoomController : MonoBehaviour
             if (e == null || !e.activeInHierarchy || e.transform.position.y < -15f) return true;
             DummyHealth dh = e.GetComponent<DummyHealth>() ?? e.GetComponentInChildren<DummyHealth>();
             if (dh != null && dh.CurrentHealth <= 0) return true;
+            ShardSwarmHealth ssh = e.GetComponent<ShardSwarmHealth>() ?? e.GetComponentInChildren<ShardSwarmHealth>();
+            if (ssh != null && ssh.CurrentHealth <= 0) return true;
             Geobionte_AI geo = e.GetComponent<Geobionte_AI>() ?? e.GetComponentInChildren<Geobionte_AI>() ?? e.GetComponentInParent<Geobionte_AI>();
             if (geo != null && geo.IsDefeatedOrFleeing) return true;
             return false;

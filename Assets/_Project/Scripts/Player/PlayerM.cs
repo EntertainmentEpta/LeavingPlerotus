@@ -29,6 +29,14 @@ public class PlayerM : MonoBehaviour
     [Tooltip("Velocidade da ANIMAÇÃO durante o impacto. 1 = Normal. 0.1 = Câmera Lenta (Matrix).")]
     public float hitboxAnimSpeed = 1f;
 
+    [Header("Subida de Degraus e Raízes (Step Offset)")]
+    [Tooltip("Altura máxima de degraus, raízes e pequenas elevações de piso que o player sobe suavemente.")]
+    public float maxStepHeight = 0.35f;
+    [Tooltip("Distância à frente do pé para checagem de degraus.")]
+    public float stepCheckDistance = 0.45f;
+    [Tooltip("Velocidade de subida suave sobre o degrau.")]
+    public float stepSmoothSpeed = 8f;
+
     [Header("Ground Check")]
     public Transform groundCheck;
     public LayerMask whatIsGround;
@@ -61,6 +69,11 @@ public class PlayerM : MonoBehaviour
 
     private AudioSource footstepSource;
     private bool isFootstepPlaying = false;
+    private void OnEnable()
+    {
+        isPlasmaActionLocked = false;
+    }
+
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
@@ -159,23 +172,14 @@ public class PlayerM : MonoBehaviour
             return;
         }
 
-        if (isPlasmaActionLocked)
-        {
-            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
-            return;
-        }
         if (dashScript != null && dashScript.isDashing) return;
         MovePlayer();
+        HandleStepClimbing();
     }
 
     public void SetPlasmaFiring(bool isFiring)
     {
         isPlasmaActionLocked = isFiring;
-        if (!isFiring) return;
-
-        moveDirection = Vector3.zero;
-        targetSpeed = 0f;
-        currentRotationSpeed = 0f;
     }
 
     public void SetPlasmaAimDirection(Vector3 direction)
@@ -185,13 +189,7 @@ public class PlayerM : MonoBehaviour
 
     private void MyInput()
     {
-        if (isPlasmaActionLocked)
-        {
-            moveDirection = Vector3.zero;
-            targetSpeed = 0f;
-            currentRotationSpeed = 0f;
-            return;
-        }
+        // Permite movimentação fluida durante o disparo da pistola (strafing)
 
         // === LÓGICA MANUAL DE MOVIMENTO (Substitui o GetAxisRaw) ===
         float horizontal = 0f;
@@ -216,7 +214,9 @@ public class PlayerM : MonoBehaviour
         }
         else
         {
-            targetSpeed = sprintSpeed * totalSpeedMult;
+            // Ao atirar com arma de plasma, mantém 85% da velocidade para sensação tática de recuo sem paralisar o jogador
+            float firingPenalty = isPlasmaActionLocked ? 0.85f : 1.0f;
+            targetSpeed = sprintSpeed * totalSpeedMult * firingPenalty;
             currentRotationSpeed = rotationSpeed;
         }
     }
@@ -334,6 +334,39 @@ public class PlayerM : MonoBehaviour
         {
             footstepSource.Stop();
             isFootstepPlaying = false;
+        }
+    }
+
+    /// <summary>
+    /// Detecta e sobe pequenos degraus, raízes e desníveis de malha 3D sem prender o jogador.
+    /// </summary>
+    private void HandleStepClimbing()
+    {
+        if (moveDirection.sqrMagnitude < 0.01f || rb == null) return;
+
+        Vector3 moveDirNorm = moveDirection.normalized;
+        Vector3 footOrigin = transform.position + Vector3.up * 0.05f;
+        Vector3 stepOrigin = transform.position + Vector3.up * maxStepHeight;
+
+        int mask = (whatIsGround.value != 0) ? whatIsGround.value : ~0;
+
+        // Raio inferior: detecta se os pés bateram em algum obstáculo/degrau
+        if (Physics.Raycast(footOrigin, moveDirNorm, out RaycastHit footHit, stepCheckDistance, mask, QueryTriggerInteraction.Ignore))
+        {
+            if (footHit.collider != null && !footHit.collider.isTrigger && footHit.collider.gameObject != gameObject && !footHit.collider.CompareTag("Player"))
+            {
+                // Raio superior: verifica se na altura do degrau o espaço está LIVRE (não é parede alta)
+                if (!Physics.Raycast(stepOrigin, moveDirNorm, stepCheckDistance + 0.15f, mask, QueryTriggerInteraction.Ignore))
+                {
+                    // Espaço livre! Aplica elevação suave para deslizar sobre o degrau
+                    float climbAmount = (footHit.point.y + maxStepHeight) - transform.position.y;
+                    if (climbAmount > 0.01f && climbAmount <= maxStepHeight + 0.15f)
+                    {
+                        rb.position += Vector3.up * (stepSmoothSpeed * Time.fixedDeltaTime);
+                        rb.linearVelocity = new Vector3(rb.linearVelocity.x, Mathf.Max(rb.linearVelocity.y, 0.4f), rb.linearVelocity.z);
+                    }
+                }
+            }
         }
     }
 }
