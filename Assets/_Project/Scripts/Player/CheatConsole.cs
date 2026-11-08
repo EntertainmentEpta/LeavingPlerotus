@@ -1226,8 +1226,8 @@ public class CheatConsole : MonoBehaviour
             }
             else if (sub == "aimbot" || sub == "gun" || sub == "watcher" || sub == "mira")
             {
-                if (inv != null) inv.AddItem("03cw", 1);
-                string msg = "T4 PISTOLA AIMBOT (03cw) CONCEDIDO!\n+5000 Essência. Abra a câmara e infunda para Disparos Teleguiados!";
+                if (inv != null) inv.AddItem("watcher_beacon_t4", 1);
+                string msg = "T4 PISTOLA AIMBOT (watcher_beacon_t4) CONCEDIDO!\n+5000 Essência. Abra a câmara e infunda para Disparos Teleguiados!";
                 Debug.Log($"💻 CHEAT: {msg}");
                 if (EptinhoPopupController.instancia != null) EptinhoPopupController.instancia.MostrarPopupAviso(msg);
             }
@@ -1236,9 +1236,9 @@ public class CheatConsole : MonoBehaviour
                 if (inv != null)
                 {
                     inv.AddItem("04sb", 1);
-                    inv.AddItem("03cw", 1);
+                    inv.AddItem("watcher_beacon_t4", 1);
                 }
-                string msg = "ITENS T4 CONCEDIDOS (04sb Dash + 03cw Aimbot)!\n+5000 Essência para testar!";
+                string msg = "ITENS T4 CONCEDIDOS (04sb Dash + watcher_beacon_t4 Aimbot)!\n+5000 Essência para testar!";
                 Debug.Log($"💻 CHEAT: {msg}");
                 if (EptinhoPopupController.instancia != null) EptinhoPopupController.instancia.MostrarPopupAviso(msg);
             }

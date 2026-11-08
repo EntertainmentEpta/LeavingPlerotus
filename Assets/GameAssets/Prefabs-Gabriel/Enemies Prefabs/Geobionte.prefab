@@ -138,6 +138,8 @@ MonoBehaviour:
     weight: 20
   - itemPrefab: {fileID: 2444000100010001, guid: 338fe6f1b3f4033488f6f5f590053760, type: 3}
     weight: 10
+  - itemPrefab: {fileID: 1035917559036730698, guid: 99514fc2f438d754bb49db2aace05a2e, type: 3}
+    weight: 10
   spawnHeight: 0.5
   spawnRadius: 0.5
   launchForce: 3

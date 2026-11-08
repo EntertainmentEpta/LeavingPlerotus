@@ -18,8 +18,8 @@ MonoBehaviour:
   icon: {fileID: 21300000, guid: fa53db19190aea648bb45d6b81d17a27, type: 3}
   tier: 1
   enemySource: Crystal Watcher
-  recycleEssenceValue: 15
-  infusionEssenceCost: 30
+  recycleEssenceValue: 72
+  infusionEssenceCost: 180
   itemAttributes:
   - attributeType: 0
     value: 1.2
@@ -27,3 +27,6 @@ MonoBehaviour:
   - attributeType: 1
     value: 1.1
     isMultiplier: 1
+  - attributeType: 6
+    value: 8
+    isMultiplier: 0

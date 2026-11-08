@@ -17,9 +17,9 @@ MonoBehaviour:
   description: 
   icon: {fileID: 21300000, guid: c93e9cd4eba4ed343a070e3961a563c7, type: 3}
   tier: 0
-  enemySource: 
+  enemySource: Geobionte
   returnsToBase: 0
-  recycleEssenceValue: 10
+  recycleEssenceValue: 24
   infusionEssenceCost: 60
   itemAttributes:
   - attributeType: 14

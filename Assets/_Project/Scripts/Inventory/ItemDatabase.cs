@@ -134,7 +134,27 @@ public class ItemDatabase : MonoBehaviour
             itemLookup["goblin_braco_t2"] = gBraco;
         }
 
+        // Unificação CrystalWatcher (mapeia IDs curtos 01cw..04cw e IDs descritivos watcher_*_t1..t4)
+        MapAlias("01cw", "watcher_lens_t1");
+        MapAlias("02cw", "watcher_carcaça_t2", "watcher_carcaca_t2", "watcher_eye_t2");
+        MapAlias("03cw", "watcher_anel_t3", "watcher_sight_t3");
+        MapAlias("watcher_beacon_t4", "04cw");
+
+        // Unificação Golem legado
+        MapAlias("golem_chip_t1", "01go");
+
         Debug.Log("[ITEM DATABASE] " + itemLookup.Count + " chaves/itens registrados.");
+    }
+
+    private void MapAlias(string primaryKey, params string[] aliases)
+    {
+        if (itemLookup.TryGetValue(primaryKey, out var item) && item != null)
+        {
+            foreach (var alias in aliases)
+            {
+                if (!itemLookup.ContainsKey(alias)) itemLookup[alias] = item;
+            }
+        }
     }
 
     /// <summary>

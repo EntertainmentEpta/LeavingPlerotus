@@ -16,14 +16,11 @@ MonoBehaviour:
   itemName: Golem Drop
   description: O drop do Golem
   icon: {fileID: 0}
-  tier: 1
+  tier: 0
   enemySource: Golem
-  recycleEssenceValue: 100
-  infusionEssenceCost: 0
+  recycleEssenceValue: 24
+  infusionEssenceCost: 60
   itemAttributes:
-  - attributeType: 13
-    value: 50
-    isMultiplier: 0
   - attributeType: 14
     value: 1.15
     isMultiplier: 1

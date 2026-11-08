@@ -19,16 +19,16 @@ MonoBehaviour:
   tier: 3
   enemySource: SharpBlur
   returnsToBase: 0
-  recycleEssenceValue: 10
-  infusionEssenceCost: 60
+  recycleEssenceValue: 168
+  infusionEssenceCost: 420
   itemAttributes:
   - attributeType: 0
-    value: 1.3
+    value: 1.35
     isMultiplier: 1
   - attributeType: 1
-    value: 1.2
+    value: 1.25
     isMultiplier: 1
   - attributeType: 20
-    value: 2
-    isMultiplier: 0
+    value: 0.75
+    isMultiplier: 1
   tier4Effect: 1
