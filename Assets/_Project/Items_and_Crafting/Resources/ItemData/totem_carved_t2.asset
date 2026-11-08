@@ -24,6 +24,9 @@ MonoBehaviour:
   - attributeType: 14
     value: 1.15
     isMultiplier: 1
+  - attributeType: 13
+    value: 20
+    isMultiplier: 0
   - attributeType: 17
     value: 1.15
     isMultiplier: 1

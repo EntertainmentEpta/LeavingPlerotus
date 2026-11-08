@@ -30,6 +30,6 @@ MonoBehaviour:
   - attributeType: 15
     value: 1.25
     isMultiplier: 1
-  - attributeType: 11
-    value: 8
+  - attributeType: 2
+    value: 10
     isMultiplier: 0

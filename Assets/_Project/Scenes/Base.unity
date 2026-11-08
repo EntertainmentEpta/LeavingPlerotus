@@ -10442,6 +10442,9 @@ MonoBehaviour:
   - type: 9
     prefab: {fileID: 4071592738944931536, guid: 1505e180e79ad56479765065be0453de, type: 3}
     poolSize: 3
+  - type: 10
+    prefab: {fileID: 2433282508537954060, guid: 3ef3ae421f71c5c4e97fe12dc2fc6312, type: 3}
+    poolSize: 3
   impactFrameSpeed: 2.5
 --- !u!4 &382147885
 Transform:
@@ -11176,6 +11179,10 @@ PrefabInstance:
     - target: {fileID: 3017463410146802124, guid: 217bae9f660890143a86775e613ef9a4, type: 3}
       propertyPath: m_Name
       value: Player
+      objectReference: {fileID: 0}
+    - target: {fileID: 6793213990562782912, guid: 217bae9f660890143a86775e613ef9a4, type: 3}
+      propertyPath: maxHealth
+      value: 1000
       objectReference: {fileID: 0}
     - target: {fileID: 8291047582019485712, guid: 217bae9f660890143a86775e613ef9a4, type: 3}
       propertyPath: axeBladeTip
@@ -16437,6 +16444,8 @@ MonoBehaviour:
   geobionteDefeatCount: 0
   geobionteAbsorbedThisLevel: 0
   forceBossNextRun: 0
+  hasSpawnedMerchantThisRun: 0
+  hasCompletedPactThisRun: 0
   isEndlessMode: 0
 --- !u!114 &1037998307
 MonoBehaviour:
