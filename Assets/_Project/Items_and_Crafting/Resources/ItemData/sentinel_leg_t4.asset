@@ -14,8 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
   itemId: sentinel_leg_t4
   itemName: Perna de Sentinela
-  description: Evita morte uma vez a cada 10 min. Se <30% HP, ignora dano. Se >=30%
-    HP, define HP para 30%.
+  description: "Ao causar dano, rouba vida com base no dano causado (5%)."
   icon: {fileID: 0}
   tier: 3
   enemySource: Geobionte
@@ -26,3 +25,4 @@ MonoBehaviour:
   - attributeType: 0
     value: 0
     isMultiplier: 0
+  tier4Effect: 10

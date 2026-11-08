@@ -194,6 +194,8 @@ public class ShardSwarmHealth : MonoBehaviour
             damage = Mathf.RoundToInt(damage * 0.5f);
         }
 
+        Tier4EffectManager tunerManager = FindFirstObjectByType<Tier4EffectManager>();
+        damage = tunerManager != null ? tunerManager.ModifyIncomingDamage(gameObject, damage) : damage;
         CurrentHealth -= damage;
         onDamageTaken?.Invoke(damage, null);
 
@@ -231,7 +233,12 @@ public class ShardSwarmHealth : MonoBehaviour
         if (CurrentHealth <= 0)
         {
             CurrentHealth = 0;
+            tunerManager?.NotifyEnemyDamaged(gameObject, true);
             Die();
+        }
+        else
+        {
+            tunerManager?.NotifyEnemyDamaged(gameObject, false);
         }
     }
 

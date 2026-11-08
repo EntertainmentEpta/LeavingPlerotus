@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
   itemId: tuner_matrix_t4
   itemName: Matriz Sintonizadora (T4)
-  description: "Efeito \xDAnico T4: TunerAdrenaline"
+  description: "Recebe efeito de marca em inimigos aleatórios."
   icon: {fileID: 21300000, guid: 2c2c11844f021c24893562a23390961a, type: 3}
   tier: 3
   enemySource: Crystal Tuner
@@ -31,3 +31,4 @@ MonoBehaviour:
   - attributeType: 18
     value: 1.1
     isMultiplier: 1
+  tier4Effect: 12

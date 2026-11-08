@@ -220,6 +220,8 @@ public class DummyHealth : MonoBehaviour
             damage = Mathf.RoundToInt(damage * buffFactor);
         }
 
+        Tier4EffectManager tunerManager = FindFirstObjectByType<Tier4EffectManager>();
+        damage = tunerManager != null ? tunerManager.ModifyIncomingDamage(gameObject, damage) : damage;
         CurrentHealth -= damage;
         RunStatsManager.Instance?.RecordDamageDealt(damage);
 
@@ -259,7 +261,12 @@ public class DummyHealth : MonoBehaviour
         if (CurrentHealth <= 0)
         {
             CurrentHealth = 0;
+            tunerManager?.NotifyEnemyDamaged(gameObject, true);
             Die();
+        }
+        else
+        {
+            tunerManager?.NotifyEnemyDamaged(gameObject, false);
         }
     }
 

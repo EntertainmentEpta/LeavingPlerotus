@@ -1831,9 +1831,9 @@ public class InfusionHistorySlotHover : MonoBehaviour, UnityEngine.EventSystems.
 
         if (itemData.tier == ItemTier.Legendary && itemData.tier4Effect != Tier4EffectType.None)
         {
-            extra.AppendLine($"\n<color=#FFD700><b>★ EFEITO LENDÁRIO:</b> {itemData.tier4Effect}</color>");
+            string effectName = Tier4EffectDisplayNames.GetName(itemData.tier4Effect);
+            extra.AppendLine($"\n<color=#FFD700><b>★ EFEITO LENDÁRIO:</b> {effectName}</color>");
         }
-
         if (isSynergy && !string.IsNullOrEmpty(synergyName))
         {
             extra.AppendLine($"\n<color=#FFD700><b>★ SINERGIA ATIVADA:</b> {synergyName.ToUpper()}</color>");

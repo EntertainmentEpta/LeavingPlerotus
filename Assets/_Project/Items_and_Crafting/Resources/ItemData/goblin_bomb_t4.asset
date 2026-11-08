@@ -13,11 +13,14 @@ MonoBehaviour:
   m_Name: goblin_bomb_t4
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
   itemId: goblin_bomb_t4
+  persistenceMode: 0
   itemName: Bomba Goblin (T4)
   description: "Efeito \xDAnico T4: GoblinBomb"
   icon: {fileID: 21300000, guid: 34e91295b744b9a43a2cc329dfcf15d2, type: 3}
   tier: 3
   enemySource: Goblin
+  synergyNodeID: 
+  returnsToBase: 0
   recycleEssenceValue: 168
   infusionEssenceCost: 420
   itemAttributes:
@@ -30,3 +33,4 @@ MonoBehaviour:
   - attributeType: 0
     value: 1.1
     isMultiplier: 1
+  tier4Effect: 1

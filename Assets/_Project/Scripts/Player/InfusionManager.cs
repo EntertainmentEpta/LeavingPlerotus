@@ -246,7 +246,8 @@ public class InfusionManager : MonoBehaviour
         ActivateTier4Effect(data);
 
         // --- 5. Consumo dos itens ---
-        inventory.RemoveItem(data.itemId, request.itemCount);
+        if (!data.keepInInventoryAfterInfusion)
+            inventory.RemoveItem(data.itemId, request.itemCount);
 
         string flow = request.mode == InfusionMode.Fused ? $"ACUMULADO ×{request.stackMultiplier:0.##}" : "SIMPLES";
         Debug.Log($"[INFUSÃO] {flow} | {data.itemName} (-{request.itemCount} un.) | Custo: {cost} | ΔPtotal: +{inflationDelta:F2} → {totalInfusionWeight:F2}");
@@ -361,12 +362,10 @@ public class InfusionManager : MonoBehaviour
 
     private void ActivateTier4Effect(ItemData data)
     {
-        if (data.tier4Effect == Tier4EffectType.None) return;
-
         Tier4EffectManager t4Manager = GetComponent<Tier4EffectManager>();
-        if (t4Manager != null)
+        if (t4Manager != null && data.tier4Effect != Tier4EffectType.None)
             t4Manager.ActivateEffect(data.tier4Effect);
-        else
+        if (t4Manager == null && data.tier4Effect != Tier4EffectType.None)
             Debug.LogWarning("[INFUSÃO] Item T4 com efeito especial, mas Tier4EffectManager não encontrado no Player!");
     }
 
@@ -456,7 +455,8 @@ public class InfusionManager : MonoBehaviour
             RegisterInfusion(data, 1f, wasUsedInSynergy ? recipesMsg : "");
             ActivateTier4Effect(data);
             
-            inventory.RemoveItem(data.itemId, 1);
+            if (!data.keepInInventoryAfterInfusion)
+                inventory.RemoveItem(data.itemId, 1);
             success = true;
             Debug.Log($"[INFUSÃO] Sucesso! {data.itemName} infundido via múltipla. (Sinergia: {wasUsedInSynergy})");
         }
@@ -664,27 +664,7 @@ public class InfusionManager : MonoBehaviour
         }
 
         // Desativa efeito especial T4 (se houver e não houver outra cópia infundida)
-        if (data.tier4Effect != Tier4EffectType.None)
-        {
-            bool hasOtherInstance = false;
-            for (int i = 0; i < infusedItems.Count; i++)
-            {
-                if (i != index && infusedItems[i] != null && infusedItems[i].tier4Effect == data.tier4Effect)
-                {
-                    hasOtherInstance = true;
-                    break;
-                }
-            }
-
-            if (!hasOtherInstance)
-            {
-                Tier4EffectManager t4Manager = GetComponent<Tier4EffectManager>();
-                if (t4Manager != null)
-                {
-                    t4Manager.DeactivateEffect(data.tier4Effect);
-                }
-            }
-        }
+        DeactivateTier4EffectIfUnused(data, index, data.tier4Effect);
 
         // Subtrai o peso de inflação (ΔP = P_tier × M) da equação global
         float removedWeight = GetInflationContribution(data, stackMultiplier);
@@ -695,6 +675,26 @@ public class InfusionManager : MonoBehaviour
 
         Debug.Log($"[REMOÇÃO/CIRURGIA] Peça extraída: {data.itemName} (x{Mathf.RoundToInt(stackMultiplier)}). Peso subtraído: -{removedWeight:F2}. Novo Ptotal: {totalInfusionWeight:F2}");
         return true;
+    }
+
+    private void DeactivateTier4EffectIfUnused(ItemData data, int removedIndex, Tier4EffectType effectType)
+    {
+        if (effectType == Tier4EffectType.None) return;
+
+        for (int i = 0; i < infusedItems.Count; i++)
+        {
+            if (i == removedIndex || infusedItems[i] == null) continue;
+            if (infusedItems[i].tier4Effect == effectType)
+            {
+                return;
+            }
+        }
+
+        Tier4EffectManager t4Manager = GetComponent<Tier4EffectManager>();
+        if (t4Manager != null)
+        {
+            t4Manager.DeactivateEffect(effectType);
+        }
     }
 
     /// <summary>
@@ -878,4 +878,3 @@ public struct InfusedItem
     public bool isSynergy;
     public string synergyName;
 }
-

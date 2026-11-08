@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
   itemId: bismutado_rotor_t4
   itemName: Rotor de Bismuto(t4)
-  description: 
+  description: "Seus ataques causam dano extra em área."
   icon: {fileID: 21300000, guid: a26af1209d5c8e64e994e82ebacc0b54, type: 3}
   tier: 3
   enemySource: 
@@ -31,3 +31,4 @@ MonoBehaviour:
   - attributeType: 21
     value: 2
     isMultiplier: 0
+  tier4Effect: 11

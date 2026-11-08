@@ -170,6 +170,10 @@ public class DashM : MonoBehaviour
         isInPerfectDodgeWindow = true;
         dashesLeft--; // Gasta 1 carga
 
+        Tier4EffectManager tier4EffectManager = GetComponent<Tier4EffectManager>();
+        if (tier4EffectManager != null)
+            tier4EffectManager.OnDashUsed();
+
         // Ativar I-Frames durante o dash
         if (playerHealth != null)
         {

@@ -13,11 +13,14 @@ MonoBehaviour:
   m_Name: spider_egg_t4
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
   itemId: spider_egg_t4
+  persistenceMode: 0
   itemName: Ovo de Aranha (T4)
   description: 
   icon: {fileID: 21300000, guid: 4f9537b56b7920f498e3bef7a7560493, type: 3}
   tier: 3
   enemySource: Spider
+  synergyNodeID: 
+  returnsToBase: 0
   recycleEssenceValue: 168
   infusionEssenceCost: 420
   itemAttributes:
@@ -30,3 +33,4 @@ MonoBehaviour:
   - attributeType: 15
     value: 1.1
     isMultiplier: 1
+  tier4Effect: 2

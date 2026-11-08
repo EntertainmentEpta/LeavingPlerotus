@@ -35,6 +35,9 @@ public class PrimaryAttackKnife : MonoBehaviour
     [Header("Hades-Style Input Buffer Settings")]
     [Tooltip("Janela temporal (em segundos) que o buffer de entrada guarda os cliques")]
     public float inputBufferWindow = 0.20f;
+    [Tooltip("Janela de buffer específica da adaga, em segundos")]
+    public float daggerInputBufferWindow = 0.25f;
+    private float currentInputBufferWindow;
     private float lastAttackInputTime = -999f;
 
     [Header("Attack Stats")]
@@ -79,6 +82,10 @@ public class PrimaryAttackKnife : MonoBehaviour
     [Header("Settings")]
     public float attackAnimationSpeed = 1.15f;
     public float defaultAttackSpeed = 1.15f; // Para resetar a velocidade padrão
+    [Tooltip("Velocidade das animações enquanto a adaga está equipada")]
+    public float daggerAttackSpeed = 1.65f;
+    [Tooltip("Multiplicador adicional para o terceiro golpe da adaga")]
+    public float daggerThirdAttackSpeedMultiplier = 1.5f;
     public float axeAttackSpeed = 0.95f; // Velocidade aprimorada e fluida para o machado
 
     [Header("Combo Speed Modifiers (Fine Tuning)")]
@@ -93,7 +100,7 @@ public class PrimaryAttackKnife : MonoBehaviour
 
     [Header("Weapon Damages")]
     public int[] defaultDamages = { 20, 25, 35 };
-    public int[] daggerDamages = { 30, 35, 40 }; // Conforme Hp_Dano_Inimigos.pdf (Combo total = 105)
+    public int[] daggerDamages = { 25, 35, 55 };
     public int[] swordDamages = { 35, 45, 60 };
     public int[] axeDamages = { 40, 45, 55, 55 }; // Conforme Hp_Dano_Inimigos.pdf (Combo total = 195)
     private int[] currentDamages;
@@ -102,7 +109,7 @@ public class PrimaryAttackKnife : MonoBehaviour
     [Tooltip("Tempo limite do combo com as mãos vazias")]
     public float defaultComboResetTime = 1.2f;
     [Tooltip("Tempo limite do combo com a Adaga")]
-    public float daggerComboResetTime = 1.2f;
+    public float daggerComboResetTime = 1.0f;
     [Tooltip("Tempo limite do combo com a Espada")]
     public float swordComboResetTime = 1.2f;
     [Tooltip("Tempo limite do combo com o Machado")]
@@ -154,6 +161,7 @@ public class PrimaryAttackKnife : MonoBehaviour
     private void Start()
     {
         defaultAttackSpeed = attackAnimationSpeed; // Salva a velocidade customizada do Inspector (como a da Adaga) antes de qualquer troca
+        currentInputBufferWindow = inputBufferWindow;
         enemiesHitInThisAttack = new HashSet<GameObject>();
         EquipDefaultWeapon();
         hasWeapon = true;
@@ -205,15 +213,17 @@ public class PrimaryAttackKnife : MonoBehaviour
             {
                 float stepSpeedMult = 1.0f;
                 
-                // Verifica se a arma equipada é o Machado
+                // Verifica qual arma está equipada
                 Player_WeaponManager wm = GetComponent<Player_WeaponManager>();
                 bool isAxe = false;
+                bool isDagger = false;
                 if (wm != null && wm.rightHand != null && wm.rightHand.childCount > 0)
                 {
                     WeaponOffset offsetData = wm.rightHand.GetChild(0).GetComponent<WeaponOffset>();
-                    if (offsetData != null && offsetData.weaponType == WeaponType.Axe)
+                    if (offsetData != null)
                     {
-                        isAxe = true;
+                        isAxe = offsetData.weaponType == WeaponType.Axe;
+                        isDagger = offsetData.weaponType == WeaponType.Dagger;
                     }
                 }
 
@@ -223,6 +233,10 @@ public class PrimaryAttackKnife : MonoBehaviour
                     else if (comboStep == 2) stepSpeedMult = hit2SpeedMultiplier;
                     else if (comboStep == 3) stepSpeedMult = hit3SpeedMultiplier;
                     else if (comboStep == 4) stepSpeedMult = hit4SpeedMultiplier;
+                }
+                else if (isDagger && comboStep == 3)
+                {
+                    stepSpeedMult = daggerThirdAttackSpeedMultiplier;
                 }
 
                 float targetSpeed = attackAnimationSpeed * playerAttributes.attackSpeedMelee * stepSpeedMult;
@@ -259,7 +273,7 @@ public class PrimaryAttackKnife : MonoBehaviour
                     }
                 }
             }
-            else if (hasBufferedAttack && canAttack && (Time.time - lastAttackInputTime <= inputBufferWindow))
+            else if (hasBufferedAttack && canAttack && (Time.time - lastAttackInputTime <= currentInputBufferWindow))
             {
                 hasBufferedAttack = false;
                 if (comboResetCoroutine != null) StopCoroutine(comboResetCoroutine);
@@ -426,15 +440,17 @@ public class PrimaryAttackKnife : MonoBehaviour
             {
                 float stepSpeedMult = 1.0f;
                 
-                // Verifica se a arma equipada é o Machado
+                // Verifica qual arma está equipada
                 Player_WeaponManager wm = GetComponent<Player_WeaponManager>();
                 bool isAxe = false;
+                bool isDagger = false;
                 if (wm != null && wm.rightHand != null && wm.rightHand.childCount > 0)
                 {
                     WeaponOffset offsetData = wm.rightHand.GetChild(0).GetComponent<WeaponOffset>();
-                    if (offsetData != null && offsetData.weaponType == WeaponType.Axe)
+                    if (offsetData != null)
                     {
-                        isAxe = true;
+                        isAxe = offsetData.weaponType == WeaponType.Axe;
+                        isDagger = offsetData.weaponType == WeaponType.Dagger;
                     }
                 }
 
@@ -444,6 +460,10 @@ public class PrimaryAttackKnife : MonoBehaviour
                     else if (comboStep == 2) stepSpeedMult = hit2SpeedMultiplier;
                     else if (comboStep == 3) stepSpeedMult = hit3SpeedMultiplier;
                     else if (comboStep == 4) stepSpeedMult = hit4SpeedMultiplier;
+                }
+                else if (isDagger && comboStep == 3)
+                {
+                    stepSpeedMult = daggerThirdAttackSpeedMultiplier;
                 }
 
                 animator.speed = attackAnimationSpeed * playerAttributes.attackSpeedMelee * stepSpeedMult;
@@ -475,6 +495,11 @@ public class PrimaryAttackKnife : MonoBehaviour
         if (playerAttributes != null)
         {
             speedMultiplier = attackAnimationSpeed * playerAttributes.attackSpeedMelee;
+
+            if (IsDaggerEquipped() && comboStep == 3)
+            {
+                speedMultiplier *= daggerThirdAttackSpeedMultiplier;
+            }
         }
         // Evitar divisão por zero ou velocidades negativas
         if (speedMultiplier <= 0f) speedMultiplier = 1f;
@@ -579,6 +604,12 @@ public class PrimaryAttackKnife : MonoBehaviour
             if (enemy != null)
             {
                 enemy.TakeDamage(finalDamage, isCritical);
+                if (tier4Manager == null)
+                    tier4Manager = GetComponent<Tier4EffectManager>()
+                                ?? GetComponentInParent<Tier4EffectManager>()
+                                ?? FindFirstObjectByType<Tier4EffectManager>();
+                if (tier4Manager != null) tier4Manager.ApplyDamageDealtEffects(finalDamage);
+                if (tier4Manager != null) tier4Manager.ApplyAreaDamageEffects(enemy.gameObject, finalDamage);
 
                 // Efeitos T4 on-hit (ex: Poison) — só se o inimigo sobreviveu ao golpe
                 if (tier4Manager == null)
@@ -586,7 +617,7 @@ public class PrimaryAttackKnife : MonoBehaviour
                                 ?? GetComponentInParent<Tier4EffectManager>()
                                 ?? FindFirstObjectByType<Tier4EffectManager>();
                 if (tier4Manager != null && enemy != null && enemy.CurrentHealth > 0)
-                    tier4Manager.ApplyOnHitEffects(enemy.gameObject);
+                    tier4Manager.ApplyOnHitEffects(enemy.gameObject, isCritical);
                 if (playerAttributes != null && playerAttributes.slowOnHit > 0f)
                 {
                     enemy.ApplySlow(playerAttributes.slowOnHit, 3.0f);
@@ -595,6 +626,14 @@ public class PrimaryAttackKnife : MonoBehaviour
             else if (swarmEnemy != null)
             {
                 swarmEnemy.TakeDamage(finalDamage, isCritical);
+                if (tier4Manager == null)
+                    tier4Manager = GetComponent<Tier4EffectManager>()
+                                ?? GetComponentInParent<Tier4EffectManager>()
+                                ?? FindFirstObjectByType<Tier4EffectManager>();
+                if (tier4Manager != null) tier4Manager.ApplyDamageDealtEffects(finalDamage);
+                if (tier4Manager != null) tier4Manager.ApplyAreaDamageEffects(swarmEnemy.gameObject, finalDamage);
+                if (tier4Manager != null && swarmEnemy.CurrentHealth > 0)
+                    tier4Manager.ApplyOnHitEffects(swarmEnemy.gameObject, isCritical);
                 if (playerAttributes != null && playerAttributes.slowOnHit > 0f)
                 {
                     swarmEnemy.ApplySlow(playerAttributes.slowOnHit, 3.0f);
@@ -806,6 +845,7 @@ public class PrimaryAttackKnife : MonoBehaviour
         currentDamages = defaultDamages;
         currentRange = defaultRange;
         attackAnimationSpeed = defaultAttackSpeed; // Retorna à velocidade padrão
+        currentInputBufferWindow = inputBufferWindow;
         comboResetTime = defaultComboResetTime;
         currentHitDelay = defaultHitDelay;
         currentHitDuration = defaultHitDuration;
@@ -828,7 +868,8 @@ public class PrimaryAttackKnife : MonoBehaviour
     {
         currentDamages = daggerDamages;
         currentRange = daggerRange;
-        attackAnimationSpeed = defaultAttackSpeed; // Retorna à velocidade padrão
+        attackAnimationSpeed = daggerAttackSpeed;
+        currentInputBufferWindow = daggerInputBufferWindow;
         comboResetTime = daggerComboResetTime;
         currentHitDelay = daggerHitDelay;
         currentHitDuration = daggerHitDuration;
@@ -856,6 +897,7 @@ public class PrimaryAttackKnife : MonoBehaviour
         currentDamages = swordDamages;
         currentRange = swordRange;
         attackAnimationSpeed = defaultAttackSpeed; // Retorna à velocidade padrão
+        currentInputBufferWindow = inputBufferWindow;
         comboResetTime = swordComboResetTime;
         currentHitDelay = defaultHitDelay; // Usa padrão para espada
         currentHitDuration = defaultHitDuration;
@@ -891,6 +933,7 @@ public class PrimaryAttackKnife : MonoBehaviour
         currentDamages = axeDamages; 
         currentRange = axeRange; 
         attackAnimationSpeed = axeAttackSpeed; 
+        currentInputBufferWindow = inputBufferWindow;
         comboResetTime = axeComboResetTime;
         currentHitDelay = axeHitDelay;
         currentHitDuration = axeHitDuration;
@@ -924,6 +967,19 @@ public class PrimaryAttackKnife : MonoBehaviour
             if (offset != null && offset.weaponType == WeaponType.Axe) return true;
             string wName = wm.currentWeapon.name.ToLower();
             return wName.Contains("axe") || wName.Contains("machado");
+        }
+        return false;
+    }
+
+    private bool IsDaggerEquipped()
+    {
+        Player_WeaponManager wm = GetComponent<Player_WeaponManager>() ?? GetComponentInParent<Player_WeaponManager>();
+        if (wm != null && wm.currentWeapon != null)
+        {
+            WeaponOffset offset = wm.currentWeapon.GetComponent<WeaponOffset>();
+            if (offset != null && offset.weaponType == WeaponType.Dagger) return true;
+            string weaponName = wm.currentWeapon.name.ToLower();
+            return weaponName.Contains("dagger") || weaponName.Contains("adaga");
         }
         return false;
     }

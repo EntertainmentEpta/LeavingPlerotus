@@ -13,11 +13,13 @@ MonoBehaviour:
   m_Name: watcher_beacon_t4
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
   itemId: watcher_beacon_t4
+  persistenceMode: 0
   itemName: Farol Vigilante (T4)
   description: "Efeito \xDAnico T4: WatcherLaser"
   icon: {fileID: 21300000, guid: c894216bba911a64dab4acee1189ac5a, type: 3}
   tier: 3
   enemySource: Crystal Watcher
+  synergyNodeID: 
   returnsToBase: 0
   recycleEssenceValue: 168
   infusionEssenceCost: 420
@@ -31,3 +33,4 @@ MonoBehaviour:
   - attributeType: 2
     value: 0.05
     isMultiplier: 1
+  tier4Effect: 3

@@ -13,11 +13,13 @@ MonoBehaviour:
   m_Name: SharpDrop4
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
   itemId: 04sb
+  persistenceMode: 0
   itemName: SharpItem4
-  description: 
+  description: "SharpBlur T4: acertos criticos causam sangramento de 10 por segundo durante 3 segundos."
   icon: {fileID: 21300000, guid: e636b4ec20df21d45a63005993809beb, type: 3}
   tier: 3
   enemySource: SharpBlur
+  synergyNodeID: 
   returnsToBase: 0
   recycleEssenceValue: 10
   infusionEssenceCost: 60
@@ -31,4 +33,4 @@ MonoBehaviour:
   - attributeType: 20
     value: 2
     isMultiplier: 0
-  tier4Effect: 1
+  tier4Effect: 4

@@ -122,6 +122,9 @@ public class ItemData : ScriptableObject
              "Valores padrão por tier: T1=60, T2=180, T3=300, T4=420.")]
     public int infusionEssenceCost = 60;
 
+    [Tooltip("Somente para testes: mantém este item no inventário após a infusão.")]
+    public bool keepInInventoryAfterInfusion = false;
+
     [Tooltip("Use o '+' para adicionar quantos buffs o item der!")]
     public List<ItemAttributeParam> itemAttributes = new List<ItemAttributeParam>();
 

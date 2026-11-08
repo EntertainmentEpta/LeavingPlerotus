@@ -147,6 +147,9 @@ public class GunProjectile : MonoBehaviour
         {
             hitTargets.Add(target);
             target.TakeDamage(hitDamage, isCritical);
+            Tier4EffectManager damageT4 = FindFirstObjectByType<Tier4EffectManager>();
+            if (damageT4 != null) damageT4.ApplyDamageDealtEffects(hitDamage);
+            if (damageT4 != null) damageT4.ApplyAreaDamageEffects(target.gameObject, hitDamage);
             ApplyKnockback(target);
             if (slowOnHit > 0f) target.ApplySlow(slowOnHit, 2f);
 
@@ -154,12 +157,17 @@ public class GunProjectile : MonoBehaviour
             if (target.CurrentHealth > 0)
             {
                 Tier4EffectManager t4 = FindFirstObjectByType<Tier4EffectManager>();
-                if (t4 != null) t4.ApplyOnHitEffects(target.gameObject);
+                if (t4 != null) t4.ApplyOnHitEffects(target.gameObject, isCritical);
             }
         }
         else if (swarmTarget != null)
         {
             swarmTarget.TakeDamage(hitDamage);
+            Tier4EffectManager t4 = FindFirstObjectByType<Tier4EffectManager>();
+            if (t4 != null) t4.ApplyDamageDealtEffects(hitDamage);
+            if (t4 != null) t4.ApplyAreaDamageEffects(swarmTarget.gameObject, hitDamage);
+            if (t4 != null && swarmTarget.CurrentHealth > 0)
+                t4.ApplyOnHitEffects(swarmTarget.gameObject, isCritical);
         }
 
         if (TryBounce()) return;
