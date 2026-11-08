@@ -28,29 +28,29 @@ public class Golem_AI : MonoBehaviour
 
     [Header("Movimento")]
     [Tooltip("Velocidade de movimento (lento)")]
-    public float moveSpeed = 2f;
+    public float moveSpeed = 2.3f;
     [Tooltip("Velocidade de rotação")]
     public float rotationSpeed = 5f;
 
     [Header("Ataque Melee")]
     [Tooltip("Distância para atacar corpo a corpo")]
-    public float meleeRange = 3f;
+    public float meleeRange = 3.2f;
     [Tooltip("Cooldown entre ataques melee")]
-    public float meleeCooldown = 3f;
+    public float meleeCooldown = 0.95f;
     [Tooltip("Dano do ataque melee")]
     public int meleeDamage = 30;
     [Tooltip("Raio da hitbox do melee")]
-    public float meleeHitRadius = 2f;
+    public float meleeHitRadius = 2.4f;
 
     [Header("Habilidade de Stun")]
     [Tooltip("Distância MÁXIMA para usar stun (não funciona se player estiver mais longe)")]
     public float stunMaxRange = 10f;
     [Tooltip("Cooldown do stun")]
-    public float stunCooldown = 12f;
+    public float stunCooldown = 9f;
     [Tooltip("Duração do stun no jogador")]
     public float stunDuration = 1.5f;
     [Tooltip("Tempo de telegrafagem antes do stun (quase instantâneo)")]
-    public float stunTelegraphTime = 0.3f;
+    public float stunTelegraphTime = 0.22f;
     [Tooltip("Raio da área de stun")]
     public float stunRadius = 4f;
     [Tooltip("Quantidade de melee hits para ativar stun no combo")]
@@ -86,7 +86,7 @@ public class Golem_AI : MonoBehaviour
     public AudioClip stompSound;
     [Tooltip("Volume do som de Stomp")]
     [Range(0f, 1f)]
-    public float stompSoundVolume = 0.9f;
+    public float stompSoundVolume = 0.50f;
 
     [Header("Áudio — Dano Recebido (Hit)")]
     [Tooltip("Sons reproduzidos quando o Golem leva dano (golpe do player). NÃO colocar sons de ataque aqui.")]
@@ -112,8 +112,16 @@ public class Golem_AI : MonoBehaviour
         audioSource = GetComponent<AudioSource>();
         health = GetComponent<DummyHealth>();
 
-        // Configura Rigidbody
+        // Configura Rigidbody (massa 80 para robustez e estabilidade física)
         rb.freezeRotation = true;
+        rb.mass = 80f;
+
+        // +30% HP no Golem (Pilar 4)
+        if (health != null)
+        {
+            health.maxHealth = Mathf.RoundToInt(health.maxHealth * 1.30f);
+            health.ResetHealth();
+        }
 
         // Snap de segurança no chão para evitar clipagem no mapa
         if (UnityEngine.AI.NavMesh.SamplePosition(transform.position, out UnityEngine.AI.NavMeshHit navHit, 5f, UnityEngine.AI.NavMesh.AllAreas))
@@ -121,6 +129,14 @@ public class Golem_AI : MonoBehaviour
             Vector3 pos = transform.position;
             pos.y = navHit.position.y;
             transform.position = pos;
+        }
+
+        // Golem é pesado como uma rocha: imune a empurrões de dash e ataques leves
+        if (rb != null)
+        {
+            rb.mass = 800f;
+            rb.linearDamping = 10f;
+            rb.constraints = RigidbodyConstraints.FreezeRotation;
         }
 
         // Encontra o player
@@ -248,14 +264,20 @@ public class Golem_AI : MonoBehaviour
 
     private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
     {
+        if (clip == null) return;
+        float effectiveVolume = volume * GlobalAudioManager.SFXVolumeMultiplier;
+        if (effectiveVolume <= 0.001f) return;
+
         if (audioSource != null)
         {
             audioSource.pitch = pitch;
-            audioSource.PlayOneShot(clip, volume);
+            if (audioSource.outputAudioMixerGroup == null && GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+                audioSource.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
+            audioSource.PlayOneShot(clip, effectiveVolume);
         }
         else
         {
-            AudioSource.PlayClipAtPoint(clip, position, volume);
+            AudioSource.PlayClipAtPoint(clip, position, effectiveVolume);
         }
     }
 
@@ -324,9 +346,9 @@ public class Golem_AI : MonoBehaviour
         isAttacking = true;
         meleeTimer = meleeCooldown;
 
-        // Animação de vento (wind-up)
+        // Animação rápida de vento (wind-up)
         Debug.Log("[GOLEM] MELEE ATTACK! Preparando golpe...");
-        yield return new WaitForSeconds(0.5f);
+        yield return new WaitForSeconds(0.16f);
 
         // Som do golpe de ataque normal
         if (meleeAttackSound != null)
@@ -351,8 +373,8 @@ public class Golem_AI : MonoBehaviour
             }
         }
 
-        // Recovery
-        yield return new WaitForSeconds(0.5f);
+        // Recovery rápido para não travar
+        yield return new WaitForSeconds(0.12f);
 
         isAttacking = false;
     }
@@ -382,7 +404,32 @@ public class Golem_AI : MonoBehaviour
         {
             // Placeholder: Debug visual
             Debug.Log("Golem marcando área de stun em: " + targetPosition);
-            Debug.DrawLine(targetPosition, targetPosition + Vector3.up * 5f, Color.cyan, stunTelegraphTime);
+            // Feixe vertical de luz sutil e fino do chão até o céu marcando a área de impacto (reduzido 10x)
+            GameObject telegraphBeam = new GameObject("Golem_Stun_TelegraphBeam");
+            telegraphBeam.transform.position = targetPosition;
+
+            GameObject cylinder = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            cylinder.name = "VerticalBeam";
+            cylinder.transform.SetParent(telegraphBeam.transform, false);
+            cylinder.transform.localPosition = new Vector3(0, 3.5f, 0);
+            cylinder.transform.localScale = new Vector3(0.55f, 3.5f, 0.55f);
+
+            Collider col = cylinder.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+
+            Renderer rend = cylinder.GetComponent<Renderer>();
+            if (rend != null)
+            {
+                Shader unlit = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
+                Material mat = new Material(unlit);
+                Color beamColor = new Color(0.2f, 0.85f, 1.0f, 0.25f);
+                mat.color = beamColor;
+                if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", beamColor);
+                mat.SetFloat("_Surface", 1);
+                mat.renderQueue = 3100;
+                rend.material = mat;
+            }
+            Destroy(telegraphBeam, stunTelegraphTime + 0.05f);
         }
 
         Debug.Log("[GOLEM] STUN CAST! Carregando ataque de área em " + targetPosition + " (raio: " + stunRadius + "m)");
@@ -405,7 +452,7 @@ public class Golem_AI : MonoBehaviour
             {
                 stunScript.Initialize(stunRadius, stunDuration);
             }
-            Destroy(beam, 1f);
+            Destroy(beam, 0.4f);
         }
         else
         {
@@ -425,8 +472,8 @@ public class Golem_AI : MonoBehaviour
             }
         }
 
-        // Recovery do cast
-        yield return new WaitForSeconds(0.5f);
+        // Recovery do cast rápido
+        yield return new WaitForSeconds(0.15f);
 
         isCastingStun = false;
     }

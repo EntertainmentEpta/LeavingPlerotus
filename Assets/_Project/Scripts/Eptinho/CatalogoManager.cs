@@ -225,4 +225,77 @@ public class CatalogoManager : MonoBehaviour
             Debug.Log($"[CATÁLOGO] ✨ ATRIBUTOS DECODIFICADOS! {nomeDisplay} agora possui dados completos revelados!");
         }
     }
+
+    /// <summary>
+    /// Desbloqueia e decodifica todos os itens e minérios existentes no jogo,
+    /// salvando permanentemente no SaveManager e atualizando a interface do Eptinho.
+    /// </summary>
+    [ContextMenu("Desbloquear Todos os Itens")]
+    public void DesbloquearTodosItens()
+    {
+        List<ItemData> todosOsItens = new List<ItemData>();
+
+        // 1. Carrega do ItemDatabase se existir
+        if (ItemDatabase.Instance != null && ItemDatabase.Instance.allItems != null)
+        {
+            foreach (var item in ItemDatabase.Instance.allItems)
+            {
+                if (item != null && !todosOsItens.Contains(item))
+                    todosOsItens.Add(item);
+            }
+        }
+
+        // 2. Carrega de Resources/ItemData
+        ItemData[] resItens = Resources.LoadAll<ItemData>("ItemData");
+        if (resItens != null)
+        {
+            foreach (var r in resItens)
+            {
+                if (r != null && !todosOsItens.Contains(r))
+                    todosOsItens.Add(r);
+            }
+        }
+
+        int novos = 0;
+        foreach (var data in todosOsItens)
+        {
+            if (data == null || string.IsNullOrEmpty(data.itemId)) continue;
+
+            if (!idsRegistrados.Contains(data.itemId))
+            {
+                idsRegistrados.Add(data.itemId);
+                itensCatalogados.Add(data);
+                novos++;
+            }
+            itensInfundidos.Add(data.itemId); // Revela atributos
+
+            if (!string.IsNullOrEmpty(data.synergyNodeID) && SynergyCatalogManager.Instance != null)
+            {
+                SynergyCatalogManager.Instance.DiscoverNode(data.synergyNodeID);
+            }
+        }
+
+        // 3. Salva no SaveManager
+        if (SaveManager.instance != null && SaveManager.instance.CachedData != null)
+        {
+            var cached = SaveManager.instance.CachedData;
+            if (cached.itensCatalogados == null) cached.itensCatalogados = new List<string>();
+            if (cached.itensInfundidos == null) cached.itensInfundidos = new List<string>();
+
+            foreach (var id in idsRegistrados)
+            {
+                if (!cached.itensCatalogados.Contains(id)) cached.itensCatalogados.Add(id);
+                if (!cached.itensInfundidos.Contains(id)) cached.itensInfundidos.Add(id);
+            }
+            SaveManager.instance.SavePersistentData();
+        }
+
+        // 4. Se o menu do Eptinho estiver aberto, atualiza a aba
+        if (EptinhoMenuController.Instance != null && EptinhoMenuController.Instance.gameObject.activeInHierarchy)
+        {
+            EptinhoMenuController.Instance.AtualizarAbaCatalogo();
+        }
+
+        Debug.Log($"<color=#00FFAA><b>[CATÁLOGO]</b></color> Sucesso! {itensCatalogados.Count} itens cadastrados e atributos 100% revelados (+{novos} novos).");
+    }
 }

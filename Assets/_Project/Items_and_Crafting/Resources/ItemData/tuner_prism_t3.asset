@@ -20,7 +20,7 @@ MonoBehaviour:
   enemySource: Crystal Tuner
   returnsToBase: 0
   recycleEssenceValue: 120
-  infusionEssenceCost: 300
+  infusionEssenceCost: 180
   itemAttributes:
   - attributeType: 2
     value: 1.3

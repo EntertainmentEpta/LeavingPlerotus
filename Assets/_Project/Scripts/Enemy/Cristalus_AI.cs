@@ -16,6 +16,18 @@ public class Cristalus_AI : MonoBehaviour
     public float trailOffset = 1.5f; 
     private float trailTimer = 0f;
 
+    [Header("Controle de Densidade dos Cristais")]
+    [Tooltip("Distância mínima obrigatória entre dois cristais para evitar sobreposição")]
+    public float minDistanceBetweenCrystals = 2.8f;
+    [Tooltip("Máximo de cristais ativos simultâneos gerados por este Cristalus")]
+    public int maxActiveCrystals = 6;
+    private List<GameObject> myActiveCrystals = new List<GameObject>();
+
+    [Header("Intervalo entre Ataques de Arco")]
+    [Tooltip("Tempo de espera (cooldown) antes de disparar outro arco de cristais")]
+    public float arcCooldown = 2.8f;
+    private float arcCooldownTimer = 0f;
+
     [Header("Arco Cristalino")]
     public GameObject[] crystalPrefabs; // Os colchetes [] indicam que agora é uma lista!
     public float arcAngle = 120f;
@@ -25,7 +37,7 @@ public class Cristalus_AI : MonoBehaviour
 
     [Header("Ajuste de Altura dos Cristais")]
     [Tooltip("Ajuste de altura Y para o spawn dos cristais (caso o pivô esteja no centro).")]
-    public float crystalYOffset = 0.5f;
+    public float crystalYOffset = 0.15f;
 
     [Header("Reposicionamento")]
     public float playerMovementTolerance = 2.0f;
@@ -48,7 +60,7 @@ public class Cristalus_AI : MonoBehaviour
     public AudioClip[] crystalExplodeSounds;
     [Tooltip("Volume do som de explosão dos cristais")]
     [Range(0f, 1f)]
-    public float crystalExplodeVolume = 0.8f;
+    public float crystalExplodeVolume = 0.25f;
 
     [Header("Áudio — Dano Recebido (Hit)")]
     [Tooltip("Sons reproduzidos quando o Cristalus leva dano (golpe do player). NÃO colocar sons de ataque aqui.")]
@@ -98,6 +110,11 @@ public class Cristalus_AI : MonoBehaviour
     {
         if (playerTransform == null || (health != null && health.CurrentHealth <= 0)) return;
 
+        if (arcCooldownTimer > 0f)
+            arcCooldownTimer -= Time.deltaTime;
+
+        KeepOnGround();
+
         switch (currentState)
         {
             case State.Idle: HandleIdle(); break;
@@ -105,12 +122,81 @@ public class Cristalus_AI : MonoBehaviour
         }
     }
 
+    private void KeepOnGround()
+    {
+        Vector3 rayStart = transform.position + Vector3.up * 2.5f;
+        RaycastHit[] hits = Physics.RaycastAll(rayStart, Vector3.down, 8.0f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+        float bestGroundY = float.MinValue;
+        bool found = false;
+
+        foreach (var h in hits)
+        {
+            if (h.collider == null || h.collider.isTrigger) continue;
+            if (h.transform.IsChildOf(transform)) continue;
+            if (h.collider.CompareTag("Player") || h.collider.CompareTag("Enemy")) continue;
+
+            string n = h.collider.gameObject.name.ToLower();
+            if (n.Contains("crystal") || n.Contains("prop") || IsPropCollider(h.collider)) continue;
+
+            if (h.point.y <= transform.position.y + 0.8f && h.point.y > bestGroundY)
+            {
+                bestGroundY = h.point.y;
+                found = true;
+            }
+        }
+
+        if (found)
+        {
+            float targetY = bestGroundY + 0.05f;
+            transform.position = new Vector3(transform.position.x, Mathf.MoveTowards(transform.position.y, targetY, 15f * Time.deltaTime), transform.position.z);
+        }
+    }
+
+    private bool CheckWallCollision(Vector3 moveDir, out Vector3 wallNormal)
+    {
+        wallNormal = Vector3.zero;
+        if (moveDir.sqrMagnitude < 0.001f) return false;
+
+        Vector3 rayOrigin = transform.position + Vector3.up * 0.5f;
+        RaycastHit[] hits = Physics.RaycastAll(rayOrigin, moveDir.normalized, 1.6f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+
+        foreach (var h in hits)
+        {
+            if (h.collider == null || h.collider.isTrigger) continue;
+            if (h.transform.IsChildOf(transform)) continue;
+            if (h.collider.CompareTag("Player") || h.collider.CompareTag("Enemy")) continue;
+
+            string n = h.collider.gameObject.name.ToLower();
+            if (n.Contains("crystal") || n.Contains("prop") || IsPropCollider(h.collider)) continue;
+
+            if (h.normal.y < 0.6f)
+            {
+                wallNormal = h.normal;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool registradoNoBestiario = false;
+
     void HandleIdle()
     {
         if (animator != null) animator.SetBool("IsMoving", false);
 
         if (Vector3.Distance(transform.position, playerTransform.position) <= activationDistance)
+        {
             currentState = State.Approaching;
+
+            if (!registradoNoBestiario)
+            {
+                registradoNoBestiario = true;
+                EnemyIdentity id = GetComponent<EnemyIdentity>() ?? GetComponentInChildren<EnemyIdentity>() ?? GetComponentInParent<EnemyIdentity>();
+                if (id != null && BestiarioManager.instancia != null)
+                    BestiarioManager.instancia.Registrar(id);
+            }
+        }
     }
 
     void HandleApproaching()
@@ -118,15 +204,34 @@ public class Cristalus_AI : MonoBehaviour
         float distToPlayer = Vector3.Distance(transform.position, playerTransform.position);
         LookAtTarget(playerTransform.position, 8f); 
 
-        if (distToPlayer <= targetDistance)
+        if (distToPlayer <= targetDistance && arcCooldownTimer <= 0f)
         {
             if (animator != null) animator.SetBool("IsMoving", false);
+            arcCooldownTimer = arcCooldown;
             StartCoroutine(CastArcRoutine());
         }
         else
         {
-            if (animator != null) animator.SetBool("IsMoving", true);
-            transform.position = Vector3.MoveTowards(transform.position, playerTransform.position, moveSpeed * Time.deltaTime);
+            Vector3 target = playerTransform.position;
+            target.y = transform.position.y;
+            Vector3 moveDir = (target - transform.position).normalized;
+
+            // Se bater numa superfície/parede, realiza movimento circular para contornar e voltar
+            if (CheckWallCollision(moveDir, out Vector3 wallNormal))
+            {
+                Vector3 circleReturnDir = Vector3.Cross(wallNormal, Vector3.up).normalized;
+                if (Vector3.Dot(circleReturnDir, moveDir) < 0f) circleReturnDir = -circleReturnDir;
+                transform.position += circleReturnDir * (moveSpeed * Time.deltaTime);
+                LookAtTarget(transform.position + circleReturnDir, 12f);
+            }
+            else
+            {
+                if (animator != null) animator.SetBool("IsMoving", true);
+                transform.position = Vector3.MoveTowards(transform.position, target, moveSpeed * Time.deltaTime);
+            }
+
+            KeepOnGround();
+
             trailTimer += Time.deltaTime;
             if (trailTimer >= trailDropInterval)
             {
@@ -150,10 +255,10 @@ public class Cristalus_AI : MonoBehaviour
 
         float sweepDirection = Random.value > 0.5f ? 1f : -1f;
         float angleStep = (arcAngle / (crystalsPerArc - 1)) * sweepDirection;
+        bool arcBlockedByWall = false;
 
         for (int i = 0; i < crystalsPerArc; i++)
         {
-            
             Vector3 currentRelDir = transform.position - pivot;
             Vector3 nextRelDir = Quaternion.Euler(0, angleStep, 0) * currentRelDir;
             Vector3 tangentDir = (nextRelDir - currentRelDir).normalized;
@@ -161,7 +266,6 @@ public class Cristalus_AI : MonoBehaviour
             if (i < crystalsPerArc - 1) 
                 transform.rotation = Quaternion.LookRotation(tangentDir); 
 
-         
             GameObject crystal = DropTrailCrystal();
             if (crystal != null) newArcGroup.crystals.Add(crystal);
 
@@ -178,22 +282,39 @@ public class Cristalus_AI : MonoBehaviour
                     float t = timer / crystalSpawnInterval;
                     
                     Vector3 newPos = Vector3.Slerp(startRelDir, nextRelDir, t) + pivot;
-                    
+                    newPos.y = transform.position.y;
 
                     Vector3 moveDir = (newPos - transform.position).normalized;
+
+                    // Se detectar parede durante o arco, encerra o arco para nunca empilhar cristais no mesmo ponto
+                    if (CheckWallCollision(moveDir, out Vector3 wallNormal))
+                    {
+                        arcBlockedByWall = true;
+                        break;
+                    }
+
                     if (moveDir.sqrMagnitude > 0.001f)
                     {
-                      
                         LookAtTarget(transform.position + moveDir, 20f);
                     }
 
                     if (animator != null) animator.SetBool("IsMoving", true);
                     transform.position = newPos;
+                    KeepOnGround();
                     yield return null;
                 }
                 if (animator != null) animator.SetBool("IsMoving", false);
+
+                // Se bateu na parede, interrompe o arco imediatamente sem empilhar o resto dos cristais
+                if (arcBlockedByWall)
+                {
+                    break;
+                }
             }
         }
+
+        // Breve pausa pós-arco para abrir janela de punição clara ao jogador
+        yield return new WaitForSeconds(0.35f);
 
         float distanceMovedByPlayer = Vector3.Distance(playerPosAtStart, playerTransform.position);
         if (distanceMovedByPlayer < playerMovementTolerance)
@@ -217,7 +338,15 @@ public class Cristalus_AI : MonoBehaviour
 
         while (Vector3.Distance(transform.position, targetPos) > 0.5f)
         {
-            transform.position = Vector3.MoveTowards(transform.position, targetPos, moveSpeed * 1.5f * Time.deltaTime);
+            Vector3 moveDir = (targetPos - transform.position).normalized;
+            if (CheckWallCollision(moveDir, out Vector3 wallNormal))
+            {
+                Vector3 circleReturnDir = Vector3.Cross(wallNormal, Vector3.up).normalized;
+                targetPos = transform.position + circleReturnDir * 3.0f;
+            }
+
+            transform.position = Vector3.MoveTowards(transform.position, targetPos, moveSpeed * 1.15f * Time.deltaTime);
+            KeepOnGround();
             LookAtTarget(targetPos, 10f);
 
             trailTimer += Time.deltaTime;
@@ -247,7 +376,7 @@ public class Cristalus_AI : MonoBehaviour
     {
     
         Vector3 spawnPos = transform.position - (transform.forward * trailOffset);
-        spawnPos.y = 0;
+        // spawnPos.y mantem a altura do Cristalus
         return SpawnCrystal(spawnPos);
     }
 
@@ -255,24 +384,61 @@ public class Cristalus_AI : MonoBehaviour
     {
         if (crystalPrefabs == null || crystalPrefabs.Length == 0) return null;
 
+        // Limpa referências nulas da lista de controle
+        myActiveCrystals.RemoveAll(c => c == null);
+
+        // Limita o número de cristais simultâneos em cena (máx 6)
+        if (myActiveCrystals.Count >= maxActiveCrystals)
+        {
+            if (myActiveCrystals[0] != null)
+            {
+                SonicCrystal sc = myActiveCrystals[0].GetComponent<SonicCrystal>();
+                if (sc != null) sc.SelfDestruct();
+                else Destroy(myActiveCrystals[0]);
+            }
+            myActiveCrystals.RemoveAt(0);
+        }
+
+        // Checagem de Proximidade: Impede spawn se já existir outro cristal a menos de minDistanceBetweenCrystals
+        Collider[] nearby = Physics.OverlapSphere(position, minDistanceBetweenCrystals);
+        foreach (var col in nearby)
+        {
+            if (col != null && col.GetComponent<SonicCrystal>() != null)
+            {
+                // Já existe um cristal neste local! Cancela spawn para evitar empilhamento em quinas/paredes
+                return null;
+            }
+        }
+
         int randomIndex = Random.Range(0, crystalPrefabs.Length);
         GameObject selectedPrefab = crystalPrefabs[randomIndex];
         if (selectedPrefab == null) return null;
 
-        position.y = crystalYOffset;
+        // Garante que o cristal seja posicionado sobre a superfície real do chão via Raycast
+        RaycastHit groundHit;
+        if (Physics.Raycast(position + Vector3.up * 4f, Vector3.down, out groundHit, 15f))
+        {
+            position.y = groundHit.point.y + crystalYOffset;
+        }
+        else
+        {
+            position.y = transform.position.y + crystalYOffset;
+        }
 
         PlayCrystalSpawnSound(position);
 
         GameObject crystalObj = Instantiate(selectedPrefab, position, Quaternion.identity);
         if (crystalObj != null)
         {
+            myActiveCrystals.Add(crystalObj);
+
             SonicCrystal sonic = crystalObj.GetComponent<SonicCrystal>();
             if (sonic != null)
             {
                 if ((sonic.explodeSounds == null || sonic.explodeSounds.Length == 0) && crystalExplodeSounds != null && crystalExplodeSounds.Length > 0)
                 {
                     sonic.explodeSounds = crystalExplodeSounds;
-                    sonic.explodeVolume = crystalExplodeVolume;
+                    sonic.explodeVolume = Mathf.Min(crystalExplodeVolume, 0.25f);
                 }
             }
         }
@@ -334,7 +500,7 @@ public class Cristalus_AI : MonoBehaviour
         if (crystalExplodeSounds == null || crystalExplodeSounds.Length == 0) return;
         AudioClip clip = crystalExplodeSounds[Random.Range(0, crystalExplodeSounds.Length)];
         if (clip != null)
-            PlayClipAtPointWithPitch(clip, position, Random.Range(0.9f, 1.1f), crystalExplodeVolume);
+            PlayClipAtPointWithPitch(clip, position, Random.Range(0.9f, 1.1f), Mathf.Min(crystalExplodeVolume, 0.25f));
     }
 
     private void PlayCrystalSpawnSound(Vector3 position)
@@ -359,16 +525,22 @@ public class Cristalus_AI : MonoBehaviour
 
     private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
     {
+        if (clip == null) return;
+        float effectiveVolume = volume * GlobalAudioManager.SFXVolumeMultiplier;
+        if (effectiveVolume <= 0.001f) return;
+
         GameObject audioObj = new GameObject("TempCristalusAudio");
         audioObj.transform.position = position;
         AudioSource aSource = audioObj.AddComponent<AudioSource>();
         aSource.clip = clip;
         aSource.pitch = pitch;
-        aSource.volume = volume;
+        aSource.volume = effectiveVolume;
         aSource.spatialBlend = 0.5f; // Semi-3D
         aSource.minDistance = 3f;
         aSource.maxDistance = 50f;
         aSource.rolloffMode = AudioRolloffMode.Linear;
+        if (GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+            aSource.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
         aSource.Play();
         float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;
         Destroy(audioObj, clip.length / safePitch);
@@ -404,5 +576,11 @@ public class Cristalus_AI : MonoBehaviour
             }
             crystals.Clear(); 
         }
+    }
+
+    private static bool IsPropCollider(Collider col)
+    {
+        if (col == null) return false;
+        try { return col.CompareTag("Prop"); } catch { return false; }
     }
 }

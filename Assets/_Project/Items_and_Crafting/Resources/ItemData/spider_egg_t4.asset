@@ -19,7 +19,7 @@ MonoBehaviour:
   tier: 3
   enemySource: Spider
   recycleEssenceValue: 168
-  infusionEssenceCost: 420
+  infusionEssenceCost: 280
   itemAttributes:
   - attributeType: 1
     value: 1.3

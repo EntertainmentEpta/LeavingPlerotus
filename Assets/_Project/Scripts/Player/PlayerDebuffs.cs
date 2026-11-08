@@ -33,6 +33,11 @@ public class PlayerDebuffs : MonoBehaviour
             Debug.LogWarning("[PLAYER DEBUFFS] PlayerAttributesDefensive não encontrado!");
     }
 
+    private void OnDisable()
+    {
+        ResetAllDebuffs();
+    }
+
     // ==================== SLOW ====================
 
     /// <summary>
@@ -169,6 +174,22 @@ public class PlayerDebuffs : MonoBehaviour
             playerAttributes.speedMultiplier += totalRestored;
             Debug.Log($"[DEBUFF] TODOS os buffs restaurados! +{totalRestored:F2} velocidade");
         }
+    }
+
+    /// <summary>
+    /// Limpa completamente quaisquer debuffs, lentidões e referências acumuladas ao morrer ou voltar para a Base.
+    /// </summary>
+    public void ResetAllDebuffs()
+    {
+        if (isSlowed && playerAttributes != null && currentSlowPercent > 0f && currentSlowPercent < 1f)
+        {
+            float restoreFactor = 1f / (1f - currentSlowPercent);
+            playerAttributes.speedMultiplier *= restoreFactor;
+        }
+        isSlowed = false;
+        currentSlowPercent = 0f;
+        stolenBuffs.Clear();
+        Debug.Log("[PLAYER DEBUFFS] Todos os debuffs e lentidões foram resetados.");
     }
 
     // ==================== QUERIES ====================

@@ -79,11 +79,11 @@ public class PrimaryAttackKnife : MonoBehaviour
     [Header("Settings")]
     public float attackAnimationSpeed = 1.15f;
     public float defaultAttackSpeed = 1.15f; // Para resetar a velocidade padrão
-    public float axeAttackSpeed = 0.95f; // Velocidade aprimorada e fluida para o machado
+    public float axeAttackSpeed = 1.15f; // Velocidade aprimorada e fluida para o machado
 
     [Header("Combo Speed Modifiers (Fine Tuning)")]
     [Tooltip("Multiplicador de velocidade para o Hit 1")]
-    public float hit1SpeedMultiplier = 1.05f;
+    public float hit1SpeedMultiplier = 1.35f;
     [Tooltip("Multiplicador de velocidade para o Hit 2")]
     public float hit2SpeedMultiplier = 1.05f; // Normalizado sem lentidão artificial!
     [Tooltip("Multiplicador de velocidade para o Hit 3")]
@@ -93,7 +93,7 @@ public class PrimaryAttackKnife : MonoBehaviour
 
     [Header("Weapon Damages")]
     public int[] defaultDamages = { 20, 25, 35 };
-    public int[] daggerDamages = { 30, 35, 40 }; // Conforme Hp_Dano_Inimigos.pdf (Combo total = 105)
+    public int[] daggerDamages = { 30, 35, 45 }; // Conforme Hp_Dano_Inimigos.pdf (Combo total = 105)
     public int[] swordDamages = { 35, 45, 60 };
     public int[] axeDamages = { 40, 45, 55, 55 }; // Conforme Hp_Dano_Inimigos.pdf (Combo total = 195)
     private int[] currentDamages;
@@ -110,6 +110,7 @@ public class PrimaryAttackKnife : MonoBehaviour
 
     [HideInInspector]
     public float comboResetTime = 1.2f;
+
     private int comboStep = 0;
 
     [Header("Lunge Impulse Control")]
@@ -123,7 +124,7 @@ public class PrimaryAttackKnife : MonoBehaviour
     public float daggerHitDuration = 0.2f;
 
     [Tooltip("Delay (em segundos) para ativar o colisor de dano do Machado")]
-    public float axeHitDelay = 0.22f;
+    public float axeHitDelay = 0.10f;
     [Tooltip("Duração (em segundos) que o colisor do Machado fica ativo")]
     public float axeHitDuration = 0.2f;
 
@@ -232,11 +233,13 @@ public class PrimaryAttackKnife : MonoBehaviour
                 }
             }
 
-            if (Input.GetKeyDown(attackKey) || Input.GetMouseButtonDown(0))
+            // --- DETECÇÃO DE INPUTS DE ATAQUE ---
+            bool isLightPressed = (Input.GetKeyDown(attackKey) || Input.GetMouseButtonDown(0));
+
+            if (isLightPressed)
             {
                 lastAttackInputTime = Time.time;
 
-                // Impede ataque se qualquer janela de menu/inventário/console estiver aberta
                 if (IsAnyUIOpen())
                 {
                     return;
@@ -251,7 +254,6 @@ public class PrimaryAttackKnife : MonoBehaviour
                     }
                     else
                     {
-                        // Permite bufferizar o próximo ataque mesmo durante o último golpe (loopando de volta para o Attack 1)
                         hasBufferedAttack = true;
                         int maxComboSteps = GetMaxComboSteps();
                         int nextStep = (comboStep >= maxComboSteps) ? 1 : comboStep + 1;
@@ -608,10 +610,12 @@ public class PrimaryAttackKnife : MonoBehaviour
                                  ?? enemyCollider.GetComponentInParent<Rigidbody>();
                 if (enemyRb != null)
                 {
+                    float enemyKnockbackResist = enemy != null ? enemy.knockbackResistance : 0f;
                     Vector3 knockbackDirection = (enemyCollider.transform.position - transform.position).normalized;
                     knockbackDirection.y = 0;
-                    float knockbackForce = playerAttributes.knockback * 10f;
-                    enemyRb.AddForce(knockbackDirection * knockbackForce, ForceMode.Impulse);
+                    float knockbackForce = playerAttributes.knockback * 10f * Mathf.Clamp01(1f - enemyKnockbackResist);
+                    if (knockbackForce > 0.001f)
+                        enemyRb.AddForce(knockbackDirection * knockbackForce, ForceMode.Impulse);
                 }
             }
 
@@ -840,6 +844,9 @@ public class PrimaryAttackKnife : MonoBehaviour
             BoxCollider boxCollider = equippedWeaponHitbox as BoxCollider;
             if (boxCollider != null)
             {
+                // Aumento de +30% na vertical e profundidade para acertar aranhas facilmente
+                boxCollider.size = new Vector3(1.4f, 1.6f, 2.2f);
+                boxCollider.center = new Vector3(0f, 0.2f, 1.2f);
                 originalWeaponHitboxSize = boxCollider.size;
                 currentOriginalSize = originalWeaponHitboxSize;
             }
@@ -944,8 +951,12 @@ public class PrimaryAttackKnife : MonoBehaviour
     private void PlayAxeSwingClip(AudioClip clip, float volume)
     {
         EnsureAxeSwingAudioSource();
+        float effectiveVolume = volume * GlobalAudioManager.SFXVolumeMultiplier;
+        if (effectiveVolume <= 0.001f) return;
         axeSwingAudioSource.pitch = Random.Range(0.93f, 1.07f);
-        axeSwingAudioSource.PlayOneShot(clip, volume);
+        if (axeSwingAudioSource.outputAudioMixerGroup == null && GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+            axeSwingAudioSource.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
+        axeSwingAudioSource.PlayOneShot(clip, effectiveVolume);
     }
 
     public void PlaySwing1() { if (IsAxeEquipped() && axeSwing1 != null) PlayAxeSwingClip(axeSwing1, swing1Volume); }
@@ -956,16 +967,22 @@ public class PrimaryAttackKnife : MonoBehaviour
     // --- Método utilitário de áudio (mesmo padrão do projeto: GoblinMove, Golem_AI, Spider_AI, etc.) ---
     private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
     {
+        if (clip == null) return;
+        float effectiveVolume = volume * GlobalAudioManager.SFXVolumeMultiplier;
+        if (effectiveVolume <= 0.001f) return;
+
         GameObject audioObj = new GameObject("TempAxeHitAudio");
         audioObj.transform.position = position;
         AudioSource aSource = audioObj.AddComponent<AudioSource>();
         aSource.clip = clip;
         aSource.pitch = pitch;
-        aSource.volume = volume;
+        aSource.volume = effectiveVolume;
         aSource.spatialBlend = 1f;
         aSource.minDistance = 3f;
         aSource.maxDistance = 30f;
         aSource.rolloffMode = AudioRolloffMode.Linear;
+        if (GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+            aSource.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
         aSource.Play();
         float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;
         Destroy(audioObj, clip.length / safePitch);

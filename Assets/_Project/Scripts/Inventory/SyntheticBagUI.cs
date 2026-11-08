@@ -448,7 +448,7 @@ public class SyntheticBagUI : MonoBehaviour
 
             bagCanvas = canvasObject.AddComponent<Canvas>();
             bagCanvas.renderMode  = RenderMode.ScreenSpaceOverlay;
-            bagCanvas.sortingOrder = 101; // Acima do InventoryUI (100)
+            bagCanvas.sortingOrder = 501; // Acima do InventoryUI (500)
 
             CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode         = CanvasScaler.ScaleMode.ScaleWithScreenSize;

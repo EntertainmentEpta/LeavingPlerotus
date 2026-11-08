@@ -1,5 +1,8 @@
+using System.Collections.Generic;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using TMPro;
 
 public class DashM : MonoBehaviour
@@ -11,24 +14,107 @@ public class DashM : MonoBehaviour
     public bool isDashing = false;
 
     [Header("Dash Settings")]
-    public float dashSpeed = 30f;
-    public float dashDuration = 0.2f;
+    public float dashSpeed = 38f;
+    public float dashDuration = 0.22f;
 
-    [Header("Dash Charges (Estilo Hades)")]
+    [Header("Som do Dash Comum")]
+    [Tooltip("Som reproduzido ao realizar o Dash comum. Arraste seu arquivo de áudio aqui.")]
+    public AudioClip dashSound;
+
+    [Tooltip("Variações opcionais de som do dash (sorteia entre elas caso queira variedade). Se vazio, usa dashSound.")]
+    public AudioClip[] dashSoundVariations;
+
+    [Range(0f, 1f)]
+    [Tooltip("Volume do som do dash (integrado ao controle global de SFX).")]
+    public float dashSoundVolume = 0.85f;
+
+    [Range(0.1f, 3.0f)]
+    [Tooltip("Pitch mínimo para variação de tom do dash (0.1 = super grave / slow-mo, 1.0 = normal, 3.0 = super agudo / veloz).")]
+    public float dashPitchMin = 0.80f;
+
+    [Range(0.1f, 3.0f)]
+    [Tooltip("Pitch máximo para variação de tom do dash.")]
+    public float dashPitchMax = 1.25f;
+
+    [Header("Camada Secundária (2 Sons Simultâneos no Dash)")]
+    [Tooltip("Segundo som reproduzido ao mesmo tempo que o Dash Sound (Audio Layering: ex som de vento + som de impacto/energia).")]
+    public AudioClip dashSoundLayer2;
+
+    [Range(0f, 1f)]
+    [Tooltip("Volume da segunda camada de som do dash.")]
+    public float dashSoundLayer2Volume = 0.85f;
+
+    [Tooltip("Se verdadeiro, sincroniza a variação de tom (pitch) entre os dois sons para tocarem na mesma tonalidade.")]
+    public bool syncLayer2Pitch = true;
+
+    [Header("Dash Charges (Modular & Cargas Independentes)")]
     public int maxDashes = 2;
+    private int bonusDashes = 0;
     private int dashesLeft;
 
-    [Header("Cooldown Independente")]
-    [Tooltip("Tempo em segundos para recarregar UMA carga individual de dash (Estilo Hades).")]
+    [Header("Cooldown por Carga")]
+    [Tooltip("Tempo em segundos para recarregar cada carga individual de dash (padrão: 0.9s conforme game design).")]
     public float dashCooldown = 0.9f;
-    private float chargeRechargeTimer = 0f;
+
+    // Timers individuais por carga (cada uma carrega separadamente em paralelo)
+    private float[] chargeSlotTimers = new float[0];
+
+    public static DashM Instance { get; private set; }
 
     [Header("Esquiva Perfeita (Perfect Dash)")]
     [Tooltip("Janela inicial em segundos para qualificar uma esquiva perfeita.")]
-    public float perfectDodgeWindowDuration = 0.16f;
+    public float perfectDodgeWindowDuration = 0.14f;
     private bool isInPerfectDodgeWindow = false;
     private bool isNextAttackGuaranteedCrit = false;
     private float critBuffEndTime = 0f;
+
+    [Header("Efeitos do Perfect Dash (VFX & Áudio)")]
+    [Tooltip("Prefab do VFX de impacto/explosão do Perfect Dash (ex: PerfectDash.prefab)")]
+    public GameObject perfectDashVfxPrefab;
+
+    [Tooltip("Som do Perfect Dash. Arraste o arquivo 'Perfect Dash.ogg' aqui.")]
+    public AudioClip perfectDashSound;
+
+    [Range(0f, 1f)]
+    public float perfectDashSoundVolume = 1.0f;
+
+    [Range(0.5f, 2.0f)]
+    [Tooltip("Escala relativa do After-Image (1.0 = tamanho natural 1:1 do jogador).")]
+    public float afterImageScale = 1.0f;
+
+    [Header("Animação / Inclinação Procedural")]
+    [Tooltip("Transform do modelo visual do jogador para inclinação procedural.")]
+    public Transform visualModelTransform;
+    private Quaternion originalVisualLocalRot = Quaternion.identity;
+    public float dashForwardLeanAngle = 22f;
+    private Coroutine leanCoroutine = null;
+    private Coroutine invulEndCoroutine = null;
+
+    [Header("Layer Phasing (Atravessar Inimigos no Dash — Estilo Hades)")]
+    [Tooltip("Permite ao jogador atravessar corpos de monstros livremente durante o dash, como no Hades.")]
+    public bool enableLayerPhasing = true;
+    private Collider playerCollider;
+    private List<Collider> phasedEnemyColliders = new List<Collider>();
+    private Coroutine restoreCollisionCoroutine = null;
+
+    [Header("Sobrecarga de Esquiva Perfeita (Hyper Charge)")]
+    [Tooltip("Duração em segundos que a barra de sobrecarga do Perfect Dash permanece ativa.")]
+    public float perfectDodgeChargeDuration = 6.0f;
+
+    [Header("Invencibilidade do Perfect Dash (I-Frames de Recompensa)")]
+    [Tooltip("Tempo adicional de invulnerabilidade (em segundos reais) concedido após a normalização do tempo do Perfect Dash.")]
+    public float perfectDodgePostInvulnerability = 0.35f;
+    private float perfectDodgePostInvulTimer = 0f;
+    private bool isPerfectDodgeRoutineRunning = false;
+    private bool isCurrentDashPerfectTriggered = false;
+
+    public bool IsPerfectDodgeInvulnerable => isPerfectDodgeRoutineRunning || perfectDodgePostInvulTimer > 0f;
+    private bool hasPerfectDodgeCharge = false;
+    private float perfectDodgeChargeTimer = 0f;
+
+    public bool HasPerfectDodgeCharge => hasPerfectDodgeCharge && perfectDodgeChargeTimer > 0f;
+    public float PerfectDodgeChargeProgress => Mathf.Clamp01(perfectDodgeChargeTimer / Mathf.Max(0.1f, perfectDodgeChargeDuration));
+    public float PerfectDodgeChargeRemainingTime => Mathf.Max(0f, perfectDodgeChargeTimer);
 
     [Header("UI")]
     public TextMeshProUGUI dashCountText;
@@ -54,44 +140,215 @@ public class DashM : MonoBehaviour
     public float dashDurationMultiplier = 1.0f;
 
     // === Getters para DashUI e Sistemas Externos ===
-    public float CurrentCooldownTimer => dashesLeft >= maxDashes ? 0f : Mathf.Max(0f, MaxCooldown - chargeRechargeTimer);
     public float MaxCooldown => (playerAttributes != null && playerAttributes.dashCooldownMultiplier > 0) ? dashCooldown * playerAttributes.dashCooldownMultiplier : dashCooldown;
-    public float ChargeProgress => dashesLeft >= maxDashes ? 1f : Mathf.Clamp01(chargeRechargeTimer / Mathf.Max(0.01f, MaxCooldown));
-    public bool IsRecharging => dashesLeft < maxDashes;
     public int DashesLeft => dashesLeft;
-    public int MaxDashes => maxDashes;
+    public int MaxDashes => Mathf.Max(1, maxDashes + bonusDashes);
     public bool IsInPerfectDodgeWindow => isDashing && isInPerfectDodgeWindow;
     public bool IsNextAttackGuaranteedCrit => isNextAttackGuaranteedCrit && Time.unscaledTime <= critBuffEndTime;
+    public bool IsRecharging => dashesLeft < MaxDashes;
+
+    public void SetBonusDashes(int bonus)
+    {
+        bonusDashes = bonus;
+        InitSlotTimers();
+    }
+
+    public float CurrentCooldownTimer
+    {
+        get
+        {
+            float minRemaining = float.MaxValue;
+            float cd = MaxCooldown;
+            int total = MaxDashes;
+            for (int i = 0; i < total; i++)
+            {
+                if (chargeSlotTimers != null && i < chargeSlotTimers.Length && chargeSlotTimers[i] < cd)
+                {
+                    float rem = cd - chargeSlotTimers[i];
+                    if (rem < minRemaining) minRemaining = rem;
+                }
+            }
+            return minRemaining == float.MaxValue ? 0f : minRemaining;
+        }
+    }
+
+    public float ChargeProgress
+    {
+        get
+        {
+            int total = MaxDashes;
+            if (dashesLeft >= total) return 1f;
+            float maxProg = 0f;
+            float cd = Mathf.Max(0.01f, MaxCooldown);
+            for (int i = 0; i < total; i++)
+            {
+                if (chargeSlotTimers != null && i < chargeSlotTimers.Length && chargeSlotTimers[i] < cd)
+                {
+                    float prog = chargeSlotTimers[i] / cd;
+                    if (prog > maxProg) maxProg = prog;
+                }
+            }
+            return Mathf.Clamp01(maxProg);
+        }
+    }
+
+    /// <summary>
+    /// Retorna o progresso de recarga (0.0 a 1.0) de um slot específico de dash.
+    /// </summary>
+    public float GetSlotProgress(int index)
+    {
+        if (chargeSlotTimers == null || index < 0 || index >= chargeSlotTimers.Length) return 0f;
+        float cd = Mathf.Max(0.01f, MaxCooldown);
+        return Mathf.Clamp01(chargeSlotTimers[index] / cd);
+    }
+
+    /// <summary>
+    /// Informa se o slot específico de dash está 100% carregado e pronto para uso.
+    /// </summary>
+    public bool IsSlotReady(int index)
+    {
+        if (chargeSlotTimers == null || index < 0 || index >= chargeSlotTimers.Length) return false;
+        return chargeSlotTimers[index] >= MaxCooldown;
+    }
+
+    /// <summary>
+    /// Retorna o tempo restante em segundos para a carga deste slot ficar pronta.
+    /// </summary>
+    public float GetSlotRemainingTime(int index)
+    {
+        if (chargeSlotTimers == null || index < 0 || index >= chargeSlotTimers.Length) return 0f;
+        return Mathf.Max(0f, MaxCooldown - chargeSlotTimers[index]);
+    }
+
+    private Animator FindAnimator()
+    {
+        Player_WeaponManager wm = GetComponent<Player_WeaponManager>() ?? GetComponentInParent<Player_WeaponManager>();
+        if (wm != null && wm.playerAnimator != null && wm.playerAnimator.isActiveAndEnabled)
+        {
+            return wm.playerAnimator;
+        }
+        return GetComponentInChildren<Animator>(false) ?? GetComponentInParent<Animator>();
+    }
+
+    private void Awake()
+    {
+        Instance = this;
+        ReloadKeybinds();
+        InitSlotTimers();
+    }
+
+    private void OnEnable()
+    {
+        ReloadKeybinds();
+    }
+
+    public void ReloadKeybinds()
+    {
+        dashKey = KeybindApplier.ParseKey("KeyDash", "E");
+        keyUp = KeybindApplier.ParseKey("KeyUp", "W");
+        keyDown = KeybindApplier.ParseKey("KeyDown", "S");
+        keyLeft = KeybindApplier.ParseKey("KeyLeft", "A");
+        keyRight = KeybindApplier.ParseKey("KeyRight", "D");
+    }
 
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
         playerMovement = GetComponent<PlayerM>();
-        dashesLeft = maxDashes;
         attackScript = GetComponent<PrimaryAttackKnife>() ?? GetComponentInChildren<PrimaryAttackKnife>() ?? GetComponentInParent<PrimaryAttackKnife>();
         
         // Buscar PlayerAttributesDefensive
         playerAttributes = GetComponent<PlayerAttributesDefensive>();
-        if (playerAttributes == null)
+        if (playerAttributes != null)
         {
-            Debug.LogWarning("DashM: PlayerAttributesDefensive não encontrado! Atributos de dash não serão aplicados.");
+            if (playerAttributes.dashCounts > maxDashes)
+            {
+                maxDashes = playerAttributes.dashCounts;
+            }
         }
-        else if (playerAttributes.dashCounts > 0)
-        {
-            maxDashes = playerAttributes.dashCounts;
-            dashesLeft = maxDashes;
-        }
+
+        InitSlotTimers();
+        dashesLeft = MaxDashes;
         
         // Buscar PlayerHealth para invulnerabilidade
         playerHealth = GetComponent<PlayerHealth>();
+        playerCollider = GetComponent<Collider>();
+        
+        // Configura modelo visual para inclinação procedural
+        if (visualModelTransform == null)
+        {
+            Transform found = transform.Find("astronaut");
+            if (found != null)
+            {
+                visualModelTransform = found;
+            }
+            else
+            {
+                Animator a = FindAnimator();
+                if (a != null) visualModelTransform = a.transform;
+            }
+        }
+        if (visualModelTransform != null)
+        {
+            originalVisualLocalRot = visualModelTransform.localRotation;
+        }
         
         // Tenta encontrar UI no inicio
         FindUIReferences();
 
-        // Garante que o DashUI existe no Canvas para exibir recarga e cargas
+        // Garante que o DashUI existe no Canvas para exibir as barras modulares
         if (GetComponent<DashUI>() == null && FindFirstObjectByType<DashUI>() == null)
         {
             gameObject.AddComponent<DashUI>();
+        }
+
+        // Garante que o Sistema de Cura do Traje do Eptinho esteja ativo
+        if (GetComponent<SuitHealingSystem>() == null && FindFirstObjectByType<SuitHealingSystem>() == null)
+        {
+            gameObject.AddComponent<SuitHealingSystem>();
+        }
+
+        if (rb != null)
+        {
+            rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+        }
+    }
+
+    private void InitSlotTimers()
+    {
+        int targetMax = MaxDashes;
+        float cd = MaxCooldown;
+
+        if (chargeSlotTimers == null || chargeSlotTimers.Length != targetMax)
+        {
+            float[] oldTimers = chargeSlotTimers;
+            chargeSlotTimers = new float[targetMax];
+            for (int i = 0; i < targetMax; i++)
+            {
+                if (oldTimers != null && i < oldTimers.Length)
+                {
+                    chargeSlotTimers[i] = oldTimers[i];
+                }
+                else
+                {
+                    chargeSlotTimers[i] = cd; // Novo slot começa pronto
+                }
+            }
+        }
+    }
+
+    private void OnDisable()
+    {
+        RestoreVisualLeanImmediate();
+        RestorePhasingCollisionImmediate();
+        if (invulEndCoroutine != null)
+        {
+            StopCoroutine(invulEndCoroutine);
+            invulEndCoroutine = null;
+        }
+        if (playerHealth != null)
+        {
+            playerHealth.isInvulnerable = false;
         }
     }
 
@@ -124,10 +381,43 @@ public class DashM : MonoBehaviour
         }
         else if (Input.GetKeyDown(dashKey) || Input.GetKeyDown(KeyCode.Space))
         {
+            if (!EptinhoStoryDialogs.HasSeenDialog(EptinhoStoryDialogs.ID_DASH_TUTORIAL))
+            {
+                EptinhoStoryDialogs.TriggerDashTutorial();
+                return;
+            }
             lastDashInputTime = Time.time;
         }
 
-        // Inicia o dash se tiver pelo menos 1 carga (não precisa esperar tudo recarregar!)
+        int targetMax = MaxDashes;
+        if (chargeSlotTimers == null || chargeSlotTimers.Length != targetMax)
+        {
+            InitSlotTimers();
+        }
+
+        float effectiveCooldown = MaxCooldown;
+
+        // 1. Cada carga carrega separadamente em paralelo
+        int readyCount = 0;
+        for (int i = 0; i < targetMax; i++)
+        {
+            if (chargeSlotTimers[i] < effectiveCooldown)
+            {
+                chargeSlotTimers[i] += Time.deltaTime;
+                if (chargeSlotTimers[i] >= effectiveCooldown)
+                {
+                    chargeSlotTimers[i] = effectiveCooldown;
+                }
+            }
+
+            if (chargeSlotTimers[i] >= effectiveCooldown)
+            {
+                readyCount++;
+            }
+        }
+        dashesLeft = readyCount;
+
+        // 2. Inicia o dash se tiver pelo menos 1 carga pronta
         if ((Time.time - lastDashInputTime <= inputBufferWindow) && dashesLeft > 0 && !isDashing && !plasmaActionLocked)
         {
             if (attackScript != null && attackScript.isAttacking)
@@ -139,26 +429,38 @@ public class DashM : MonoBehaviour
             StartCoroutine(PerformDash());
         }
 
-        // Atualização da Recarga Independente de Cargas (Estilo Hades)
-        float effectiveCooldown = MaxCooldown;
-        if (dashesLeft < maxDashes)
+        // 3. Expira a Sobrecarga do Perfect Dash com o tempo (se não for consumida em 6s)
+        if (hasPerfectDodgeCharge)
         {
-            chargeRechargeTimer += Time.deltaTime;
-            if (chargeRechargeTimer >= effectiveCooldown)
+            perfectDodgeChargeTimer -= Time.unscaledDeltaTime;
+            if (perfectDodgeChargeTimer <= 0f)
             {
-                dashesLeft++;
-                chargeRechargeTimer = (dashesLeft < maxDashes) ? (chargeRechargeTimer - effectiveCooldown) : 0f;
+                hasPerfectDodgeCharge = false;
+                perfectDodgeChargeTimer = 0f;
+                isNextAttackGuaranteedCrit = false;
             }
         }
-        else
-        {
-            chargeRechargeTimer = 0f;
-        }
-
-        // Expira buff de crítico garantido do Perfect Dash
-        if (isNextAttackGuaranteedCrit && Time.unscaledTime > critBuffEndTime)
+        else if (isNextAttackGuaranteedCrit && Time.unscaledTime > critBuffEndTime)
         {
             isNextAttackGuaranteedCrit = false;
+        }
+
+        // 3.1 Gerencia o Timer de Invulnerabilidade Pós-Perfect Dash (I-Frames generosos para o jogador)
+        if (perfectDodgePostInvulTimer > 0f)
+        {
+            perfectDodgePostInvulTimer -= Time.unscaledDeltaTime;
+            if (playerHealth != null)
+            {
+                playerHealth.isInvulnerable = true;
+            }
+            if (perfectDodgePostInvulTimer <= 0f)
+            {
+                perfectDodgePostInvulTimer = 0f;
+                if (!isDashing && !isPerfectDodgeRoutineRunning && playerHealth != null)
+                {
+                    playerHealth.isInvulnerable = false;
+                }
+            }
         }
 
         HandleDashUI();
@@ -168,12 +470,65 @@ public class DashM : MonoBehaviour
     {
         isDashing = true;
         isInPerfectDodgeWindow = true;
-        dashesLeft--; // Gasta 1 carga
 
-        // Ativar I-Frames durante o dash
-        if (playerHealth != null)
+        PlayDashSound();
+
+        if (invulEndCoroutine != null)
+        {
+            StopCoroutine(invulEndCoroutine);
+            invulEndCoroutine = null;
+        }
+
+        // Checagem proativa de Esquiva Perfeita no instante exato da ativação
+        isCurrentDashPerfectTriggered = false;
+        if (IsAnyImminentAttackNearby(out GameObject imminentAttacker))
+        {
+            isCurrentDashPerfectTriggered = true;
+            TriggerPerfectDodge(imminentAttacker);
+        }
+
+        // Layer Phasing (Atravessar inimigos como fantasma) APENAS no Perfect Dash!
+        if (isCurrentDashPerfectTriggered && enableLayerPhasing)
+        {
+            if (restoreCollisionCoroutine != null)
+            {
+                StopCoroutine(restoreCollisionCoroutine);
+                restoreCollisionCoroutine = null;
+            }
+            EnablePhasingCollision();
+        }
+
+        // Invulnerabilidade (I-Frames) no Perfect Dash
+        if (isCurrentDashPerfectTriggered && playerHealth != null)
         {
             playerHealth.isInvulnerable = true;
+        }
+
+        // Se o jogador estiver com a Sobrecarga do Perfect Dash ativa, gasta a sobrecarga como um DASH EXTRA LIVRE!
+        if (HasPerfectDodgeCharge)
+        {
+            ConsumePerfectDodgeCharge();
+            Debug.Log("⚡ [DashM] Dash Livre Extra executado usando a Sobrecarga do Perfect Dash!");
+        }
+        else
+        {
+            // Consome a carga normal do dash
+            float effectiveCooldown = MaxCooldown;
+            int targetMax = MaxDashes;
+            int slotToUse = -1;
+            for (int i = targetMax - 1; i >= 0; i--)
+            {
+                if (chargeSlotTimers[i] >= effectiveCooldown)
+                {
+                    slotToUse = i;
+                    break;
+                }
+            }
+            if (slotToUse >= 0)
+            {
+                chargeSlotTimers[slotToUse] = 0f;
+            }
+            dashesLeft = Mathf.Max(0, dashesLeft - 1);
         }
         
         // Direção do dash
@@ -191,10 +546,30 @@ public class DashM : MonoBehaviour
             dashDirection = transform.forward;
         }
 
-        rb.linearVelocity = Vector3.zero; 
-        rb.linearVelocity = dashDirection * dashSpeed;
+        // Alinha a rotação na direção do dash imediatamente
+        if (dashDirection != Vector3.zero)
+        {
+            transform.rotation = Quaternion.LookRotation(dashDirection);
+        }
 
         float totalDuration = dashDuration * dashDurationMultiplier;
+
+        // Ativa animação de corrida para movimentar membros
+        Animator anim = FindAnimator();
+        if (anim != null && anim.isActiveAndEnabled)
+        {
+            anim.SetFloat("Speed", 1.5f);
+        }
+
+        // Inicia inclinação procedural aerodinâmica para a frente
+        if (visualModelTransform != null)
+        {
+            if (leanCoroutine != null) StopCoroutine(leanCoroutine);
+            leanCoroutine = StartCoroutine(AnimateDashLean(totalDuration));
+        }
+
+        rb.linearVelocity = Vector3.zero; 
+        rb.linearVelocity = dashDirection * dashSpeed;
         float elapsed = 0f;
         while (elapsed < totalDuration)
         {
@@ -203,18 +578,62 @@ public class DashM : MonoBehaviour
             {
                 isInPerfectDodgeWindow = false;
             }
+
+            // No Dash Normal (sem Perfect Dash): aplica repulsão radial suave lateral para contornar inimigos fluidamente
+            if (!isCurrentDashPerfectTriggered)
+            {
+                ApplyRadialSoftRepulsion(dashDirection);
+            }
+
+            if (anim != null && anim.isActiveAndEnabled)
+            {
+                anim.SetFloat("Speed", 1.5f);
+            }
             yield return null;
         }
 
         isInPerfectDodgeWindow = false;
 
-        // Conserva inércia suave na direção do dash para emendar na corrida
-        float exitSpeed = playerMovement != null ? playerMovement.sprintSpeed : 11f;
-        rb.linearVelocity = dashDirection * exitSpeed;
-        
-        if (playerHealth != null)
+        // Restaura inclinação caso a corrotina ainda não tenha finalizado
+        RestoreVisualLeanImmediate();
+
+        // Restaura colisões com inimigos se estava em Phasing
+        if (isCurrentDashPerfectTriggered && enableLayerPhasing)
         {
-            if (playerAttributes == null || playerAttributes.dashInvulnerability <= 0)
+            if (restoreCollisionCoroutine != null) StopCoroutine(restoreCollisionCoroutine);
+            restoreCollisionCoroutine = StartCoroutine(RestoreEnemyCollisionDelayed());
+        }
+
+        // Verifica se o jogador está segurando teclas de movimento WASD ao sair do dash
+        bool hasMovementInput = (Input.GetKey(keyRight) || Input.GetKey(keyLeft) || 
+                                 Input.GetKey(keyUp) || Input.GetKey(keyDown));
+
+        if (hasMovementInput)
+        {
+            // Conserva inércia suave na direção do movimento para emendar perfeitamente na corrida contínua
+            float exitSpeed = playerMovement != null ? playerMovement.sprintSpeed : 11f;
+            rb.linearVelocity = dashDirection * exitSpeed;
+        }
+        else
+        {
+            // Se o jogador estava parado (sem segurar WASD), freia imediatamente no chão!
+            rb.linearVelocity = Vector3.zero;
+            if (anim != null && anim.isActiveAndEnabled)
+            {
+                anim.SetFloat("Speed", 0f);
+            }
+        }
+        
+        // Failsafe de invulnerabilidade ao sair do dash (respeitando I-Frames do Perfect Dash se estiverem ativos)
+        if (playerHealth != null && !IsPerfectDodgeInvulnerable)
+        {
+            float extraInvul = (playerAttributes != null) ? Mathf.Max(0f, playerAttributes.dashInvulnerability) : 0f;
+            if (extraInvul > 0f)
+            {
+                if (invulEndCoroutine != null) StopCoroutine(invulEndCoroutine);
+                invulEndCoroutine = StartCoroutine(EndInvulnerabilityAfterDelay(Mathf.Min(extraInvul, 0.25f)));
+            }
+            else
             {
                 playerHealth.isInvulnerable = false;
             }
@@ -225,52 +644,524 @@ public class DashM : MonoBehaviour
 
     /// <summary>
     /// Disparado pelo PlayerHealth quando o jogador esquiva com sucesso dentro da janela inicial.
-    /// Ativa hit-stop, restaura 1 dash e concede 100% crítico no próximo golpe.
+    /// Ativa hit-stop, after-image, restaura 1 dash, acelera cura do Eptinho e concede 100% crítico no próximo golpe.
     /// </summary>
+    [ContextMenu("Testar Esquiva Perfeita")]
+    public void DebugTriggerPerfectDodge()
+    {
+        TriggerPerfectDodge(null);
+    }
+
     public void TriggerPerfectDodge(GameObject attacker = null)
     {
+        isCurrentDashPerfectTriggered = true;
         isInPerfectDodgeWindow = false;
+
+        if (enableLayerPhasing)
+        {
+            EnablePhasingCollision();
+        }
+
+        if (playerHealth != null)
+        {
+            playerHealth.isInvulnerable = true;
+        }
+
         StartCoroutine(DoPerfectDodgeRoutine(attacker));
+    }
+
+    private void EnablePhasingCollision()
+    {
+        int playerLayer = gameObject.layer;
+        int enemyLayer = LayerMask.NameToLayer("Enemy");
+        if (playerLayer >= 0 && enemyLayer >= 0)
+        {
+            Physics.IgnoreLayerCollision(playerLayer, enemyLayer, true);
+        }
+
+        if (playerCollider != null)
+        {
+            Collider[] nearbyCols = Physics.OverlapSphere(transform.position, 16f);
+            for (int i = 0; i < nearbyCols.Length; i++)
+            {
+                Collider col = nearbyCols[i];
+                if (col == null || col == playerCollider || col.isTrigger) continue;
+
+                bool isEnemy = (enemyLayer >= 0 && col.gameObject.layer == enemyLayer) ||
+                               col.CompareTag("Enemy") ||
+                               col.GetComponentInParent<DummyHealth>() != null;
+
+                if (isEnemy)
+                {
+                    Physics.IgnoreCollision(playerCollider, col, true);
+                    phasedEnemyColliders.Add(col);
+                }
+            }
+        }
+    }
+
+    private IEnumerator RestoreEnemyCollisionDelayed()
+    {
+        yield return new WaitForFixedUpdate();
+
+        int playerLayer = gameObject.layer;
+        int enemyLayer = LayerMask.NameToLayer("Enemy");
+        if (playerLayer >= 0 && enemyLayer >= 0)
+        {
+            Physics.IgnoreLayerCollision(playerLayer, enemyLayer, false);
+        }
+
+        if (playerCollider != null && phasedEnemyColliders.Count > 0)
+        {
+            for (int i = 0; i < phasedEnemyColliders.Count; i++)
+            {
+                Collider enemyCol = phasedEnemyColliders[i];
+                if (enemyCol != null)
+                {
+                    Physics.IgnoreCollision(playerCollider, enemyCol, false);
+                }
+            }
+            phasedEnemyColliders.Clear();
+        }
+        restoreCollisionCoroutine = null;
+    }
+
+    private void RestorePhasingCollisionImmediate()
+    {
+        if (restoreCollisionCoroutine != null)
+        {
+            StopCoroutine(restoreCollisionCoroutine);
+            restoreCollisionCoroutine = null;
+        }
+
+        int playerLayer = gameObject.layer;
+        int enemyLayer = LayerMask.NameToLayer("Enemy");
+        if (playerLayer >= 0 && enemyLayer >= 0)
+        {
+            Physics.IgnoreLayerCollision(playerLayer, enemyLayer, false);
+        }
+
+        if (playerCollider != null && phasedEnemyColliders.Count > 0)
+        {
+            for (int i = 0; i < phasedEnemyColliders.Count; i++)
+            {
+                Collider enemyCol = phasedEnemyColliders[i];
+                if (enemyCol != null)
+                {
+                    Physics.IgnoreCollision(playerCollider, enemyCol, false);
+                }
+            }
+            phasedEnemyColliders.Clear();
+        }
+    }
+
+    private IEnumerator EndInvulnerabilityAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        if (playerHealth != null && !isDashing)
+        {
+            playerHealth.isInvulnerable = false;
+        }
+        invulEndCoroutine = null;
+    }
+
+    private IEnumerator AnimateDashLean(float duration)
+    {
+        if (visualModelTransform == null) yield break;
+        Quaternion targetRot = originalVisualLocalRot * Quaternion.Euler(dashForwardLeanAngle, 0f, 0f);
+
+        // Interpola rapidamente para a frente (0.04s)
+        float leanInTime = 0.04f;
+        float elapsed = 0f;
+        while (elapsed < leanInTime)
+        {
+            elapsed += Time.deltaTime;
+            visualModelTransform.localRotation = Quaternion.Slerp(originalVisualLocalRot, targetRot, elapsed / leanInTime);
+            yield return null;
+        }
+        visualModelTransform.localRotation = targetRot;
+
+        // Mantém a inclinação durante o corpo do dash
+        float holdTime = Mathf.Max(0f, duration - leanInTime - 0.08f);
+        if (holdTime > 0f)
+        {
+            yield return new WaitForSeconds(holdTime);
+        }
+
+        // Retorna suavemente à rotação original (0.08s)
+        float leanOutTime = 0.08f;
+        elapsed = 0f;
+        while (elapsed < leanOutTime)
+        {
+            elapsed += Time.deltaTime;
+            visualModelTransform.localRotation = Quaternion.Slerp(targetRot, originalVisualLocalRot, elapsed / leanOutTime);
+            yield return null;
+        }
+        visualModelTransform.localRotation = originalVisualLocalRot;
+        leanCoroutine = null;
+    }
+
+    public void RestoreVisualLeanImmediate()
+    {
+        if (leanCoroutine != null)
+        {
+            StopCoroutine(leanCoroutine);
+            leanCoroutine = null;
+        }
+        if (visualModelTransform != null)
+        {
+            visualModelTransform.localRotation = originalVisualLocalRot;
+        }
+    }
+
+    /// <summary>
+    /// Detecta se existe algum perigo iminente real perto do jogador (projétil inimigo em aproximação ou mob ATACANDO de frente).
+    /// Ignora totens pacíficos (como Crystal Tuner) e não dispara se o player estiver nas costas/fora do cone de ataque do inimigo.
+    /// </summary>
+    public bool IsAnyImminentAttackNearby(out GameObject attacker)
+    {
+        attacker = null;
+        Vector3 playerPos = transform.position;
+
+        // 1. Checa projéteis hostis em aproximação (raio de 5.5m)
+        Collider[] hits = Physics.OverlapSphere(playerPos, 5.5f);
+        if (hits != null)
+        {
+            for (int i = 0; i < hits.Length; i++)
+            {
+                Collider hit = hits[i];
+                if (hit == null || hit.transform.IsChildOf(transform)) continue;
+
+                CrystalSpikeProjectile spike = hit.GetComponent<CrystalSpikeProjectile>() ?? hit.GetComponentInParent<CrystalSpikeProjectile>();
+                if (spike != null)
+                {
+                    attacker = spike.gameObject;
+                    return true;
+                }
+
+                BombaExplosiva bomb = hit.GetComponent<BombaExplosiva>() ?? hit.GetComponentInParent<BombaExplosiva>();
+                if (bomb != null)
+                {
+                    attacker = bomb.gameObject;
+                    return true;
+                }
+
+                string lower = hit.gameObject.name.ToLower();
+                if (lower.Contains("projectile") || lower.Contains("bullet") || lower.Contains("hazard"))
+                {
+                    attacker = hit.gameObject;
+                    return true;
+                }
+            }
+        }
+
+        // 2. Checa inimigos vivos em alcance estrito e atacando/virados para o jogador
+        DummyHealth[] enemies = FindObjectsByType<DummyHealth>(FindObjectsSortMode.None);
+        if (enemies != null)
+        {
+            for (int i = 0; i < enemies.Length; i++)
+            {
+                DummyHealth enemy = enemies[i];
+                if (enemy == null || enemy.CurrentHealth <= 0) continue;
+
+                // Ignora totens e suportes pacíficos que não golpeiam (como Crystal Tuner)
+                string eName = enemy.gameObject.name.ToLower();
+                if (eName.Contains("tuner") || eName.Contains("totem") || eName.Contains("sintonizador") || eName.Contains("magicstone") || eName.Contains("stone") || eName.Contains("pedra")) continue;
+
+                Vector3 toPlayer = playerPos - enemy.transform.position;
+                float dist = toPlayer.magnitude;
+                if (dist > 2.4f) continue; // Janela de proximidade mais estrita
+
+                // Checa cone frontal: deve estar encarando diretamente o jogador
+                Vector3 toPlayerDir = toPlayer.normalized;
+                float facingDot = Vector3.Dot(enemy.transform.forward, toPlayerDir);
+                if (facingDot < 0.65f)
+                {
+                    continue; // Inimigo está de costas ou em ângulo lateral
+                }
+
+                attacker = enemy.gameObject;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Separa monstros de forma suave e contida durante o Dash Normal sem travar o jogador nem arremessar inimigos no ar.
+    /// </summary>
+    private void ApplyRadialSoftRepulsion(Vector3 dashDirection)
+    {
+        Collider[] nearby = Physics.OverlapSphere(transform.position, 1.4f);
+        for (int i = 0; i < nearby.Length; i++)
+        {
+            Collider col = nearby[i];
+            if (col == null || col.isTrigger) continue;
+            if (col.CompareTag("Enemy") || col.GetComponent<DummyHealth>() != null)
+            {
+                Rigidbody enemyRb = col.GetComponent<Rigidbody>();
+                if (enemyRb != null && !enemyRb.isKinematic)
+                {
+                    Vector3 diff = col.transform.position - transform.position;
+                    diff.y = 0;
+                    if (diff.sqrMagnitude > 0.01f)
+                    {
+                        Vector3 lateral = Vector3.ProjectOnPlane(diff.normalized, dashDirection).normalized;
+                        if (lateral == Vector3.zero) lateral = Vector3.Cross(dashDirection, Vector3.up).normalized;
+
+                        // Redução estrita do knockback: aranha ou inimigos saltando nunca são arremessados
+                        bool isSpider = col.GetComponent<Spider_AI>() != null;
+                        float nudgeForce = isSpider ? 0.35f : 1.2f;
+
+                        enemyRb.AddForce(lateral * nudgeForce, ForceMode.VelocityChange);
+
+                        // Trava a velocidade horizontal máxima para suavizar a separação
+                        Vector3 horizontalVel = new Vector3(enemyRb.linearVelocity.x, 0, enemyRb.linearVelocity.z);
+                        if (horizontalVel.magnitude > 2.5f)
+                        {
+                            horizontalVel = horizontalVel.normalized * 2.5f;
+                            enemyRb.linearVelocity = new Vector3(horizontalVel.x, enemyRb.linearVelocity.y, horizontalVel.z);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private Volume perfectDodgeBlurVolume;
+
+    private void SetupPerfectDodgeMotionBlurVolume()
+    {
+        if (perfectDodgeBlurVolume != null) return;
+        try
+        {
+            GameObject volObj = new GameObject("PerfectDodge_MotionBlurVolume");
+            DontDestroyOnLoad(volObj);
+            perfectDodgeBlurVolume = volObj.AddComponent<Volume>();
+            perfectDodgeBlurVolume.isGlobal = true;
+            perfectDodgeBlurVolume.priority = 10000f;
+            perfectDodgeBlurVolume.weight = 0f;
+
+            VolumeProfile prof = ScriptableObject.CreateInstance<VolumeProfile>();
+            prof.name = "PerfectDodge_BlurProfile";
+            MotionBlur mb = prof.Add<MotionBlur>(true);
+            mb.mode.Override(MotionBlurMode.CameraAndObjects);
+            mb.intensity.Override(0.95f);
+            mb.quality.Override(MotionBlurQuality.High);
+            mb.clamp.Override(0.08f);
+            perfectDodgeBlurVolume.profile = prof;
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning("[DashM] Volume URP MotionBlur não pôde ser instanciado: " + ex.Message);
+        }
     }
 
     private IEnumerator DoPerfectDodgeRoutine(GameObject attacker)
     {
         Debug.Log("⚡ [DashM] PERFECT DASH EXECUTADO COM SUCESSO!");
 
-        // 1. Hit-Stop (Desaceleração do tempo / Witch Time)
-        Time.timeScale = 0.15f;
+        // Toca o som do Perfect Dash
+        PlayPerfectDashSound();
 
-        // 2. Recompensa de Mobilidade: Restaura 1 Dash imediatamente!
-        if (dashesLeft < maxDashes)
+        // Spawna o VFX de impacto/mini explosão do Perfect Dash
+        SpawnPerfectDashVFX(attacker);
+
+        // 1. Spawna sequência de 5 After-Images translúcidas brancas ao longo do dash (sem ciano)
+        StartCoroutine(SpawnAfterImageSequence(5, 0.04f));
+
+        // 2. Hit-Stop / Witch Time: desacelera o tempo suavemente (0.35f)
+        Time.timeScale = 0.35f;
+
+        // 3. Motion Blur removido conforme solicitado pelo usuário (sem distorções na tela)
+        if (perfectDodgeBlurVolume != null)
         {
-            dashesLeft++;
-            chargeRechargeTimer = 0f;
+            perfectDodgeBlurVolume.weight = 0f;
         }
 
-        // 3. Recompensa Ofensiva: 100% de Crítico no próximo ataque (3s)
+        // 4. Ativa a Sobrecarga do Perfect Dash (Barra Especial de 3 Escolhas: Crítico / Dash Extra / Cura Q)
+        hasPerfectDodgeCharge = true;
+        perfectDodgeChargeTimer = perfectDodgeChargeDuration;
         isNextAttackGuaranteedCrit = true;
-        critBuffEndTime = Time.unscaledTime + 3.0f;
+        critBuffEndTime = Time.unscaledTime + perfectDodgeChargeDuration;
 
-        // 4. Feedback Visual na UI
+        // 5. Feedback Visual na UI (Banner central de confirmação)
         if (DashUI.Instance != null)
         {
             DashUI.Instance.TriggerPerfectDodgeFlash();
         }
 
-        // Duração do Hit-Stop em tempo real
-        yield return new WaitForSecondsRealtime(0.18f);
+        // 5.1 Feedback Visual no HUD de Cura do Traje
+        if (SuitHealingUI.Instance != null)
+        {
+            SuitHealingUI.Instance.TriggerPerfectDodgeAlert();
+        }
+
+        // Garante invulnerabilidade contínua durante todo o bullet time
+        isPerfectDodgeRoutineRunning = true;
+        if (playerHealth != null)
+        {
+            playerHealth.isInvulnerable = true;
+        }
+
+        // 6. Duração de desaceleração reduzida em 10% (de 1.0s para 0.90s)
+        yield return new WaitForSecondsRealtime(0.90f);
+
+        // 7. Transição suave de volta para a velocidade normal (0.15s)
+        float restoreDuration = 0.15f;
+        float restoreElapsed = 0f;
+        while (restoreElapsed < restoreDuration)
+        {
+            restoreElapsed += Time.unscaledDeltaTime;
+            float t = restoreElapsed / restoreDuration;
+            Time.timeScale = Mathf.Lerp(0.35f, 1.0f, t);
+            yield return null;
+        }
+        Time.timeScale = 1.0f;
+
+        isPerfectDodgeRoutineRunning = false;
+
+        // 8. Recompensa estendida ao jogador: I-frames generosos adicionais (milissegundos vitais)
+        perfectDodgePostInvulTimer = perfectDodgePostInvulnerability;
+        if (playerHealth != null)
+        {
+            playerHealth.isInvulnerable = true;
+        }
 
         Time.timeScale = 1.0f;
+        if (perfectDodgeBlurVolume != null)
+        {
+            perfectDodgeBlurVolume.weight = 0f;
+        }
+    }
+
+    private IEnumerator SpawnAfterImageSequence(int count, float interval)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            SpawnAfterImage();
+            yield return new WaitForSecondsRealtime(interval);
+        }
+    }
+
+    /// <summary>
+    /// Spawna uma silhueta translúcida branca etérea (After-Image) do jogador no ponto da esquiva perfeita.
+    /// Utiliza shaders compatíveis com URP para máxima visibilidade e persistência sem qualquer tom ciano.
+    /// </summary>
+    private void SpawnAfterImage()
+    {
+        SkinnedMeshRenderer[] smrs = GetComponentsInChildren<SkinnedMeshRenderer>();
+        if (smrs == null || smrs.Length == 0) return;
+
+        GameObject ghostObj = new GameObject("DashGhost_AfterImage");
+        ghostObj.transform.position = Vector3.zero;
+        ghostObj.transform.rotation = Quaternion.identity;
+        ghostObj.transform.localScale = Vector3.one;
+
+        // Tenta usar URP Unlit para silhueta translúcida limpa; fallback para Sprites/Default
+        Shader shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
+        Material ghostMat = new Material(shader);
+        Color ghostColor = new Color(1.0f, 1.0f, 1.0f, 0.55f); // Translúcido monocromático neutro (sem ciano)
+        ghostMat.color = ghostColor;
+        if (ghostMat.HasProperty("_BaseColor")) ghostMat.SetColor("_BaseColor", ghostColor);
+        if (ghostMat.HasProperty("_Color")) ghostMat.SetColor("_Color", ghostColor);
+        ghostMat.SetFloat("_Surface", 1); // Transparent
+        ghostMat.SetFloat("_Blend", 0);
+        ghostMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        ghostMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        ghostMat.SetInt("_ZWrite", 0);
+        ghostMat.renderQueue = 3100;
+
+        List<Mesh> bakedMeshes = new List<Mesh>();
+
+        foreach (var smr in smrs)
+        {
+            if (smr == null || !smr.gameObject.activeInHierarchy || !smr.enabled) continue;
+
+            Mesh baked = new Mesh();
+            smr.BakeMesh(baked);
+            bakedMeshes.Add(baked);
+
+            GameObject part = new GameObject($"GhostPart_{smr.gameObject.name}");
+            part.transform.SetParent(ghostObj.transform, false);
+            part.transform.position = smr.transform.position;
+            part.transform.rotation = smr.transform.rotation;
+            // Correção: BakeMesh já deforma os vértices na escala visual real do esqueleto.
+            // Aplicar lossyScale (110x) inflava o fantasma para proporções colossais.
+            // Usar Vector3.one * afterImageScale garante reprodução 1:1 exata do tamanho do jogador.
+            part.transform.localScale = Vector3.one * afterImageScale;
+
+            MeshFilter mf = part.AddComponent<MeshFilter>();
+            mf.mesh = baked;
+
+            MeshRenderer mr = part.AddComponent<MeshRenderer>();
+            mr.material = ghostMat;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mr.receiveShadows = false;
+        }
+
+        StartCoroutine(FadeAndDestroyGhost(ghostObj, ghostMat, bakedMeshes, 0.90f));
+    }
+
+    private IEnumerator FadeAndDestroyGhost(GameObject ghost, Material mat, List<Mesh> meshes, float duration)
+    {
+        float elapsed = 0f;
+        Color initialColor = mat != null ? mat.color : new Color(1f, 1f, 1f, 0.55f);
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = elapsed / duration;
+            float alpha = Mathf.Lerp(initialColor.a, 0f, t);
+            if (mat != null)
+            {
+                Color c = initialColor;
+                c.a = alpha;
+                mat.color = c;
+                if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", c);
+                if (mat.HasProperty("_Color")) mat.SetColor("_Color", c);
+            }
+            yield return null;
+        }
+
+        if (ghost != null) Destroy(ghost);
+        if (mat != null) Destroy(mat);
+        if (meshes != null)
+        {
+            for (int i = 0; i < meshes.Count; i++)
+            {
+                if (meshes[i] != null) Destroy(meshes[i]);
+            }
+        }
     }
 
     /// <summary>
     /// Consome o bônus de crítico garantido ao desferir um golpe.
     /// </summary>
+    /// <summary>
+    /// Consome a Sobrecarga do Perfect Dash (quando gasta em Dash Livre, Ataque Crítico ou Síntese Q).
+    /// </summary>
+    public bool ConsumePerfectDodgeCharge()
+    {
+        if (hasPerfectDodgeCharge && perfectDodgeChargeTimer > 0f)
+        {
+            hasPerfectDodgeCharge = false;
+            perfectDodgeChargeTimer = 0f;
+            isNextAttackGuaranteedCrit = false;
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Consome o bônus de crítico garantido ao desferir um golpe (com Adaga, Machado ou Tiro).
+    /// </summary>
     public bool ConsumeGuaranteedCrit()
     {
-        if (isNextAttackGuaranteedCrit && Time.unscaledTime <= critBuffEndTime)
+        if (HasPerfectDodgeCharge || (isNextAttackGuaranteedCrit && Time.unscaledTime <= critBuffEndTime))
         {
-            isNextAttackGuaranteedCrit = false;
+            ConsumePerfectDodgeCharge();
             return true;
         }
         return false;
@@ -280,22 +1171,248 @@ public class DashM : MonoBehaviour
     {
         if (dashCountText != null)
         {
-            if (dashesLeft < maxDashes)
+            int targetMax = MaxDashes;
+            if (dashesLeft < targetMax)
             {
                 float remaining = CurrentCooldownTimer;
-                dashCountText.text = $"Dash: {dashesLeft}/{maxDashes} ({remaining:F1}s)";
+                dashCountText.text = $"Dash: {dashesLeft}/{targetMax} ({remaining:F1}s)";
             }
             else
             {
-                dashCountText.text = $"Dash: {dashesLeft}/{maxDashes}";
+                dashCountText.text = $"Dash: {dashesLeft}/{targetMax}";
             }
         }
     }
 
     public void RechargeDashes(int amount)
     {
-        dashesLeft = Mathf.Min(maxDashes, dashesLeft + amount);
-        chargeRechargeTimer = 0f;
-        Debug.Log($"Dashes recarregados! Total agora: {dashesLeft}/{maxDashes}");
+        float cd = MaxCooldown;
+        int targetMax = MaxDashes;
+        for (int count = 0; count < amount; count++)
+        {
+            int slotToRestore = -1;
+            float lowestTime = float.MaxValue;
+            for (int i = 0; i < targetMax; i++)
+            {
+                if (chargeSlotTimers != null && i < chargeSlotTimers.Length && chargeSlotTimers[i] < cd)
+                {
+                    if (chargeSlotTimers[i] < lowestTime)
+                    {
+                        lowestTime = chargeSlotTimers[i];
+                        slotToRestore = i;
+                    }
+                }
+            }
+            if (slotToRestore >= 0)
+            {
+                chargeSlotTimers[slotToRestore] = cd;
+            }
+        }
+        dashesLeft = Mathf.Min(targetMax, dashesLeft + amount);
+        Debug.Log($"Dashes recarregados! Total agora: {dashesLeft}/{targetMax}");
     }
+
+    private void PlayDashSound()
+    {
+        AudioClip clipToPlay = dashSound;
+
+        if (dashSoundVariations != null && dashSoundVariations.Length > 0)
+        {
+            List<AudioClip> validList = new List<AudioClip>();
+            for (int i = 0; i < dashSoundVariations.Length; i++)
+            {
+                if (dashSoundVariations[i] != null) validList.Add(dashSoundVariations[i]);
+            }
+            if (validList.Count > 0)
+            {
+                clipToPlay = validList[Random.Range(0, validList.Count)];
+            }
+        }
+
+        #if UNITY_EDITOR
+        if (clipToPlay == null && (dashSoundVariations == null || dashSoundVariations.Length == 0))
+        {
+            string[] guids = UnityEditor.AssetDatabase.FindAssets("t:AudioClip dash");
+            foreach (string g in guids)
+            {
+                string p = UnityEditor.AssetDatabase.GUIDToAssetPath(g).ToLower();
+                if (p.Contains("player") && !p.Contains("perfect"))
+                {
+                    clipToPlay = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(UnityEditor.AssetDatabase.GUIDToAssetPath(g));
+                    dashSound = clipToPlay;
+                    break;
+                }
+            }
+        }
+        #endif
+
+        float minPitch = Mathf.Min(dashPitchMin, dashPitchMax);
+        float maxPitch = Mathf.Max(dashPitchMin, dashPitchMax);
+        float chosenPitch = Random.Range(minPitch, maxPitch);
+
+        // 1. Toca o som principal (Camada 1)
+        if (clipToPlay != null)
+        {
+            float effectiveVol = dashSoundVolume * GlobalAudioManager.SFXVolumeMultiplier;
+            if (effectiveVol > 0.001f)
+            {
+                GameObject sfxObj = new GameObject("Dash_SFX");
+                sfxObj.transform.position = transform.position;
+                AudioSource source = sfxObj.AddComponent<AudioSource>();
+                source.clip = clipToPlay;
+                source.volume = effectiveVol;
+                source.spatialBlend = 0f;
+                source.pitch = chosenPitch;
+
+                if (GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+                {
+                    source.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
+                }
+
+                source.Play();
+                float safePitch = Mathf.Max(0.1f, source.pitch);
+                Destroy(sfxObj, (clipToPlay.length / safePitch) + 0.2f);
+            }
+        }
+
+        // 2. Toca simultaneamente o segundo som (Camada 2 / Layering), caso configurado
+        if (dashSoundLayer2 != null)
+        {
+            float effectiveVol2 = dashSoundLayer2Volume * GlobalAudioManager.SFXVolumeMultiplier;
+            if (effectiveVol2 > 0.001f)
+            {
+                GameObject sfxObj2 = new GameObject("Dash_SFX_Layer2");
+                sfxObj2.transform.position = transform.position;
+                AudioSource source2 = sfxObj2.AddComponent<AudioSource>();
+                source2.clip = dashSoundLayer2;
+                source2.volume = effectiveVol2;
+                source2.spatialBlend = 0f;
+                source2.pitch = syncLayer2Pitch ? chosenPitch : Random.Range(minPitch, maxPitch);
+
+                if (GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+                {
+                    source2.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
+                }
+
+                source2.Play();
+                float safePitch2 = Mathf.Max(0.1f, source2.pitch);
+                Destroy(sfxObj2, (dashSoundLayer2.length / safePitch2) + 0.2f);
+            }
+        }
+    }
+
+    private void PlayPerfectDashSound()
+    {
+        AudioClip clipToPlay = perfectDashSound;
+
+        #if UNITY_EDITOR
+        if (clipToPlay == null)
+        {
+            string[] guids = UnityEditor.AssetDatabase.FindAssets("t:AudioClip Perfect Dash");
+            if (guids.Length > 0)
+            {
+                clipToPlay = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]));
+            }
+        }
+        #endif
+
+        if (clipToPlay != null)
+        {
+            float effectiveVol = perfectDashSoundVolume * GlobalAudioManager.SFXVolumeMultiplier;
+            if (effectiveVol <= 0.001f) return;
+
+            GameObject sfxObj = new GameObject("PerfectDash_SFX");
+            sfxObj.transform.position = transform.position;
+            AudioSource source = sfxObj.AddComponent<AudioSource>();
+            source.clip = clipToPlay;
+            source.volume = effectiveVol;
+            source.spatialBlend = 0f;
+            source.pitch = Random.Range(0.98f, 1.02f);
+
+            if (GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+            {
+                source.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
+            }
+
+            source.Play();
+            Destroy(sfxObj, clipToPlay.length + 0.5f);
+        }
+    }
+
+    private void SpawnPerfectDashVFX(GameObject attacker)
+    {
+        GameObject prefabToSpawn = perfectDashVfxPrefab;
+
+        #if UNITY_EDITOR
+        if (prefabToSpawn == null)
+        {
+            string[] guids = UnityEditor.AssetDatabase.FindAssets("PerfectDash t:Prefab");
+            if (guids.Length > 0)
+            {
+                prefabToSpawn = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]));
+            }
+        }
+        #endif
+
+        if (prefabToSpawn == null) return;
+
+        Vector3 spawnPos = transform.position + Vector3.up * 0.75f;
+        if (attacker != null)
+        {
+            Vector3 toAttacker = (attacker.transform.position - transform.position);
+            toAttacker.y = 0f;
+            if (toAttacker.sqrMagnitude > 0.1f)
+            {
+                spawnPos += toAttacker.normalized * 0.45f;
+            }
+        }
+
+        GameObject vfxInstance = Instantiate(prefabToSpawn, spawnPos, transform.rotation);
+        vfxInstance.transform.SetParent(null);
+        vfxInstance.SetActive(true);
+
+        ParticleSystem[] systems = vfxInstance.GetComponentsInChildren<ParticleSystem>(true);
+        foreach (var ps in systems)
+        {
+            ps.Clear();
+            ps.Play();
+        }
+
+        Destroy(vfxInstance, 3.5f);
+    }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        if (perfectDashVfxPrefab == null)
+        {
+            string[] guids = UnityEditor.AssetDatabase.FindAssets("PerfectDash t:Prefab");
+            if (guids.Length > 0)
+            {
+                perfectDashVfxPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]));
+            }
+        }
+        if (perfectDashSound == null)
+        {
+            string[] guids = UnityEditor.AssetDatabase.FindAssets("t:AudioClip Perfect Dash");
+            if (guids.Length > 0)
+            {
+                perfectDashSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]));
+            }
+        }
+        if (dashSound == null)
+        {
+            string[] guids = UnityEditor.AssetDatabase.FindAssets("t:AudioClip dash");
+            foreach (string g in guids)
+            {
+                string p = UnityEditor.AssetDatabase.GUIDToAssetPath(g).ToLower();
+                if (p.Contains("player") && !p.Contains("perfect"))
+                {
+                    dashSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(UnityEditor.AssetDatabase.GUIDToAssetPath(g));
+                    break;
+                }
+            }
+        }
+    }
+#endif
 }

@@ -1295,16 +1295,21 @@ public class ShardSwarm_AI : MonoBehaviour
     private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume, bool addReverb = false, AudioReverbPreset reverbPreset = AudioReverbPreset.Cave)
     {
         if (clip == null) return;
+        float effectiveVolume = volume * GlobalAudioManager.SFXVolumeMultiplier;
+        if (effectiveVolume <= 0.001f) return;
+
         GameObject audioObj = new GameObject("TempStarAudio");
         audioObj.transform.position = position;
         AudioSource aSource = audioObj.AddComponent<AudioSource>();
         aSource.clip = clip;
         aSource.pitch = pitch;
-        aSource.volume = volume;
+        aSource.volume = effectiveVolume;
         aSource.spatialBlend = 0.5f; // Semi-3D para garantir audibilidade clara na cena
         aSource.minDistance = 8f;
         aSource.maxDistance = 50f;
         aSource.rolloffMode = AudioRolloffMode.Linear;
+        if (GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+            aSource.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
 
         if (addReverb)
         {
@@ -1316,5 +1321,17 @@ public class ShardSwarm_AI : MonoBehaviour
         float safePitch = Mathf.Abs(pitch) > 0.01f ? Mathf.Abs(pitch) : 1f;
         float destroyDelay = (clip.length / safePitch) + (addReverb ? 1.5f : 0.1f);
         Destroy(audioObj, destroyDelay);
+    }
+
+    public void TakeDamage(int damage, bool isCritical = false, bool isPoison = false)
+    {
+        if (health == null) health = GetComponent<ShardSwarmHealth>();
+        if (health != null) health.TakeDamage(damage, isCritical, isPoison);
+    }
+
+    public void ApplySlow(float percent, float duration)
+    {
+        if (health == null) health = GetComponent<ShardSwarmHealth>();
+        if (health != null) health.ApplySlow(percent, duration);
     }
 }

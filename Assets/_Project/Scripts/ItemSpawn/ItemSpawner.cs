@@ -64,6 +64,32 @@ public class ItemSpawner : MonoBehaviour
 
         foreach (var point in spawnPoints)
         {
+            if (point == null) continue;
+
+            // Safe Room, Transition Room e Anomaly Room JAMAIS recebem itens coletáveis, minérios ou armadilhas
+            Transform rootT = point.transform.root;
+            string rootName = rootT != null ? rootT.name.ToLower() : "";
+            if (rootName.Contains("safe") || rootName.Contains("start") ||
+                rootName.Contains("transition") || rootName.Contains("anomaly") ||
+                rootName.Contains("anomalia") || rootName.Contains("3way") ||
+                rootName.Contains("treeway") || rootName.Contains("deadend") ||
+                rootName.Contains("beco") || rootName.Contains("semsaida") ||
+                rootName.Contains("merchant"))
+            {
+                continue;
+            }
+
+            RoomController rc = point.GetComponentInParent<RoomController>();
+            if (rc != null && (rc.isSafeRoom || rc.roomCategory != RoomController.RoomCategory.Combat))
+            {
+                continue;
+            }
+
+            if (point.GetComponentInParent<AnomalyRoomController>() != null)
+            {
+                continue;
+            }
+
             if (Random.value > spawnChancePerPoint)
                 continue;
 
@@ -77,7 +103,14 @@ public class ItemSpawner : MonoBehaviour
 
             if (item != null)
             {
-                GameObject spawned = Instantiate(item, point.transform.position, Quaternion.identity);
+                // Snap no chão antes e depois do spawn para garantir que nada spawne enterrado
+                Vector3 spawnPos = point.transform.position;
+                if (Physics.Raycast(spawnPos + Vector3.up * 3f, Vector3.down, out RaycastHit hit, 8f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+                {
+                    spawnPos = new Vector3(spawnPos.x, hit.point.y + 0.15f, spawnPos.z);
+                }
+
+                GameObject spawned = Instantiate(item, spawnPos, Quaternion.identity);
                 if (collectableItems != null && collectableItems.Any(ci => ci.prefab == item))
                 {
                     ItemPickup pickup = spawned.GetComponent<ItemPickup>();

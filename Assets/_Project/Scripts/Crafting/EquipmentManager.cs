@@ -103,6 +103,22 @@ public class EquipmentManager : MonoBehaviour
             BuildLookup();
         }
 
+        // Garante que o Sistema de Supressão de Incêndio da Nave esteja registrado (Melhoria de Base)
+        if (GetEquipmentData("eq_extintor_nave") == null)
+        {
+            EquipmentData fireData = ScriptableObject.CreateInstance<EquipmentData>();
+            fireData.equipmentId   = "eq_extintor_nave";
+            fireData.equipmentName = "Sistema de Supressão de Incêndio";
+            fireData.description   = "Extingue focos de fogo, fumaça e brasas residuais (Ship Embers) no Lobby e no Laboratório.";
+            fireData.effectType    = EquipmentEffectType.BaseFireExtinguisher;
+            fireData.effectValue   = 1.0f;
+            fireData.maxStack      = 1;
+            fireData.isBaseUpgrade = true; // Pertence à aba da BASE no Crafting!
+
+            allEquipmentDefinitions.Add(fireData);
+            BuildLookup();
+        }
+
         // Registra definições canônicas de Blueprints do Robozinho (Escrituras)
         EnsureBlueprintEquipment("equip_filtro_acido", "Filtro Químico de Decomposição", "Reduz em 40% o dano de veneno e poças ácidas em Plerotus.", EquipmentEffectType.AcidPoisonResist, 0.40f);
         EnsureBlueprintEquipment("equip_quebra_casca", "Solenoide de Quebra-Casca", "Aumenta em 20% o dano contra armadura e couraça pesada de monstros (Golems e Peixe).", EquipmentEffectType.ShellBreakerArmorDmg, 0.20f);
@@ -116,6 +132,7 @@ public class EquipmentManager : MonoBehaviour
         EnsureBlueprintEquipment("equip_camara_infusao_2", "Câmara de Infusão Expandida II", "Sintoniza a matriz quântica do traje para permitir fusões massivas de até 4 itens simultâneos.", EquipmentEffectType.InfusionChamberExpansion, 4.0f);
         EnsureBlueprintEquipment("equip_capacidade_infusao_1", "Chassi Térmico Modular I", "Aumenta o limite de sobreaquecimento do traje, permitindo até 8 infusões ativas na mesma run.", EquipmentEffectType.InfusionCapacityExpansion, 8.0f);
         EnsureBlueprintEquipment("equip_capacidade_infusao_2", "Chassi Térmico Modular II", "Dissipação criogênica avançada. Permite até 10 infusões ativas simultâneas na mesma run.", EquipmentEffectType.InfusionCapacityExpansion, 10.0f);
+        EnsureBlueprintEquipment("equip_reservatorio_cura", "Reservatório de Biossíntese Auxiliar", "Expande os canais de síntese do traje, concedendo +1 Cápsula Máxima de Cura ao Eptinho (totalizando 3 cápsulas).", EquipmentEffectType.ExtraPotionSlot, 1.0f);
 
         BuildLookup();
 
@@ -417,6 +434,10 @@ public class EquipmentManager : MonoBehaviour
                 BarrierCounterUI.EnsureExistsAndSetVisible(true);
                 break;
 
+            case EquipmentEffectType.BaseFireExtinguisher:
+                BaseFireExtinguisherManager.ApplyFireState();
+                break;
+
             case EquipmentEffectType.AttributeDisplayModule:
                 AttributeDisplayOnScreenSplit.EnsureExistsAndSetVisible(true);
                 break;
@@ -543,6 +564,10 @@ public class EquipmentManager : MonoBehaviour
 
             case EquipmentEffectType.BarrierCounterDisplay:
                 BarrierCounterUI.EnsureExistsAndSetVisible(false);
+                break;
+
+            case EquipmentEffectType.BaseFireExtinguisher:
+                BaseFireExtinguisherManager.ApplyFireState();
                 break;
 
             case EquipmentEffectType.AttributeDisplayModule:

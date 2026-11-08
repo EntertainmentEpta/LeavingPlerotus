@@ -302,7 +302,7 @@ public class MerchantVFX : MonoBehaviour
             audioSource.pitch = 1f;
         }
 
-        audioSource.PlayOneShot(deflectSounds[index], deflectVolume);
+        audioSource.PlayOneShot(deflectSounds[index], deflectVolume * GlobalAudioManager.SFXVolumeMultiplier);
     }
 
     public void TakeDamage(int damage, bool isCritical = false)

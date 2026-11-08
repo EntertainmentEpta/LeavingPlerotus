@@ -237,4 +237,22 @@ public static class MerchantEncounterDialogueSystem
         }
         return DIALOGO_POS_REVELACAO;
     }
+
+    /// <summary>
+    /// Total de enigmas/encontros progressivos com o Mercador.
+    /// </summary>
+    public static int TotalEnigmas => ENIGMAS_MERCADOR.Length;
+
+    /// <summary>
+    /// Retorna a fala e notas de um encontro especifico por indice (0-based: 0 a 19).
+    /// </summary>
+    public static EncounterLine GetEncounterByIndex(int index)
+    {
+        if (index >= 0 && index < ENIGMAS_MERCADOR.Length)
+        {
+            return ENIGMAS_MERCADOR[index];
+        }
+        return DIALOGO_POS_REVELACAO;
+    }
+
 }

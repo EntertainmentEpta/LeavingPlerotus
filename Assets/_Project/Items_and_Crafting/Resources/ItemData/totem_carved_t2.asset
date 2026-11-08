@@ -19,7 +19,7 @@ MonoBehaviour:
   tier: 1
   enemySource: Totem
   recycleEssenceValue: 72
-  infusionEssenceCost: 180
+  infusionEssenceCost: 100
   itemAttributes:
   - attributeType: 4
     value: 1.35

@@ -76,12 +76,21 @@ public class UltimateUI : MonoBehaviour
 
     void Update()
     {
+        if (autoCanvasObj != null)
+        {
+            CanvasGroup cg = autoCanvasObj.GetComponent<CanvasGroup>();
+            if (cg != null)
+            {
+                bool hideForInventory = (InventoryUI.Instance != null && InventoryUI.Instance.IsOpen()) ||
+                                       (SyntheticBagUI.Instance != null && SyntheticBagUI.Instance.IsOpen()) ||
+                                       (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen());
+                cg.alpha = hideForInventory ? 0f : 1f;
+                cg.blocksRaycasts = !hideForInventory;
+            }
+        }
         string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         bool inMainMenu = currentScene == "MainMenu" || currentScene == "Menu";
-        bool isWakingUp = PlayerWakeUpEffect.IsWakingUp;
-        bool waitingForIntro = !EptinhoStoryDialogs.HasSeenDialog(EptinhoStoryDialogs.ID_INTRO_EPTINHO);
-
-        if (inMainMenu || isWakingUp || waitingForIntro)
+        if (inMainMenu)
         {
             if (autoCanvasObj != null && autoCanvasObj.activeSelf) autoCanvasObj.SetActive(false);
             return;
@@ -171,13 +180,14 @@ public class UltimateUI : MonoBehaviour
 
         Canvas canvas = autoCanvasObj.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 95;
+        canvas.sortingOrder = 1;
 
         CanvasScaler scaler = autoCanvasObj.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
 
         autoCanvasObj.AddComponent<GraphicRaycaster>();
+        autoCanvasObj.AddComponent<CanvasGroup>();
 
         // 2. Criar Painel Principal (Ancorado no Canto Inferior Direito por padrão)
         GameObject panelObj = new GameObject("UltimatePanel");

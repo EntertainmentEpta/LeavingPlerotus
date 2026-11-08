@@ -121,7 +121,7 @@ public class QuestHUDTracker : MonoBehaviour
 
     private void OnEnable()
     {
-        if (QuestManager.Instance != null)
+        if (QuestManager.HasInstance)
         {
             QuestManager.Instance.StateChanged += RefreshDisplay;
             QuestManager.Instance.QuestCompletedEvent += HandleQuestCompleted;
@@ -133,7 +133,7 @@ public class QuestHUDTracker : MonoBehaviour
 
     private void OnDisable()
     {
-        if (QuestManager.Instance != null)
+        if (QuestManager.HasInstance)
         {
             QuestManager.Instance.StateChanged -= RefreshDisplay;
             QuestManager.Instance.QuestCompletedEvent -= HandleQuestCompleted;

@@ -222,16 +222,16 @@ public class AttributeDisplayOnScreenSplit : MonoBehaviour
         sb.AppendLine();
 
         // 2. SISTEMA OFENSIVO
-        sb.AppendLine("<b><color=#FF5555>⚔️ POTÊNCIA OFENSIVA</color></b>");
+        sb.AppendLine("<b><color=#FF5555>⚔️ POT\u00CANCIA OFENSIVA</color></b>");
         if (offensiveAttributes != null)
         {
             sb.AppendLine($"  Dano Base: <color=#FF4444><b>{offensiveAttributes.baseDamageMultiplier:F2}x</b></color>");
             sb.AppendLine($"  Vel. de Ataque: <color=#FFAA00>{offensiveAttributes.attackSpeedMelee:F2}x</color>");
-            sb.AppendLine($"  Crítico: <color=#FFFF00>{offensiveAttributes.critChance:F1}%</color> <size=80%><color=#8899AA>(Dano: {offensiveAttributes.critMultiplier:F2}x)</color></size>");
+            sb.AppendLine($"  Cr\u00EDtico: <color=#FFFF00>{offensiveAttributes.critChance:F1}%</color> <size=80%><color=#8899AA>(Dano: {offensiveAttributes.critMultiplier:F2}x)</color></size>");
             sb.AppendLine($"  Alcance da Arma: <color=#33CCFF>{offensiveAttributes.weaponRangeMelee:F2}x</color>");
-            sb.AppendLine($"  Impacto / Repulsão: <color=#FF66CC>{offensiveAttributes.knockback:F1}</color>");
+            sb.AppendLine($"  Impacto / Repuls\u00E3o: <color=#FF66CC>{offensiveAttributes.knockback:F1}</color>");
             if (offensiveAttributes.piercing > 0)
-                sb.AppendLine($"  Perfuração de Alvos: <color=#BB88FF>+{offensiveAttributes.piercing}</color>");
+                sb.AppendLine($"  Perfura\u00E7\u00E3o de Alvos: <color=#BB88FF>+{offensiveAttributes.piercing}</color>");
         }
         else
         {

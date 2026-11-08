@@ -56,11 +56,15 @@ public class AttributeDiagnostic : MonoBehaviour
     
     void Update()
     {
+#if UNITY_EDITOR
         if (Input.GetKeyDown(KeyCode.F12))
         {
             GenerateReport();
         }
+#endif
     }
+    
+    
     
     void GenerateReport()
     {

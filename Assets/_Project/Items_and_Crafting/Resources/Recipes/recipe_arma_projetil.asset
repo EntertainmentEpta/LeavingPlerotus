@@ -17,10 +17,10 @@ MonoBehaviour:
   description: Desenvolve o primeiro prototipo de arma de projeteis.
   icon: {fileID: 0}
   ingredients:
-  - itemId: resta_geobionte
-    quantity: 2
-  - itemId: cristal_explosivo
+  - itemId: po_de_cristal
     quantity: 5
+  - itemId: melocactus
+    quantity: 3
   resultType: 1
   resultItemId: ''
   resultEquipment: {fileID: 11400000, guid: 5960818ef8db46168d923cae174545ee, type: 2}

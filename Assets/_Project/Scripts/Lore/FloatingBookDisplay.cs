@@ -14,6 +14,8 @@ public class FloatingBookDisplay : MonoBehaviour
     public static FloatingBookDisplay Instance { get; private set; }
 
     [Header("Modelos e Efeitos Visuais")]
+    [Tooltip("Se verdadeiro, o livro 3D fica sempre visível no pedestal (ideal para visualização e testes na Base).")]
+    public bool alwaysShowBook = true;
     [Tooltip("Objeto visual do livro 3D que flutua e gira.")]
     public Transform bookModel;
 
@@ -104,7 +106,17 @@ public class FloatingBookDisplay : MonoBehaviour
     /// </summary>
     public void EnsureStandGeometry()
     {
-        if (transform.Find("StandGeometry") != null) return;
+        // Se o próprio objeto já tiver malha (ex: um cilindro colocado pelo usuário) ou já tiver StandGeometry, não recria
+        if (GetComponent<MeshRenderer>() != null || transform.Find("StandGeometry") != null) return;
+
+        // Se já tiver algum filho que sirva de pedestal/mesa (com Renderer) e não seja o livro:
+        foreach (Transform child in transform)
+        {
+            if (!child.name.ToLower().Contains("book") && child.GetComponentInChildren<MeshRenderer>() != null)
+            {
+                return;
+            }
+        }
 
         GameObject standRoot = new GameObject("StandGeometry");
         standRoot.transform.SetParent(transform, false);
@@ -281,7 +293,7 @@ public class FloatingBookDisplay : MonoBehaviour
     /// </summary>
     public void CheckBookVisibility()
     {
-        bool hasBook = LoreManager.Instance != null && LoreManager.Instance.HasFoundResearcherBook;
+        bool hasBook = (LoreManager.Instance != null && LoreManager.Instance.HasFoundResearcherBook) || alwaysShowBook;
 
         EnsureBookModel();
 
@@ -516,17 +528,11 @@ public class FloatingBookDisplay : MonoBehaviour
             FloatingBookDisplay existing = FindFirstObjectByType<FloatingBookDisplay>();
             if (existing != null)
             {
-                // Se a estante existente estiver clipada na parede norte (Z > 2.0f ou distante do centro)
-                if (existing.transform.position.z > 2.0f || Vector3.Distance(existing.transform.position, targetSpawnPos) > 6.0f)
-                {
-                    existing.transform.position = targetSpawnPos;
-                    existing.transform.rotation = targetSpawnRot;
-                    Debug.Log($"[FloatingBookDisplay] 📖 Pedestal existente reposicionado para o centro aberto do laboratório em {targetSpawnPos}!");
-                }
-                existing.EnsureStandGeometry();
+                // Já existe um pedestal/livro na cena colocado pelo desenvolvedor! Preserva 100% a sua posição e orientação!
                 existing.EnsureBookModel();
                 existing.EnsureLightAndVfx();
                 existing.CheckBookVisibility();
+                Debug.Log($"[FloatingBookDisplay] 📖 Pedestal manual do livro encontrado na cena em {existing.transform.position}. Posição preservada com sucesso!");
                 return;
             }
 

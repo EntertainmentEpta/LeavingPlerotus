@@ -21,7 +21,7 @@ MonoBehaviour:
   synergyNodeID: 
   returnsToBase: 0
   recycleEssenceValue: 72
-  infusionEssenceCost: 180
+  infusionEssenceCost: 100
   itemAttributes:
   - attributeType: 14
     value: 1.15
