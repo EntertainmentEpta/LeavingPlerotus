@@ -23,4 +23,4 @@ MonoBehaviour:
     quantity: 2
   resultType: 1
   resultItemId: ""
-  resultEquipment: {fileID: 11400000, guid: e31866c5ea326c74fbe71613556564ac, type: 2}
+  resultEquipment: {fileID: 11400000, guid: 21aa3f0a16de97f4fb2770dd89e25d6d, type: 2}
