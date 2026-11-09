@@ -296,6 +296,7 @@ public class Ultimate_Axe : MonoBehaviour
 
         float runSpeed = runVelocity.magnitude;
         Vector3 runDir = isRunning ? runVelocity.normalized : transform.forward;
+        int wallMask = ~LayerMask.GetMask("Player", "Enemy", "Item", "Weapon", "DeadBody", "Ignore Raycast");
 
         if (windupDelay > 0f)
         {
@@ -310,9 +311,17 @@ public class Ultimate_Axe : MonoBehaviour
 
                 if (isRunning && currentGlideSpeed > 0.05f)
                 {
-                    Vector3 glidePos = playerRb.position + (runDir * currentGlideSpeed * delta);
-                    playerRb.position = glidePos;
-                    transform.position = glidePos;
+                    float stepDist = currentGlideSpeed * delta;
+                    Vector3 flatRunDir = new Vector3(runDir.x, 0f, runDir.z).normalized;
+                    bool blocked = Physics.SphereCast(playerRb.position + Vector3.up * 0.9f, 0.45f, flatRunDir, out RaycastHit glideHit, stepDist + 0.5f, wallMask, QueryTriggerInteraction.Ignore)
+                                   && !glideHit.collider.transform.IsChildOf(transform.root);
+
+                    if (!blocked)
+                    {
+                        Vector3 glidePos = playerRb.position + (runDir * stepDist);
+                        playerRb.position = glidePos;
+                        transform.position = glidePos;
+                    }
                     currentGlideSpeed = Mathf.Lerp(currentGlideSpeed, 0f, delta * 12f);
                 }
 
@@ -323,25 +332,51 @@ public class Ultimate_Axe : MonoBehaviour
         float elapsed = 0f;
         Vector3 startPos = playerRb.position;
         Vector3 leapDir = isRunning ? runDir : transform.forward;
-        Vector3 targetXZPos = startPos + (leapDir * parabolaForwardDistance);
-
-        // 3. RAYCAST ROBUSTO (Ignora triggers, o próprio player, inimigos e itens, focando apenas em paredes)
-        int wallMask = LayerMask.GetMask("Default", "Ground");
-        if (wallMask == 0) wallMask = ~LayerMask.GetMask("Player", "Enemy", "Item", "Weapon", "DeadBody", "Ignore Raycast");
-
-        Vector3 rayOrigin = startPos + Vector3.up * 0.8f;
         Vector3 flatLeapDir = new Vector3(leapDir.x, 0f, leapDir.z).normalized;
         if (flatLeapDir.sqrMagnitude < 0.001f) flatLeapDir = transform.forward;
 
-        RaycastHit[] hits = Physics.RaycastAll(rayOrigin, flatLeapDir, parabolaForwardDistance, wallMask, QueryTriggerInteraction.Ignore);
-        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
-        foreach (var hit in hits)
-        {
-            if (hit.collider.gameObject == gameObject || hit.collider.transform.IsChildOf(transform.root)) continue;
-            if (hit.collider.isTrigger) continue;
+        float maxSafeDistance = parabolaForwardDistance;
 
-            targetXZPos = startPos + (flatLeapDir * Mathf.Max(0.5f, hit.distance - 0.5f));
-            break;
+        // 3. RAYCAST E SPHERECAST ROBUSTOS (Ignora triggers, o próprio player, inimigos e itens, bloqueando em qualquer parede ou barreira sólida)
+        float[] checkHeights = new float[] { 0.8f, 1.8f };
+        foreach (float h in checkHeights)
+        {
+            Vector3 rayOrigin = startPos + Vector3.up * h;
+            RaycastHit[] hits = Physics.SphereCastAll(rayOrigin, 0.4f, flatLeapDir, parabolaForwardDistance + 0.6f, wallMask, QueryTriggerInteraction.Ignore);
+            System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+            foreach (var hit in hits)
+            {
+                if (hit.collider == null) continue;
+                if (hit.collider.gameObject == gameObject || hit.collider.transform.IsChildOf(transform.root)) continue;
+                if (hit.collider.isTrigger) continue;
+                // Ignora piso plano abaixo dos pés
+                if (hit.normal.y > 0.65f) continue;
+
+                float clampedDist = Mathf.Max(0f, hit.distance - 0.65f);
+                if (clampedDist < maxSafeDistance)
+                {
+                    maxSafeDistance = clampedDist;
+                }
+                break;
+            }
+        }
+
+        Vector3 targetXZPos = startPos + (flatLeapDir * maxSafeDistance);
+
+        // 3.1 CONTENÇÃO NO NAVMESH: Impede saltar por cima de barreiras da sala do Boss ou cair no limbo fora do mapa
+        if (UnityEngine.AI.NavMesh.SamplePosition(startPos, out UnityEngine.AI.NavMeshHit startNavHit, 3.0f, UnityEngine.AI.NavMesh.AllAreas))
+        {
+            Vector3 desiredTargetOnPlane = new Vector3(targetXZPos.x, startNavHit.position.y, targetXZPos.z);
+            if (UnityEngine.AI.NavMesh.Raycast(startNavHit.position, desiredTargetOnPlane, out UnityEngine.AI.NavMeshHit navEdgeHit, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                // Bateu na borda do NavMesh (parede ou abismo): recua 0.5m antes da borda
+                Vector3 safeNavPos = navEdgeHit.position - flatLeapDir * 0.5f;
+                targetXZPos = new Vector3(safeNavPos.x, startPos.y, safeNavPos.z);
+            }
+            else if (UnityEngine.AI.NavMesh.SamplePosition(desiredTargetOnPlane, out UnityEngine.AI.NavMeshHit targetNavHit, 2.0f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                targetXZPos = new Vector3(targetNavHit.position.x, startPos.y, targetNavHit.position.z);
+            }
         }
 
         while (elapsed < parabolaAirTime && !slamImpactExecuted)

@@ -183,6 +183,13 @@ public class PlayerHealth : MonoBehaviour
         // Reseta e destrava sistema de cura do traje
         SuitHealingSystem.Instance?.ResetOnDeathOrRespawn();
 
+        // Garante desativação completa dos efeitos Lendários (Tier 4 / Dash Explosivo) ao voltar para a Base
+        Tier4EffectManager t4Respawn = GetComponent<Tier4EffectManager>() ?? GetComponentInChildren<Tier4EffectManager>();
+        if (t4Respawn != null) t4Respawn.DeactivateAllEffects();
+
+        ExplosiveDashEffect expDashRespawn = GetComponent<ExplosiveDashEffect>() ?? GetComponentInChildren<ExplosiveDashEffect>();
+        if (expDashRespawn != null) expDashRespawn.DeactivateEffect();
+
         // Reseta essência da run ao renascer na base
         PlayerEssence essence = GetComponent<PlayerEssence>() ?? GetComponentInChildren<PlayerEssence>() ?? Object.FindFirstObjectByType<PlayerEssence>();
         if (essence != null)
@@ -463,6 +470,12 @@ public class PlayerHealth : MonoBehaviour
             infusion.ResetRunInflation();
             if (infusion.infusedItems != null) infusion.infusedItems.Clear();
         }
+
+        Tier4EffectManager t4Manager = GetComponent<Tier4EffectManager>() ?? GetComponentInChildren<Tier4EffectManager>();
+        if (t4Manager != null) t4Manager.DeactivateAllEffects();
+
+        ExplosiveDashEffect explosiveDash = GetComponent<ExplosiveDashEffect>() ?? GetComponentInChildren<ExplosiveDashEffect>();
+        if (explosiveDash != null) explosiveDash.DeactivateEffect();
 
         if (EquipmentManager.Instance != null)
         {

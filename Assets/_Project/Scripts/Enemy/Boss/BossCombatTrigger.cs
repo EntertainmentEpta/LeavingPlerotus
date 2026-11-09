@@ -37,7 +37,7 @@ public class BossCombatTrigger : MonoBehaviour
     [Header("Configuração")]
     [Tooltip("Delay em segundos após o player entrar antes de ativar a barreira.\n" +
              "Dá tempo do player entrar completamente na arena.")]
-    public float sealDelay = 1.0f;
+    public float sealDelay = 1.8f;
 
     [Tooltip("Delay adicional após o selo antes de iniciar a luta.\n" +
              "Momento dramático antes do boss atacar.")]
@@ -50,6 +50,9 @@ public class BossCombatTrigger : MonoBehaviour
 
     void Start()
     {
+        if (sealDelay < 1.8f)
+            sealDelay = 1.8f;
+
         EnsureBossArenaBarrier();
 
         // Garante que o selo começa desativado
@@ -137,20 +140,70 @@ public class BossCombatTrigger : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (!other.CompareTag("Player")) return;
+        if (!other.CompareTag("Player") && other.GetComponentInParent<PlayerHealth>() == null) return;
         if (hasTriggered) return;
 
         hasTriggered = true;
 
+        Transform playerTransform = other.GetComponentInParent<PlayerHealth>()?.transform ?? other.transform.root;
+
         if (showDebugLog) Debug.Log("[BossCombatTrigger] ⚔️ Player entrou na arena do boss!");
 
-        StartCoroutine(StartBossFightSequence());
+        StartCoroutine(StartBossFightSequence(playerTransform));
     }
 
-    private IEnumerator StartBossFightSequence()
+    private IEnumerator StartBossFightSequence(Transform playerTransform)
     {
         // Espera o player entrar completamente na arena
         yield return new WaitForSeconds(sealDelay);
+
+        ConnectionPoint cp = GetComponentInChildren<ConnectionPoint>();
+        if (cp != null && playerTransform != null)
+        {
+            Vector3 cpPos = cp.transform.position;
+            Vector3 intoArenaDir;
+            if (bossController != null)
+            {
+                intoArenaDir = Vector3.ProjectOnPlane(bossController.transform.position - cpPos, Vector3.up).normalized;
+            }
+            else
+            {
+                intoArenaDir = -Vector3.ProjectOnPlane(cp.transform.forward, Vector3.up).normalized;
+            }
+            if (intoArenaDir.sqrMagnitude < 0.01f) intoArenaDir = Vector3.forward;
+
+            // Aguarda mais um pouco se o player ainda estiver hesitando na soleira da porta (até 2.0s extras)
+            float extraWait = 0f;
+            while (extraWait < 2.0f && playerTransform != null)
+            {
+                float signedDistInside = Vector3.Dot(Vector3.ProjectOnPlane(playerTransform.position - cpPos, Vector3.up), intoArenaDir);
+                if (signedDistInside >= 3.2f)
+                    break;
+
+                extraWait += Time.deltaTime;
+                yield return null;
+            }
+
+            // Garantia anti-lockout: se o jogador voltou ou ficou preso do lado de fora da barreira ao fechar,
+            // empurra suavemente para dentro da arena para nunca trancá-lo do lado de fora!
+            if (playerTransform != null)
+            {
+                float finalSignedDist = Vector3.Dot(Vector3.ProjectOnPlane(playerTransform.position - cpPos, Vector3.up), intoArenaDir);
+                if (finalSignedDist < 3.0f)
+                {
+                    Vector3 safeInsidePos = cpPos + intoArenaDir * 3.5f;
+                    safeInsidePos.y = playerTransform.position.y;
+                    Rigidbody rb = playerTransform.GetComponent<Rigidbody>();
+                    if (rb != null)
+                    {
+                        rb.position = safeInsidePos;
+                        rb.linearVelocity = Vector3.zero;
+                    }
+                    playerTransform.position = safeInsidePos;
+                    if (showDebugLog) Debug.Log("[BossCombatTrigger] 🛡️ Player puxado para dentro da arena antes de selar a porta (anti-lockout).");
+                }
+            }
+        }
 
         // Ativa o selo/barreira (tranca a arena)
         if (arenaSeal != null)

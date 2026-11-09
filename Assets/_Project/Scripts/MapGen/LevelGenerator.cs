@@ -436,7 +436,7 @@ public class LevelGenerator : MonoBehaviour
 
                 AlignRooms(transSaida.transform, roomEntrada.transform);
 
-                if (HasOverlapWithExistingRooms(newRoom, excludeRoom: transitionRoom))
+                if (HasOverlapWithExistingRooms(newRoom, excludeRoom: transitionRoom, secondExcludeRoom: (sourceRoom == startRoomInstance ? startRoomInstance : null)))
                 {
                     Debug.LogWarning($"[LevelGenerator] ⚠️ Sala '{roomPrefab.name}' sobrepõe. Tentando próxima transição...");
                     Destroy(newRoom);
@@ -1116,12 +1116,20 @@ public class LevelGenerator : MonoBehaviour
         {
             if (cp == null) continue;
             Vector3 pos = cp.transform.position;
-            Collider[] nearby = Physics.OverlapSphere(pos, 8.0f);
+            Collider[] nearby = Physics.OverlapSphere(pos, 8.5f);
             foreach (var col in nearby)
             {
                 if (col == null) continue;
                 string colName = col.gameObject.name.ToLower();
-                if (colName.Contains("barrier") || colName.Contains("barreira") || colName.Contains("thornbarrier") ||
+                RoomBarrier rb = col.GetComponent<RoomBarrier>() ?? col.GetComponentInParent<RoomBarrier>();
+                if (rb != null)
+                {
+                    rb.ForceLowerImmediate();
+                    Destroy(rb.gameObject);
+                    continue;
+                }
+
+                if (colName == "door" || colName.Contains("door") || colName.Contains("barrier") || colName.Contains("barreira") || colName.Contains("thornbarrier") ||
                     colName.Contains("door_capped_wall") || colName.Contains("capped") || colName.Contains("plug") ||
                     col.GetComponent<ConnectionPoint>() != null)
                 {
@@ -1768,7 +1776,7 @@ public class LevelGenerator : MonoBehaviour
     /// excludeRoom: ignora este GameObject na checagem (usado para não rejeitar
     /// salas que encostam em seu vizinho direto por design).
     /// </summary>
-    bool HasOverlapWithExistingRooms(GameObject room, GameObject excludeRoom = null)
+    bool HasOverlapWithExistingRooms(GameObject room, GameObject excludeRoom = null, GameObject secondExcludeRoom = null)
     {
         Bounds b = GetRoomBounds(room);
         if (b.size.sqrMagnitude == 0f) return false;
@@ -1780,6 +1788,7 @@ public class LevelGenerator : MonoBehaviour
         {
             // Pula o vizinho direto — ele encosta por design, não é colisão real
             if (excludeRoom != null && entry.room == excludeRoom) continue;
+            if (secondExcludeRoom != null && entry.room == secondExcludeRoom) continue;
             if (b.Intersects(entry.bounds)) return true;
         }
         return false;

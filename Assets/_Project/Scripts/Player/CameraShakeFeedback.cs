@@ -115,6 +115,8 @@ public class CameraShakeFeedback : MonoBehaviour
 
     private void StartShake(float duration, float intensity, float frequency)
     {
+        if (Time.timeScale <= 0.0001f) return;
+
         // Se já estiver tremendo com mais intensidade, mantém o maior impacto
         if (currentTimer > 0f && currentIntensity > intensity)
         {
@@ -140,6 +142,16 @@ public class CameraShakeFeedback : MonoBehaviour
 
     void LateUpdate()
     {
+        // Impede que o shake desloque a câmera infinitamente enquanto o jogo estiver pausado (ex: diálogo do Eptinho com Time.timeScale = 0)
+        if (Time.timeScale <= 0.0001f || Time.deltaTime <= 0.0001f)
+        {
+            if (currentTimer > 0f)
+            {
+                ClearShake();
+            }
+            return;
+        }
+
         if (currentTimer > 0f)
         {
             currentTimer -= Time.deltaTime;

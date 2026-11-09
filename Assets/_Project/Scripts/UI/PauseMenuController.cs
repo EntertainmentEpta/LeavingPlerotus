@@ -21,6 +21,7 @@ public class PauseMenuController : MonoBehaviour
     public TMPro.TextMeshProUGUI txtAimMode;
 
     private bool isPaused = false;
+    private GameObject restartRunBtnObj;
 
     void Start()
     {
@@ -135,12 +136,75 @@ public class PauseMenuController : MonoBehaviour
 
     public void PauseGame()
     {
+        EnsureRestartRunButton();
         if (pausePanel != null) pausePanel.SetActive(true);
         GamePause.Acquire(this);
         isPaused = true;
         
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
+    }
+
+    private void EnsureRestartRunButton()
+    {
+        if (pausePanel == null) return;
+
+        if (restartRunBtnObj == null)
+        {
+            Transform existing = pausePanel.transform.Find("Btn_ReiniciarRun");
+            if (existing != null)
+            {
+                restartRunBtnObj = existing.gameObject;
+            }
+            else
+            {
+                Transform btnMenu = pausePanel.transform.Find("Btn_Menu");
+                if (btnMenu != null)
+                {
+                    restartRunBtnObj = Instantiate(btnMenu.gameObject, btnMenu.parent);
+                    restartRunBtnObj.name = "Btn_ReiniciarRun";
+
+                    RectTransform menuRt = btnMenu.GetComponent<RectTransform>();
+                    RectTransform restartRt = restartRunBtnObj.GetComponent<RectTransform>();
+                    if (menuRt != null && restartRt != null)
+                    {
+                        restartRt.anchoredPosition = menuRt.anchoredPosition + new Vector2(0f, -83f);
+                    }
+
+                    Button btn = restartRunBtnObj.GetComponent<Button>();
+                    if (btn != null)
+                    {
+                        btn.onClick = new Button.ButtonClickedEvent();
+                        btn.onClick.AddListener(RestartCurrentRun);
+                    }
+
+                    TMPro.TextMeshProUGUI tmp = restartRunBtnObj.GetComponentInChildren<TMPro.TextMeshProUGUI>(true);
+                    if (tmp != null)
+                    {
+                        tmp.text = "REINICIAR RUN";
+                        tmp.enableAutoSizing = true;
+                        tmp.fontSizeMin = 18f;
+                        tmp.fontSizeMax = 26f;
+                    }
+                }
+            }
+        }
+
+        if (restartRunBtnObj != null)
+        {
+            string activeScene = SceneManager.GetActiveScene().name;
+            bool isInRun = activeScene != "Base" && activeScene != mainMenuSceneName && activeScene != "Menu";
+            restartRunBtnObj.SetActive(isInRun);
+        }
+    }
+
+    public void RestartCurrentRun()
+    {
+        if (pausePanel != null) pausePanel.SetActive(false);
+        if (optionsPanel != null) optionsPanel.SetActive(false);
+        isPaused = false;
+        GamePause.ResetAll();
+        GameManager.EnsureInstance().LoadGameLevel();
     }
 
     public void ResumeGame()

@@ -468,8 +468,13 @@ public class GameManager : MonoBehaviour
             currentPlayer.transform.position = baseSpawn.transform.position;
             currentPlayer.transform.rotation = baseSpawn.transform.rotation;
 
-            // Reativa o agente na Base (que tem NavMesh assado)
-            if (agent != null) agent.enabled = true;
+            // Reativa o agente na Base (que tem NavMesh assado) mantendo updatePosition=false
+            if (agent != null)
+            {
+                agent.enabled = true;
+                agent.updatePosition = false;
+                agent.updateRotation = false;
+            }
         }
         else
         {
@@ -786,8 +791,13 @@ public class GameManager : MonoBehaviour
             currentPlayer.transform.position = spawnPoint.position;
             currentPlayer.transform.rotation = spawnPoint.rotation;
 
-            // Reativa o agente — o NavMesh já foi assado em runtime pelo LevelGenerator
-            if (agent != null) agent.enabled = true;
+            // Reativa o agente — o NavMesh já foi assado em runtime pelo LevelGenerator (mantendo updatePosition=false para evitar barreiras invisíveis)
+            if (agent != null)
+            {
+                agent.enabled = true;
+                agent.updatePosition = false;
+                agent.updateRotation = false;
+            }
             
             // Mantém o movimento travado enquanto a tela de loading ainda estiver ativa
             PlayerM playerMovement = currentPlayer.GetComponent<PlayerM>();

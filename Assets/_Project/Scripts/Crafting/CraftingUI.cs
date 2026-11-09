@@ -1040,7 +1040,14 @@ public class CraftingUI : MonoBehaviour
 
         craftButton.GetComponent<Image>().color = canCraft ? BTN_CRAFT_ENABLED : BTN_CRAFT_NO_MATERIALS;
 
-        craftButtonText.text = canCraft ? "CRAFTAR [T]" : "MATERIAIS INSUFICIENTES [T]";
+        if (!canCraft && CraftingManager.Instance != null && !CraftingManager.Instance.HasPrerequisiteForRecipe(selectedRecipe, out string missingPrereq))
+        {
+            craftButtonText.text = $"REQUER {missingPrereq.ToUpper()} [T]";
+        }
+        else
+        {
+            craftButtonText.text = canCraft ? "CRAFTAR [T]" : "MATERIAIS INSUFICIENTES [T]";
+        }
 
     }
 

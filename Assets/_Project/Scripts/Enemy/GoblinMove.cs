@@ -170,6 +170,12 @@ public class GoblinAI_Transform : MonoBehaviour
 
         rb.freezeRotation = true;
 
+        // Garante contenção estrita dentro da malha navegável da sala (impede fugir para o void)
+        if (GetComponent<NavMeshBoundaryConstraint>() == null)
+        {
+            gameObject.AddComponent<NavMeshBoundaryConstraint>();
+        }
+
         originalChaseSpeed = chaseSpeed;
         originalFleeSpeed = fleeSpeed;
         originalThrowCooldown = throwCooldown;
@@ -381,6 +387,50 @@ public class GoblinAI_Transform : MonoBehaviour
             default:
                 targetVelocity = Vector3.zero;
                 break;
+        }
+
+        // Previne que o Goblin ande para fora do chão / NavMesh (ex: ao fugir de costas para uma borda ou void)
+        if (targetVelocity.sqrMagnitude > 0.01f)
+        {
+            Vector3 moveDir = new Vector3(targetVelocity.x, 0f, targetVelocity.z).normalized;
+            Vector3 lookAheadPos = transform.position + moveDir * 1.1f;
+
+            bool hasGroundAhead = Physics.Raycast(lookAheadPos + Vector3.up * 1.2f, Vector3.down, 3.5f, ~0, QueryTriggerInteraction.Ignore);
+            bool hasNavMeshAhead = true;
+            if (UnityEngine.AI.NavMesh.SamplePosition(transform.position, out _, 2.0f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                hasNavMeshAhead = UnityEngine.AI.NavMesh.SamplePosition(lookAheadPos, out _, 0.65f, UnityEngine.AI.NavMesh.AllAreas);
+            }
+
+            if (!hasGroundAhead || !hasNavMeshAhead)
+            {
+                if (currentState == State.RangedAttack)
+                {
+                    strafeDir = -strafeDir;
+                    targetVelocity = Vector3.zero;
+                }
+                else if (currentState == State.Flee)
+                {
+                    // Tenta escapar lateralmente ao longo da borda em vez de cair no void
+                    Vector3 sideDir = Vector3.Cross(Vector3.up, moveDir) * strafeDir;
+                    Vector3 sideLookAhead = transform.position + sideDir * 1.1f;
+                    bool sideValid = Physics.Raycast(sideLookAhead + Vector3.up * 1.2f, Vector3.down, 3.5f, ~0, QueryTriggerInteraction.Ignore) &&
+                                     UnityEngine.AI.NavMesh.SamplePosition(sideLookAhead, out _, 0.65f, UnityEngine.AI.NavMesh.AllAreas);
+                    if (sideValid)
+                    {
+                        targetVelocity = sideDir * fleeSpeed;
+                    }
+                    else
+                    {
+                        strafeDir = -strafeDir;
+                        targetVelocity = Vector3.zero;
+                    }
+                }
+                else
+                {
+                    targetVelocity = Vector3.zero;
+                }
+            }
         }
 
         // Suaviza a aceleração de forma responsiva no chão

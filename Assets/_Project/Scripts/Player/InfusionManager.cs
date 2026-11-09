@@ -194,7 +194,19 @@ public class InfusionManager : MonoBehaviour
         if (infusedItems != null) infusedItems.Clear();
         infusedStackMultipliers.Clear();
         infusedSynergyNames.Clear();
-        Debug.Log("[INFUSION MANAGER] Peso de inflaÃ§Ã£o e histÃ³rico de infusÃµes resetados para nova Run.");
+
+        Tier4EffectManager t4Manager = GetComponent<Tier4EffectManager>() ?? GetComponentInChildren<Tier4EffectManager>();
+        if (t4Manager != null)
+        {
+            t4Manager.DeactivateAllEffects();
+        }
+
+        ExplosiveDashEffect explosiveDash = GetComponent<ExplosiveDashEffect>() ?? GetComponentInChildren<ExplosiveDashEffect>();
+        if (explosiveDash != null)
+        {
+            explosiveDash.DeactivateEffect();
+        }
+        Debug.Log("[INFUSION MANAGER] Peso de inflacao e historico de infusoes resetados para nova Run.");
     }
 
     // =====================================================
@@ -671,7 +683,7 @@ public class InfusionManager : MonoBehaviour
     /// desativando efeito especial T4 (se não houver outra instância) e subtraindo o peso de inflação.
     /// NÃO devolve a Essência original de infusão.
     /// </summary>
-    private bool RemoveInfusionAtIndex(int index)
+    public bool RemoveInfusionAtIndex(int index)
     {
         if (index < 0 || index >= infusedItems.Count) return false;
 
@@ -702,7 +714,7 @@ public class InfusionManager : MonoBehaviour
 
             if (!hasOtherInstance)
             {
-                Tier4EffectManager t4Manager = GetComponent<Tier4EffectManager>();
+                Tier4EffectManager t4Manager = GetComponent<Tier4EffectManager>() ?? GetComponentInChildren<Tier4EffectManager>();
                 if (t4Manager != null)
                 {
                     t4Manager.DeactivateEffect(data.tier4Effect);
@@ -716,6 +728,7 @@ public class InfusionManager : MonoBehaviour
 
         infusedItems.RemoveAt(index);
         if (index < infusedStackMultipliers.Count) infusedStackMultipliers.RemoveAt(index);
+        if (index < infusedSynergyNames.Count) infusedSynergyNames.RemoveAt(index);
 
         Debug.Log($"[REMOÇÃO/CIRURGIA] Peça extraída: {data.itemName} (x{Mathf.RoundToInt(stackMultiplier)}). Peso subtraído: -{removedWeight:F2}. Novo Ptotal: {totalInfusionWeight:F2}");
         return true;

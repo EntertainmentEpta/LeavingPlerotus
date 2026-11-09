@@ -259,10 +259,10 @@ public class PlayerUltimate : MonoBehaviour
 
         if (!navMeshExistsInScene)
         {
-            // Cena sem NavMesh (Base): restaura as flags sem Warp.
-            navAgent.updatePosition = true;
-            navAgent.updateRotation = true;
-            Debug.Log("[PlayerUltimate] Cena sem NavMesh. Controle do agente restaurado sem Warp.");
+            // Cena sem NavMesh (Base): mantém updatePosition=false para nunca criar barreiras invisíveis em portas na próxima run.
+            navAgent.updatePosition = false;
+            navAgent.updateRotation = false;
+            Debug.Log("[PlayerUltimate] Cena sem NavMesh. Controle do agente mantido com updatePosition=false.");
             return;
         }
 

@@ -143,7 +143,7 @@ public class CraftingManager : MonoBehaviour
             });
 
         EnsureInfusionRecipe("recipe_camara_infusao_2", "C\u00E2mara de Infus\u00E3o Expandida II",
-            "Sintoniza a matriz do traje com o Resto de Geobionte para permitir infus\u00F5es combinadas de at\u00E9 4 itens simult\u00E2neos.",
+            "Sintoniza a matriz do traje com o Resto de Geobionte para permitir infus\u00F5es combinadas de at\u00E9 4 itens simult\u00E2neos. (Requer C\u00E2mara de Infus\u00E3o Expandida I)",
             "equip_camara_infusao_2",
             new List<CraftingIngredient>
             {
@@ -162,7 +162,7 @@ public class CraftingManager : MonoBehaviour
             });
 
         EnsureInfusionRecipe("recipe_capacidade_infusao_2", "Chassi Térmico Modular II",
-            "Dissipação criogênica avançada. Permite até 10 infusões ativas simultâneas na mesma run.",
+            "Dissipação criogênica avançada. Permite até 10 infusões ativas simultâneas na mesma run. (Requer Chassi Térmico Modular I)",
             "equip_capacidade_infusao_2",
             new List<CraftingIngredient>
             {
@@ -251,6 +251,38 @@ public class CraftingManager : MonoBehaviour
     // ─── API PRINCIPAL ────────────────────────────────────────────────────────
 
     /// <summary>
+    /// Verifica se o jogador possui o pré-requisito de Tier I antes de liberar o craft de uma melhoria Tier II.
+    /// </summary>
+    public bool HasPrerequisiteForRecipe(CraftingRecipe recipe, out string missingPrerequisiteName)
+    {
+        missingPrerequisiteName = null;
+        if (recipe == null || SaveManager.instance == null) return false;
+
+        if (recipe.recipeId == "recipe_camara_infusao_2")
+        {
+            bool hasTier1 = SaveManager.instance.GetCraftedEquipmentCount("equip_camara_infusao_1") > 0 ||
+                            (EquipmentManager.Instance != null && (EquipmentManager.Instance.IsOwned("equip_camara_infusao_1") || EquipmentManager.Instance.IsEquipped("equip_camara_infusao_1")));
+            if (!hasTier1)
+            {
+                missingPrerequisiteName = "Câmara de Infusão I";
+                return false;
+            }
+        }
+        else if (recipe.recipeId == "recipe_capacidade_infusao_2")
+        {
+            bool hasTier1 = SaveManager.instance.GetCraftedEquipmentCount("equip_capacidade_infusao_1") > 0 ||
+                            (EquipmentManager.Instance != null && (EquipmentManager.Instance.IsOwned("equip_capacidade_infusao_1") || EquipmentManager.Instance.IsEquipped("equip_capacidade_infusao_1")));
+            if (!hasTier1)
+            {
+                missingPrerequisiteName = "Chassi Térmico I";
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// Verifica se o jogador possui todos os ingredientes necessários
     /// somando inventário de run + Bolsa Sintética.
     /// </summary>
@@ -261,6 +293,12 @@ public class CraftingManager : MonoBehaviour
         // Armas em desenvolvimento estão bloqueadas para craft no playtest
         if (recipe.recipeId == "recipe_arma_projetil" || recipe.recipeId == "weapon_dagger" ||
             (recipe.recipeId != null && recipe.recipeId.StartsWith("weapon_classified_")))
+        {
+            return false;
+        }
+
+        // Verifica pré-requisito de progressão (ex: Tier I obrigatório antes do Tier II)
+        if (!HasPrerequisiteForRecipe(recipe, out _))
         {
             return false;
         }

@@ -72,6 +72,12 @@ public class PlayerM : MonoBehaviour
     private void OnEnable()
     {
         isPlasmaActionLocked = false;
+        UnityEngine.AI.NavMeshAgent navAgent = GetComponent<UnityEngine.AI.NavMeshAgent>() ?? GetComponentInParent<UnityEngine.AI.NavMeshAgent>() ?? GetComponentInChildren<UnityEngine.AI.NavMeshAgent>();
+        if (navAgent != null)
+        {
+            navAgent.updatePosition = false;
+            navAgent.updateRotation = false;
+        }
     }
 
     private void Start()

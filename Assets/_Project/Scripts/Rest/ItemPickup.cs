@@ -574,32 +574,41 @@ public class ItemPickup : MonoBehaviour
 
     private void EnsurePromptUI()
     {
-        bool hasValidPrompt = false;
-        if (pressFUI != null)
+        if (pressFUI != null && autoPromptTMP == null)
         {
-            // Verifica se o pressFUI configurado possui texto legível
-            TextMeshProUGUI tmp = pressFUI.GetComponentInChildren<TextMeshProUGUI>(true);
-            Text legacyTxt = pressFUI.GetComponentInChildren<Text>(true);
-            if (tmp != null || legacyTxt != null)
-            {
-                hasValidPrompt = true;
-            }
+            Destroy(pressFUI);
+            pressFUI = null;
         }
 
-        if (!hasValidPrompt)
+        if (pressFUI == null || autoPromptTMP == null)
         {
-            // Se pressFUI for nulo ou for apenas um Canvas vazio sem texto, recria limpo
-            if (pressFUI != null && autoPromptTMP == null)
-            {
-                Destroy(pressFUI);
-                pressFUI = null;
-            }
             BuildAutoPromptUI();
         }
         else
         {
+            ApplyWorldScaleCompensation();
             pressFUI.SetActive(false);
         }
+    }
+
+    private void ApplyWorldScaleCompensation()
+    {
+        if (pressFUI == null) return;
+
+        Vector3 parentScale = transform.lossyScale;
+        float sx = Mathf.Max(0.01f, Mathf.Abs(parentScale.x));
+        float sy = Mathf.Max(0.01f, Mathf.Abs(parentScale.y));
+        float sz = Mathf.Max(0.01f, Mathf.Abs(parentScale.z));
+
+        const float targetWorldScale = 0.0045f;
+        const float targetWorldHeight = 1.15f;
+
+        pressFUI.transform.localScale = new Vector3(
+            targetWorldScale / sx,
+            targetWorldScale / sy,
+            targetWorldScale / sz
+        );
+        pressFUI.transform.localPosition = new Vector3(0f, targetWorldHeight / sy, 0f);
     }
 
     private void BuildAutoPromptUI()
@@ -608,15 +617,13 @@ public class ItemPickup : MonoBehaviour
 
         GameObject promptRoot = new GameObject("ItemPickup_PromptUI");
         promptRoot.transform.SetParent(transform, false);
-        promptRoot.transform.localPosition = Vector3.up * 1.0f;
 
         Canvas canvas = promptRoot.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.WorldSpace;
         canvas.sortingOrder = 150;
 
         RectTransform rect = promptRoot.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(720f, 130f);
-        rect.localScale = Vector3.one * 0.01f;
+        rect.sizeDelta = new Vector2(420f, 70f);
 
         autoPromptCanvasGroup = promptRoot.AddComponent<CanvasGroup>();
         autoPromptCanvasGroup.alpha = 0f;
@@ -629,7 +636,7 @@ public class ItemPickup : MonoBehaviour
         bgRect.anchorMax = Vector2.one;
         bgRect.sizeDelta = Vector2.zero;
         Image bgImg = bgObj.AddComponent<Image>();
-        bgImg.color = new Color(0.04f, 0.04f, 0.06f, 0.75f);
+        bgImg.color = new Color(0.04f, 0.04f, 0.06f, 0.78f);
         bgImg.raycastTarget = false;
 
         // Texto com TMPro
@@ -638,21 +645,23 @@ public class ItemPickup : MonoBehaviour
         RectTransform textRect = textObj.AddComponent<RectTransform>();
         textRect.anchorMin = Vector2.zero;
         textRect.anchorMax = Vector2.one;
-        textRect.sizeDelta = Vector2.zero;
+        textRect.offsetMin = new Vector2(12f, 4f);
+        textRect.offsetMax = new Vector2(-12f, -4f);
         autoPromptTMP = textObj.AddComponent<TextMeshProUGUI>();
-        autoPromptTMP.fontSize = 40f;
+        autoPromptTMP.fontSize = 24f;
         autoPromptTMP.fontStyle = FontStyles.Bold;
         autoPromptTMP.alignment = TextAlignmentOptions.Center;
         autoPromptTMP.color = Color.white;
         autoPromptTMP.raycastTarget = false;
         autoPromptTMP.enableAutoSizing = true;
-        autoPromptTMP.fontSizeMin = 28f;
-        autoPromptTMP.fontSizeMax = 44f;
+        autoPromptTMP.fontSizeMin = 16f;
+        autoPromptTMP.fontSizeMax = 26f;
 
         TMP_FontAsset font = Resources.Load<TMP_FontAsset>("Fonts & Materials/Oswald Bold SDF");
         if (font != null) autoPromptTMP.font = font;
 
         pressFUI = promptRoot;
+        ApplyWorldScaleCompensation();
         pressFUI.SetActive(false);
     }
 
@@ -747,6 +756,7 @@ public class ItemPickup : MonoBehaviour
 
             if (Camera.main != null && pressFUI.activeSelf)
             {
+                ApplyWorldScaleCompensation();
                 pressFUI.transform.forward = Camera.main.transform.forward;
             }
         }
@@ -755,6 +765,7 @@ public class ItemPickup : MonoBehaviour
             pressFUI.SetActive(showPrompt);
             if (showPrompt && Camera.main != null)
             {
+                ApplyWorldScaleCompensation();
                 pressFUI.transform.forward = Camera.main.transform.forward;
             }
         }

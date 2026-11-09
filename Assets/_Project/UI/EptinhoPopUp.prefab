@@ -64,12 +64,12 @@ MonoBehaviour:
   eptinhoNormalSprite: {fileID: -1032455289, guid: 58b757ba0be671d49a5dc82c592c0c10, type: 3}
   eptinhoTensoSprite: {fileID: 1960042803, guid: eb2dc13b79fdb4d48b789d791729681d, type: 3}
   eptinhoMedoSprite: {fileID: 1370882292, guid: fc7b01b9b5b97c24188dc3990daa4975, type: 3}
-  portraitSize: 192
-  portraitMarginLeft: 0
-  portraitMarginRight: 70
+  portraitSize: 72
+  portraitMarginLeft: 18
+  portraitMarginRight: 18
   portraitBgColor: {r: 0.08, g: 0.05, b: 0.18, a: 0.95}
   portraitBorderColor: {r: 0.62, g: 0.38, b: 0.92, a: 1}
-  textFontSize: 40
+  textFontSize: 25
   textColor: {r: 0.72, g: 0.76, b: 0.78, a: 1}
   previewPermanente: 0
   popupBeepClip: {fileID: 8300000, guid: dd4009ea45efe58448cf68f099bc5c46, type: 3}
