@@ -473,6 +473,10 @@ public class DashM : MonoBehaviour
 
         PlayDashSound();
 
+        Tier4EffectManager tier4EffectManager = GetComponent<Tier4EffectManager>();
+        if (tier4EffectManager != null)
+            tier4EffectManager.OnDashUsed();
+
         if (invulEndCoroutine != null)
         {
             StopCoroutine(invulEndCoroutine);

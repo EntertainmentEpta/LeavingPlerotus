@@ -415,6 +415,27 @@ public class ItemPickup : MonoBehaviour
 
         if (interactable == null || interactable.itemData == null) return;
 
+        if (!ItemIdentityValidator.IsValid(interactable.itemData.itemId))
+        {
+            Debug.LogError($"[ITEM PICKUP] Coleta bloqueada para '{gameObject.name}': ItemData com itemId inválido '{interactable.itemData.itemId}'.");
+            return;
+        }
+
+        if (ItemDatabase.Instance != null)
+        {
+            ItemData catalogItem = ItemDatabase.Instance.GetItemData(interactable.itemData.itemId);
+            if (catalogItem == null)
+            {
+                Debug.LogError($"[ITEM PICKUP] Coleta bloqueada para '{interactable.itemData.itemId}': o item não existe no catálogo canônico do ItemDatabase.");
+                return;
+            }
+
+            interactable.itemData = catalogItem;
+            interactable.objetoNome = catalogItem.itemName;
+            interactable.descricao = catalogItem.description;
+            interactable.icon = catalogItem.icon;
+        }
+
         string source = forceCategory;
         if (string.IsNullOrEmpty(source) && interactable.itemData != null)
         {
@@ -436,12 +457,21 @@ public class ItemPickup : MonoBehaviour
             {
                 interactable.itemData.returnsToBase = true;
             }
+        }
+
+        if (!string.IsNullOrEmpty(source))
+        {
             CustomizeItemVisuals(source);
         }
     }
 
     private void CustomizeItemVisuals(string source)
     {
+        if (interactable != null && interactable.itemData != null &&
+            (source == "Fauna" || source == "Flora" || source == "Minerals"))
+        {
+            interactable.itemData.persistenceMode = ItemPersistenceMode.BaseResource;
+        }
         if (source == "Fauna")
         {
             bool isFish = (interactable != null && interactable.itemData != null && interactable.itemData.itemId == "peixe_lagoa") ||
@@ -838,61 +868,93 @@ public class ItemPickup : MonoBehaviour
 
         if (interactable.itemData == null)
         {
-            Debug.LogWarning($"[ITEM] '{gameObject.name}' não tem ItemData no Interactable!");
+            Debug.LogWarning($"[ITEM] '{gameObject.name}' não tem ItemData no Interactable! " +
+                             "Configure o campo 'Item Data' no Inspector do prefab.");
             return;
         }
 
-        // Toca som de coleta se disponível
-        PlayerInventory playerInv = player.GetComponentInParent<PlayerInventory>() ?? 
-                                    player.GetComponent<PlayerInventory>() ?? 
+        if (!ItemIdentityValidator.IsValid(interactable.itemData.itemId))
+        {
+            Debug.LogError($"[ITEM] Coleta bloqueada para '{gameObject.name}' porque itemId inválido: '{interactable.itemData.itemId}'.");
+            return;
+        }
+
+        if (ItemDatabase.Instance != null)
+        {
+            ItemData registered = ItemDatabase.Instance.GetItemData(interactable.itemData.itemId);
+            if (registered == null)
+            {
+                Debug.LogError($"[ITEM] Coleta bloqueada: '{interactable.itemData.itemId}' não está registrado no ItemDatabase.");
+                return;
+            }
+
+            interactable.itemData = registered;
+        }
+
+        PlayerInventory playerInv = player.GetComponentInParent<PlayerInventory>() ??
+                                    player.GetComponent<PlayerInventory>() ??
                                     FindFirstObjectByType<PlayerInventory>();
         if (playerInv != null)
         {
             playerInv.PlayItemPickupSound();
         }
 
-        if (interactable.itemData.returnsToBase)
+        ItemPersistenceMode destinationMode = interactable.itemData.persistenceMode;
+        if (destinationMode == ItemPersistenceMode.RunOnly && interactable.itemData.returnsToBase)
         {
-            // Recurso permanente — vai direto para a Bolsa Sintética
-            if (SaveManager.instance != null)
-            {
-                SaveManager.instance.AddResourceToBase(interactable.itemData.itemId, 1);
-                EptinhoStoryDialogs.TriggerFirstResourceMined();
-            }
-            else
-            {
-                Debug.LogWarning("[ITEM] SaveManager não encontrado! Recurso perdido: " + interactable.NomeDisplay);
-                return;
-            }
+            destinationMode = ItemPersistenceMode.BaseResource;
         }
-        else
+
+        switch (destinationMode)
         {
-            // Item de run — vai para o inventário temporário
-            if (playerInv != null)
-            {
-                bool added = playerInv.AddItem(interactable.itemData.itemId, 1);
-                if (!added)
+            case ItemPersistenceMode.BaseResource:
+                if (SaveManager.instance != null)
                 {
-                    Debug.Log("[ITEM] Inventário cheio (10/10)! Descartando: " + interactable.NomeDisplay);
-                    if (EptinhoPopupController.instancia != null)
-                    {
-                        EptinhoPopupController.instancia.MostrarPopupAviso($"Mochila cheia (10/10)! {interactable.NomeDisplay} descartado.");
-                    }
-                    Destroy(gameObject);
+                    SaveManager.instance.AddResourceToBase(interactable.itemData.itemId, 1);
+                    EptinhoStoryDialogs.TriggerFirstResourceMined();
+                }
+                else
+                {
+                    Debug.LogWarning("[ITEM] SaveManager não encontrado! Recurso perdido: " + interactable.NomeDisplay);
                     return;
                 }
-            }
-            else
-            {
-                Debug.LogWarning("[ITEM] PlayerInventory não encontrado no player!");
-            }
+                break;
+
+            case ItemPersistenceMode.PersistentInventory:
+            case ItemPersistenceMode.RunOnly:
+                PlayerInventory inventory = player.GetComponentInParent<PlayerInventory>();
+                if (inventory == null) inventory = player.GetComponent<PlayerInventory>();
+
+                if (inventory != null)
+                {
+                    bool added = inventory.AddItem(interactable.itemData.itemId, 1);
+                    if (!added)
+                    {
+                        Debug.Log("[ITEM] Inventário cheio (10/10)! Descartando: " + interactable.NomeDisplay);
+                        if (EptinhoPopupController.instancia != null)
+                        {
+                            EptinhoPopupController.instancia.MostrarPopupAviso($"Mochila cheia (10/10)! {interactable.NomeDisplay} descartado.");
+                        }
+                        Destroy(gameObject);
+                        return;
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning("[ITEM] PlayerInventory não encontrado no player!");
+                }
+                break;
+
+            case ItemPersistenceMode.SynergyTransient:
+                Debug.Log("[ITEM] Item efêmero de sinergia: só entrou em runtime, não persistiu. " + interactable.NomeDisplay);
+                break;
         }
 
         // Registra no Catálogo do Eptinho
         if (CatalogoManager.instancia != null)
             CatalogoManager.instancia.Catalogar(interactable);
 
-        Debug.Log("[ITEM] Coletado com sucesso: " + interactable.NomeDisplay);
+        Debug.Log("[ITEM] Coletado: " + interactable.NomeDisplay + " | Destino: " + destinationMode);
         Destroy(gameObject);
     }
 

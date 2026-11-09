@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
   itemId: 04cl
   itemName: "Cabe\xE7a oca"
-  description: 
+  description: "Regeneração de escudo sem tempo de recarga."
   icon: {fileID: 21300000, guid: f16514ce9087e7b4ab9e0de0ec15731e, type: 3}
   tier: 3
   enemySource: Cristalus
@@ -31,3 +31,4 @@ MonoBehaviour:
   - attributeType: 5
     value: 1.1
     isMultiplier: 1
+  tier4Effect: 5

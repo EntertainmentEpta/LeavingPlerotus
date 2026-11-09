@@ -103,17 +103,30 @@ public class ItemDatabase : MonoBehaviour
     public void RebuildLookup()
     {
         itemLookup.Clear();
+        HashSet<string> seenIds = new HashSet<string>();
+
         foreach (var item in allItems)
         {
             if (item == null) continue;
 
-            if (!string.IsNullOrEmpty(item.itemId))
+            if (!ItemIdentityValidator.IsValid(item.itemId))
             {
-                itemLookup[item.itemId] = item;
-                // Registra versão sem acento (ex: goblin_braço_t2 -> goblin_braco_t2)
-                string unaccented = item.itemId.Replace("ç", "c").Replace("ã", "a").Replace("õ", "o").Replace("é", "e");
-                if (!itemLookup.ContainsKey(unaccented)) itemLookup[unaccented] = item;
+                Debug.LogError($"[ITEM DATABASE] Item inválido descartado do registro: {item.name} | itemId='{item.itemId}'");
+                continue;
             }
+
+            if (seenIds.Contains(item.itemId))
+            {
+                Debug.LogError("[ITEM DATABASE] ID duplicado detectado e bloqueado: " + item.itemId);
+                continue;
+            }
+
+            seenIds.Add(item.itemId);
+            itemLookup[item.itemId] = item;
+
+            // Registra versão sem acento (ex: goblin_braço_t2 -> goblin_braco_t2)
+            string unaccented = item.itemId.Replace("ç", "c").Replace("ã", "a").Replace("õ", "o").Replace("é", "e");
+            if (!itemLookup.ContainsKey(unaccented)) itemLookup[unaccented] = item;
 
             // Registra pelo nome do asset do ScriptableObject
             if (!string.IsNullOrEmpty(item.name) && !itemLookup.ContainsKey(item.name))
@@ -146,6 +159,31 @@ public class ItemDatabase : MonoBehaviour
         }
 
         Debug.Log("[ITEM DATABASE] " + itemLookup.Count + " chaves/itens registrados.");
+    }
+
+    public bool RegisterItem(ItemData item)
+    {
+        if (item == null)
+        {
+            Debug.LogError("[ITEM DATABASE] Tentativa de registrar ItemData nulo.");
+            return false;
+        }
+
+        if (!ItemIdentityValidator.IsValid(item.itemId))
+        {
+            Debug.LogError($"[ITEM DATABASE] ID inválido: '{item.itemId}' em {item.name}. Bloqueado.");
+            return false;
+        }
+
+        if (itemLookup.ContainsKey(item.itemId) || allItems.Exists(x => x != null && x.itemId == item.itemId))
+        {
+            Debug.LogError($"[ITEM DATABASE] Conflito de ID detectado: '{item.itemId}'. O item não foi registrado.");
+            return false;
+        }
+
+        allItems.Add(item);
+        itemLookup[item.itemId] = item;
+        return true;
     }
 
     /// <summary>
