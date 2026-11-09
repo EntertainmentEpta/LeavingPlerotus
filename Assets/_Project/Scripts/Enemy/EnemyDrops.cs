@@ -196,23 +196,18 @@ public class EnemyDrops : MonoBehaviour
         {
             effectiveDropChance = 1.0f; // Drop garantido para Elites / Chefes
         }
-        else if (isTankOrStructure)
+        else if (effectiveDropChance <= 0.01f)
         {
-            // Totem e Tanques: chance saudável e calibrada (~28%)
-            effectiveDropChance = Mathf.Clamp(effectiveDropChance, 0.32f, 0.45f);
-        }
-        else if (isSupport)
-        {
-            effectiveDropChance = Mathf.Clamp(effectiveDropChance, 0.30f, 0.40f);
-        }
-        else if (isRanged)
-        {
-            effectiveDropChance = Mathf.Clamp(effectiveDropChance, 0.30f, 0.40f);
+            // Fallback seguro caso o prefab esteja com 0 no Inspector
+            if (isTankOrStructure) effectiveDropChance = 0.35f;
+            else if (isSupport) effectiveDropChance = 0.35f;
+            else if (isRanged) effectiveDropChance = 0.30f;
+            else effectiveDropChance = 0.32f;
         }
         else
         {
-            // Mobs menores (SharpBlur, Aranha): ajustado de 10% para 25% para não sumir
-            effectiveDropChance = Mathf.Clamp(effectiveDropChance, 0.32f, 0.45f);
+            // Respeita o globalDropChance configurado no prefab (sem sobrescrever com clamp estreito)
+            effectiveDropChance = Mathf.Clamp01(effectiveDropChance);
         }
 
         // --- PACTO DE GANÂNCIA: Sorte aumentada significativamente em vez de duplicar drop! ---
@@ -261,8 +256,9 @@ public class EnemyDrops : MonoBehaviour
             float totalWeight = 0f;
             List<float> adjustedWeights = new List<float>();
 
-            foreach (var loot in filteredPool)
+            for (int idx = 0; idx < filteredPool.Count; idx++)
             {
+                var loot = filteredPool[idx];
                 if (loot.itemPrefab == null || loot.weight <= 0f)
                 {
                     adjustedWeights.Add(0f);
@@ -270,48 +266,48 @@ public class EnemyDrops : MonoBehaviour
                 }
 
                 float weightMult = 1f;
-                string pName = loot.itemPrefab.name.ToLower();
+                int itemTier = ResolveLootTier(loot.itemPrefab, idx);
 
                 if (isBossOrElites)
                 {
                     // Elites priorizam T2, T3 e T4 (sem T1)
-                    if (pName.Contains("t1") || pName.Contains("1")) weightMult = 0f;
-                    else if (pName.Contains("t2") || pName.Contains("2")) weightMult = 0.5f;
-                    else if (pName.Contains("t3") || pName.Contains("3")) weightMult = 1.5f;
-                    else if (pName.Contains("t4") || pName.Contains("4")) weightMult = 2.0f;
+                    if (itemTier == 1) weightMult = 0f;
+                    else if (itemTier == 2) weightMult = 0.5f;
+                    else if (itemTier == 3) weightMult = 1.5f;
+                    else if (itemTier == 4) weightMult = 2.0f;
                 }
                 else
                 {
                     if (currentRoom <= 4)
                     {
-                        if (pName.Contains("t1") || pName.Contains("1")) weightMult = 1.2f;
-                        else if (pName.Contains("t2") || pName.Contains("2")) weightMult = 0.5f;
-                        else if (pName.Contains("t3") || pName.Contains("3")) weightMult = 0.15f;
-                        else if (pName.Contains("t4") || pName.Contains("4")) weightMult = 0f;
+                        if (itemTier == 1) weightMult = 1.2f;
+                        else if (itemTier == 2) weightMult = 0.5f;
+                        else if (itemTier == 3) weightMult = 0.15f;
+                        else if (itemTier == 4) weightMult = 0f;
                     }
                     else if (currentRoom <= 8)
                     {
-                        if (pName.Contains("t1") || pName.Contains("1")) weightMult = 0.8f;
-                        else if (pName.Contains("t2") || pName.Contains("2")) weightMult = 1.0f;
-                        else if (pName.Contains("t3") || pName.Contains("3")) weightMult = 0.5f;
-                        else if (pName.Contains("t4") || pName.Contains("4")) weightMult = 0.15f;
+                        if (itemTier == 1) weightMult = 0.8f;
+                        else if (itemTier == 2) weightMult = 1.0f;
+                        else if (itemTier == 3) weightMult = 0.5f;
+                        else if (itemTier == 4) weightMult = 0.15f;
                     }
                     else
                     {
-                        if (pName.Contains("t1") || pName.Contains("1")) weightMult = 0.5f;
-                        else if (pName.Contains("t2") || pName.Contains("2")) weightMult = 1.1f;
-                        else if (pName.Contains("t3") || pName.Contains("3")) weightMult = 1.0f;
-                        else if (pName.Contains("t4") || pName.Contains("4")) weightMult = 0.5f;
+                        if (itemTier == 1) weightMult = 0.5f;
+                        else if (itemTier == 2) weightMult = 1.1f;
+                        else if (itemTier == 3) weightMult = 1.0f;
+                        else if (itemTier == 4) weightMult = 0.5f;
                     }
                 }
 
                 if (hasGreed)
                 {
                     // Ganância: Melhora as chances de sortear Tiers superiores (T2, T3, T4)!
-                    if (pName.Contains("t1") || pName.Contains("1")) weightMult *= 1.2f;
-                    else if (pName.Contains("t2") || pName.Contains("2")) weightMult *= 2.5f;
-                    else if (pName.Contains("t3") || pName.Contains("3")) weightMult *= 3.5f;
-                    else if (pName.Contains("t4") || pName.Contains("4")) weightMult *= 5.0f;
+                    if (itemTier == 1) weightMult *= 1.2f;
+                    else if (itemTier == 2) weightMult *= 2.5f;
+                    else if (itemTier == 3) weightMult *= 3.5f;
+                    else if (itemTier == 4) weightMult *= 5.0f;
                 }
 
                 float finalW = loot.weight * weightMult;
@@ -432,15 +428,60 @@ public class EnemyDrops : MonoBehaviour
         return false;
     }
 
+    /// <summary>
+    /// Resolve o Tier (1 a 4) de um item do lootPool lendo diretamente o ItemData.tier via CharacteristicItemPickup,
+    /// com fallback seguro do maior sufixo (_t4) para o menor (_t1) e para o índice no lootPool.
+    /// Corrige o bug em que Contains("t1") capturava todos os prefabs do Peixe ("peixe_escama_t1 1/2/3") e a Placa T2 do Geobionte ("bismutado_placa_t1").
+    /// </summary>
+    public int ResolveLootTier(GameObject prefab, int poolIndex = -1)
+    {
+        if (prefab == null) return Mathf.Clamp(poolIndex + 1, 1, 4);
+
+        // 1. Fonte da verdade: CharacteristicItemPickup -> ItemDatabase / Resources ItemData.tier
+        var pickup = prefab.GetComponent<CharacteristicItemPickup>() ?? prefab.GetComponentInChildren<CharacteristicItemPickup>(true);
+        if (pickup != null && !string.IsNullOrEmpty(pickup.itemId))
+        {
+            string id = pickup.itemId.Trim();
+            ItemData data = null;
+            if (ItemDatabase.Instance != null)
+            {
+                data = ItemDatabase.Instance.GetItemData(id);
+            }
+            if (data == null)
+            {
+                data = Resources.Load<ItemData>("ItemData/" + id);
+            }
+            if (data != null)
+            {
+                return Mathf.Clamp((int)data.tier + 1, 1, 4);
+            }
+
+            // Fallback pelo próprio itemId do pickup (ex: "04px", "bismutado_placa_t2")
+            string idLower = id.ToLower();
+            if (idLower.Contains("_t4") || idLower.EndsWith("t4") || idLower.StartsWith("04")) return 4;
+            if (idLower.Contains("_t3") || idLower.EndsWith("t3") || idLower.StartsWith("03")) return 3;
+            if (idLower.Contains("_t2") || idLower.EndsWith("t2") || idLower.StartsWith("02")) return 2;
+            if (idLower.Contains("_t1") || idLower.EndsWith("t1") || idLower.StartsWith("01")) return 1;
+        }
+
+        // 2. Fallback seguro pelo nome do prefab (avaliando do maior sufixo _t4 para o menor _t1)
+        string name = prefab.name.ToLower();
+        if (name.Contains("peixe_escama_t1 3") || name.EndsWith(" 3")) return 4;
+        if (name.Contains("peixe_escama_t1 2") || name.EndsWith(" 2")) return 3;
+        if (name.Contains("peixe_escama_t1 1") || name.EndsWith(" 1")) return 2;
+
+        if (name.Contains("_t4") || name.Contains("tier4") || name.EndsWith("t4") || name.EndsWith("item4") || name.Contains("heart") || name.Contains("rotor") || name.Contains("catalyst") || name.Contains("bomb") || name.Contains("matrix") || name.Contains("beacon") || name.Contains("monolith") || name.Contains("osso")) return 4;
+        if (name.Contains("_t3") || name.Contains("tier3") || name.EndsWith("t3") || name.EndsWith("item3") || name.Contains("core") || name.Contains("amulet") || name.Contains("essence") || name.Contains("fang") || name.Contains("tail") || name.Contains("prism") || name.Contains("ancient") || name.Contains("cerebro") || name.Contains("sight")) return 3;
+        if (name.Contains("_t2") || name.Contains("tier2") || name.EndsWith("t2") || name.EndsWith("item2") || name.Contains("placa") || name.Contains("plate") || name.Contains("silk") || name.Contains("rune") || name.Contains("claw") || name.Contains("lens") || name.Contains("carved") || name.Contains("cora") || name.Contains("espinhos") || name.Contains("bra")) return 2;
+        if (name.Contains("_t1") || name.Contains("tier1") || name.EndsWith("t1") || name.EndsWith("item1") || name.Contains("chip") || name.Contains("dust") || name.Contains("leg") || name.Contains("scale") || name.Contains("coin") || name.Contains("garras") || name.Contains("stone") || name.Contains("splinter")) return 1;
+
+        if (poolIndex >= 0) return Mathf.Clamp(poolIndex + 1, 1, 4);
+        return 1;
+    }
+
     private int GetItemTier(GameObject prefab)
     {
-        if (prefab == null) return 1;
-        string name = prefab.name.ToLower();
-        if (name.Contains("_t4") || name.Contains("t4") || name.Contains("tier4") || name.Contains("heart") || name.Contains("rotor") || name.Contains("catalyst") || name.Contains("bomb") || name.Contains("matrix") || name.Contains("beacon") || name.Contains("monolith") || name.Contains("osso")) return 4;
-        if (name.Contains("_t3") || name.Contains("t3") || name.Contains("tier3") || name.Contains("core") || name.Contains("amulet") || name.Contains("essence") || name.Contains("fang") || name.Contains("tail") || name.Contains("prism") || name.Contains("ancient") || name.Contains("cerebro") || name.Contains("sight")) return 3;
-        if (name.Contains("_t2") || name.Contains("t2") || name.Contains("tier2") || name.Contains("plate") || name.Contains("silk") || name.Contains("rune") || name.Contains("claw") || name.Contains("lens") || name.Contains("carved") || name.Contains("cora") || name.Contains("espinhos") || name.Contains("bra")) return 2;
-        if (name.Contains("_t1") || name.Contains("t1") || name.Contains("tier1") || name.Contains("chip") || name.Contains("dust") || name.Contains("leg") || name.Contains("scale") || name.Contains("coin") || name.Contains("garras") || name.Contains("stone") || name.Contains("splinter")) return 1;
-        return 1;
+        return ResolveLootTier(prefab, -1);
     }
 
     private void SpawnEliteDrops(Vector3 basePosition, bool hasGreed)
@@ -451,10 +492,11 @@ public class EnemyDrops : MonoBehaviour
         List<GameObject> t3Items = new List<GameObject>();
         List<GameObject> t4Items = new List<GameObject>();
 
-        foreach (var loot in lootPool)
+        for (int idx = 0; idx < lootPool.Count; idx++)
         {
+            var loot = lootPool[idx];
             if (loot == null || loot.itemPrefab == null) continue;
-            int tier = GetItemTier(loot.itemPrefab);
+            int tier = ResolveLootTier(loot.itemPrefab, idx);
             if (tier == 2) t2Items.Add(loot.itemPrefab);
             else if (tier == 3) t3Items.Add(loot.itemPrefab);
             else if (tier == 4) t4Items.Add(loot.itemPrefab);

@@ -701,6 +701,47 @@ public class DummyHealth : MonoBehaviour
         }
     }
 
+    public void ApplyStun(float duration)
+    {
+        if (duration <= 0f || CurrentHealth <= 0) return;
+
+        BossController boss = GetComponent<BossController>() ?? GetComponentInParent<BossController>();
+        if (boss != null)
+        {
+            boss.ApplyStun(duration);
+            return;
+        }
+
+        ApplySlow(0.95f, duration);
+        StartCoroutine(StunNavAgentRoutine(duration));
+        Debug.Log($"[DEBUFF] Stun aplicado a {gameObject.name} por {duration}s.");
+    }
+
+    private IEnumerator StunNavAgentRoutine(float duration)
+    {
+        UnityEngine.AI.NavMeshAgent nav = GetComponent<UnityEngine.AI.NavMeshAgent>();
+        bool hadStopped = false;
+        if (nav != null && nav.isActiveAndEnabled && nav.isOnNavMesh)
+        {
+            hadStopped = nav.isStopped;
+            nav.isStopped = true;
+            nav.velocity = Vector3.zero;
+        }
+
+        Rigidbody rb = GetComponent<Rigidbody>();
+        if (rb != null && !rb.isKinematic)
+        {
+            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+        }
+
+        yield return new WaitForSeconds(duration);
+
+        if (nav != null && nav.isActiveAndEnabled && nav.isOnNavMesh && CurrentHealth > 0)
+        {
+            nav.isStopped = hadStopped;
+        }
+    }
+
     public void ApplySlow(float percent, float duration)
     {
         if (percent <= 0f) return;

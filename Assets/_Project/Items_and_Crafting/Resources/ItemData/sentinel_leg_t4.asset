@@ -14,15 +14,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
   itemId: sentinel_leg_t4
   itemName: Perna de Sentinela
-  description: "Ao causar dano, rouba vida com base no dano causado (5%)."
+  description: "Ao causar dano, rouba 5% de vida com base no dano causado."
   icon: {fileID: 0}
   tier: 3
   enemySource: Geobionte
   returnsToBase: 0
   recycleEssenceValue: 168
-  infusionEssenceCost: 280
+  infusionEssenceCost: 420
   itemAttributes:
   - attributeType: 0
-    value: 0
-    isMultiplier: 0
+    value: 1.35
+    isMultiplier: 1
+  - attributeType: 4
+    value: 1.25
+    isMultiplier: 1
+  - attributeType: 14
+    value: 1.25
+    isMultiplier: 1
   tier4Effect: 10

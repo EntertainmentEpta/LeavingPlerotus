@@ -661,6 +661,12 @@ public class DashM : MonoBehaviour
         isCurrentDashPerfectTriggered = true;
         isInPerfectDodgeWindow = false;
 
+        Tier4EffectManager t4 = GetComponent<Tier4EffectManager>() ?? GetComponentInChildren<Tier4EffectManager>();
+        if (t4 != null)
+        {
+            t4.OnPerfectDodge();
+        }
+
         if (enableLayerPhasing)
         {
             EnablePhasingCollision();

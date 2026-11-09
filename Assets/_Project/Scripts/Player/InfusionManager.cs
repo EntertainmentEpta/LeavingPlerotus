@@ -700,7 +700,7 @@ public class InfusionManager : MonoBehaviour
         }
 
         // Desativa efeito especial T4 (se houver e não houver outra cópia infundida)
-        DeactivateTier4EffectIfUnused(data, index, ResolveTier4Effect(data));
+        DeactivateTier4EffectIfUnused(data, index, data.tier4Effect);
 
         // Subtrai o peso de inflação (ΔP = P_tier × M) da equação global
         float removedWeight = GetInflationContribution(data, stackMultiplier);

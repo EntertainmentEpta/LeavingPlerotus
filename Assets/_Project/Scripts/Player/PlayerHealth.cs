@@ -1456,10 +1456,15 @@ public class PlayerHealth : MonoBehaviour
         // === THORNS (Dano Refletido) ===
         if (attacker != null && playerAttributes != null && playerAttributes.thorns > 0)
         {
-            DummyHealth enemyHealth = attacker.GetComponent<DummyHealth>();
+            DummyHealth enemyHealth = attacker.GetComponent<DummyHealth>() ?? attacker.GetComponentInParent<DummyHealth>();
             if (enemyHealth != null)
             {
                 enemyHealth.TakeDamage(playerAttributes.thorns);
+                Tier4EffectManager t4 = GetComponent<Tier4EffectManager>() ?? GetComponentInChildren<Tier4EffectManager>();
+                if (t4 != null)
+                {
+                    t4.OnDamageReflected(enemyHealth.gameObject);
+                }
                 Debug.Log($"🌵 THORNS! Refletido {playerAttributes.thorns} de dano para {attacker.name}");
             }
         }

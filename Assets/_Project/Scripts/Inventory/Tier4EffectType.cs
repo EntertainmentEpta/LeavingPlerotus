@@ -18,7 +18,8 @@ public enum Tier4EffectType
     ShardSwarm_T4Effect = 9,     // Shard Swarm: lança cristais teleguiados ao acertar
     Sentinel_T4Effect = 10,     // Sentinela: rouba vida com base no dano causado
     Bismutado_T4Effect = 11,    // Bismutado: ataques causam dano extra em área
-    Tuner_T4Effect = 12         // Tuner: marca inimigos aleatórios
+    Tuner_T4Effect = 12,        // Tuner: marca inimigos aleatórios
+    Golem_T4Effect = 13         // Golem: Esquiva Perfeita atordoa inimigos em área (AoE)
     // Futuros efeitos:
     // VampiricStrike, ChainLightning, FrostNova, etc.
 }

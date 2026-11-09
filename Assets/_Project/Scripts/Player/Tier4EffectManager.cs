@@ -203,6 +203,11 @@ public class Tier4EffectManager : MonoBehaviour
                 Debug.Log($"[Tier4EffectManager] Efeito {effectType} ATIVADO!");
                 break;
 
+            case Tier4EffectType.Golem_T4Effect:
+                activeEffects.Add(effectType);
+                Debug.Log($"[Tier4EffectManager] Efeito {effectType} ATIVADO!");
+                break;
+
             default:
                 Debug.LogWarning($"[Tier4EffectManager] Efeito T4 '{effectType}' não possui handler implementado.");
                 break;
@@ -291,6 +296,11 @@ public class Tier4EffectManager : MonoBehaviour
                 activeEffects.Remove(effectType);
                 Debug.Log($"[Tier4EffectManager] Efeito {effectType} DESATIVADO!");
                 break;
+
+            case Tier4EffectType.Golem_T4Effect:
+                activeEffects.Remove(effectType);
+                Debug.Log($"[Tier4EffectManager] Efeito {effectType} DESATIVADO!");
+                break;
         }
     }
 
@@ -316,6 +326,36 @@ public class Tier4EffectManager : MonoBehaviour
         int restoredShield = Mathf.Max(1, Mathf.CeilToInt(playerHealth.maxArmor * TotemDashShieldRestorePercent));
         playerHealth.RestoreArmor(restoredShield);
         Debug.Log($"[Tier4EffectManager] {Tier4EffectType.Totem_T4Effect}: +{restoredShield} escudo ao usar Dash.");
+    }
+
+    public void OnDamageReflected(GameObject attacker)
+    {
+        if (!activeEffects.Contains(Tier4EffectType.CrystalDragon_T4Effect) || attacker == null) return;
+        DummyHealth dummy = attacker.GetComponent<DummyHealth>() ?? attacker.GetComponentInParent<DummyHealth>();
+        if (dummy != null && dummy.CurrentHealth > 0)
+        {
+            dummy.ApplyStun(reflectedDamageStunDuration);
+            AreaDamageVFX.Spawn(dummy.transform.position, 1.4f);
+            Debug.Log($"[Tier4EffectManager] {Tier4EffectType.CrystalDragon_T4Effect}: {dummy.name} atordoado por {reflectedDamageStunDuration}s ao refletir dano!");
+        }
+    }
+
+    public void OnPerfectDodge()
+    {
+        if (!activeEffects.Contains(Tier4EffectType.Golem_T4Effect)) return;
+        const float stunRadius = 4.5f;
+        const float stunDuration = 1.5f;
+        HashSet<DummyHealth> stunned = new HashSet<DummyHealth>();
+        foreach (Collider col in Physics.OverlapSphere(transform.position, stunRadius))
+        {
+            DummyHealth dummy = col.GetComponent<DummyHealth>() ?? col.GetComponentInParent<DummyHealth>();
+            if (dummy != null && dummy.CurrentHealth > 0 && stunned.Add(dummy))
+            {
+                dummy.ApplyStun(stunDuration);
+            }
+        }
+        AreaDamageVFX.Spawn(transform.position, stunRadius);
+        Debug.Log($"[Tier4EffectManager] {Tier4EffectType.Golem_T4Effect}: {stunned.Count} inimigos atordoados na Esquiva Perfeita!");
     }
 
     /// <summary>
@@ -351,10 +391,15 @@ public class Tier4EffectManager : MonoBehaviour
         {
             for (int i = 0; i < ShardSwarmCrystalCount; i++)
             {
+                float side = (i == 0) ? -1f : 1f;
+                Vector3 spawnPos = transform.position + Vector3.up * 1.15f + transform.right * (side * 0.45f);
+                Vector3 initialArcDir = (transform.forward * 0.35f + transform.right * (side * 0.85f) + Vector3.up * 0.55f).normalized;
                 GuidedCrystalProjectile.Spawn(
-                    transform.position + Vector3.up * 0.8f + transform.right * (i == 0 ? -0.25f : 0.25f),
+                    spawnPos,
                     transform.root,
-                    ShardSwarmCrystalDamage);
+                    ShardSwarmCrystalDamage,
+                    initialArcDir,
+                    enemy != null ? enemy.transform : null);
             }
         }
     }
