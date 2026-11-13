@@ -66,6 +66,15 @@ public class TunerMarkVFX : MonoBehaviour
     [Tooltip("Exibir o anel circular de contagem regressiva.")]
     public bool showCountdownRing = true;
 
+    [Tooltip("Usar cores proprias para o anel em vez de copiar a cor do cristal.")]
+    public bool useCustomRingColor = true;
+
+    [Tooltip("Cor principal do anel circular.")]
+    public Color ringNormalColor = new Color(1.0f, 0.88f, 0.22f, 1.0f);
+
+    [Tooltip("Cor de alerta do anel quando o tempo esta acabando.")]
+    public Color ringCriticalColor = new Color(1.0f, 0.25f, 0.1f, 1.0f);
+
     [Tooltip("Raio fixo do anel circular (mantem tamanho constante, sem encolher a escala).")]
     [Range(0.3f, 1.5f)]
     public float ringRadius = 0.55f;
@@ -283,7 +292,6 @@ public class TunerMarkVFX : MonoBehaviour
     /// </summary>
     private void BuildProceduralRadialRing()
     {
-        // Limpa quaisquer LineRenderers residuais nos filhos para evitar circulos duplicados
         LineRenderer[] existingLrs = visualContainer.GetComponentsInChildren<LineRenderer>(true);
         for (int i = 0; i < existingLrs.Length; i++)
         {
@@ -315,7 +323,8 @@ public class TunerMarkVFX : MonoBehaviour
                          ?? Shader.Find("Particles/Standard Unlit");
 
         Material ringMat = new Material(ringShader);
-        ringMat.color = normalColor;
+        Color initialRingCol = useCustomRingColor ? ringNormalColor : normalColor;
+        ringMat.color = initialRingCol;
         activeRingRenderer.material = ringMat;
 
         UpdateRadialArc(1.0f);
@@ -323,7 +332,6 @@ public class TunerMarkVFX : MonoBehaviour
 
     /// <summary>
     /// Atualiza o arco circular diminuindo de 360° ate 0° no sentido horario (efeito de radial cooldown fill).
-    /// Conforme o tempo acaba, o anel vai sendo apagado radialmente a partir do topo no sentido horario.
     /// </summary>
     private void UpdateRadialArc(float ratio)
     {
@@ -338,8 +346,6 @@ public class TunerMarkVFX : MonoBehaviour
         int activePoints = Mathf.Max(3, Mathf.RoundToInt(ringSegments * ratio));
         activeRingRenderer.positionCount = activePoints;
 
-        // O apagador comeca no topo (12 horas = PI/2) e vai varrendo no sentido horario.
-        // O arco restante vai do ponto de corte atual ate fechar no topo (12 horas).
         float elapsed = 1f - ratio;
         float startAngle = (Mathf.PI * 0.5f) - (elapsed * Mathf.PI * 2f);
         float totalArcSpan = (Mathf.PI * 2f) * ratio;
@@ -412,12 +418,14 @@ public class TunerMarkVFX : MonoBehaviour
     private void UpdateVisualTimerFeedback()
     {
         float ratio = RemainingRatio;
-
-        // Atualiza o arco radial apagando no sentido horario com raio fixo
         UpdateRadialArc(ratio);
 
         bool isCritical = remainingDuration <= criticalThreshold;
-        Color currentColor;
+        Color currentRuneColor;
+        Color currentRingColor;
+
+        Color baseRingNormal = useCustomRingColor ? ringNormalColor : normalColor;
+        Color baseRingCritical = useCustomRingColor ? ringCriticalColor : criticalColor;
 
         if (isCritical)
         {
@@ -425,38 +433,42 @@ public class TunerMarkVFX : MonoBehaviour
             float blinkFrequency = Mathf.Lerp(4f, 14f, urgencyRatio);
             float blink = (Mathf.Sin(Time.time * blinkFrequency * Mathf.PI * 2f) + 1f) * 0.5f;
 
-            currentColor = Color.Lerp(normalColor, criticalColor, blink);
+            currentRuneColor = Color.Lerp(normalColor, criticalColor, blink);
+            currentRingColor = Color.Lerp(baseRingNormal, baseRingCritical, blink);
+
             if (blink > 0.8f)
             {
-                currentColor = Color.Lerp(currentColor, Color.white, 0.4f);
+                currentRuneColor = Color.Lerp(currentRuneColor, Color.white, 0.4f);
+                currentRingColor = Color.Lerp(currentRingColor, Color.white, 0.4f);
             }
         }
         else
         {
             float idlePulse = (Mathf.Sin(Time.time * 3f) + 1f) * 0.5f;
-            currentColor = Color.Lerp(normalColor, normalColor * 1.15f, idlePulse);
+            currentRuneColor = Color.Lerp(normalColor, normalColor * 1.15f, idlePulse);
+            currentRingColor = Color.Lerp(baseRingNormal, baseRingNormal * 1.15f, idlePulse);
         }
 
-        ApplyColorToVisuals(currentColor);
+        ApplyColorToVisuals(currentRuneColor, currentRingColor);
     }
 
-    private void ApplyColorToVisuals(Color color)
+    private void ApplyColorToVisuals(Color runeColor, Color ringColor)
     {
         if (runeSpriteRenderer != null)
         {
-            runeSpriteRenderer.color = color;
+            runeSpriteRenderer.color = runeColor;
         }
         if (runeMaterial != null)
         {
-            runeMaterial.color = color;
-            if (runeMaterial.HasProperty("_BaseColor")) runeMaterial.SetColor("_BaseColor", color);
-            if (runeMaterial.HasProperty("_EmissionColor")) runeMaterial.SetColor("_EmissionColor", color * 1.5f);
+            runeMaterial.color = runeColor;
+            if (runeMaterial.HasProperty("_BaseColor")) runeMaterial.SetColor("_BaseColor", runeColor);
+            if (runeMaterial.HasProperty("_EmissionColor")) runeMaterial.SetColor("_EmissionColor", runeColor * 1.5f);
         }
         if (activeRingRenderer != null)
         {
-            activeRingRenderer.startColor = color;
-            activeRingRenderer.endColor = color;
-            if (activeRingRenderer.material != null) activeRingRenderer.material.color = color;
+            activeRingRenderer.startColor = ringColor;
+            activeRingRenderer.endColor = ringColor;
+            if (activeRingRenderer.material != null) activeRingRenderer.material.color = ringColor;
         }
     }
 
@@ -545,6 +557,7 @@ public class TunerMarkVFX : MonoBehaviour
         float fadeDuration = 0.35f;
         float elapsed = 0f;
         Vector3 initialScale = visualContainer != null ? visualContainer.localScale : Vector3.one;
+        Color baseRingColor = useCustomRingColor ? ringNormalColor : normalColor;
 
         while (elapsed < fadeDuration)
         {
@@ -557,9 +570,13 @@ public class TunerMarkVFX : MonoBehaviour
                 visualContainer.localScale = Vector3.Lerp(initialScale, initialScale * 1.3f, t);
             }
 
-            Color fadedColor = normalColor;
-            fadedColor.a = alpha;
-            ApplyColorToVisuals(fadedColor);
+            Color fadedRuneColor = normalColor;
+            fadedRuneColor.a = alpha;
+
+            Color fadedRingColor = baseRingColor;
+            fadedRingColor.a = alpha;
+
+            ApplyColorToVisuals(fadedRuneColor, fadedRingColor);
 
             yield return null;
         }

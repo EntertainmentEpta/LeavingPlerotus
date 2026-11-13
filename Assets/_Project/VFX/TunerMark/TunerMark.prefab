@@ -1,0 +1,71 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &7506375208789833769
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 9068990662261170513}
+  - component: {fileID: 2832362980285207023}
+  m_Layer: 0
+  m_Name: TunerMark
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &9068990662261170513
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7506375208789833769}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2832362980285207023
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7506375208789833769}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c92b638fc66724f4e8e04672d76a2af6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TunerMarkVFX
+  targetTransform: {fileID: 0}
+  heightOffset: 0.5
+  manualPositionOffset: {x: 0, y: 0, z: 0}
+  followSpeed: 20
+  useBoundsTop: 1
+  totalDuration: 4
+  remainingDuration: 4
+  criticalThreshold: 1.5
+  autoExpireOnTimeout: 1
+  normalColor: {r: 1, g: 0.88, b: 0.22, a: 1}
+  criticalColor: {r: 1, g: 0.45, b: 0.1, a: 1}
+  runeScale: 0.75
+  bobFrequency: 3.5
+  bobAmplitude: 0.1
+  spinSpeed: 0
+  showCountdownRing: 1
+  useCustomRingColor: 1
+  ringNormalColor: {r: 1, g: 0.88, b: 0.22, a: 1}
+  ringCriticalColor: {r: 1, g: 0.25, b: 0.1, a: 1}
+  ringRadius: 0.5
+  ringWidth: 0.045
+  ringSegments: 64
+  shatterVFXPrefab: {fileID: 7093451154765562583, guid: 61e956f3e79e1cb498a40406ef33cd79, type: 3}
+  shatterAudioClip: {fileID: 0}
+  shatterVolume: 0.85
