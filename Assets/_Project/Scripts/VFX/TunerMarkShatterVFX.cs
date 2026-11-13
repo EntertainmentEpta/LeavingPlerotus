@@ -24,7 +24,7 @@ public class TunerMarkShatterVFX : MonoBehaviour
 
     [Tooltip("Raio da dispersão dos estilhaços e onda de choque.")]
     [Range(1.0f, 5.0f)]
-    public float explosionRadius = 2.5f;
+    public float explosionRadius = 2.0f;
 
     [Tooltip("Quantidade de estilhaços de cristal gerados.")]
     [Range(10, 60)]
@@ -51,20 +51,22 @@ public class TunerMarkShatterVFX : MonoBehaviour
     }
 
     /// <summary>
-    /// Constrói os sistemas de partículas em camadas proceduralmente.
+    /// Constrói os sistemas de partículas em camadas proceduralmente com texturas limpas.
     /// </summary>
     private void BuildProceduralShatter()
     {
-        Material particleMat = GetParticleMaterial();
+        Material shardMat = CreateParticleMaterial(GenerateDiamondShardTexture(64));
+        Material glowMat = CreateParticleMaterial(GenerateSoftCircleTexture(64));
+        Material ringMat = CreateParticleMaterial(GenerateRingTexture(128));
 
-        CreateCrystalShards(particleMat);
-        CreateCentralFlash(particleMat);
-        CreateEnergyShockwave(particleMat);
-        CreateGlitterEmbers(particleMat);
+        CreateCrystalShards(shardMat);
+        CreateCentralFlash(glowMat);
+        CreateEnergyShockwave(ringMat);
+        CreateGlitterEmbers(glowMat);
     }
 
     /// <summary>
-    /// Estilhaços de cristal com velocidade radial, rotação e gravidade.
+    /// Estilhaços de cristal em losango com velocidade radial, rotação e gravidade.
     /// </summary>
     private void CreateCrystalShards(Material sharedMaterial)
     {
@@ -77,9 +79,9 @@ public class TunerMarkShatterVFX : MonoBehaviour
         var main = ps.main;
         main.duration = 0.2f;
         main.loop = false;
-        main.startLifetime = new ParticleSystem.MinMaxCurve(0.6f, 1.2f);
-        main.startSpeed = new ParticleSystem.MinMaxCurve(5.0f, 11.0f);
-        main.startSize = new ParticleSystem.MinMaxCurve(0.12f, 0.35f);
+        main.startLifetime = new ParticleSystem.MinMaxCurve(0.5f, 1.0f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(4.5f, 9.5f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.08f, 0.22f);
         main.startColor = new ParticleSystem.MinMaxGradient(crystalCoreColor, crystalAmberColor);
         main.gravityModifier = 1.4f;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
@@ -94,19 +96,19 @@ public class TunerMarkShatterVFX : MonoBehaviour
 
         var shape = ps.shape;
         shape.shapeType = ParticleSystemShapeType.Sphere;
-        shape.radius = 0.35f;
+        shape.radius = 0.25f;
 
         var rotationOverLifetime = ps.rotationOverLifetime;
         rotationOverLifetime.enabled = true;
         rotationOverLifetime.x = new ParticleSystem.MinMaxCurve(-8f, 8f);
         rotationOverLifetime.y = new ParticleSystem.MinMaxCurve(-8f, 8f);
-        rotationOverLifetime.z = new ParticleSystem.MinMaxCurve(-10f, 10f);
+        rotationOverLifetime.z = new ParticleSystem.MinMaxCurve(-12f, 12f);
 
         var sizeOverLifetime = ps.sizeOverLifetime;
         sizeOverLifetime.enabled = true;
         AnimationCurve sizeCurve = new AnimationCurve(
             new Keyframe(0f, 1f),
-            new Keyframe(0.6f, 0.9f),
+            new Keyframe(0.6f, 0.85f),
             new Keyframe(1f, 0f)
         );
         sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, sizeCurve);
@@ -121,7 +123,7 @@ public class TunerMarkShatterVFX : MonoBehaviour
             },
             new GradientAlphaKey[] {
                 new GradientAlphaKey(1f, 0f),
-                new GradientAlphaKey(0.85f, 0.5f),
+                new GradientAlphaKey(0.9f, 0.5f),
                 new GradientAlphaKey(0f, 1f)
             }
         );
@@ -135,7 +137,7 @@ public class TunerMarkShatterVFX : MonoBehaviour
     }
 
     /// <summary>
-    /// Clarão rápido e brilhante no ponto de impacto.
+    /// Clarão circular suave e brilhante no ponto de impacto.
     /// </summary>
     private void CreateCentralFlash(Material sharedMaterial)
     {
@@ -148,9 +150,9 @@ public class TunerMarkShatterVFX : MonoBehaviour
         var main = ps.main;
         main.duration = 0.05f;
         main.loop = false;
-        main.startLifetime = 0.18f;
+        main.startLifetime = 0.16f;
         main.startSpeed = 0f;
-        main.startSize = 0.8f;
+        main.startSize = 0.6f;
         main.startColor = flashColor;
         main.maxParticles = 1;
 
@@ -163,8 +165,8 @@ public class TunerMarkShatterVFX : MonoBehaviour
         var sizeOverLifetime = ps.sizeOverLifetime;
         sizeOverLifetime.enabled = true;
         AnimationCurve sizeCurve = new AnimationCurve(
-            new Keyframe(0f, 0.5f),
-            new Keyframe(1f, explosionRadius * 1.5f)
+            new Keyframe(0f, 0.4f),
+            new Keyframe(1f, explosionRadius * 1.1f)
         );
         sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, sizeCurve);
 
@@ -184,7 +186,7 @@ public class TunerMarkShatterVFX : MonoBehaviour
     }
 
     /// <summary>
-    /// Onda de choque de energia cristalina em expansão.
+    /// Onda de choque em formato de anel fino expandindo.
     /// </summary>
     private void CreateEnergyShockwave(Material sharedMaterial)
     {
@@ -197,10 +199,10 @@ public class TunerMarkShatterVFX : MonoBehaviour
         var main = ps.main;
         main.duration = 0.1f;
         main.loop = false;
-        main.startLifetime = 0.35f;
+        main.startLifetime = 0.3f;
         main.startSpeed = 0f;
         main.startSize = 0.3f;
-        main.startColor = new Color(crystalAmberColor.r, crystalAmberColor.g, crystalAmberColor.b, 0.7f);
+        main.startColor = new Color(crystalAmberColor.r, crystalAmberColor.g, crystalAmberColor.b, 0.85f);
         main.maxParticles = 1;
 
         var emission = ps.emission;
@@ -213,8 +215,8 @@ public class TunerMarkShatterVFX : MonoBehaviour
         sizeOverLifetime.enabled = true;
         AnimationCurve sizeCurve = new AnimationCurve(
             new Keyframe(0f, 0.3f),
-            new Keyframe(0.7f, explosionRadius * 2.0f),
-            new Keyframe(1f, explosionRadius * 2.4f)
+            new Keyframe(0.7f, explosionRadius * 1.5f),
+            new Keyframe(1f, explosionRadius * 1.8f)
         );
         sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, sizeCurve);
 
@@ -223,7 +225,7 @@ public class TunerMarkShatterVFX : MonoBehaviour
         Gradient grad = new Gradient();
         grad.SetKeys(
             new GradientColorKey[] { new GradientColorKey(crystalCoreColor, 0f), new GradientColorKey(crystalAmberColor, 1f) },
-            new GradientAlphaKey[] { new GradientAlphaKey(0.8f, 0f), new GradientAlphaKey(0f, 1f) }
+            new GradientAlphaKey[] { new GradientAlphaKey(0.85f, 0f), new GradientAlphaKey(0f, 1f) }
         );
         colorOverLifetime.color = new ParticleSystem.MinMaxGradient(grad);
 
@@ -234,7 +236,7 @@ public class TunerMarkShatterVFX : MonoBehaviour
     }
 
     /// <summary>
-    /// Fagulhas que sobem suavemente simulando a dissipação da energia da marca.
+    /// Fagulhas circulares que sobem suavemente simulando a dissipação da energia.
     /// </summary>
     private void CreateGlitterEmbers(Material sharedMaterial)
     {
@@ -247,9 +249,9 @@ public class TunerMarkShatterVFX : MonoBehaviour
         var main = ps.main;
         main.duration = 0.25f;
         main.loop = false;
-        main.startLifetime = new ParticleSystem.MinMaxCurve(0.7f, 1.4f);
-        main.startSpeed = new ParticleSystem.MinMaxCurve(0.8f, 2.8f);
-        main.startSize = new ParticleSystem.MinMaxCurve(0.04f, 0.1f);
+        main.startLifetime = new ParticleSystem.MinMaxCurve(0.6f, 1.2f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(0.8f, 2.5f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.05f, 0.12f);
         main.startColor = crystalCoreColor;
         main.gravityModifier = -0.3f;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
@@ -263,7 +265,7 @@ public class TunerMarkShatterVFX : MonoBehaviour
 
         var shape = ps.shape;
         shape.shapeType = ParticleSystemShapeType.Sphere;
-        shape.radius = 0.5f;
+        shape.radius = 0.4f;
 
         var colorOverLifetime = ps.colorOverLifetime;
         colorOverLifetime.enabled = true;
@@ -288,16 +290,103 @@ public class TunerMarkShatterVFX : MonoBehaviour
         }
     }
 
-    private Material GetParticleMaterial()
+    /// <summary>
+    /// Cria material compatível com partículas usando shader Sprites/Default ou URP Particles com alfa transparente.
+    /// </summary>
+    private Material CreateParticleMaterial(Texture2D texture)
     {
-        Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
-                     ?? Shader.Find("Particles/Standard Unlit")
-                     ?? Shader.Find("Legacy Shaders/Particles/Additive")
-                     ?? Shader.Find("Sprites/Default");
+        Shader shader = Shader.Find("Sprites/Default")
+                     ?? Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                     ?? Shader.Find("Particles/Standard Unlit");
 
         Material mat = new Material(shader);
-        if (mat.HasProperty("_Mode")) mat.SetFloat("_Mode", 1);
+        mat.mainTexture = texture;
+        if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", texture);
+        if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1f); // Transparent
+        if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 1f);     // Additive
         mat.color = Color.white;
         return mat;
+    }
+
+    /// <summary>
+    /// Gera textura em formato de estilhaço de cristal alongado (losango afiado).
+    /// </summary>
+    private Texture2D GenerateDiamondShardTexture(int size)
+    {
+        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        float half = size * 0.5f;
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                // Estreita no eixo X para parecer uma lasca afiada de cristal
+                float nx = Mathf.Abs(x - half) / (half * 0.55f);
+                float ny = Mathf.Abs(y - half) / (half * 0.95f);
+                float dist = nx + ny;
+
+                float alpha = Mathf.Clamp01((1f - dist) * 6f);
+                float brightness = Mathf.Lerp(0.75f, 1f, 1f - dist);
+                tex.SetPixel(x, y, new Color(brightness, brightness, brightness, alpha));
+            }
+        }
+
+        tex.Apply();
+        return tex;
+    }
+
+    /// <summary>
+    /// Gera textura circular suave para brilho e fagulhas.
+    /// </summary>
+    private Texture2D GenerateSoftCircleTexture(int size)
+    {
+        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        float half = size * 0.5f;
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dx = (x - half) / half;
+                float dy = (y - half) / half;
+                float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                float alpha = Mathf.Pow(Mathf.Clamp01(1f - dist), 2f);
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+            }
+        }
+
+        tex.Apply();
+        return tex;
+    }
+
+    /// <summary>
+    /// Gera textura de anel fino para a onda de choque.
+    /// </summary>
+    private Texture2D GenerateRingTexture(int size)
+    {
+        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        float half = size * 0.5f;
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dx = (x - half) / half;
+                float dy = (y - half) / half;
+                float dist = Mathf.Sqrt(dx * dx + dy * dy);
+
+                // Anel centrado em 0.78 do raio com espessura de 0.12
+                float ringDelta = Mathf.Abs(dist - 0.78f);
+                float alpha = Mathf.Clamp01(1f - (ringDelta / 0.12f));
+                alpha = alpha * alpha;
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+            }
+        }
+
+        tex.Apply();
+        return tex;
     }
 }
