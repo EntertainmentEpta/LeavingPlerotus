@@ -335,6 +335,14 @@ public class SaveManager : MonoBehaviour
         foreach (string id in toDiscard)
             inventory.RemoveItem(id, inventory.GetItemCount(id));
 
+        // Reseta essência volátil acumulada durante a run
+        PlayerEssence essence = player.GetComponent<PlayerEssence>() ?? player.GetComponentInChildren<PlayerEssence>();
+        if (essence != null)
+        {
+            essence.currentEssence = 0;
+            essence.onEssenceChanged?.Invoke(0);
+        }
+
         SavePersistentData(); // Persiste a Bolsa Sintética imediatamente
         Debug.Log($"[SAVE] Morte: {toDiscard.Count} item(s) de run descartado(s). Recursos de base salvos.");
     }

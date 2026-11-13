@@ -297,11 +297,11 @@ public class SpawnItemsSetupTool : Editor
 
     private static int TierToInfusionCost(ItemTier tier) => tier switch
     {
-        ItemTier.Common    => 60,
-        ItemTier.Uncommon  => 180,
-        ItemTier.Rare      => 300,
-        ItemTier.Legendary => 420,
-        _                  => 60
+        ItemTier.Common    => 50,
+        ItemTier.Uncommon  => 100,
+        ItemTier.Rare      => 180,
+        ItemTier.Legendary => 280,
+        _                  => 50
     };
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -84,7 +84,7 @@ MonoBehaviour:
   slowDuration: 2
   knockbackForce: 70
   lifeTime: 3
-  breakEffectPrefab: {fileID: 7318078104736055304, guid: 903a5110c1fe43f409c259ad7e9dd16b, type: 3}
+  breakEffectPrefab: {fileID: 952961124639765284, guid: 1095a5c9f65bfbe4383f63d5d1886c65, type: 3}
 --- !u!65 &8050525203357509377
 BoxCollider:
   m_ObjectHideFlags: 0

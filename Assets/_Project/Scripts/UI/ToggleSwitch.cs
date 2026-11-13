@@ -69,10 +69,29 @@ namespace Christina.UI
             _toggleSwitchGroupManager = manager;
         }
 
-
         protected virtual void Awake()
         {
             SetupSliderComponent();
+        }
+
+        protected virtual void OnEnable()
+        {
+            if (_slider == null) SetupSliderComponent();
+            if (_slider != null)
+            {
+                float targetValue = CurrentValue ? 1 : 0;
+                _slider.value = targetValue;
+                sliderValue = targetValue;
+            }
+        }
+
+        protected virtual void OnDisable()
+        {
+            if (_animateSliderCoroutine != null)
+            {
+                StopCoroutine(_animateSliderCoroutine);
+                _animateSliderCoroutine = null;
+            }
         }
 
         public void OnPointerClick(PointerEventData eventData)
@@ -80,7 +99,6 @@ namespace Christina.UI
             Toggle();
         }
 
-        
         private void Toggle()
         {
             if (_toggleSwitchGroupManager != null)
@@ -94,9 +112,11 @@ namespace Christina.UI
             SetStateAndStartAnimation(valueToSetTo);
         }
         
-        
         private void SetStateAndStartAnimation(bool state)
         {
+            if (_slider == null)
+                SetupSliderComponent();
+
             _previousValue = CurrentValue;
             CurrentValue = state;
 
@@ -109,14 +129,33 @@ namespace Christina.UI
             }
 
             if (_animateSliderCoroutine != null)
+            {
                 StopCoroutine(_animateSliderCoroutine);
+                _animateSliderCoroutine = null;
+            }
 
-            _animateSliderCoroutine = StartCoroutine(AnimateSlider());
+            // Não tenta iniciar corrotina se o GameObject estiver inativo (ex: em aba fechada de opções)
+            if (gameObject.activeInHierarchy)
+            {
+                _animateSliderCoroutine = StartCoroutine(AnimateSlider());
+            }
+            else
+            {
+                float endVal = CurrentValue ? 1 : 0;
+                if (_slider != null) _slider.value = endVal;
+                sliderValue = endVal;
+                transitionEffect?.Invoke();
+            }
         }
-
 
         private IEnumerator AnimateSlider()
         {
+            if (_slider == null)
+                SetupSliderComponent();
+
+            if (_slider == null)
+                yield break;
+
             float startValue = _slider.value;
             float endValue = CurrentValue ? 1 : 0;
 
@@ -137,7 +176,8 @@ namespace Christina.UI
                 }
             }
 
-            _slider.value = endValue;
+            _slider.value = sliderValue = endValue;
+            _animateSliderCoroutine = null;
         }
     }
 }

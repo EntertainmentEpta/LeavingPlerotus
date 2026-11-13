@@ -9,6 +9,7 @@ TagManager:
   - SpawnPoint
   - PilarBoss
   - Boss
+  - Prop
   layers:
   - Default
   - TransparentFX

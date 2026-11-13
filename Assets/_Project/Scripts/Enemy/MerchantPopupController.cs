@@ -134,7 +134,7 @@ public class MerchantPopupController : MonoBehaviour
     void Update()
     {
         // Animação viva de distorção mística da borda (predominantemente no eixo X)
-        if (popupUI != null && popupUI.activeSelf && faceOutline != null && showFaceOutline && enableOutlineGlitch)
+        if (popupUI != null && popupUI.activeSelf && faceOutline != null && faceOutline.enabled && showFaceOutline && enableOutlineGlitch)
         {
             float t = Time.unscaledTime * outlinePulseSpeed;
 
@@ -241,21 +241,25 @@ public class MerchantPopupController : MonoBehaviour
         merchantFaceImage.preserveAspect = true;
         merchantFaceImage.raycastTarget = false;
 
+        faceOutline = faceGo.AddComponent<Outline>();
+        faceOutline.effectColor = faceOutlineColor;
+        faceOutline.effectDistance = faceOutlineDistance;
+
         Sprite portrait = ResolveMerchantPortrait();
         if (portrait != null)
         {
             merchantFaceImage.sprite = portrait;
             merchantFaceImage.color = Color.white;
+            merchantFaceImage.enabled = true;
+            faceOutline.enabled = showFaceOutline;
         }
         else
         {
-            merchantFaceImage.color = new Color(0.7f, 0.15f, 0.20f, 0.95f);
+            merchantFaceImage.sprite = null;
+            merchantFaceImage.color = Color.clear;
+            merchantFaceImage.enabled = false;
+            faceOutline.enabled = false;
         }
-
-        faceOutline = faceGo.AddComponent<Outline>();
-        faceOutline.effectColor = faceOutlineColor;
-        faceOutline.effectDistance = faceOutlineDistance;
-        faceOutline.enabled = showFaceOutline;
 
         // 4. Badge de Decodificação (Posicionado à esquerda do rosto, acima do texto)
         GameObject titleGo = new GameObject("DecryptionBadge");
@@ -365,19 +369,20 @@ public class MerchantPopupController : MonoBehaviour
         // Garante o Sprite do rosto atualizado
         if (merchantFaceImage != null)
         {
-            if (merchantPortraitSprite != null)
+            Sprite portrait = (merchantPortraitSprite != null) ? merchantPortraitSprite : ResolveMerchantPortrait();
+            if (portrait != null)
             {
-                merchantFaceImage.sprite = merchantPortraitSprite;
+                merchantFaceImage.sprite = portrait;
                 merchantFaceImage.color = Color.white;
+                merchantFaceImage.enabled = true;
+                if (faceOutline != null) faceOutline.enabled = showFaceOutline;
             }
-            else if (merchantFaceImage.sprite == null)
+            else
             {
-                Sprite resolved = ResolveMerchantPortrait();
-                if (resolved != null)
-                {
-                    merchantFaceImage.sprite = resolved;
-                    merchantFaceImage.color = Color.white;
-                }
+                merchantFaceImage.sprite = null;
+                merchantFaceImage.color = Color.clear;
+                merchantFaceImage.enabled = false;
+                if (faceOutline != null) faceOutline.enabled = false;
             }
         }
 
@@ -655,9 +660,24 @@ public class MerchantPopupController : MonoBehaviour
     {
         if (merchantPortraitSprite != null) return merchantPortraitSprite;
 
+        // 1. Tenta carregar do Resources (Sprite individual ou Sprite Sheet)
         Sprite loaded = Resources.Load<Sprite>("merchant face");
+        if (loaded == null) loaded = Resources.Load<Sprite>("merchant face_0");
         if (loaded == null) loaded = Resources.Load<Sprite>("MerchantFace");
         if (loaded != null) return loaded;
+
+        Sprite[] allSprites = Resources.LoadAll<Sprite>("merchant face");
+        if (allSprites != null && allSprites.Length > 0 && allSprites[0] != null) return allSprites[0];
+
+        allSprites = Resources.LoadAll<Sprite>("MerchantFace");
+        if (allSprites != null && allSprites.Length > 0 && allSprites[0] != null) return allSprites[0];
+
+        Texture2D rTex = Resources.Load<Texture2D>("merchant face");
+        if (rTex == null) rTex = Resources.Load<Texture2D>("MerchantFace");
+        if (rTex != null)
+        {
+            return Sprite.Create(rTex, new Rect(0, 0, rTex.width, rTex.height), new Vector2(0.5f, 0.5f));
+        }
 
 #if UNITY_EDITOR
         Sprite edSprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/_Project/NPC/Merchant/merchant face.png");
@@ -671,18 +691,51 @@ public class MerchantPopupController : MonoBehaviour
                 if (asset is Sprite s) return s;
             }
         }
+
+        edSprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/_Project/Resources/merchant face.png");
+        if (edSprite != null) return edSprite;
+
+        edSprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Resources/merchant face.png");
+        if (edSprite != null) return edSprite;
 #endif
 
+        // 2. Carrega de StreamingAssets (suporte total em standalone builds)
         try
         {
-            string path = System.IO.Path.Combine(Application.dataPath, "_Project/NPC/Merchant/merchant face.png");
-            if (System.IO.File.Exists(path))
+            string saPath = System.IO.Path.Combine(Application.streamingAssetsPath, "merchant face.png");
+            if (System.IO.File.Exists(saPath))
             {
-                byte[] rawData = System.IO.File.ReadAllBytes(path);
+                byte[] rawData = System.IO.File.ReadAllBytes(saPath);
                 Texture2D tex = new Texture2D(2, 2);
                 if (tex.LoadImage(rawData))
                 {
                     return Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
+                }
+            }
+        }
+        catch { }
+
+        // 3. Fallback procurando nos diretórios de assets/data
+        try
+        {
+            string[] candidatePaths = new string[]
+            {
+                System.IO.Path.Combine(Application.dataPath, "_Project/NPC/Merchant/merchant face.png"),
+                System.IO.Path.Combine(Application.dataPath, "_Project/Resources/merchant face.png"),
+                System.IO.Path.Combine(Application.dataPath, "Resources/merchant face.png"),
+                System.IO.Path.Combine(Application.dataPath, "StreamingAssets/merchant face.png")
+            };
+
+            foreach (var path in candidatePaths)
+            {
+                if (System.IO.File.Exists(path))
+                {
+                    byte[] rawData = System.IO.File.ReadAllBytes(path);
+                    Texture2D tex = new Texture2D(2, 2);
+                    if (tex.LoadImage(rawData))
+                    {
+                        return Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
+                    }
                 }
             }
         }

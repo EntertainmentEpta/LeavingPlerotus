@@ -128,13 +128,13 @@ public class EnemyDrops : MonoBehaviour
 
         if (essencePrefab != null)
         {
-            // Aplica o multiplicador de sala (d é o essenceAmount base)
+            // Aplica o multiplicador de sala e bônus de +10% de essência em todos os inimigos
             float roomMultiplier = RunManager.instance != null
                 ? RunManager.instance.GetEssenceMultiplier()
                 : 1f;
 
-            int scaledBase  = Mathf.RoundToInt(essenceAmount * roomMultiplier);
-            int finalEssence = scaledBase + Random.Range(-essenceVariation, essenceVariation + 1);
+            int scaledBase  = Mathf.RoundToInt(essenceAmount * 1.10f * roomMultiplier);
+            int finalEssence = Mathf.RoundToInt((scaledBase + Random.Range(-essenceVariation, essenceVariation + 1)) * 1.10f);
             finalEssence = Mathf.Max(1, finalEssence);
 
             if (doubleEssence || hasGreed) finalEssence *= 2; // Dobra a essência com Ganância!

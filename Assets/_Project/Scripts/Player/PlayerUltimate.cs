@@ -301,9 +301,10 @@ public class PlayerUltimate : MonoBehaviour
             Debug.LogWarning($"[PlayerUltimate] Salva-vidas: jogador reposicionado para {fallbackPos}.");
         }
 
-        // ORDEM CRITICA: updatePosition=true SOMENTE apos o Warp completo.
-        navAgent.updatePosition = true;
-        navAgent.updateRotation = true;
+        // SEGURANÃ‡A NAVMESH: MantÃ©m updatePosition=false para que o Rigidbody do player
+        // nunca seja clampeado ou barrado em soleiras de portas ou emendas de NavMesh.
+        navAgent.updatePosition = false;
+        navAgent.updateRotation = false;
     }
 
     // ========================================================================

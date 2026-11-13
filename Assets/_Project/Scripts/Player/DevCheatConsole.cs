@@ -40,6 +40,7 @@ public class DevCheatConsole : MonoBehaviour
 
     void Update()
     {
+#if UNITY_EDITOR
         bool devCombo = (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) &&
                         (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift));
 
@@ -52,7 +53,10 @@ public class DevCheatConsole : MonoBehaviour
         {
             UnlockAllLoreAndScriptures();
         }
+#endif
     }
+
+
 
     // ─── CHEAT COMMANDS (API PÚBLICA) ────────────────────────────────────────
 

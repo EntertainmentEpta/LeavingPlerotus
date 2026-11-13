@@ -21,7 +21,7 @@ MonoBehaviour:
   - {fileID: 3359006950562635497, guid: 5e5b6987e167aa04eb10ca7764b6880b, type: 3}
   tanquePrefabs:
   - {fileID: 748345383327806496, guid: 1a7976a1e55d949409c9a7bb2c781cac, type: 3}
-  - {fileID: 4138484601771036003, guid: 3756182d398618847b5cad2c2be8caff, type: 3}
+  - {fileID: 4138484601771036003, guid: ab85fa72aae18184ea4dcf33ea87c8ff, type: 3}
   - {fileID: 4042323132166325984, guid: 20c57f383987e644681aab5eeb9b2c34, type: 3}
   - {fileID: 326464074420430212, guid: 75587e19386eb024c8b895034e0d087d, type: 3}
   elitePrefabs:

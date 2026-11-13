@@ -130,11 +130,13 @@ public class BossStompConeHitbox : MonoBehaviour
         if (showDebugLogs)
             Debug.Log($"🦶 [STOMP VFX HITBOX] Iniciando onda de cristais em cone: Alcance: {maxDistance}m, Ângulo: {coneAngle}°, Duração: {totalRoutineDuration:F1}s");
 
+        // Origem e Direção congelados no World Space no momento exato do impacto (imune a rotação/movimento do Boss)
+        origin = GetEffectiveOrigin();
+        forwardDir = GetEffectiveForwardDirection();
+
         while (timer < totalRoutineDuration)
         {
             timer += Time.deltaTime;
-            origin = GetEffectiveOrigin();
-            forwardDir = GetEffectiveForwardDirection();
 
             bool isExpandingWave = (timer <= waveDuration);
             float currentProgress = isExpandingWave ? Mathf.Clamp01(timer / waveDuration) : 1.0f;
@@ -165,7 +167,8 @@ public class BossStompConeHitbox : MonoBehaviour
                 // --- 1. FASE DE IMPACTO DA ONDA EXPANSIVA ---
                 if (isExpandingWave && !burstHitTargets.Contains(targetObj))
                 {
-                    if (dist >= Mathf.Max(0f, currentWaveRadius - waveFrontThickness) && dist <= currentWaveRadius + 1.2f)
+                    // Qualquer alvo dentro da área varrida da frente de onda recebe o impacto direto
+                    if (dist <= currentWaveRadius + 1.0f)
                     {
                         burstHitTargets.Add(targetObj);
                         ApplyBurstDamageAndKnockback(col, origin);

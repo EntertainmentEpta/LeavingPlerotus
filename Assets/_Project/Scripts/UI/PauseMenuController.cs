@@ -177,35 +177,49 @@ public class PauseMenuController : MonoBehaviour
     // ==========================================
     public void OnBGMVolumeChanged(float value)
     {
-        if (GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.mainMixer != null)
+        value = Mathf.Clamp01(value);
+        if (GlobalAudioManager.Instance != null)
         {
-            float volume = (value <= 0.001f) ? -80f : Mathf.Log10(value) * 20f;
-            GlobalAudioManager.Instance.mainMixer.SetFloat("BGMVolume", volume);
-            PlayerPrefs.SetFloat("SavedBGM", value);
-            PlayerPrefs.Save();
+            GlobalAudioManager.Instance.SetBGMVolume(value);
         }
+        if (MusicManager.instance != null)
+        {
+            MusicManager.instance.SetVolume(value);
+        }
+        if (MenuAudioFX.Instance != null)
+        {
+            MenuAudioFX.Instance.SetMusicVolume(value);
+        }
+        PlayerPrefs.SetFloat("SavedBGM", value);
+        PlayerPrefs.Save();
     }
 
     public void OnSFXVolumeChanged(float value)
     {
-        if (GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.mainMixer != null)
+        value = Mathf.Clamp01(value);
+        if (GlobalAudioManager.Instance != null)
         {
-            float volume = (value <= 0.001f) ? -80f : Mathf.Log10(value) * 20f;
-            GlobalAudioManager.Instance.mainMixer.SetFloat("SFXVolume", volume);
-            PlayerPrefs.SetFloat("SavedSFX", value);
-            PlayerPrefs.Save();
+            GlobalAudioManager.Instance.SetSFXVolume(value);
+            GlobalAudioManager.Instance.PlayPreviewSFX();
         }
+        if (MenuAudioFX.Instance != null)
+        {
+            MenuAudioFX.Instance.SetSFXVolume(value);
+        }
+        PlayerPrefs.SetFloat("SavedSFX", value);
+        PlayerPrefs.Save();
     }
 
     public void OnMasterVolumeChanged(float value)
     {
-        if (GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.mainMixer != null)
+        value = Mathf.Clamp01(value);
+        AudioListener.volume = value;
+        if (GlobalAudioManager.Instance != null)
         {
-            float volume = (value <= 0.001f) ? -80f : Mathf.Log10(value) * 20f;
-            GlobalAudioManager.Instance.mainMixer.SetFloat("MasterVolume", volume);
-            PlayerPrefs.SetFloat("SavedMaster", value);
-            PlayerPrefs.Save();
+            GlobalAudioManager.Instance.SetMasterVolume(value);
         }
+        PlayerPrefs.SetFloat("SavedMaster", value);
+        PlayerPrefs.Save();
     }
 
     // ==========================================

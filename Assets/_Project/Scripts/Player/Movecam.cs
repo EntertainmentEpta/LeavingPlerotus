@@ -42,6 +42,10 @@ public class MoveCam : MonoBehaviour
             
             // Lerp para movimento suave
             transform.position = Vector3.Lerp(transform.position, desiredPosition, followSpeed * Time.deltaTime);
+
+            // Atualiza a posição do Player globalmente para os shaders de Dither Fade das paredes
+            Vector3 pPos = playerTransform.position;
+            Shader.SetGlobalVector("_PlayerPos", new Vector4(pPos.x, pPos.y + 1.0f, pPos.z, 1.0f));
         }
     }
 

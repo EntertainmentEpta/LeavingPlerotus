@@ -6,14 +6,20 @@ using System.Collections.Generic;
 public class QuestManager : MonoBehaviour
 {
     private static QuestManager _instance;
+    private static bool isApplicationQuitting = false;
+
+    public static bool HasInstance => _instance != null;
     public static QuestManager Instance
     {
         get
         {
+            if (isApplicationQuitting || !Application.isPlaying)
+                return _instance;
+
             if (_instance == null)
             {
                 _instance = FindFirstObjectByType<QuestManager>();
-                if (_instance == null)
+                if (_instance == null && !isApplicationQuitting && Application.isPlaying)
                 {
                     GameObject go = new GameObject("QuestManager");
                     _instance = go.AddComponent<QuestManager>();
@@ -75,7 +81,26 @@ public class QuestManager : MonoBehaviour
         BossEvents.OnBossDefeated -= HandleBossDefeated;
     }
 
-    private void OnDestroy() { if (_instance == this) _instance = null; }
+    private void OnDestroy()
+    {
+        if (_instance == this)
+        {
+            _instance = null;
+            isApplicationQuitting = true;
+        }
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStaticState()
+    {
+        isApplicationQuitting = false;
+        _instance = null;
+    }
+
+    private void OnApplicationQuit()
+    {
+        isApplicationQuitting = true;
+    }
 
     private void HandleSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
     {

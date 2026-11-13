@@ -71,7 +71,10 @@ public class ItemPickup : MonoBehaviour
         { "Lotus", "lithos" },
         { "Lithos", "lithos" },
         { "Cristal", "po_de_cristal" },
-        { "Peixe", "peixe_lagoa" }
+        { "Peixe", "peixe_lagoa" },
+        { "Resto", "resta_geobionte" },
+        { "Resta", "resta_geobionte" },
+        { "Geobionte", "resta_geobionte" }
     };
 
     public void EnsureItemData()
@@ -131,8 +134,8 @@ public class ItemPickup : MonoBehaviour
                      (gameObject.name.ToLower().Contains("fly") && !gameObject.name.ToLower().Contains("peixe"));
         if (isFly) return;
 
-        Vector3 rayStart = transform.position + Vector3.up * 1.5f;
-        RaycastHit[] hits = Physics.RaycastAll(rayStart, Vector3.down, 6.0f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
+        Vector3 rayStart = transform.position + Vector3.up * 4.0f;
+        RaycastHit[] hits = Physics.RaycastAll(rayStart, Vector3.down, 12.0f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
         float bestDist = float.MaxValue;
         Vector3 bestPoint = Vector3.zero;
         bool found = false;
@@ -144,10 +147,10 @@ public class ItemPickup : MonoBehaviour
             if (h.collider.CompareTag("Player") || h.collider.CompareTag("Enemy")) continue;
 
             string n = h.collider.gameObject.name.ToLower();
-            if (n.Contains("crystal") || n.Contains("prop") || h.collider.CompareTag("Prop")) continue;
+            if (n.Contains("crystal") || n.Contains("prop") || IsPropCollider(h.collider)) continue;
             if (h.collider.isTrigger && !n.Contains("water")) continue;
 
-            float d = Mathf.Abs(h.point.y - transform.position.y);
+            float d = h.distance;
             if (d < bestDist)
             {
                 bestDist = d;
@@ -158,7 +161,35 @@ public class ItemPickup : MonoBehaviour
 
         if (found)
         {
-            transform.position = new Vector3(transform.position.x, bestPoint.y + 0.05f, transform.position.z);
+            // Calcula o offset da base da malha 3D para evitar que o modelo fique enterrado no chão
+            Bounds combinedBounds = new Bounds(transform.position, Vector3.zero);
+            bool hasBounds = false;
+            foreach (var r in GetComponentsInChildren<Renderer>(true))
+            {
+                if (r == null || !r.enabled || r is ParticleSystemRenderer || 
+                    r.gameObject.name.Contains("Canvas") || r.gameObject.name.Contains("Prompt") || 
+                    r.gameObject.name.Contains("glow") || r.gameObject.name.Contains("Fly"))
+                    continue;
+
+                if (!hasBounds)
+                {
+                    combinedBounds = r.bounds;
+                    hasBounds = true;
+                }
+                else
+                {
+                    combinedBounds.Encapsulate(r.bounds);
+                }
+            }
+
+            float bottomOffset = 0.15f;
+            if (hasBounds)
+            {
+                bottomOffset = transform.position.y - combinedBounds.min.y;
+                if (bottomOffset < 0.05f) bottomOffset = 0.05f;
+            }
+
+            transform.position = new Vector3(transform.position.x, bestPoint.y + bottomOffset + 0.08f, transform.position.z);
         }
     }
 
@@ -420,37 +451,13 @@ public class ItemPickup : MonoBehaviour
 
             if (isFish)
             {
+                // Remove qualquer LakeFishVisual adicional e exibe apenas o modelo natural do item
                 Transform fishTransform = transform.Find("LakeFishVisual");
-                if (fishTransform == null)
+                if (fishTransform != null)
                 {
-                    GameObject fishGo = new GameObject("LakeFishVisual");
-                    fishGo.transform.SetParent(transform, false);
-                    fishGo.transform.localPosition = Vector3.zero;
-
-                    ParticleSystem ps = fishGo.AddComponent<ParticleSystem>();
-                    var main = ps.main;
-                    main.startColor = new Color(0.2f, 0.9f, 1.0f, 0.8f);
-                    main.startSize = 0.45f;
-                    main.startSpeed = 0.6f;
-                    main.maxParticles = 35;
-
-                    var emission = ps.emission;
-                    emission.rateOverTime = 10;
-
-                    var shape = ps.shape;
-                    shape.shapeType = ParticleSystemShapeType.Circle;
-                    shape.radius = 0.6f;
-
-                    Light light = fishGo.AddComponent<Light>();
-                    light.type = LightType.Point;
-                    light.color = new Color(0.1f, 0.85f, 1.0f);
-                    light.range = 2.5f;
-                    light.intensity = 1.5f;
-
-                    fishTransform = fishGo.transform;
+                    Destroy(fishTransform.gameObject);
                 }
-
-                if (fishTransform != null) fishTransform.gameObject.SetActive(true);
+                EnsureMeshRenderersActiveAndLit();
             }
             else if (isFly)
             {
@@ -608,7 +615,7 @@ public class ItemPickup : MonoBehaviour
         canvas.sortingOrder = 150;
 
         RectTransform rect = promptRoot.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(360f, 65f);
+        rect.sizeDelta = new Vector2(720f, 130f);
         rect.localScale = Vector3.one * 0.01f;
 
         autoPromptCanvasGroup = promptRoot.AddComponent<CanvasGroup>();
@@ -633,14 +640,14 @@ public class ItemPickup : MonoBehaviour
         textRect.anchorMax = Vector2.one;
         textRect.sizeDelta = Vector2.zero;
         autoPromptTMP = textObj.AddComponent<TextMeshProUGUI>();
-        autoPromptTMP.fontSize = 20f;
+        autoPromptTMP.fontSize = 40f;
         autoPromptTMP.fontStyle = FontStyles.Bold;
         autoPromptTMP.alignment = TextAlignmentOptions.Center;
         autoPromptTMP.color = Color.white;
         autoPromptTMP.raycastTarget = false;
         autoPromptTMP.enableAutoSizing = true;
-        autoPromptTMP.fontSizeMin = 14f;
-        autoPromptTMP.fontSizeMax = 22f;
+        autoPromptTMP.fontSizeMin = 28f;
+        autoPromptTMP.fontSizeMax = 44f;
 
         TMP_FontAsset font = Resources.Load<TMP_FontAsset>("Fonts & Materials/Oswald Bold SDF");
         if (font != null) autoPromptTMP.font = font;
@@ -876,5 +883,11 @@ public class ItemPickup : MonoBehaviour
 
         Debug.Log("[ITEM] Coletado com sucesso: " + interactable.NomeDisplay);
         Destroy(gameObject);
+    }
+
+    private static bool IsPropCollider(Collider col)
+    {
+        if (col == null) return false;
+        try { return col.CompareTag("Prop"); } catch { return false; }
     }
 }

@@ -78,19 +78,41 @@ public class CraftingManager : MonoBehaviour
             allRecipes.Add(monitorRecipe);
         }
 
-        // Garante que a receita gratuita do Detector de Barreiras esteja disponível no Crafting
-        if (!allRecipes.Exists(r => r != null && r.recipeId == "recipe_detector_barreiras"))
+        // Garante que a receita do Detector de Barreiras esteja disponível no Crafting (Melhoria Comprável)
+        CraftingRecipe barrierRecipe = allRecipes.Find(r => r != null && r.recipeId == "recipe_detector_barreiras");
+        if (barrierRecipe == null)
         {
-            CraftingRecipe barrierRecipe = ScriptableObject.CreateInstance<CraftingRecipe>();
-            barrierRecipe.recipeId     = "recipe_detector_barreiras";
-            barrierRecipe.recipeName   = "Detector de Barreiras";
-            barrierRecipe.description  = "Mapeador portátil gratuito que exibe na tela o progresso das salas do nível.";
-            barrierRecipe.ingredients  = new List<CraftingIngredient>(); // 0 Ingredientes = GRATUITO!
-            barrierRecipe.resultType   = CraftingResultType.Equipment;
-            barrierRecipe.resultEquipment = EquipmentManager.Instance != null ? EquipmentManager.Instance.GetEquipmentData("equip_detector_barreiras") : null;
-
+            barrierRecipe = ScriptableObject.CreateInstance<CraftingRecipe>();
+            barrierRecipe.recipeId = "recipe_detector_barreiras";
             allRecipes.Add(barrierRecipe);
         }
+        barrierRecipe.recipeName = "Detector de Barreiras";
+        barrierRecipe.description = "Mapeador sônico acoplado ao HUD. Detecta e monitora em tempo real o ciclo de ondas e a liberação de barreiras em cada setor.";
+        barrierRecipe.ingredients = new List<CraftingIngredient>
+        {
+            new CraftingIngredient { itemId = "po_de_cristal", quantity = 3 },
+            new CraftingIngredient { itemId = "lithos", quantity = 2 }
+        };
+        barrierRecipe.resultType = CraftingResultType.Equipment;
+        barrierRecipe.resultEquipment = EquipmentManager.Instance != null ? EquipmentManager.Instance.GetEquipmentData("equip_detector_barreiras") : null;
+
+        // Garante que a receita do Sistema de Supressão de Incêndio da Nave esteja disponível no Crafting (Melhoria da Base)
+        CraftingRecipe fireRecipe = allRecipes.Find(r => r != null && r.recipeId == "recipe_extintor_nave");
+        if (fireRecipe == null)
+        {
+            fireRecipe = ScriptableObject.CreateInstance<CraftingRecipe>();
+            fireRecipe.recipeId = "recipe_extintor_nave";
+            allRecipes.Add(fireRecipe);
+        }
+        fireRecipe.recipeName = "Sistema de Supressão de Incêndio";
+        fireRecipe.description = "Ativa os supressores térmicos da nave para extinguir chamas, fumaça e brasas residuais (Ship Embers) no Lobby e no Laboratório.";
+        fireRecipe.ingredients = new List<CraftingIngredient>
+        {
+            new CraftingIngredient { itemId = "po_de_cristal", quantity = 3 },
+            new CraftingIngredient { itemId = "melocactus", quantity = 2 }
+        };
+        fireRecipe.resultType = CraftingResultType.Equipment;
+        fireRecipe.resultEquipment = EquipmentManager.Instance != null ? EquipmentManager.Instance.GetEquipmentData("eq_extintor_nave") : null;
 
         // Garante que a receita do Machado de Cristal esteja disponível no Crafting
         if (!allRecipes.Exists(r => r != null && (r.recipeId == "recipe_crystal_axe" || r.recipeId == "recipe_machado_cristal")))
@@ -101,8 +123,8 @@ public class CraftingManager : MonoBehaviour
             axeRecipe.description  = "Armamento pesado de corte cristalino. Causa alto impacto, golpes em área e estilhaços.";
             axeRecipe.ingredients  = new List<CraftingIngredient>
             {
-                new CraftingIngredient { itemId = "shard_splinter_t1", quantity = 3 },
-                new CraftingIngredient { itemId = "cristal_explosivo", quantity = 2 }
+                new CraftingIngredient { itemId = "po_de_cristal", quantity = 3 },
+                new CraftingIngredient { itemId = "melocactus", quantity = 2 }
             };
             axeRecipe.resultType   = CraftingResultType.Equipment;
             axeRecipe.resultEquipment = EquipmentManager.Instance != null ? EquipmentManager.Instance.GetEquipmentData("eq_crystal_axe") : null;
@@ -110,23 +132,24 @@ public class CraftingManager : MonoBehaviour
             allRecipes.Add(axeRecipe);
         }
 
-        // Receitas de Expansão da Câmara de Infusão e Chassi Térmico
+        // Receitas de Expansão da Câmara de Infusão e Chassi Térmico (Exclusivamente recursos da Bolsa Sintética)
         EnsureInfusionRecipe("recipe_camara_infusao_1", "Câmara de Infusão Expandida I",
             "Aprimora o analisador do traje para permitir infusões combinadas de até 3 itens simultâneos.",
             "equip_camara_infusao_1",
             new List<CraftingIngredient>
             {
-                new CraftingIngredient { itemId = "shard_splinter_t1", quantity = 3 },
-                new CraftingIngredient { itemId = "cristal_explosivo", quantity = 2 }
+                new CraftingIngredient { itemId = "po_de_cristal", quantity = 3 },
+                new CraftingIngredient { itemId = "melocactus", quantity = 2 }
             });
 
-        EnsureInfusionRecipe("recipe_camara_infusao_2", "Câmara de Infusão Expandida II",
-            "Sintoniza a matriz quântica do traje para permitir fusões massivas de até 4 itens simultâneos.",
+        EnsureInfusionRecipe("recipe_camara_infusao_2", "C\u00E2mara de Infus\u00E3o Expandida II",
+            "Sintoniza a matriz do traje com o Resto de Geobionte para permitir infus\u00F5es combinadas de at\u00E9 4 itens simult\u00E2neos.",
             "equip_camara_infusao_2",
             new List<CraftingIngredient>
             {
-                new CraftingIngredient { itemId = "prisma_t2", quantity = 2 },
-                new CraftingIngredient { itemId = "cristal_explosivo", quantity = 2 }
+                new CraftingIngredient { itemId = "resta_geobionte", quantity = 1 },
+                new CraftingIngredient { itemId = "lithos", quantity = 2 },
+                new CraftingIngredient { itemId = "po_de_cristal", quantity = 2 }
             });
 
         EnsureInfusionRecipe("recipe_capacidade_infusao_1", "Chassi Térmico Modular I",
@@ -134,8 +157,8 @@ public class CraftingManager : MonoBehaviour
             "equip_capacidade_infusao_1",
             new List<CraftingIngredient>
             {
-                new CraftingIngredient { itemId = "shard_splinter_t1", quantity = 3 },
-                new CraftingIngredient { itemId = "prisma_t2", quantity = 1 }
+                new CraftingIngredient { itemId = "po_de_cristal", quantity = 3 },
+                new CraftingIngredient { itemId = "lithos", quantity = 2 }
             });
 
         EnsureInfusionRecipe("recipe_capacidade_infusao_2", "Chassi Térmico Modular II",
@@ -143,8 +166,19 @@ public class CraftingManager : MonoBehaviour
             "equip_capacidade_infusao_2",
             new List<CraftingIngredient>
             {
-                new CraftingIngredient { itemId = "prisma_t2", quantity = 2 },
-                new CraftingIngredient { itemId = "sentinel_core_t3", quantity = 1 }
+                new CraftingIngredient { itemId = "lithos", quantity = 3 },
+                new CraftingIngredient { itemId = "caracol_geodo", quantity = 2 }
+            });
+
+        // Melhoria do Robozinho: +1 Cápsula Máxima de Cura (Cara)
+        EnsureInfusionRecipe("recipe_reservatorio_cura", "Reservatório de Biossíntese Auxiliar",
+            "Módulo avançado de bioconservação de alta capacidade. Adiciona +1 Cápsula Máxima de Cura ao traje (totalizando 3 cápsulas).",
+            "equip_reservatorio_cura",
+            new List<CraftingIngredient>
+            {
+                new CraftingIngredient { itemId = "arvore_vagens", quantity = 4 },
+                new CraftingIngredient { itemId = "lithos", quantity = 4 },
+                new CraftingIngredient { itemId = "melocactus", quantity = 3 }
             });
 
         RegisterBlueprintRecipes();
@@ -154,7 +188,8 @@ public class CraftingManager : MonoBehaviour
 
     private void EnsureInfusionRecipe(string recipeId, string title, string description, string equipId, List<CraftingIngredient> ingredients)
     {
-        if (!allRecipes.Exists(r => r != null && r.recipeId == recipeId))
+        CraftingRecipe existing = allRecipes.Find(r => r != null && r.recipeId == recipeId);
+        if (existing == null)
         {
             CraftingRecipe r = ScriptableObject.CreateInstance<CraftingRecipe>();
             r.recipeId = recipeId;
@@ -164,6 +199,14 @@ public class CraftingManager : MonoBehaviour
             r.resultType = CraftingResultType.Equipment;
             r.resultEquipment = EquipmentManager.Instance != null ? EquipmentManager.Instance.GetEquipmentData(equipId) : null;
             allRecipes.Add(r);
+        }
+        else
+        {
+            existing.recipeName = title;
+            existing.description = description;
+            existing.ingredients = ingredients;
+            if (existing.resultEquipment == null && EquipmentManager.Instance != null)
+                existing.resultEquipment = EquipmentManager.Instance.GetEquipmentData(equipId);
         }
     }
 
@@ -214,6 +257,13 @@ public class CraftingManager : MonoBehaviour
     public bool CanCraft(CraftingRecipe recipe)
     {
         if (recipe == null || SaveManager.instance == null) return false;
+
+        // Armas em desenvolvimento estão bloqueadas para craft no playtest
+        if (recipe.recipeId == "recipe_arma_projetil" || recipe.recipeId == "weapon_dagger" ||
+            (recipe.recipeId != null && recipe.recipeId.StartsWith("weapon_classified_")))
+        {
+            return false;
+        }
 
         foreach (var ingredient in recipe.ingredients)
         {
@@ -308,6 +358,10 @@ public class CraftingManager : MonoBehaviour
                 if (equipData != null)
                 {
                     SaveManager.instance.AddCraftedEquipment(equipData.equipmentId);
+                    if (!equipData.isBaseUpgrade)
+                    {
+                        EquipmentManager.Instance?.Equip(equipData.equipmentId);
+                    }
                     Debug.Log($"[CRAFTING] Melhoria craftada: {equipData.equipmentName}");
                 }
                 else

@@ -20,7 +20,7 @@ MonoBehaviour:
   enemySource: Shard Swarm
   returnsToBase: 0
   recycleEssenceValue: 24
-  infusionEssenceCost: 60
+  infusionEssenceCost: 50
   itemAttributes:
   - attributeType: 13
     value: 20

@@ -35,7 +35,7 @@ public class CristalCasulo : MonoBehaviour
     [Header("Escudo de Geocinese (Ativado a 50% HP)")]
     [Tooltip("Prefab da rocha/cristal que orbita em volta do casulo.")]
     public GameObject rochaOrbitantePrefab;
-    public int quantidadeRochasGeocinese = 3;
+    public int quantidadeRochasGeocinese = 4;
     [Tooltip("Raio da órbita das rochas ao redor do casulo.")]
     public float raioOrbitaRochas = 4.2f;
     [Tooltip("Altura em que as rochas flutuam em relação ao solo.")]
@@ -106,6 +106,7 @@ public class CristalCasulo : MonoBehaviour
         }
         if (bossInternoAnimator != null && !string.IsNullOrEmpty(animacaoAgachadaState))
         {
+            bossInternoAnimator.applyRootMotion = false;
             bossInternoAnimator.Play(animacaoAgachadaState);
         }
 
@@ -164,10 +165,10 @@ public class CristalCasulo : MonoBehaviour
         float pct = (float)meuHealth.CurrentHealth / meuHealth.maxHealth;
 
         // 50% HP -> Ativa o Escudo de Geocinese (Orbes Orbitantes de Contra-Ataque)
-        if (pct <= 0.50f && !reacao50Ativada)
+        if (pct <= 0.75f && !reacao50Ativada)
         {
             reacao50Ativada = true;
-            Debug.Log("🪨 [CASULO BOSS] Threshold 50% de vida: Mini-Fase dos Orbes de Geocinese Ativada!");
+            Debug.Log("🪨 [CASULO BOSS] Threshold 75% de vida: Mini-Fase dos Orbes de Geocinese Ativada!");
             AtivarEscudoGeocinese();
         }
     }
