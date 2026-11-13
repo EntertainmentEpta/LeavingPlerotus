@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
+using UnityEngine.AI;
 
 public class DummyHealth : MonoBehaviour
 {
@@ -93,6 +94,9 @@ public class DummyHealth : MonoBehaviour
     private Color originalBaseColor;
     private bool hasBaseColor = false;
     private Renderer dummyRenderer;
+    private Animator animator;
+    private NavMeshAgent navAgent;
+    private Rigidbody rb;
 
     private void Awake()
     {
@@ -130,6 +134,11 @@ public class DummyHealth : MonoBehaviour
         }
 
         dummyRenderer = GetComponentInChildren<Renderer>();
+
+        animator = GetComponentInChildren<Animator>();
+        navAgent = GetComponent<NavMeshAgent>();
+        rb = GetComponent<Rigidbody>();
+
         if (dummyRenderer != null)
         {
             originalRenderColor = dummyRenderer.material.color;
@@ -327,6 +336,10 @@ public class DummyHealth : MonoBehaviour
             }
         }
 
+        // Hit-Stop só em golpe corpo a corpo (não dispara com tiro nem veneno)
+        if (!isProjectile && !isPoison)
+            ApplyHitStop(isCritical ? 0.10f : 0.06f);
+
         if (dummyRenderer != null)
         {
             StartCoroutine(isPoison ? FlashPoisonGreen() : FlashRed());
@@ -361,13 +374,53 @@ public class DummyHealth : MonoBehaviour
         }
     }
 
+    private bool isFlashing = false;
+    private Renderer[] flashRends;
+    private Color[] origBase, origTint, origEmis;
+    private bool[] hasBase, hasTint, hasEmis;
+
     IEnumerator FlashRed()
     {
-        dummyRenderer.material.color = hitColor;
-        if (hasBaseColor) dummyRenderer.material.SetColor("_BaseColor", hitColor);
+        if (!isFlashing)
+        {
+            flashRends = GetComponentsInChildren<Renderer>();
+            int n = flashRends.Length;
+            origBase = new Color[n]; origTint = new Color[n]; origEmis = new Color[n];
+            hasBase = new bool[n]; hasTint = new bool[n]; hasEmis = new bool[n];
+
+            for (int i = 0; i < n; i++)
+            {
+                Material m = flashRends[i].material;
+                hasBase[i] = m.HasProperty("_BaseColor");
+                hasTint[i] = m.HasProperty("_Color");
+                hasEmis[i] = m.HasProperty("_EmissionColor");
+                if (hasBase[i]) origBase[i] = m.GetColor("_BaseColor");
+                if (hasTint[i]) origTint[i] = m.color;
+                if (hasEmis[i]) origEmis[i] = m.GetColor("_EmissionColor");
+            }
+            isFlashing = true;
+        }
+
+        for (int i = 0; i < flashRends.Length; i++)
+        {
+            if (flashRends[i] == null) continue;
+            Material m = flashRends[i].material;
+            if (hasBase[i]) m.SetColor("_BaseColor", hitColor);
+            if (hasTint[i]) m.color = hitColor;
+            if (hasEmis[i]) { m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", hitColor * 0.8f); }
+        }
+
         yield return new WaitForSeconds(hitFlashTime);
-        dummyRenderer.material.color = originalRenderColor;
-        if (hasBaseColor) dummyRenderer.material.SetColor("_BaseColor", originalBaseColor);
+
+        for (int i = 0; i < flashRends.Length; i++)
+        {
+            if (flashRends[i] == null) continue;
+            Material m = flashRends[i].material;
+            if (hasBase[i]) m.SetColor("_BaseColor", origBase[i]);
+            if (hasTint[i]) m.color = origTint[i];
+            if (hasEmis[i]) m.SetColor("_EmissionColor", origEmis[i]);
+        }
+        isFlashing = false;
     }
 
     IEnumerator FlashPoisonGreen()
@@ -378,6 +431,52 @@ public class DummyHealth : MonoBehaviour
         yield return new WaitForSeconds(hitFlashTime);
         dummyRenderer.material.color = originalRenderColor;
         if (hasBaseColor) dummyRenderer.material.SetColor("_BaseColor", originalBaseColor);
+    }
+
+
+    private Coroutine hitStopCo;
+
+    public void ApplyHitStop(float duration = 0.06f)
+    {
+        //verifica se o inimigo está no ar (pulando ou caindo) e ignora o hit-stop nesse caso
+        if (rb != null && Mathf.Abs(rb.linearVelocity.y) > 0.1f) return;
+
+        if (hitStopCo != null) StopCoroutine(hitStopCo);
+        hitStopCo = StartCoroutine(HitStopRoutine(duration));
+    }
+
+    private IEnumerator HitStopRoutine(float duration)
+    {
+        // Congela a animação do monstro no frame atual
+        if (animator != null) animator.speed = 0f;
+
+        // Trava o movimento via NavMeshAgent (cenas com NavMesh)
+        if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh)
+            navAgent.isStopped = true;
+
+        // Trava o movimento via script de IA (cenas sem NavMesh)
+        SetAIEnabled(false);
+
+        // Pausa a corrotina em tempo real
+        yield return new WaitForSecondsRealtime(duration);
+
+        // Devolve animação e movimento
+        if (animator != null) animator.speed = 1f;
+        if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh)
+            navAgent.isStopped = false;
+        SetAIEnabled(true);
+    }
+
+    private void SetAIEnabled(bool state)
+    {
+        if (geobionteAI != null) geobionteAI.enabled = state;
+        if (golemAI != null) golemAI.enabled = state;
+        if (spiderAI != null) spiderAI.enabled = state;
+        if (goblinAI != null) goblinAI.enabled = state;
+        if (shardSwarmAI != null) shardSwarmAI.enabled = state;
+        if (magicStoneAI != null) magicStoneAI.enabled = state;
+        if (crystalTunerAI != null) crystalTunerAI.enabled = state;
+        if (cristalusAI != null) cristalusAI.enabled = state;
     }
 
     private void Die()

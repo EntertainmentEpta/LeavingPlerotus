@@ -132,17 +132,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9b1d1b3e172858c47913a9d62f9c3c5d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  isSlowed: 0
   maxHealth: 2000
   debugLogDamage: 0
+  isElite: 1
+  hasRebornAsElite: 0
+  eliteRebirthChance: 0.1
+  originalPrefab: {fileID: 0}
+  owningRoom: {fileID: 0}
   healthBarSlider: {fileID: 6575476071282512931}
   normalColor: {r: 1, g: 0, b: 0, a: 1}
   buffedColor: {r: 0, g: 1, b: 1, a: 1}
+  projectileResistance: 0
+  knockbackResistance: 0
   floatingDamageTextPrefab: {fileID: 119183615461286708, guid: e1f50e2f4933445c94ed847caa8c7a3c, type: 3}
   textOffset: {x: 0, y: 2, z: 0}
-  hitColor: {r: 1, g: 0, b: 0, a: 1}
-  hitFlashTime: 0.25
+  hitColor: {r: 1, g: 1, b: 1, a: 1}
+  hitFlashTime: 0.08
   isInvulnerable: 0
   isBuffed: 0
+  fixedDamageOverride: 0
 --- !u!114 &301778215056202242
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -173,6 +182,8 @@ MonoBehaviour:
   usarTrigger: 1
   usarDistancia: 0
   distanciaDeteccao: 12
+  usarVisaoCamera: 1
+  distanciaVisaoCamera: 40
   debugLogs: 0
 --- !u!1 &1791491929440790419
 GameObject:
