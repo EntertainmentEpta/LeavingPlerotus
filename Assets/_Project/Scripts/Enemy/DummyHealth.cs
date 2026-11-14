@@ -65,6 +65,14 @@ public class DummyHealth : MonoBehaviour
     [HideInInspector] public bool isInvulnerable = false;
     [HideInInspector] public bool isBuffed = false;
 
+    [Header("Biomassa do Traje")]
+    [Tooltip("Se falso, este alvo não concede Biomassa ao jogador (ex: mortes forçadas por script/cheat).")]
+    public bool grantsBiomass = true;
+    private const float BiomassPerHit = 2f;
+    private const float BiomassPerKill = 8f;
+    private const float BiomassPerEliteKill = 40f;
+    private bool biomassKillRewarded = false;
+
     /// <summary>
     /// Se > 0, cada hit causa exatamente este valor de dano, independente do dano da arma.
     /// Usado pelo Geobionte para que 7 hits = 7 HP (1 dano por hit).
@@ -301,6 +309,12 @@ public class DummyHealth : MonoBehaviour
 
         onDamageTaken?.Invoke(damage, null);
 
+        // Biomassa do traje: +2% por golpe válido (DoT de veneno não conta como golpe)
+        if (grantsBiomass && !isPoison && damage > 0 && SuitHealingSystem.Instance != null)
+        {
+            SuitHealingSystem.Instance.AddBiomass(BiomassPerHit);
+        }
+
         UpdateHealthBar();
         ShowHealthBar();
 
@@ -398,6 +412,23 @@ public class DummyHealth : MonoBehaviour
         if (debugLogDamage)
         {
             Debug.Log("[DummyHealth] Death stack:\n" + System.Environment.StackTrace);
+        }
+
+        // --- BIOMASSA DO TRAJE: +8% (comum) / +40% (Elite), apenas 1x por inimigo ---
+        if (!biomassKillRewarded)
+        {
+            biomassKillRewarded = true;
+            try
+            {
+                if (grantsBiomass && SuitHealingSystem.Instance != null)
+                {
+                    SuitHealingSystem.Instance.AddBiomass(isElite ? BiomassPerEliteKill : BiomassPerKill);
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[DummyHealth] Erro ao conceder Biomassa por kill: {ex}");
+            }
         }
 
         // --- SISTEMA DE PACTOS DO JOGADOR ---

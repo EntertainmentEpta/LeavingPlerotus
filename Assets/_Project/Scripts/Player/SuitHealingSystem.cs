@@ -1,39 +1,35 @@
-using System.Collections;
-using System.Collections.Generic;
+using System;
 using UnityEngine;
 
 /// <summary>
 /// Sistema de Cura do Traje do Eptinho (Mecânica Central de Sobrevivência).
-/// - 2 Cápsulas de cura no traje.
-/// - Eficácia: 15% HP em combate ativo, 30% HP fora de combate / descanso.
-/// - Síntese contínua: exatamente 60s por cápsula.
-/// - Aceleração / Desaceleração:
-///   * Tomar dano desacelera a síntese para 50% (taxa 0.5x por 8s).
-///   * Clean Room (sair ileso da fase) avança +20s na barra.
-///   * Perfect Dash (Q) injeta +30s na síntese.
+/// - Medidor contínuo de Biomassa (0% a 100%), começa em 0%.
+/// - A Biomassa NÃO recarrega por tempo. Ela só é acumulada por ações do jogador:
+///     * Acertar golpe: +2%   (DummyHealth)
+///     * Matar inimigo: +8% comum / +40% Elite (DummyHealth)
+///     * Esquiva Perfeita: +35% (DashM)
+/// - Com 100% de Biomassa, pressionar [Q] consome TODA a biomassa e cura:
+///     * Em combate: 15% da vida máxima.
+///     * Fora de combate / descanso / anomalia: 30% da vida máxima.
 /// </summary>
 public class SuitHealingSystem : MonoBehaviour
 {
     public static SuitHealingSystem Instance { get; private set; }
 
-    [Header("Cargas de Cápsulas")]
-    public int maxPotions = 2;
-    [Tooltip("Inicia com 1 cápsula pronta e a 2ª sintetizando para o jogador ver a barra crescer.")]
-    public int currentPotions = 1;
+    public const float MaxBiomass = 100f;
+
+    /// <summary>Disparado sempre que a Biomassa muda. Parâmetro: valor atual (0 a 100).</summary>
+    public event Action<float> OnBiomassChanged;
+
+    [Header("Biomassa (0% a 100%)")]
+    [Tooltip("Biomassa atual do traje. Começa em 0 e só aumenta por golpes, kills e Esquiva Perfeita.")]
+    [SerializeField, Range(0f, MaxBiomass)] private float currentBiomass = 0f;
 
     [Header("Eficácia de Cura (% da Vida Máxima)")]
     [Tooltip("Percentual da vida curada durante combate ativo (padrão: 0.15 = 15%)")]
     public float combatHealPercent = 0.15f;
     [Tooltip("Percentual da vida curada fora de combate / salas de descanso (padrão: 0.30 = 30%)")]
     public float safeRoomHealPercent = 0.30f;
-
-    [Header("Síntese do Eptinho")]
-    [Tooltip("Tempo base em segundos para sintetizar 1 cápsula de cura (1 minuto = 60s)")]
-    public float baseSynthesisDuration = 60f;
-    private float currentSynthesisTimer = 0f;
-
-    [Header("Dinâmica de Síntese")]
-    private float damageSlowdownTimer = 0f;
 
     [Header("Integridade do Traje")]
     [Range(0.4f, 1.0f)]
@@ -49,23 +45,15 @@ public class SuitHealingSystem : MonoBehaviour
     public bool isInAnomalyRoom = false;
     private float combatCheckTimer = 0f;
 
-    public float SynthesisProgress => Mathf.Clamp01(currentSynthesisTimer / Mathf.Max(1f, baseSynthesisDuration));
-    public float RemainingSynthesisTime => Mathf.Max(0f, baseSynthesisDuration - currentSynthesisTimer);
-    public float ElapsedSynthesisTime => Mathf.Clamp(currentSynthesisTimer, 0f, baseSynthesisDuration);
+    public float CurrentBiomass => currentBiomass;
+    /// <summary>Biomassa normalizada (0 a 1) para barras de preenchimento.</summary>
+    public float BiomassNormalized => Mathf.Clamp01(currentBiomass / MaxBiomass);
+    /// <summary>Biomassa em porcentagem inteira (0 a 100).</summary>
+    public int BiomassPercent => Mathf.Clamp(Mathf.FloorToInt(currentBiomass), 0, 100);
+    /// <summary>True quando a Biomassa está em 100% (cura pronta para uso).</summary>
+    public bool IsBiomassFull => currentBiomass >= MaxBiomass;
     public bool IsInCombat => isInCombat;
     public float SuitIntegrityPercent => suitIntegrity * 100f;
-    public bool IsSlowedByDamage => damageSlowdownTimer > 0f;
-
-    public float CurrentSynthesisRate
-    {
-        get
-        {
-            if (damageSlowdownTimer > 0f) return 0.50f; // Tomou dano: desacelera para 50%
-            if (isInAnomalyRoom) return 1.50f;
-            if (!isInCombat) return 1.25f;              // Fora de combate / descanso: 1.25x
-            return 1.0f;                                // Em combate padrão: 1.0x
-        }
-    }
 
     private void Awake()
     {
@@ -87,7 +75,7 @@ public class SuitHealingSystem : MonoBehaviour
         string savedKey = PlayerPrefs.GetString("KeyHeal", "Q");
         try
         {
-            healKey = (KeyCode)System.Enum.Parse(typeof(KeyCode), savedKey);
+            healKey = (KeyCode)Enum.Parse(typeof(KeyCode), savedKey);
         }
         catch
         {
@@ -107,26 +95,73 @@ public class SuitHealingSystem : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Chamado ao morrer ou ao respawnar/acordar na Base para garantir que a síntese de cura nunca fique travada.
-    /// </summary>
-    public void ResetOnDeathOrRespawn()
-    {
-        damageSlowdownTimer = 0f;
-        suitIntegrity = 1.0f;
-        isInCombat = false;
-        isInAnomalyRoom = false;
-        currentPotions = Mathf.Max(1, currentPotions);
-        currentSynthesisTimer = 0f;
-        playerHealth = GetComponent<PlayerHealth>() ?? GetComponentInParent<PlayerHealth>() ?? FindFirstObjectByType<PlayerHealth>();
-        Debug.Log($"🧪 [SuitHealing] Sistema de cura resetado com sucesso pós-morte/respawn! Cápsulas: {currentPotions}/{maxPotions}");
-    }
-
     private void OnDestroy()
     {
         PlayerHealth.OnPlayerDamaged -= OnPlayerTookDamage;
         RoomController.OnRoomCleared -= OnRoomCleared;
+        if (Instance == this) Instance = null;
     }
+
+    /// <summary>
+    /// Chamado ao morrer ou ao respawnar/acordar na Base. A Biomassa volta a 0%.
+    /// </summary>
+    public void ResetOnDeathOrRespawn()
+    {
+        suitIntegrity = 1.0f;
+        isInCombat = false;
+        isInAnomalyRoom = false;
+        SetBiomass(0f);
+        playerHealth = GetComponent<PlayerHealth>() ?? GetComponentInParent<PlayerHealth>() ?? FindFirstObjectByType<PlayerHealth>();
+        Debug.Log("🧪 [SuitHealing] Sistema de cura resetado pós-morte/respawn! Biomassa: 0%");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // BIOMASSA
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Soma Biomassa ao medidor (com clamp entre 0 e 100). Valores negativos reduzem.
+    /// </summary>
+    public void AddBiomass(float amount)
+    {
+        if (Mathf.Approximately(amount, 0f)) return;
+        SetBiomass(currentBiomass + amount);
+    }
+
+    /// <summary>Enche a Biomassa para 100% (testes / cheat).</summary>
+    [ContextMenu("Debug/Encher Biomassa (100%)")]
+    public void FillBiomass()
+    {
+        SetBiomass(MaxBiomass);
+        Debug.Log("🧪 [SuitHealing] DEBUG: Biomassa preenchida para 100%.");
+    }
+
+    /// <summary>Zera a Biomassa (testes).</summary>
+    [ContextMenu("Debug/Zerar Biomassa (0%)")]
+    public void EmptyBiomass()
+    {
+        SetBiomass(0f);
+    }
+
+    private void SetBiomass(float value)
+    {
+        float clamped = Mathf.Clamp(value, 0f, MaxBiomass);
+        if (Mathf.Approximately(clamped, currentBiomass)) return;
+
+        currentBiomass = clamped;
+        OnBiomassChanged?.Invoke(currentBiomass);
+    }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        currentBiomass = Mathf.Clamp(currentBiomass, 0f, MaxBiomass);
+    }
+#endif
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // UPDATE / INPUT
+    // ─────────────────────────────────────────────────────────────────────────
 
     private void Update()
     {
@@ -142,36 +177,6 @@ public class SuitHealingSystem : MonoBehaviour
             CheckCombatState();
         }
 
-        if (damageSlowdownTimer > 0f)
-        {
-            damageSlowdownTimer -= Time.deltaTime;
-        }
-
-        // Atualiza limite máximo de cápsulas com base em melhorias do robozinho
-        int targetMax = 2;
-        if (EquipmentManager.Instance != null && (EquipmentManager.Instance.IsEquipped("equip_reservatorio_cura") || EquipmentManager.Instance.IsOwned("equip_reservatorio_cura")))
-        {
-            targetMax = 3;
-        }
-        maxPotions = targetMax;
-
-        // Síntese de cápsulas (se tiver menos que o máximo)
-        if (currentPotions < maxPotions)
-        {
-            currentSynthesisTimer += Time.deltaTime * CurrentSynthesisRate;
-
-            if (currentSynthesisTimer >= baseSynthesisDuration)
-            {
-                currentSynthesisTimer = 0f;
-                currentPotions = Mathf.Min(maxPotions, currentPotions + 1);
-                Debug.Log($"🧪 [SuitHealing] Eptinho sintetizou +1 cápsula de cura! Total: {currentPotions}/{maxPotions}");
-            }
-        }
-        else
-        {
-            currentSynthesisTimer = 0f;
-        }
-
         if (Input.GetKeyDown(healKey))
         {
             if (!EptinhoStoryDialogs.HasSeenDialog(EptinhoStoryDialogs.ID_HEALING_TUTORIAL))
@@ -185,69 +190,51 @@ public class SuitHealingSystem : MonoBehaviour
 
     private void HandleHealKeyInput()
     {
-        bool hadSobrecarga = false;
-        DashM dash = DashM.Instance ?? GetComponent<DashM>() ?? GetComponentInParent<DashM>();
-        if (dash != null && dash.HasPerfectDodgeCharge)
+        if (playerHealth == null)
         {
-            hadSobrecarga = true;
-            dash.ConsumePerfectDodgeCharge();
+            playerHealth = GetComponent<PlayerHealth>() ?? GetComponentInParent<PlayerHealth>() ?? FindFirstObjectByType<PlayerHealth>();
         }
+        if (playerHealth == null || playerHealth.isDead) return;
 
-        bool usedPotion = false;
-
-        // Se o jogador estiver vivo e com cápsula disponível:
-        if (playerHealth != null && !playerHealth.isDead && currentPotions > 0)
-        {
-            currentPotions--;
-            usedPotion = true;
-
-            int maxHp = playerHealth.maxHealth > 0 ? playerHealth.maxHealth : 100;
-            float pct = (isInCombat && !isInAnomalyRoom) ? combatHealPercent : safeRoomHealPercent;
-            int healAmount = Mathf.Max(1, Mathf.RoundToInt(maxHp * pct));
-
-            playerHealth.Heal(healAmount);
-            TriggerHealVFX();
-
-            if (SuitHealingUI.Instance != null)
-            {
-                SuitHealingUI.Instance.TriggerHealFeedback();
-            }
-
-            Debug.Log($"💚 [SuitHealing] Cápsula utilizada! Curado: +{healAmount} HP ({(pct * 100):F0}% da vida max). Restam: {currentPotions}/{maxPotions}");
-        }
-
-        // Se o jogador utilizou a Sobrecarga do Perfect Dash, injeta +30s de Síntese
-        // (aproveitando imediatamente o slot liberado se uma poção foi gasta, ou preenchendo a síntese atual!)
-        if (hadSobrecarga)
-        {
-            AccelerateSynthesis(30f);
-            if (SuitHealingUI.Instance != null)
-            {
-                SuitHealingUI.Instance.TriggerSobrecargaConsumedFeedback();
-            }
-        }
-        else if (!usedPotion && currentPotions <= 0)
+        // Só permite curar com a Biomassa em 100%
+        if (!IsBiomassFull)
         {
             if (SuitHealingUI.Instance != null)
             {
                 SuitHealingUI.Instance.FlashEmptyWarning();
             }
-            Debug.LogWarning("⚠️ [SuitHealing] Nenhuma cápsula disponível! Aguarde a síntese do Eptinho.");
+            Debug.LogWarning($"⚠️ [SuitHealing] Biomassa insuficiente ({currentBiomass:F0}%/100%). Acerte golpes, mate inimigos ou faça Esquivas Perfeitas!");
+            return;
         }
-    }
 
-    public void AccelerateSynthesis(float seconds)
-    {
-        if (currentPotions < maxPotions)
+        // Não gasta a Biomassa se a cura estiver bloqueada (ex: debuff que impede cura)
+        if (!playerHealth.canHeal)
         {
-            currentSynthesisTimer += seconds;
-            Debug.Log($"⚡ [SuitHealing] Síntese acelerada em +{seconds}s! Progresso atual: {currentSynthesisTimer:F1}/{baseSynthesisDuration:F0}s");
-            if (currentSynthesisTimer >= baseSynthesisDuration)
+            if (SuitHealingUI.Instance != null)
             {
-                currentSynthesisTimer = 0f;
-                currentPotions = Mathf.Min(maxPotions, currentPotions + 1);
+                SuitHealingUI.Instance.FlashEmptyWarning();
             }
+            Debug.LogWarning("⚠️ [SuitHealing] Cura bloqueada no momento. Biomassa preservada.");
+            return;
         }
+
+        // Consome TODA a biomassa
+        SetBiomass(0f);
+
+        bool inCombatHeal = isInCombat && !isInAnomalyRoom;
+        int maxHp = playerHealth.maxHealth > 0 ? playerHealth.maxHealth : 100;
+        float pct = inCombatHeal ? combatHealPercent : safeRoomHealPercent;
+        int healAmount = Mathf.Max(1, Mathf.RoundToInt(maxHp * pct));
+
+        playerHealth.Heal(healAmount);
+        TriggerHealVFX();
+
+        if (SuitHealingUI.Instance != null)
+        {
+            SuitHealingUI.Instance.TriggerHealFeedback();
+        }
+
+        Debug.Log($"💚 [SuitHealing] Biomassa consumida! Curado: +{healAmount} HP ({(pct * 100):F0}% da vida max) [{(inCombatHeal ? "COMBATE" : "DESCANSO")}]. Biomassa: 0%");
     }
 
     private void CheckCombatState()
@@ -268,9 +255,8 @@ public class SuitHealingSystem : MonoBehaviour
     private void OnPlayerTookDamage(int damage, GameObject attacker)
     {
         tookDamageInCurrentRoom = true;
-        damageSlowdownTimer = 8.0f; // Tomar dano desacelera a síntese por 8 segundos
         suitIntegrity = Mathf.Max(0.40f, suitIntegrity - 0.15f);
-        Debug.Log($"⚠️ [SuitHealing] Dano recebido! Síntese desacelerada (0.5x por 8s). Integridade: {SuitIntegrityPercent:F0}%");
+        Debug.Log($"⚠️ [SuitHealing] Dano recebido! Integridade: {SuitIntegrityPercent:F0}%");
 
         if (!EptinhoStoryDialogs.HasSeenDialog(EptinhoStoryDialogs.ID_HEALING_TUTORIAL))
         {
@@ -282,13 +268,11 @@ public class SuitHealingSystem : MonoBehaviour
     {
         Debug.Log("🚪 [SuitHealing] Sala concluída!");
 
-        // Se saiu ileso da fase (Clean Room):
+        // Se saiu ileso da fase (Clean Room), restaura a integridade do traje por completo
         if (!tookDamageInCurrentRoom)
         {
-            Debug.Log("⭐ [SuitHealing] CLEAN ROOM! Jogador saiu ileso! +20s de avanço imediato na síntese!");
+            Debug.Log("⭐ [SuitHealing] CLEAN ROOM! Jogador saiu ileso! Integridade do traje restaurada.");
             suitIntegrity = 1.0f;
-            damageSlowdownTimer = 0f;
-            AccelerateSynthesis(20f);
         }
         else
         {
@@ -296,16 +280,6 @@ public class SuitHealingSystem : MonoBehaviour
         }
 
         tookDamageInCurrentRoom = false;
-    }
-
-    public void OnEnemyKilled()
-    {
-        AccelerateSynthesis(1.5f);
-    }
-
-    public void OnPerfectDodgeBonus(float bonusSeconds = 15f)
-    {
-        AccelerateSynthesis(bonusSeconds);
     }
 
     private void TriggerHealVFX()
