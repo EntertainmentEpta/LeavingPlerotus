@@ -90,7 +90,7 @@ MonoBehaviour:
   crystalsPerArc: 5
   crystalSpawnInterval: 0.5
   arcOverlapThreshold: 10
-  crystalYOffset: 0.5
+  crystalYOffset: 0.15
   playerMovementTolerance: 2
   minRepositionAngle: 90
   slideSounds:

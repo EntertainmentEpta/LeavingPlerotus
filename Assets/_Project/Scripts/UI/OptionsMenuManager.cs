@@ -40,26 +40,91 @@ public class OptionsMenuManager : MonoBehaviour
 
     void ConfigurarAudio()
     {
+        float savedMaster = PlayerPrefs.GetFloat("SavedMaster", AudioListener.volume > 0.001f ? AudioListener.volume : 0.8f);
+        float savedBGM = PlayerPrefs.GetFloat("SavedBGM", 0.75f);
+        float savedSFX = PlayerPrefs.GetFloat("SavedSFX", 0.75f);
+
         if (masterSlider != null)
         {
-            masterSlider.value = AudioListener.volume;
-            masterSlider.onValueChanged.AddListener((v) => AudioListener.volume = v);
+            masterSlider.value = savedMaster;
+            masterSlider.onValueChanged.RemoveAllListeners();
+            masterSlider.onValueChanged.AddListener(SetMasterVolume);
+        }
+
+        if (bgmSlider != null)
+        {
+            bgmSlider.value = savedBGM;
+            bgmSlider.onValueChanged.RemoveAllListeners();
+            bgmSlider.onValueChanged.AddListener(SetMusicVolume);
+        }
+
+        if (sfxSlider != null)
+        {
+            sfxSlider.value = savedSFX;
+            sfxSlider.onValueChanged.RemoveAllListeners();
+            sfxSlider.onValueChanged.AddListener(SetSFXVolume);
+        }
+
+        // Aplica os volumes carregados imediatamente
+        SetMasterVolume(savedMaster);
+        SetMusicVolume(savedBGM);
+        SetSFXVolume(savedSFX);
+    }
+
+    public void SetMasterVolume(float value)
+    {
+        value = Mathf.Clamp01(value);
+        AudioListener.volume = value;
+
+        if (GlobalAudioManager.Instance != null)
+        {
+            GlobalAudioManager.Instance.SetMasterVolume(value);
+        }
+
+        PlayerPrefs.SetFloat("SavedMaster", value);
+        PlayerPrefs.Save();
+    }
+
+    public void SetMusicVolume(float value)
+    {
+        value = Mathf.Clamp01(value);
+
+        if (GlobalAudioManager.Instance != null)
+        {
+            GlobalAudioManager.Instance.SetBGMVolume(value);
+        }
+
+        if (MusicManager.instance != null)
+        {
+            MusicManager.instance.SetVolume(value);
         }
 
         if (MenuAudioFX.Instance != null)
         {
-            if (sfxSlider != null)
-            {
-                sfxSlider.value = MenuAudioFX.Instance.sfxVolume;
-                sfxSlider.onValueChanged.AddListener((v) => MenuAudioFX.Instance.sfxVolume = v);
-            }
-
-            if (bgmSlider != null)
-            {
-                bgmSlider.value = MenuAudioFX.Instance.musicVolume;
-                bgmSlider.onValueChanged.AddListener((v) => MenuAudioFX.Instance.musicVolume = v);
-            }
+            MenuAudioFX.Instance.SetMusicVolume(value);
         }
+
+        PlayerPrefs.SetFloat("SavedBGM", value);
+        PlayerPrefs.Save();
+    }
+
+    public void SetSFXVolume(float value)
+    {
+        value = Mathf.Clamp01(value);
+
+        if (GlobalAudioManager.Instance != null)
+        {
+            GlobalAudioManager.Instance.SetSFXVolume(value);
+            GlobalAudioManager.Instance.PlayPreviewSFX();
+        }
+
+        if (MenuAudioFX.Instance != null)
+        {
+            MenuAudioFX.Instance.SetSFXVolume(value);
+        }
+
+        PlayerPrefs.SetFloat("SavedSFX", value);
+        PlayerPrefs.Save();
     }
 
     void ConfigurarVideo()

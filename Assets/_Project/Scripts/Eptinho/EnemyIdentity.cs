@@ -15,7 +15,7 @@ public class EnemyIdentity : MonoBehaviour
     [HideInInspector] public bool foiEncontrado = false;
 
     // Propriedades de compatibilidade para não quebrar scripts de IA que usavam os campos antigos
-    public string nomeInimigo => enemyData != null ? enemyData.enemyName : gameObject.name;
+    public string nomeInimigo => enemyData != null ? enemyData.enemyName : gameObject.name.Replace("(Clone)", "").Trim();
     public Sprite icon => enemyData != null ? enemyData.icon : null;
     public string descricao => enemyData != null ? enemyData.descricao : "";
 
@@ -33,13 +33,6 @@ public class EnemyIdentity : MonoBehaviour
         if (enemyData == null && EnemyDataAutoLoader.instancia != null)
         {
             string cleanName = gameObject.name.Replace("(Clone)", "").Trim();
-            if (cleanName.Contains("Spider") || cleanName.Contains("spider") || cleanName.Contains("Aranha"))
-                cleanName = "Aranha";
-            else if (cleanName.Contains("Watcher") || cleanName.Contains("Sentinela") || cleanName.Contains("WatcherEnemy"))
-                cleanName = "Sentinela";
-            else if (cleanName.Contains("Totem"))
-                cleanName = "Totem";
-
             enemyData = EnemyDataAutoLoader.instancia.GetByName(cleanName);
         }
     }
@@ -53,14 +46,35 @@ public class EnemyIdentity : MonoBehaviour
             return;
         }
 
-        // Se ainda não foi encontrado e não tem detector, anexa um detector de inimigo
-        if (!foiEncontrado && GetComponent<DetectorDeInimigo>() == null)
+        // Garante que o detector de proximidade/visão esteja configurado
+        DetectorDeInimigo detector = GetComponent<DetectorDeInimigo>();
+        if (detector == null)
         {
-            DetectorDeInimigo detector = gameObject.AddComponent<DetectorDeInimigo>();
-            detector.usarTrigger = true;
-            detector.usarDistancia = true;
-            detector.distanciaDeteccao = 15f;
-            detector.debugLogs = true;
+            detector = gameObject.AddComponent<DetectorDeInimigo>();
+        }
+
+        detector.enemyIdentity = this;
+        detector.usarTrigger = true;
+        detector.usarDistancia = true;
+        detector.distanciaDeteccao = Mathf.Max(detector.distanciaDeteccao, 25f);
+        detector.debugLogs = false;
+    }
+
+    /// <summary>
+    /// Força o registro deste inimigo no Bestiário (se ainda não catalogado).
+    /// </summary>
+    public void RegisterInBestiary(string origem = "manual")
+    {
+        if (foiEncontrado) return;
+
+        if (enemyData == null && EnemyDataAutoLoader.instancia != null)
+        {
+            enemyData = EnemyDataAutoLoader.instancia.GetByName(nomeInimigo);
+        }
+
+        if (BestiarioManager.instancia != null)
+        {
+            BestiarioManager.instancia.Registrar(this);
         }
     }
 }

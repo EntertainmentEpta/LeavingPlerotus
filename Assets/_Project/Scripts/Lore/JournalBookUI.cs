@@ -425,7 +425,7 @@ public class JournalBookUI : MonoBehaviour
         if (clip == null) return;
         if (audioSource != null)
         {
-            audioSource.PlayOneShot(clip, soundVolume);
+            audioSource.PlayOneShot(clip, soundVolume * GlobalAudioManager.SFXVolumeMultiplier);
         }
     }
 

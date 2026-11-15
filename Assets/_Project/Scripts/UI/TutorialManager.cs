@@ -4,7 +4,8 @@ using System.Collections.Generic;
 // Todos os passos do tutorial da Base e Onboarding em ordem
 public enum TutorialStep
 {
-    PegarAdaga,             // 0: Pegar a Adaga de Plasma no chão do lobby
+    PegarMachado,           // 0: Empunhar o Machado de Cristal no Expositor de Armas (Weapon Rack)
+    PegarAdaga = PegarMachado, // Alias de compatibilidade
     FalarComRobozinho,      // 1: Interagir com o Robozinho (Mesa de Trabalho)
     AbrirAbaArmas,          // 2: Clicar na aba de ARMAS no Robozinho
     ForjarArma,             // 3: Forjar um armamento (Machado de Cristal ou Pistola)
@@ -16,14 +17,20 @@ public enum TutorialStep
 public class TutorialManager : MonoBehaviour
 {
     private static TutorialManager _instance;
+    private static bool isApplicationQuitting = false;
+
+    public static bool HasInstance => _instance != null;
     public static TutorialManager Instance
     {
         get
         {
+            if (isApplicationQuitting || !Application.isPlaying)
+                return _instance;
+
             if (_instance == null)
             {
                 _instance = FindFirstObjectByType<TutorialManager>();
-                if (_instance == null)
+                if (_instance == null && !isApplicationQuitting && Application.isPlaying)
                 {
                     GameObject go = new GameObject("TutorialManager_Auto");
                     _instance = go.AddComponent<TutorialManager>();
@@ -36,7 +43,7 @@ public class TutorialManager : MonoBehaviour
     }
 
     [Header("Progresso Atual")]
-    public TutorialStep currentStep = TutorialStep.PegarAdaga;
+    public TutorialStep currentStep = TutorialStep.PegarMachado;
 
     // Um evento (aviso) disparado toda vez que o passo muda
     public delegate void OnStepChanged(TutorialStep newStep);
@@ -70,7 +77,23 @@ public class TutorialManager : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (Instance == this) Instance = null;
+        if (_instance == this)
+        {
+            _instance = null;
+            isApplicationQuitting = true;
+        }
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStaticState()
+    {
+        isApplicationQuitting = false;
+        _instance = null;
+    }
+
+    private void OnApplicationQuit()
+    {
+        isApplicationQuitting = true;
     }
 
     /// <summary>
@@ -103,12 +126,12 @@ public class TutorialManager : MonoBehaviour
     /// </summary>
     public void ResetTutorial()
     {
-        currentStep = TutorialStep.PegarAdaga;
+        currentStep = TutorialStep.PegarMachado;
         if (SaveManager.instance != null && SaveManager.instance.CachedData != null)
         {
             SaveManager.instance.CachedData.tutorialStep = (int)currentStep;
         }
         stepChangedEvent?.Invoke(currentStep);
-        Debug.Log("[TutorialManager] Tutorial resetado para o início: PegarAdaga.");
+        Debug.Log("[TutorialManager] Tutorial resetado para o início: PegarMachado.");
     }
 }

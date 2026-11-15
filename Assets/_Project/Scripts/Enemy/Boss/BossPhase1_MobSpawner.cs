@@ -151,6 +151,7 @@ public class BossPhase1_MobSpawner : MonoBehaviour
     {
         bossController = GetComponent<BossController>();
         config = bossController.phaseConfig;
+        isBossSoloMode = false; // Garante que o modo solo não fique travado permanentemente por sessões anteriores
     }
 
     private void OnEnable()
@@ -194,6 +195,7 @@ public class BossPhase1_MobSpawner : MonoBehaviour
         {
             phase1Active = true;
             hitCounter = 0;
+            lastSpawnTime = -999f; // Permite spawn imediato
             firstThresholdTriggered = false;
             secondThresholdTriggered = false;
             Debug.Log("[MobSpawner] Fase 1 ativada — pronto para spawnar mobs.");
@@ -254,15 +256,21 @@ public class BossPhase1_MobSpawner : MonoBehaviour
     private IEnumerator AutoSpawnRoutineFase1()
     {
         yield return new WaitForSeconds(1.5f);
+        // Spawna uma wave inicial de abertura para compor o campo de batalha
+        if (phase1Active && !isBossSoloMode)
+        {
+            SpawnWave(WaveType.Threshold_First);
+        }
+
         while (phase1Active)
         {
+            yield return new WaitForSeconds(4.5f);
             activeMobs.RemoveAll(mob => mob == null);
             int maxMobs = config != null ? config.phase1MaxMobs : 6;
-            if (activeMobs.Count < maxMobs)
+            if (activeMobs.Count < maxMobs && !isBossSoloMode)
             {
                 SpawnWave(WaveType.CounterAttack);
             }
-            yield return new WaitForSeconds(3.5f);
         }
     }
 

@@ -20,7 +20,7 @@ MonoBehaviour:
   enemySource: Magic Crystal
   returnsToBase: 0
   recycleEssenceValue: 24
-  infusionEssenceCost: 60
+  infusionEssenceCost: 50
   itemAttributes:
   - attributeType: 0
     value: 1.1

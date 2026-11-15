@@ -19,7 +19,7 @@ MonoBehaviour:
   tier: 3
   enemySource: Golem
   recycleEssenceValue: 168
-  infusionEssenceCost: 420
+  infusionEssenceCost: 280
   itemAttributes:
   - attributeType: 13
     value: 1.3

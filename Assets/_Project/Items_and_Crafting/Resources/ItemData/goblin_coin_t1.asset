@@ -19,7 +19,7 @@ MonoBehaviour:
   tier: 0
   enemySource: Goblin
   recycleEssenceValue: 67
-  infusionEssenceCost: 60
+  infusionEssenceCost: 50
   itemAttributes:
   - attributeType: 19
     value: 1.1

@@ -252,7 +252,8 @@ public class BossPhase1_MestreDoSolo : MonoBehaviour
             if (bossCollider != null) bossCollider.enabled = true;
             if (rb != null) 
             {
-                rb.isKinematic = false;
+                rb.isKinematic = true;
+                rb.constraints = RigidbodyConstraints.FreezeAll;
                 rb.linearVelocity = Vector3.zero;
             }
             if (agent != null) 
@@ -585,4 +586,4 @@ public class BossPhase1_MestreDoSolo : MonoBehaviour
         }
         return false;
     }
-}
+}

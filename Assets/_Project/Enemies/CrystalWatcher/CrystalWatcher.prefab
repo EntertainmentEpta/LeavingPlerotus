@@ -205,8 +205,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DetectorDeInimigo
   enemyIdentity: {fileID: 0}
   usarTrigger: 1
-  usarDistancia: 0
-  distanciaDeteccao: 12
+  usarDistancia: 1
+  distanciaDeteccao: 25
   debugLogs: 0
 --- !u!1001 &4876194291372287756
 PrefabInstance:

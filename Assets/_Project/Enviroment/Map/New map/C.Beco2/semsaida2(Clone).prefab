@@ -116,10 +116,10 @@ MonoBehaviour:
   tanquePrefabs: []
   elitePrefabs: []
   suportePrefabs: []
-  minWaves: 0
-  maxWaves: 0
+  minWaves: 1
+  maxWaves: 1
   timeBetweenWaves: 2
-  minEnemiesPerWave: 0
+  minEnemiesPerWave: 1
   mobCapFraction: 0.7
   spawnAreas: []
   spawnIndicatorPrefab: {fileID: 0}
@@ -135,6 +135,9 @@ MonoBehaviour:
     weight: 1
   doors: []
   showSpawnLog: 0
+  enemiesPendingSpawn: 0
+  activeEnemies: []
+  combatActive: 0
 --- !u!65 &4204742058913163067
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -177,6 +180,28 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.24960682, y: 0.12829994, z: 0.06291299}
   m_Center: {x: -0.00090723037, y: 0.06381199, z: -0.09236944}
+--- !u!64 &2111341743215315265
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 106353550183271551}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: -5872077933228866730, guid: 2d3ba31b1593e294eb76d40dec6704d0, type: 3}
 --- !u!1 &1781721087059871378
 GameObject:
   m_ObjectHideFlags: 0
@@ -203,7 +228,7 @@ Transform:
   m_GameObject: {fileID: 1781721087059871378}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.0749, z: 0.1363}
+  m_LocalPosition: {x: 0, y: 0.07409, z: 0.1363}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -230,26 +255,3 @@ MonoBehaviour:
   showRuler: 1
   showDoorFrame: 1
   isOccupied: 0
---- !u!64 &2111341743215315265
-MeshCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 106353550183271551}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 0
-  m_CookingOptions: 30
-  m_Mesh: {fileID: -5872077933228866730, guid: 2d3ba31b1593e294eb76d40dec6704d0, type: 3}
-

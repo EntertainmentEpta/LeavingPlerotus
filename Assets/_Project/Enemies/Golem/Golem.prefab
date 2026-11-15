@@ -159,7 +159,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DummyHealth
   isSlowed: 0
-  maxHealth: 220
+  maxHealth: 380
   debugLogDamage: 0
   healthBarSlider: {fileID: 0}
   normalColor: {r: 0.45705712, g: 1, b: 0, a: 1}
@@ -188,15 +188,15 @@ MonoBehaviour:
   activationDistance: 15
   moveSpeed: 4
   rotationSpeed: 5
-  meleeRange: 3
-  meleeCooldown: 3
+  meleeRange: 3.2
+  meleeCooldown: 0.95
   meleeDamage: 35
-  meleeHitRadius: 3
+  meleeHitRadius: 2.4
   stunMaxRange: 10
-  stunCooldown: 12
+  stunCooldown: 9
   stunDuration: 1.5
-  stunTelegraphTime: 1.5
-  stunRadius: 5
+  stunTelegraphTime: 0.22
+  stunRadius: 4
   comboHitsForStun: 2
   walkingSounds:
   - {fileID: 8300000, guid: b88a35714c3dce4488a829bdef12597c, type: 3}
@@ -207,7 +207,7 @@ MonoBehaviour:
   meleeAttackSound: {fileID: 8300000, guid: f75792465661afe42acaebbfc98f757e, type: 3}
   meleeAttackSoundVolume: 0.8
   stompSound: {fileID: 8300000, guid: 63fc45f809a3c804cb02d179f93058b8, type: 3}
-  stompSoundVolume: 0.9
+  stompSoundVolume: 0.5
   hitSounds:
   - {fileID: 8300000, guid: 5ad980c6abd999e43b7d08880ed1f92f, type: 3}
   hitSoundVolume: 0.7

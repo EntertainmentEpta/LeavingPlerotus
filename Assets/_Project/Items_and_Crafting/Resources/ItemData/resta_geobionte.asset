@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: resta_geobionte
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
   itemId: resta_geobionte
-  itemName: "Resta de Geobionte"
-  description: "Matéria orgânica fóssil encontrada nas profundezas."
+  itemName: Resto de Geobionte
+  description: "Materia fossil bismutada remanescente da fusao do Geobionte com o cristal da caverna. Componente unico para desbloquear a expansao da camara de infusao quadrupla."
   icon: {fileID: 0}
-  tier: 1
-  enemySource: ""
+  tier: 2
+  enemySource: Geobionte
   returnsToBase: 1
-  recycleEssenceValue: 15
-  infusionEssenceCost: 60
+  recycleEssenceValue: 50
+  infusionEssenceCost: 150
   itemAttributes: []

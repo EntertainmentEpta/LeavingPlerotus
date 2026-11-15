@@ -65,7 +65,7 @@ public class PlayerM : MonoBehaviour
 
     [Tooltip("Volume dos passos (0.0 a 1.0)")]
     [Range(0f, 1f)]
-    public float footstepVolume = 0.5f;
+    public float footstepVolume = 0.60f;
 
     private AudioSource footstepSource;
     private bool isFootstepPlaying = false;
@@ -78,7 +78,17 @@ public class PlayerM : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         rb.freezeRotation = true;
+
+        // SEGURANÇA NAVMESH: O jogador usa Rigidbody (linearVelocity).
+        // Desativa updatePosition e updateRotation no NavMeshAgent para nunca criar paredes invisíveis em portas.
+        UnityEngine.AI.NavMeshAgent navAgent = GetComponent<UnityEngine.AI.NavMeshAgent>() ?? GetComponentInParent<UnityEngine.AI.NavMeshAgent>() ?? GetComponentInChildren<UnityEngine.AI.NavMeshAgent>();
+        if (navAgent != null)
+        {
+            navAgent.updatePosition = false;
+            navAgent.updateRotation = false;
+        }
         if (attackScript == null) attackScript = GetComponent<PrimaryAttackKnife>() ?? GetComponentInChildren<PrimaryAttackKnife>();
+        if (dashScript == null) dashScript = GetComponent<DashM>() ?? GetComponentInChildren<DashM>() ?? GetComponentInParent<DashM>();
         
         // Buscar PlayerAttributesDefensive
         playerAttributes = GetComponent<PlayerAttributesDefensive>() ?? GetComponentInParent<PlayerAttributesDefensive>() ?? GetComponentInChildren<PlayerAttributesDefensive>();
@@ -109,6 +119,15 @@ public class PlayerM : MonoBehaviour
         {
             gameObject.AddComponent<KeybindApplier>();
         }
+        ReloadKeybinds();
+    }
+
+    public void ReloadKeybinds()
+    {
+        keyUp = KeybindApplier.ParseKey("KeyUp", "W");
+        keyDown = KeybindApplier.ParseKey("KeyDown", "S");
+        keyLeft = KeybindApplier.ParseKey("KeyLeft", "A");
+        keyRight = KeybindApplier.ParseKey("KeyRight", "D");
     }
 
     private void Update()
@@ -326,9 +345,16 @@ public class PlayerM : MonoBehaviour
         if (shouldPlay && !isFootstepPlaying)
         {
             footstepSource.clip = runningFootstepClip;
-            footstepSource.volume = footstepVolume;
-            footstepSource.Play();
-            isFootstepPlaying = true;
+            footstepSource.volume = (footstepVolume * 1.25f) * GlobalAudioManager.SFXVolumeMultiplier;
+            if (footstepSource.volume > 0.001f)
+            {
+                footstepSource.Play();
+                isFootstepPlaying = true;
+            }
+        }
+        else if (shouldPlay && isFootstepPlaying)
+        {
+            footstepSource.volume = (footstepVolume * 1.25f) * GlobalAudioManager.SFXVolumeMultiplier;
         }
         else if (!shouldPlay && isFootstepPlaying)
         {

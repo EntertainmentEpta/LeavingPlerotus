@@ -16,6 +16,15 @@ public class TotemSpawner : MonoBehaviour
     [Header("Ativação")]
     public float activationDistance = 20f;
 
+    [Header("Onda de Repulsão Periódica (Pilar 4)")]
+    [Tooltip("Intervalo entre ondas de repulsão físicas sem dano que afastam o jogador do totem.")]
+    public float repulsionInterval = 4.0f;
+    [Tooltip("Raio de alcance da onda de repulsão.")]
+    public float repulsionRadius = 6.5f;
+    [Tooltip("Força física de empurrão aplicada no jogador.")]
+    public float repulsionForce = 8.5f;
+    private float repulsionTimer = 2.0f;
+
     private float originalSpawnInterval;
     private bool isBuffed = false;
     private int skullsSpawned = 0;
@@ -81,6 +90,14 @@ public class TotemSpawner : MonoBehaviour
             return;
         }
 
+        // Onda periódica de repulsão física do Totem (Pilar 4)
+        repulsionTimer -= Time.deltaTime;
+        if (repulsionTimer <= 0f)
+        {
+            repulsionTimer = repulsionInterval;
+            TriggerRepulsionPulse();
+        }
+
         if (skullsSpawned < totalSkullsToSpawn)
         {
             spawnTimer -= Time.deltaTime;
@@ -88,6 +105,28 @@ public class TotemSpawner : MonoBehaviour
             {
                 SpawnSkull();
                 spawnTimer = spawnInterval;
+            }
+        }
+    }
+
+    private void TriggerRepulsionPulse()
+    {
+        if (playerTransform == null) return;
+        Vector3 diff = playerTransform.position - transform.position;
+        diff.y = 0f;
+        float dist = diff.magnitude;
+        if (dist <= repulsionRadius && dist > 0.05f)
+        {
+            PlayerHealth ph = playerTransform.GetComponent<PlayerHealth>() ?? playerTransform.GetComponentInParent<PlayerHealth>();
+            if (ph != null && ph.isKnockbackImmune) return;
+
+            Rigidbody playerRb = playerTransform.GetComponent<Rigidbody>() ?? playerTransform.GetComponentInParent<Rigidbody>();
+            if (playerRb != null)
+            {
+                Vector3 pushDir = diff.normalized;
+                pushDir.y = 0.25f;
+                playerRb.AddForce(pushDir.normalized * repulsionForce, ForceMode.Impulse);
+                Debug.Log("[TOTEM] Onda de repulsão periódica empurrou o jogador!");
             }
         }
     }

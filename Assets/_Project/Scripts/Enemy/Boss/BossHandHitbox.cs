@@ -10,9 +10,10 @@ public enum HandSide
 
 /// <summary>
 /// Script de Hitbox & Trail exclusivo de UMA mão específica do Boss.
-///  • SEM TELEPORTES: Removido qualquer deslocamento bruto de posição.
-///  • TRAVA ANTI-MORTE INSTANTÂNEA: Garante exatamente 1 hit por ataque por mão (hasHitPlayerThisAttack).
-///  • CONTROLE TOTAL DE TRAIL VIA ANIMAÇÃO: Ativa o trail apenas quando chamado pelos Animation Events.
+///  • SEM TELEPORTES: Mantém o movimento contínuo sem solavancos.
+///  • SINCRONIA IMEDIATA: Ativa a janela de impacto no frame exato do golpe, sem atraso artificial.
+///  • TRAVA ANTI-MORTE INSTANTÂNEA GLOBAL: Garante exatamente 1 hit por ataque por golpe do Boss (elimina multi-hit das duas mãos).
+///  • VARREDURA DE ALCANCE CALIBRADA: Alcance de 4.8m para acompanhar a escala e o porte do Boss novo.
 /// </summary>
 public class BossHandHitbox : MonoBehaviour
 {
@@ -27,12 +28,11 @@ public class BossHandHitbox : MonoBehaviour
     public Collider handCollider;
     public int damage = 35;
     public float knockbackForce = 6.0f;
-    public float raioVarreduraArco = 3.0f;
+    [Tooltip("Raio de varredura frontal para garantir que o golpe acerte mesmo com diferenças de altura.")]
+    public float raioVarreduraArco = 4.8f;
 
-    [Header("Sincronização com Animação (Fallback)")]
-    [Tooltip("Tempo de espera (em segundos) entre o início da animação e a pancada real.")]
-    public float hitWindupDelay = 0.40f;
-    public float duracaoJanelaImpacto = 0.25f;
+    [Header("Sincronização com Animação")]
+    public float duracaoJanelaImpacto = 0.35f;
 
     [Header("VFX & Trail Exclusivo desta Mão")]
     public BossMeleeTrail meleeTrail;
@@ -40,9 +40,10 @@ public class BossHandHitbox : MonoBehaviour
     public GameObject vfxAtaqueMeleePrefab;
 
     private bool isActive = false;
-    private bool hasHitPlayerThisAttack = false; // TRAVA RIGOROSA CONTRA MULTI-HIT DE MORTE INSTANTÂNEA
+    private bool hasHitPlayerThisAttack = false;
     private BossController bossController;
     private Coroutine attackRoutine;
+    private Transform playerTransformCached;
 
     void Awake()
     {
@@ -56,15 +57,32 @@ public class BossHandHitbox : MonoBehaviour
         }
 
         bossController = GetComponentInParent<BossController>();
-        
+
         // Garante que o Trail esteja posicionado no GameObject hand da mão
         Transform targetTrailTransform = handTransform != null ? handTransform : transform;
         if (meleeTrail == null)
             meleeTrail = targetTrailTransform.GetComponent<BossMeleeTrail>() ?? targetTrailTransform.gameObject.AddComponent<BossMeleeTrail>();
     }
 
+    private Transform GetPlayerTransform()
+    {
+        if (playerTransformCached == null)
+        {
+            if (bossController != null && bossController.playerTransform != null)
+            {
+                playerTransformCached = bossController.playerTransform;
+            }
+            else
+            {
+                GameObject p = GameObject.FindGameObjectWithTag("Player");
+                if (p != null) playerTransformCached = p.transform;
+            }
+        }
+        return playerTransformCached;
+    }
+
     /// <summary>
-    /// Inicia a janela de ataque (modo fallback).
+    /// Ativa a hitbox imediatamente no momento do impacto disparado pelo BossController.
     /// </summary>
     public void EnableHitbox(float totalDuration, int attackDamage = 35, float pushForce = 15f)
     {
@@ -73,81 +91,50 @@ public class BossHandHitbox : MonoBehaviour
         hasHitPlayerThisAttack = false;
 
         if (attackRoutine != null) StopCoroutine(attackRoutine);
-        attackRoutine = StartCoroutine(RotinaAtaqueFallback(totalDuration));
+        attackRoutine = StartCoroutine(RotinaAtivacaoImediata(totalDuration > 0.05f ? totalDuration : duracaoJanelaImpacto));
     }
 
-    private IEnumerator RotinaAtaqueFallback(float totalDuration)
+    private IEnumerator RotinaAtivacaoImediata(float activeWindow)
     {
-        // Vira para o player de forma natural, SEM teleportar o corpo
-        Transform rootBoss = bossController != null ? bossController.transform : transform.root;
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
-
-        if (rootBoss != null && player != null)
-        {
-            Vector3 lookDir = (player.transform.position - rootBoss.position).normalized;
-            lookDir.y = 0f;
-            if (lookDir != Vector3.zero) rootBoss.rotation = Quaternion.LookRotation(lookDir);
-        }
-
-        // Aguarda a mão descer na animação (hitWindupDelay)
-        yield return new WaitForSeconds(hitWindupDelay);
-
-        // Dispara o momento de impacto
         OnAnimationEvent_EnableHitbox();
 
-        yield return new WaitForSeconds(duracaoJanelaImpacto);
+        yield return new WaitForSeconds(activeWindow);
 
-        // Finaliza o golpe
         DisableHitbox();
     }
 
     // =========================================================================
-    // ANIMATION EVENTS (Controlados 100% pelos marcadores da timeline do Unity)
+    // ANIMATION EVENTS (Controlados pelos marcadores da timeline ou pelo controller)
     // =========================================================================
 
-    /// <summary>
-    /// Evento de Animação: Liga APENAS a Hitbox de dano no frame exato do impacto.
-    /// </summary>
     public void OnAnimationEvent_EnableHitbox()
     {
         isActive = true;
-        hasHitPlayerThisAttack = false; // Libera a trava para dar o 1° e único hit deste golpe
+        hasHitPlayerThisAttack = false;
         if (handCollider != null) handCollider.enabled = true;
     }
 
-    /// <summary>
-    /// Evento de Animação: Liga APENAS o Trail no frame em que a mão começa o balanço.
-    /// </summary>
     public void OnAnimationEvent_EnableTrailOnly()
     {
         if (meleeTrail != null) meleeTrail.AtivarTrail(0.45f);
     }
 
-    /// <summary>
-    /// Evento de Animação: Desliga APENAS o Trail no frame exato desejado.
-    /// </summary>
     public void OnAnimationEvent_DisableTrailOnly()
     {
         if (meleeTrail != null) meleeTrail.DesativarTrail();
     }
 
-    /// <summary>
-    /// Evento de Animação: Desliga a Hitbox e apaga o Trail.
-    /// </summary>
     public void OnAnimationEvent_DisableHitbox()
     {
         DisableHitbox();
     }
 
-    /// <summary>
-    /// Evento de Animação: Efeito de impacto no chão e trepidação da câmera.
-    /// </summary>
     public void OnAnimationEvent_GroundImpact()
     {
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        Transform player = GetPlayerTransform();
         if (vfxImpactoChaoPrefab != null && player != null)
         {
-            Vector3 posImpacto = player.transform.position + Vector3.up * 0.1f;
+            Vector3 posImpacto = player.position + Vector3.up * 0.1f;
             Instantiate(vfxImpactoChaoPrefab, posImpacto, Quaternion.identity);
         }
         BossController.TriggerCameraShake(0.3f, 0.2f);
@@ -172,27 +159,31 @@ public class BossHandHitbox : MonoBehaviour
 
     private void Update()
     {
-        // Varredura por área enquanto ativa (para o Boss alto acertas o player sem falhas de collider)
+        // Varredura por área enquanto ativa (para garantir acerto limpo em 4.8m)
         if (!isActive || hasHitPlayerThisAttack) return;
 
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
-        if (player != null)
+        Transform player = GetPlayerTransform();
+        if (player == null) return;
+
+        Transform rootBoss = bossController != null ? bossController.transform : transform.root;
+        Vector3 playerPos = player.position + Vector3.up * 1.0f;
+
+        // Testa distância do centro da mão (se houver) ou de um ponto projetado à frente do Boss
+        Vector3 originHand = handTransform != null ? handTransform.position : transform.position;
+        Vector3 originFront = rootBoss != null ? (rootBoss.position + rootBoss.forward * 1.8f + Vector3.up * 1.0f) : originHand;
+
+        float distHand = Vector3.Distance(originHand, playerPos);
+        float distFront = Vector3.Distance(originFront, playerPos);
+
+        if (distHand <= (raioVarreduraArco * 0.7f) || distFront <= raioVarreduraArco)
         {
-            Transform rootBoss = bossController != null ? bossController.transform : transform.root;
-            Vector3 origin = rootBoss != null ? rootBoss.position + Vector3.up * 1.0f : transform.position;
-            Vector3 playerPos = player.transform.position + Vector3.up * 1.0f;
-            float dist = Vector3.Distance(origin, playerPos);
+            Vector3 bossForward = rootBoss != null ? rootBoss.forward : transform.forward;
+            Vector3 dirToPlayer = (playerPos - (rootBoss != null ? rootBoss.position : transform.position)).normalized;
+            float angle = Vector3.Angle(bossForward, dirToPlayer);
 
-            if (dist <= raioVarreduraArco)
+            if (angle <= 75f)
             {
-                Vector3 dirToPlayer = (playerPos - origin).normalized;
-                Vector3 bossForward = rootBoss != null ? rootBoss.forward : transform.forward;
-                float angle = Vector3.Angle(bossForward, dirToPlayer);
-
-                if (angle <= 65f)
-                {
-                    AplicarDanoEKnockbackNoPlayer(player);
-                }
+                AplicarDanoEKnockbackNoPlayer(player.gameObject);
             }
         }
     }
@@ -201,7 +192,17 @@ public class BossHandHitbox : MonoBehaviour
     {
         if (player == null || hasHitPlayerThisAttack) return;
 
-        // TRAVA RIGOROSA ANTI-MORTE INSTANTÂNEA: Garante APENAS 1 HIT por ataque!
+        // Trava compartilhada anti-multi-hit: se a outra mão já acertou neste golpe há menos de 0.35s, ignora
+        if (bossController != null)
+        {
+            if (Time.time - bossController.lastMeleeHitPlayerTime < 0.35f)
+            {
+                hasHitPlayerThisAttack = true;
+                return;
+            }
+            bossController.lastMeleeHitPlayerTime = Time.time;
+        }
+
         hasHitPlayerThisAttack = true;
 
         PlayerHealth playerHealth = player.GetComponent<PlayerHealth>() ?? player.GetComponentInParent<PlayerHealth>();
@@ -227,10 +228,9 @@ public class BossHandHitbox : MonoBehaviour
             VFXManager.Play(VFXType.BossPunchImpact, player.transform.position + Vector3.up * 1.0f, Quaternion.identity);
         }
 
-        // Dispara o Impact Frame da Vefects no ponto do acerto
         VFXManager.Play(VFXType.ImpactFrame, player.transform.position + Vector3.up * 1.0f, Quaternion.identity);
         BossController.TriggerCameraShake(0.35f, 0.2f);
 
-        Debug.Log($"[BossHandHitbox - {handSide}] 💥 GOLPE ÚNICO DA MÃO {handSide.ToString().ToUpper()} ACERTOU O PLAYER COM IMPACT FRAME! Dano: {damage}");
+        Debug.Log($"[BossHandHitbox - {handSide}] Golpe acertou o player com precisão! Dano: {damage}");
     }
 }

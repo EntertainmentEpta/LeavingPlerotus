@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
@@ -208,6 +208,26 @@ public class InventoryTooltip : MonoBehaviour
         Hide();
     }
 
+    private static string SanitizeEncoding(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return text;
+        return text
+            .Replace("CrÃƒÂtico", "Crítico")
+            .Replace("CrÃtico", "Crítico")
+            .Replace("Cr\u00C3\u00ADtico", "Crítico")
+            .Replace("CrÃ\u00ADtico", "Crítico")
+            .Replace("crÃƒÂtico", "crítico")
+            .Replace("crÃtico", "crítico")
+            .Replace("MÃ¡xima", "Máxima")
+            .Replace("mÃ¡xima", "máxima")
+            .Replace("NegaÃ§Ã£o", "Negação")
+            .Replace("negaÃ§Ã£o", "negação")
+            .Replace("PerfuraÃ§Ã£o", "Perfuração")
+            .Replace("perfuraÃ§Ã£o", "perfuração")
+            .Replace("ForÃ§a", "Força")
+            .Replace("forÃ§a", "força");
+    }
+
     /// <summary>
     /// Exibe o tooltip com os dados do item
     /// </summary>
@@ -217,7 +237,7 @@ public class InventoryTooltip : MonoBehaviour
 
         // Nome com cor do Tier
         Color tierColor = itemData.GetTierColor();
-        nameText.text = itemData.itemName;
+        nameText.text = SanitizeEncoding(itemData.itemName);
         nameText.color = tierColor;
 
         // Descrição
@@ -230,7 +250,7 @@ public class InventoryTooltip : MonoBehaviour
             desc += "\n\n" + extraNote;
         }
 
-        descriptionText.text = desc;
+        descriptionText.text = SanitizeEncoding(desc);
 
         // Ajusta altura dinamicamente para nunca cortar textos longos de infusão/sinergia
         descriptionText.ForceMeshUpdate();

@@ -20,5 +20,5 @@ MonoBehaviour:
   enemySource: "Fauna"
   returnsToBase: 1
   recycleEssenceValue: 15
-  infusionEssenceCost: 60
+  infusionEssenceCost: 100
   itemAttributes: []

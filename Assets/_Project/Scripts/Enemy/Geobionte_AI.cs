@@ -94,6 +94,8 @@ public class Geobionte_AI : MonoBehaviour
 
     private OreNode targetOre;
     private bool hasFused = false; // Flag por ciclo (reset após derrota)
+    private Vector3 consumedOrePosition = Vector3.zero; // Posição original do minério absorvido
+    private float interruptedWatchdogTimer = 0f; // Flag por ciclo (reset após derrota)
 
     [Header("Debug / Teste")]
     [Tooltip("Quantas derrotas como Bismutado já ocorreram. Defina como 2 para virar Sentinela na próxima derrota (fusionsToSentinel=3). Valor é sobrescrito pelo RunManager no Start se existir.")]
@@ -379,21 +381,35 @@ public class Geobionte_AI : MonoBehaviour
             Debug.Log("[GEOBIONTE] Progresso carregado do RunManager: " + bismutadoDefeatCount + "/" + fusionsToSentinel + " derrotas");
         }
 
-        // FORMA BASE: não atacável
-        // DummyHealth fica invulnerável e escondemos a health bar
+        // FORMA BASE: ATACÁVEL! O jogador pode acertar o Geobionte antes de ele fundir com o minério
         if (health != null)
         {
-            health.isInvulnerable = true;
-            // O health bar já começa escondido por padrão no DummyHealth
+            health.maxHealth = preventionMaxHP;
+            preventionCurrentHP = preventionMaxHP;
+            health.ResetHealth();
+            health.isInvulnerable = false;
+            health.fixedDamageOverride = 1;
+            health.onDeathOverride = OnPrevented;
+            health.onDamageTaken -= OnBaseGeobionteTookDamage;
+            health.onDamageTaken += OnBaseGeobionteTookDamage;
         }
 
-        // Mudar layer para Default (neutro) — WeaponHitbox não detecta
-        gameObject.layer = LayerMask.NameToLayer("Default");
-
-        // Configurar override de morte
-        if (health != null)
+        // Mantém na layer original de Enemy para registrar colisões de armas e projéteis imediatamente
+        if (originalLayer == 0 || LayerMask.LayerToName(originalLayer) == "Default")
         {
-            health.onDeathOverride = OnDefeated;
+            int enemyLayer = LayerMask.NameToLayer("Enemy");
+            if (enemyLayer != -1) originalLayer = enemyLayer;
+        }
+        gameObject.layer = originalLayer;
+
+        // Auto-alinha no piso sólido e zera rotações invertidas para nunca nascer de cabeça para baixo ou no teto
+        transform.rotation = Quaternion.Euler(0f, transform.rotation.eulerAngles.y, 0f);
+        if (Physics.Raycast(transform.position + Vector3.up * 1.0f, Vector3.down, out RaycastHit snapHit, 15f, ~0, QueryTriggerInteraction.Ignore))
+        {
+            if (snapHit.normal.y >= 0.60f && snapHit.point.y <= transform.position.y + 0.5f)
+            {
+                transform.position = snapHit.point + Vector3.up * bodyHoverHeight;
+            }
         }
 
         // Inicializar prevenção HP
@@ -402,7 +418,21 @@ public class Geobionte_AI : MonoBehaviour
         // Iniciar wandering
         PickNewWanderDirection();
 
-        Debug.Log("[GEOBIONTE] Inicializado em modo passivo. Escala: " + originalScale);
+        Debug.Log("[GEOBIONTE] Inicializado em modo atacável no piso. Escala: " + originalScale);
+    }
+
+    private void OnBaseGeobionteTookDamage(int damage, GameObject attacker)
+    {
+        if (currentState == GeobionteState.Idle)
+        {
+            isActivated = true;
+            Debug.Log("[GEOBIONTE] Recebeu dano no estado Idle! Buscando minério imediatamente.");
+            FindNearestOre();
+            if (targetOre != null)
+            {
+                EnterSeekingOre();
+            }
+        }
     }
 
     // ========================================================================
@@ -515,6 +545,11 @@ public class Geobionte_AI : MonoBehaviour
                 {
                     EnterSeekingOre();
                 }
+                else
+                {
+                    FleeAndDespawnNoOre();
+                    return;
+                }
             }
             // Se já fundiu ou não encontrou minério, continua vagando
         }
@@ -604,9 +639,9 @@ public class Geobionte_AI : MonoBehaviour
             FindNearestOre();
             if (targetOre == null)
             {
-                Debug.Log("[GEOBIONTE] Sem minério disponível! Voltando a vagar.");
+                Debug.Log("[GEOBIONTE] Sem minério disponível! Fugindo da sala...");
                 ExitSeekingOre();
-                ChangeState(GeobionteState.Idle);
+                FleeAndDespawnNoOre();
                 oreStallTimer = 0f;
                 return;
             }
@@ -673,6 +708,64 @@ public class Geobionte_AI : MonoBehaviour
     /// Chamado quando o player dá 7 hits no Geobionte enquanto ele busca minério.
     /// O Geobionte é impedido de transformar, foge para um canto da fase e despawna.
     /// </summary>
+    
+    /// <summary>
+    /// Chamado quando não há nenhum minério disponível na sala para o Geobionte se fundir.
+    /// Foge imediatamente para o canto e despawna, liberando as portas da sala.
+    /// </summary>
+    public void FleeAndDespawnNoOre()
+    {
+        if (isPrevented) return;
+        Debug.Log("[GEOBIONTE] Nenhum minério disponível para fusão na sala! Fugindo para a borda e liberando a sala...");
+        OnPrevented();
+    }
+
+    /// <summary>
+    /// Reaparece o minério original transformado em 'Resto de Geobionte' após derrotar o Bismutado.
+    /// </summary>
+    private void SpawnRestoGeobionteDrop(Vector3 pos)
+    {
+        GameObject prefab = Resources.Load<GameObject>("geobionte_bismuto_t2");
+#if UNITY_EDITOR
+        if (prefab == null)
+            prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Items_and_Crafting/Drops/geobionte_bismuto_t2.prefab");
+#endif
+
+        GameObject dropObj = null;
+        if (prefab != null)
+        {
+            dropObj = Instantiate(prefab, pos + Vector3.up * 0.35f, Quaternion.identity);
+        }
+        else
+        {
+            dropObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            dropObj.transform.position = pos + Vector3.up * 0.35f;
+            dropObj.transform.localScale = Vector3.one * 0.5f;
+
+            Renderer r = dropObj.GetComponent<Renderer>();
+            if (r != null)
+            {
+                Shader s = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+                Material m = new Material(s);
+                m.color = new Color(0.9f, 0.4f, 0.9f);
+                r.material = m;
+            }
+        }
+
+        dropObj.name = "Resto_de_Geobionte";
+
+        CharacteristicItemPickup pickup = dropObj.GetComponent<CharacteristicItemPickup>() ?? dropObj.AddComponent<CharacteristicItemPickup>();
+        pickup.itemId = "resta_geobionte";
+        pickup.itemName = "Resto de Geobionte";
+        pickup.itemDescription = "Matéria fóssil bismutada remanescente da fusão do Geobionte com o cristal da caverna. Componente único para expandir a câmara de infusão quádrupla.";
+
+        SphereCollider sc = dropObj.GetComponent<SphereCollider>() ?? dropObj.AddComponent<SphereCollider>();
+        sc.isTrigger = true;
+        sc.radius = 1.35f;
+
+        Debug.Log($"[GEOBIONTE] Resto de Geobionte reapareceu na posição original do minério ({pos})!");
+    }
+
     void OnPrevented()
     {
         Debug.Log("[GEOBIONTE] IMPEDIDO! Player conseguiu impedir a fusão!");
@@ -765,14 +858,16 @@ public class Geobionte_AI : MonoBehaviour
 
     void HandleInterrupted()
     {
-        // Verifica se chegou ao canto (ignora Y)
+        interruptedWatchdogTimer += Time.deltaTime;
+
+        // Verifica se chegou ao canto (ignora Y) ou se atingiu o timeout de 5 segundos
         Vector2 pos2D = new Vector2(transform.position.x, transform.position.z);
         Vector2 target2D = new Vector2(interruptedTargetCorner.x, interruptedTargetCorner.z);
         float dist = Vector2.Distance(pos2D, target2D);
 
-        if (dist <= 2f)
+        if (dist <= 2.5f || interruptedWatchdogTimer >= 5.0f)
         {
-            Debug.Log("[GEOBIONTE] Chegou ao canto da fase. Despawnando...");
+            Debug.Log("[GEOBIONTE] Fuga concluída (dist=" + dist.ToString("F1") + ", timer=" + interruptedWatchdogTimer.ToString("F1") + "s). Despawnando...");
             StartCoroutine(DespawnSequence());
         }
     }
@@ -900,6 +995,7 @@ public class Geobionte_AI : MonoBehaviour
         // Grava o valor do cristal e consome
         if (targetOre != null)
         {
+            consumedOrePosition = targetOre.transform.position;
             absorbedOreValue = targetOre.oreValue;
             targetOre.Consume(); // Destrói o cristal (some da cena)
         }
@@ -1211,14 +1307,20 @@ public class Geobionte_AI : MonoBehaviour
 
     private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
     {
+        if (clip == null) return;
+        float effectiveVolume = volume * GlobalAudioManager.SFXVolumeMultiplier;
+        if (effectiveVolume <= 0.001f) return;
+
         if (audioSource != null)
         {
             audioSource.pitch = pitch;
-            audioSource.PlayOneShot(clip, volume);
+            if (audioSource.outputAudioMixerGroup == null && GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+                audioSource.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
+            audioSource.PlayOneShot(clip, effectiveVolume);
         }
         else
         {
-            AudioSource.PlayClipAtPoint(clip, position, volume);
+            AudioSource.PlayClipAtPoint(clip, position, effectiveVolume);
         }
     }
 
@@ -1265,6 +1367,27 @@ public class Geobionte_AI : MonoBehaviour
         }
     }
 
+    private Coroutine slimeFrenzyCoroutine;
+
+    /// <summary>
+    /// FRENESI: O Bismutado ganha um surto de velocidade para avançar com fúria contra o jogador enredado no lodo.
+    /// </summary>
+    public void TriggerSlimeFrenzy(float duration = 3.5f)
+    {
+        if (slimeFrenzyCoroutine != null) StopCoroutine(slimeFrenzyCoroutine);
+        slimeFrenzyCoroutine = StartCoroutine(SlimeFrenzyRoutine(duration));
+    }
+
+    private IEnumerator SlimeFrenzyRoutine(float duration)
+    {
+        float boostMult = 1.60f; // +60% velocidade de perseguição no frenesi!
+        chaseSpeed = originalChaseSpeed * boostMult;
+        Debug.Log($"🔥 [BISMUTADO] FRENESI ATIVADO! Jogador preso no lodo! Velocidade aumentada para {chaseSpeed:F1} m/s");
+        yield return new WaitForSeconds(duration);
+        chaseSpeed = originalChaseSpeed;
+        slimeFrenzyCoroutine = null;
+    }
+
     /// <summary>
     /// Chamado pelo BismuthCrystalField quando o player entra na área do debuff.
     /// O Bismutado percebe o player no debuff e ataca se estiver no alcance físico de perto (4.0m)!
@@ -1282,6 +1405,9 @@ public class Geobionte_AI : MonoBehaviour
         {
             transform.rotation = Quaternion.LookRotation(dirToPlayer);
         }
+
+        // FRENESI: Bismutado acelera imediatamente para alcançar e punir o jogador preso no lodo
+        TriggerSlimeFrenzy(3.5f);
 
         // SÓ acerta o ataque se estiver no alcance físico real do braço (<= 4.0m) para não socar o vento!
         if (distToPlayer <= sweepRange && !isSweeping)
@@ -1440,6 +1566,13 @@ public class Geobionte_AI : MonoBehaviour
 
         // Incrementa contador de derrotas como Bismutado
         bismutadoDefeatCount++;
+
+        // Reaparece o minério original transformado em "Resto de Geobionte"
+        if (hasFused)
+        {
+            Vector3 dropPos = (consumedOrePosition != Vector3.zero) ? consumedOrePosition : transform.position;
+            SpawnRestoGeobionteDrop(dropPos);
+        }
         Debug.Log("[BISMUTADO] Derrotado! Derrota #" + bismutadoDefeatCount + "/" + fusionsToSentinel);
 
         // PROGRESSÃO MULTI-FASE: Salva progresso no RunManager
@@ -2500,20 +2633,29 @@ public class Geobionte_AI : MonoBehaviour
         // Durante o slam, a coroutine SentinelSlam controla a velocity Y diretamente
         if (sentinelIsSlaming) return;
 
+        // Mantém rotação estritamente em pé (impede virar de cabeça para baixo e pregar no teto)
+        transform.rotation = Quaternion.Euler(0f, transform.rotation.eulerAngles.y, 0f);
+
         Collider[] cols = GetComponentsInChildren<Collider>();
         foreach(var c in cols) c.enabled = false;
 
-        RaycastHit[] hits = Physics.RaycastAll(transform.position + Vector3.up * 5f, Vector3.down, 15f);
+        // Raycast parte de apenas 1.0m acima do centro do inimigo (nunca acima do teto da sala) e ignora triggers como AutoSpawnArea
+        RaycastHit[] hits = Physics.RaycastAll(transform.position + Vector3.up * 1.0f, Vector3.down, 12f, ~0, QueryTriggerInteraction.Ignore);
         RaycastHit groundHit = new RaycastHit();
         bool hitGround = false;
         float highestGroundY = -float.MaxValue;
 
         foreach (var hit in hits)
         {
-            if (hit.collider.isTrigger) continue;
-            if (hit.collider.CompareTag("Player")) continue;
+            if (hit.collider == null || hit.collider.isTrigger) continue;
+            if (hit.collider.CompareTag("Player") || hit.collider.CompareTag("Enemy")) continue;
             if (hit.collider.gameObject == gameObject || hit.collider.transform.IsChildOf(transform)) continue;
-            if (hit.collider.CompareTag("Enemy")) continue;
+
+            // CRÍTICO: Deve ser uma superfície sólida apontando para CIMA (piso real), nunca teto ou parede invertida
+            if (hit.normal.y < 0.60f) continue;
+
+            // Ponto de impacto não pode estar acima da criatura (evita teto)
+            if (hit.point.y > transform.position.y + 0.8f) continue;
 
             // Encontra o chão válido mais alto abaixo de nós
             if (hit.point.y > highestGroundY)
@@ -2550,6 +2692,13 @@ public class Geobionte_AI : MonoBehaviour
             // Sentinela usa lerp mais suave para a transição alta/baixa
             float lerpSpeed = isSentinel ? hoverLerpSpeed * 0.5f : hoverLerpSpeed;
             float yVelocity = Mathf.Clamp(yError * lerpSpeed, -10f, 10f);
+
+            // Garante que se estiver flutuando muito alto acima do chão/teto, puxa com firmeza para baixo
+            if (transform.position.y > groundHit.point.y + currentHoverHeight + 0.8f)
+            {
+                yVelocity = -8f;
+            }
+
             rb.linearVelocity = new Vector3(rb.linearVelocity.x, yVelocity, rb.linearVelocity.z);
         }
         else

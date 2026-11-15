@@ -275,13 +275,21 @@ public class FloatingDamageText : MonoBehaviour
 
         if (particleText != null)
         {
-            particleText.UpdateText(
-                newText: message,
-                newSize: particleBaseSize * sizeMultiplier,
-                newColor1: color,
-                newColor2: new Color(color.r * 0.7f, color.g * 0.5f, 0f, 1f),
-                newLifetimeMultiplier: 1.5f
-            );
+            try
+            {
+                particleText.UpdateText(
+                    newText: message,
+                    newSize: particleBaseSize * sizeMultiplier,
+                    newColor1: color,
+                    newColor2: new Color(color.r * 0.7f, color.g * 0.5f, 0f, 1f),
+                    newLifetimeMultiplier: 1.5f
+                );
+            }
+            catch (System.Exception ex)
+            {
+                // Ignora falhas com caracteres especiais na fonte de partÃ­culas
+                Debug.LogWarning($"[FloatingDamageText] Caractere incompatÃ­vel com partÃ­cula: {ex.Message}");
+            }
         }
     }
     

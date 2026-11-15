@@ -12,9 +12,9 @@ public class EssencePickup : MonoBehaviour
 
     [Header("Movimento")]
     [Tooltip("Velocidade de atração quando perto do player")]
-    public float attractSpeed = 16f;
+    public float attractSpeed = 20f;
     [Tooltip("Distância para começar a atrair")]
-    public float attractDistance = 11f;
+    public float attractDistance = 14f;
     [Tooltip("Offset vertical do ponto de atração (0 = pés, 1.2 = peito)")]
     public float attractYOffset = 1.2f;
     [Tooltip("Velocidade de rotação visual")]
@@ -28,7 +28,7 @@ public class EssencePickup : MonoBehaviour
 
     [Header("Configurações")]
     [Tooltip("Tempo antes de poder ser coletada (evita coleta instantânea)")]
-    public float pickupDelay = 0.1f;
+    public float pickupDelay = 0.05f;
     [Tooltip("Tempo de vida antes de desaparecer (0 = infinito)")]
     public float lifetime = 30f;
 

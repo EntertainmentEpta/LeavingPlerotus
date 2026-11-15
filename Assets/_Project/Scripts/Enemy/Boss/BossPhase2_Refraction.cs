@@ -71,6 +71,11 @@ public class BossPhase2_Refraction : MonoBehaviour
     private int refractionUsesRemaining;
     private int nextThresholdIndex = 0;
     private bool isRefracting = false;
+
+    [Header("Invisibilidade e Teleporte Tático")]
+    [Tooltip("Tempo de invulnerabilidade garantida ao entrar na invisibilidade (segundos).")]
+    public float stealthGracePeriod = 2.8f;
+    private bool isInStealthGracePeriod = false;
     public bool IsRefracting => isRefracting;
     private bool isPhase2Active = false;
     private Coroutine refractionCoroutine;
@@ -228,7 +233,7 @@ public class BossPhase2_Refraction : MonoBehaviour
 
     private void OnTookDamage()
     {
-        if (!isRefracting) return;
+        if (!isRefracting || isInStealthGracePeriod) return;
         if (showDebugLog) Debug.Log("[BossPhase2] Boss atingido durante invisibilidade! REVELADO!");
         CancelRefraction();
     }
@@ -242,6 +247,8 @@ public class BossPhase2_Refraction : MonoBehaviour
         }
 
         isRefracting = false;
+        isInStealthGracePeriod = false;
+        if (health != null) health.isInvulnerable = false;
         bossController.SetRefraction(false);
 
         RestoreOriginalMaterials();
@@ -262,7 +269,37 @@ public class BossPhase2_Refraction : MonoBehaviour
     IEnumerator RefractionRoutine()
     {
         isRefracting = true;
+        isInStealthGracePeriod = true;
+        if (health != null) health.isInvulnerable = true;
         bossController.SetRefraction(true);
+
+        // 1. Teleporte Tático para local próximo (8.5 a 13 metros) no NavMesh
+        Vector3 departurePos = transform.position;
+        Vector3 playerPos = playerTransform != null ? playerTransform.position : departurePos;
+        Vector3 teleportDest = departurePos;
+
+        for (int attempt = 0; attempt < 12; attempt++)
+        {
+            float rndAngle = UnityEngine.Random.Range(0f, 360f) * Mathf.Deg2Rad;
+            float rndDist = UnityEngine.Random.Range(8.5f, 13.0f);
+            Vector3 candidate = playerPos + new Vector3(Mathf.Cos(rndAngle) * rndDist, 0f, Mathf.Sin(rndAngle) * rndDist);
+            if (UnityEngine.AI.NavMesh.SamplePosition(candidate, out UnityEngine.AI.NavMeshHit navHit, 5.0f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                teleportDest = navHit.position;
+                break;
+            }
+        }
+
+        VFXManager.Play(VFXType.ImpactFrame, departurePos + Vector3.up * 1.0f, Quaternion.identity);
+
+        if (agent != null && agent.enabled)
+        {
+            agent.Warp(teleportDest);
+        }
+        else
+        {
+            transform.position = teleportDest;
+        }
 
         SetRenderersVisibility(false);
 
@@ -281,9 +318,22 @@ public class BossPhase2_Refraction : MonoBehaviour
         float remainingDuration = refractionDuration;
 
         // Duração máxima de refração (ex: 6 segundos). Ao acabar OU tomar dano, o boss é revelado!
+        float graceTimer = stealthGracePeriod;
+
         while (isRefracting && remainingDuration > 0f)
         {
             remainingDuration -= Time.deltaTime;
+
+            if (isInStealthGracePeriod)
+            {
+                graceTimer -= Time.deltaTime;
+                if (graceTimer <= 0f)
+                {
+                    isInStealthGracePeriod = false;
+                    if (health != null) health.isInvulnerable = false;
+                    if (showDebugLog) Debug.Log("[BossPhase2] Janela de graça de stealth encerrada! O Boss agora pode ser revelado se golpeado.");
+                }
+            }
             nextMobSpawn -= Time.deltaTime;
             nextPilarSpawn -= Time.deltaTime;
             nextReposition -= Time.deltaTime;

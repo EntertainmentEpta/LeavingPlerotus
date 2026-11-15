@@ -90,7 +90,7 @@ public class ObjectiveMarker : MonoBehaviour
             boundTutorial = null;
         }
 
-        if (QuestManager.Instance != null)
+        if (QuestManager.HasInstance)
         {
             QuestManager.Instance.StateChanged -= CheckVisibility;
         }
@@ -316,7 +316,7 @@ public class ObjectiveMarker : MonoBehaviour
             boundTutorial.stepChangedEvent += OnStepChanged;
         }
 
-        if (QuestManager.Instance != null)
+        if (QuestManager.HasInstance)
         {
             QuestManager.Instance.StateChanged -= CheckVisibility;
             QuestManager.Instance.StateChanged += CheckVisibility;

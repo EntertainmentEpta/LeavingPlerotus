@@ -35,7 +35,7 @@ public class PlayerInventory : MonoBehaviour
     [Tooltip("Lista de slots de itens da run (cada slot = 1 item individual)")]
     [SerializeField] private List<string> itemSlots = new List<string>();
 
-    public const int MAX_INVENTORY_CAPACITY = 10;
+    public const int MAX_INVENTORY_CAPACITY = 5;
 
     void Awake()
     {
@@ -98,7 +98,7 @@ public class PlayerInventory : MonoBehaviour
 
     [Header("Capacidade")]
     [Tooltip("Número máximo de slots (itens individuais)")]
-    [SerializeField] private int maxSlots = 10;
+    [SerializeField] private int maxSlots = 5;
 
     /// <summary>Número máximo de slots disponíveis</summary>
     public int MaxSlots => maxSlots;
@@ -251,7 +251,7 @@ public class PlayerInventory : MonoBehaviour
     /// </summary>
     public void IncreaseMaxSlots(int amount)
     {
-        // Mantém travado em 10 slots conforme a regra de inventário
+        // Mantém travado em 5 slots conforme a regra de inventário
         maxSlots = MAX_INVENTORY_CAPACITY;
         if (itemSlots.Count > maxSlots)
         {
@@ -266,7 +266,7 @@ public class PlayerInventory : MonoBehaviour
     /// </summary>
     public void SetMaxSlots(int newMax)
     {
-        // Limita estritamente ao teto de 10 slots
+        // Limita estritamente ao teto de 5 slots
         maxSlots = Mathf.Clamp(newMax, 1, MAX_INVENTORY_CAPACITY);
         if (itemSlots.Count > maxSlots)
         {

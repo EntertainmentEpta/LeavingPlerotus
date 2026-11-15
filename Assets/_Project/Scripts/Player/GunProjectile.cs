@@ -146,7 +146,7 @@ public class GunProjectile : MonoBehaviour
         if (target != null)
         {
             hitTargets.Add(target);
-            target.TakeDamage(hitDamage, isCritical);
+            target.TakeDamage(hitDamage, isCritical, false, true);
             Tier4EffectManager damageT4 = FindFirstObjectByType<Tier4EffectManager>();
             if (damageT4 != null) damageT4.ApplyDamageDealtEffects(hitDamage);
             if (damageT4 != null) damageT4.ApplyAreaDamageEffects(target.gameObject, hitDamage);
@@ -185,8 +185,11 @@ public class GunProjectile : MonoBehaviour
         Rigidbody targetRigidbody = target.GetComponent<Rigidbody>() ?? target.GetComponentInParent<Rigidbody>();
         if (targetRigidbody == null || targetRigidbody.isKinematic) return;
 
+        float effectiveKnockback = knockback * Mathf.Clamp01(1f - target.knockbackResistance);
+        if (effectiveKnockback <= 0.001f) return;
+
         Vector3 direction = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
-        targetRigidbody.AddForce(direction * (5f * knockback), ForceMode.Impulse);
+        targetRigidbody.AddForce(direction * (5f * effectiveKnockback), ForceMode.Impulse);
     }
 
     private bool TryBounce()

@@ -83,6 +83,12 @@ public class GoblinAI_Transform : MonoBehaviour
     [FormerlySerializedAs("raioHitMelee")]
     public float meleeHitRadius = 1.8f;
 
+    [Header("Telegraph (Pilar 4)")]
+    [Tooltip("Tempo de telegrafagem antes do golpe de picareta para esquiva/Perfect Dash.")]
+    public float meleeTelegraphTime = 0.35f;
+    [Tooltip("Som de aviso/preparação antes do golpe de picareta.")]
+    public AudioClip meleeTelegraphSound;
+
     // ── Strafe ───────────────────────────────────────────────────────
     [Header("Strafe (Lateral movement when attacking)")]
     [Tooltip("Duration of each strafe cycle before changing direction.")]
@@ -278,14 +284,20 @@ public class GoblinAI_Transform : MonoBehaviour
 
     private void PlayClipAtPointWithPitch(AudioClip clip, Vector3 position, float pitch, float volume)
     {
+        if (clip == null) return;
+        float effectiveVolume = volume * GlobalAudioManager.SFXVolumeMultiplier;
+        if (effectiveVolume <= 0.001f) return;
+
         if (audioSource != null)
         {
             audioSource.pitch = pitch;
-            audioSource.PlayOneShot(clip, volume);
+            if (audioSource.outputAudioMixerGroup == null && GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+                audioSource.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
+            audioSource.PlayOneShot(clip, effectiveVolume);
         }
         else
         {
-            AudioSource.PlayClipAtPoint(clip, position, volume);
+            AudioSource.PlayClipAtPoint(clip, position, effectiveVolume);
         }
     }
     // ─────────────────────────────────────────────────────────────────
@@ -461,10 +473,22 @@ public class GoblinAI_Transform : MonoBehaviour
         isDoingMelee = true;
         meleeTimer = meleeCooldown;
 
-        // Wind-up
+        // Pilar 4: Janela de telegrafagem de 0.35s para o jogador reagir com Esquiva / Perfect Dash
+        if (meleeTelegraphSound != null)
+        {
+            PlayClipAtPointWithPitch(meleeTelegraphSound, transform.position, 1.2f, 0.7f);
+        }
+        else if (throwSound != null)
+        {
+            PlayClipAtPointWithPitch(throwSound, transform.position, 1.4f, 0.4f);
+        }
+
+        yield return new WaitForSeconds(meleeTelegraphTime);
+
+        // Dispara animação de swing
         anim.SetTrigger("MeleeAttack");
 
-        yield return new WaitForSeconds(0.35f); // Swing timing
+        yield return new WaitForSeconds(0.20f); // Impact timing
 
         // Hitbox check
         Vector3 hitCenter = transform.position + transform.forward * 1.2f + Vector3.up * 0.5f;
@@ -484,7 +508,7 @@ public class GoblinAI_Transform : MonoBehaviour
             }
         }
 
-        yield return new WaitForSeconds(0.4f); // Recovery
+        yield return new WaitForSeconds(0.35f); // Recovery
         isDoingMelee = false;
     }
 

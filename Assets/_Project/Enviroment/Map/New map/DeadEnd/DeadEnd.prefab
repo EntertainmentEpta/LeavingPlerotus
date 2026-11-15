@@ -55,10 +55,10 @@ MonoBehaviour:
   tanquePrefabs: []
   elitePrefabs: []
   suportePrefabs: []
-  minWaves: 0
-  maxWaves: 0
+  minWaves: 1
+  maxWaves: 1
   timeBetweenWaves: 2
-  minEnemiesPerWave: 0
+  minEnemiesPerWave: 1
   mobCapFraction: 0.7
   spawnAreas: []
   spawnIndicatorPrefab: {fileID: 0}
@@ -73,7 +73,12 @@ MonoBehaviour:
     itemData: {fileID: 0}
     weight: 1
   doors: []
+  barrierPrefab: {fileID: 0}
+  barrierYOffset: 1
   showSpawnLog: 0
+  enemiesPendingSpawn: 0
+  activeEnemies: []
+  combatActive: 0
 --- !u!1 &2601561935923540629
 GameObject:
   m_ObjectHideFlags: 0
@@ -100,7 +105,7 @@ Transform:
   m_GameObject: {fileID: 2601561935923540629}
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: -0.0004, y: -0.009, z: -0.002}
+  m_LocalPosition: {x: -0.0004, y: -0.00887, z: -0.00186}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:

@@ -20,7 +20,7 @@ MonoBehaviour:
   enemySource: Spider
   returnsToBase: 0
   recycleEssenceValue: 24
-  infusionEssenceCost: 60
+  infusionEssenceCost: 50
   itemAttributes:
   - attributeType: 1
     value: 1.1
