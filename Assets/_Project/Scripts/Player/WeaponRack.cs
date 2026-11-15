@@ -51,6 +51,8 @@ public class WeaponRack : MonoBehaviour
     public Transform slot2_MachadoAnchor;
     [Tooltip("Ponto onde a Pistola fica posicionada no suporte.")]
     public Transform slot3_PistolaAnchor;
+    [Tooltip("Ponto onde o Bumerangue fica posicionado no suporte.")]
+    public Transform slot4_BoomerangAnchor;
 
     [Header("Slots do Expositor")]
     public List<WeaponRackSlot> slots = new List<WeaponRackSlot>();
@@ -62,6 +64,8 @@ public class WeaponRack : MonoBehaviour
     public Vector3 machadoRotationOffset = Vector3.zero;
     [Tooltip("Rotação extra para a Pistola ficar perfeita no suporte.")]
     public Vector3 pistolaRotationOffset = Vector3.zero;
+    [Tooltip("Rotação extra para o Bumerangue ficar perfeito no suporte.")]
+    public Vector3 boomerangRotationOffset = new Vector3(0f, 90f, 25f);
 
     [Header("Comportamento Visual")]
     [Tooltip("Se marcado, as armas giram suavemente no expositor. Se desmarcado, ficam estáticas penduradas no rack.")]
@@ -206,10 +210,11 @@ public class WeaponRack : MonoBehaviour
         if (slot1_AdagaAnchor != null) slot1_AdagaAnchor.localRotation = Quaternion.identity;
         if (slot2_MachadoAnchor != null) slot2_MachadoAnchor.localRotation = Quaternion.identity;
         if (slot3_PistolaAnchor != null) slot3_PistolaAnchor.localRotation = Quaternion.identity;
+        if (slot4_BoomerangAnchor != null) slot4_BoomerangAnchor.localRotation = Quaternion.identity;
     }
 
     /// <summary>
-    /// Garante que existam 3 GameObjects filhos dedicados para as baias no Editor.
+    /// Garante que existam 4 GameObjects filhos dedicados para as baias no Editor.
     /// Auto-corrige qualquer âncora que tenha ficado embaixo do chão por bugs anteriores!
     /// </summary>
     public void EnsureAnchors(bool forceReset = false)
@@ -300,6 +305,31 @@ public class WeaponRack : MonoBehaviour
                 slot3_PistolaAnchor = go.transform;
             }
         }
+
+        // Slot 4: Bumerangue
+        if (slot4_BoomerangAnchor == null || forceReset || slot4_BoomerangAnchor.position.y < minY)
+        {
+            Transform existing = transform.Find("Slot_4_Boomerang");
+            if (existing != null && (forceReset || existing.position.y < minY))
+            {
+                DestroyImmediate(existing.gameObject);
+                existing = null;
+            }
+
+            if (existing != null)
+            {
+                slot4_BoomerangAnchor = existing;
+                slot4_BoomerangAnchor.localRotation = Quaternion.identity;
+            }
+            else
+            {
+                GameObject go = new GameObject("Slot_4_Boomerang");
+                go.transform.SetParent(transform, true);
+                go.transform.position = rackBasePos + (rgt * 1.45f) + (Vector3.up * 1.15f) + (fwd * 0.22f);
+                go.transform.localRotation = Quaternion.identity;
+                slot4_BoomerangAnchor = go.transform;
+            }
+        }
     }
 
     private void EnsureDefaultSlots()
@@ -345,9 +375,35 @@ public class WeaponRack : MonoBehaviour
             });
         }
 
+        // Garante que o Slot 3 (Bumerangue) exista mesmo em prefabs/cenas já salvos com 3 slots
+        bool hasBoomerangSlot = false;
+        for (int i = 0; i < slots.Count; i++)
+        {
+            if (slots[i] != null && (slots[i].weaponType == WeaponType.Boomerang || slots[i].weaponId == "boomerang"))
+            {
+                hasBoomerangSlot = true;
+                break;
+            }
+        }
+
+        if (!hasBoomerangSlot)
+        {
+            slots.Add(new WeaponRackSlot
+            {
+                weaponId = "boomerang",
+                displayName = "BUMERANGUE DE CRISTAL",
+                description = "Lâmina energética que ricocheteia, gera escudo giratório e desacopla cristais elétricos.",
+                weaponType = WeaponType.Boomerang,
+                unlockedByDefault = true,
+                requiredCraftId = "",
+                weaponPrefab = Resources.Load<GameObject>("Boomerang")
+            });
+        }
+
         if (slots.Count > 0) slots[0].displayPoint = slot1_AdagaAnchor;
         if (slots.Count > 1) slots[1].displayPoint = slot2_MachadoAnchor;
         if (slots.Count > 2) slots[2].displayPoint = slot3_PistolaAnchor;
+        if (slots.Count > 3) slots[3].displayPoint = slot4_BoomerangAnchor;
     }
 
     private void BuildVisualsContainer()
@@ -396,6 +452,8 @@ public class WeaponRack : MonoBehaviour
                     slot.weaponPrefab = Resources.Load<GameObject>("Crystal_Axe");
                 else if (slot.weaponType == WeaponType.Gun)
                     slot.weaponPrefab = Resources.Load<GameObject>("gunfake");
+                else if (slot.weaponType == WeaponType.Boomerang)
+                    slot.weaponPrefab = Resources.Load<GameObject>("Boomerang");
             }
 
             if (slot.weaponPrefab != null && slot.displayInstance == null)
@@ -410,6 +468,17 @@ public class WeaponRack : MonoBehaviour
                 foreach (var rb in displayObj.GetComponentsInChildren<Rigidbody>(true)) Destroy(rb);
                 foreach (var col in displayObj.GetComponentsInChildren<Collider>(true)) Destroy(col);
                 foreach (var mb in displayObj.GetComponentsInChildren<MonoBehaviour>(true)) Destroy(mb);
+
+                if (slot.weaponType == WeaponType.Boomerang)
+                {
+                    foreach (Transform child in displayObj.GetComponentsInChildren<Transform>(true))
+                    {
+                        if (child != null && child.name.Equals("boomerang", System.StringComparison.OrdinalIgnoreCase))
+                        {
+                            child.localPosition = Vector3.zero;
+                        }
+                    }
+                }
 
                 // Armazena materiais originais para restauração
                 // Ativa estritamente os meshes corretos atuais e desativa meshes legados
@@ -616,6 +685,7 @@ public class WeaponRack : MonoBehaviour
             case 0: return adagaRotationOffset;
             case 1: return machadoRotationOffset;
             case 2: return pistolaRotationOffset;
+            case 3: return boomerangRotationOffset;
             default: return Vector3.zero;
         }
     }
@@ -830,8 +900,8 @@ public class WeaponRack : MonoBehaviour
     {
         if (slot == null) return false;
 
-        // Apenas o Machado de Cristal está liberado para o playtest
-        if (slot.weaponType == WeaponType.Axe)
+        // Machado de Cristal e Bumerangue estão liberados para o playtest
+        if (slot.weaponType == WeaponType.Axe || slot.weaponType == WeaponType.Boomerang || slot.unlockedByDefault)
         {
             return true;
         }
@@ -892,6 +962,13 @@ public class WeaponRack : MonoBehaviour
             Gizmos.color = new Color(1f, 0.55f, 0f);
             Gizmos.DrawWireSphere(slot3_PistolaAnchor.position, 0.20f);
             Gizmos.DrawRay(slot3_PistolaAnchor.position, slot3_PistolaAnchor.forward * 0.35f);
+        }
+
+        if (slot4_BoomerangAnchor != null)
+        {
+            Gizmos.color = new Color(0.2f, 0.9f, 1f);
+            Gizmos.DrawWireSphere(slot4_BoomerangAnchor.position, 0.20f);
+            Gizmos.DrawRay(slot4_BoomerangAnchor.position, slot4_BoomerangAnchor.forward * 0.35f);
         }
     }
 }

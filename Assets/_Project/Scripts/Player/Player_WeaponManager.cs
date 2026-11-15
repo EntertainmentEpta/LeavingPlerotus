@@ -157,8 +157,18 @@ public class Player_WeaponManager : MonoBehaviour
 
         if (currentWeapon != null)
         {
-            currentWeapon.SetActive(false);
-            Debug.Log("[Player_WeaponManager] Arma guardada imediatamente.");
+            BoomerangWeapon boomerang = currentWeapon.GetComponent<BoomerangWeapon>();
+            if (boomerang != null)
+            {
+                currentWeapon.SetActive(true);
+                boomerang.SetState(BoomerangState.Stowed);
+                Debug.Log("[Player_WeaponManager] Bumerangue preso nas costas imediatamente (Stowed).");
+            }
+            else
+            {
+                currentWeapon.SetActive(false);
+                Debug.Log("[Player_WeaponManager] Arma guardada imediatamente.");
+            }
         }
     }
 
@@ -182,20 +192,34 @@ public class Player_WeaponManager : MonoBehaviour
             attackScript.hasWeapon = false;
         }
 
-        // Restaura o Animator Controller padrão (Unarmed) e dispara o trigger
+        BoomerangWeapon boomerang = currentWeapon != null ? currentWeapon.GetComponent<BoomerangWeapon>() : null;
+
+        // Dispara o trigger de guardar arma (mantém o controller do Boomerang para tocar Astronaut_guardando_boomerang)
         if (playerAnimator != null)
         {
-            playerAnimator.runtimeAnimatorController = defaultAnimatorController;
+            if (boomerang == null)
+            {
+                playerAnimator.runtimeAnimatorController = defaultAnimatorController;
+            }
             playerAnimator.SetTrigger("HolsterWeapon");
         }
 
-        // Espera o tempo da animação antes de sumir com o visual da arma
+        // Espera o tempo da animação antes de guardar/prender nas costas
         yield return new WaitForSeconds(holsterDelay);
 
         if (currentWeapon != null && !isWeaponDrawn)
         {
-            currentWeapon.SetActive(false);
-            Debug.Log("[Player_WeaponManager] Arma guardada (Holstered) no final da animação.");
+            if (boomerang != null)
+            {
+                currentWeapon.SetActive(true);
+                boomerang.SetState(BoomerangState.Stowed);
+                Debug.Log("[Player_WeaponManager] Bumerangue preso nas costas (Stowed) no final da animação.");
+            }
+            else
+            {
+                currentWeapon.SetActive(false);
+                Debug.Log("[Player_WeaponManager] Arma guardada (Holstered) no final da animação.");
+            }
         }
     }
 
@@ -217,7 +241,7 @@ public class Player_WeaponManager : MonoBehaviour
         if (attackScript != null)
         {
             WeaponOffset offset = currentWeapon != null ? currentWeapon.GetComponent<WeaponOffset>() : null;
-            bool isMelee = offset == null || offset.weaponType != WeaponType.Gun;
+            bool isMelee = offset == null || (offset.weaponType != WeaponType.Gun && offset.weaponType != WeaponType.Boomerang);
             attackScript.hasWeapon = isMelee;
         }
 
@@ -237,12 +261,17 @@ public class Player_WeaponManager : MonoBehaviour
             playerAnimator.SetTrigger("DrawWeapon");
         }
 
-        // Espera o tempo do saque (meio da animação) antes de tornar a arma visível
+        // Espera o tempo do saque (meio da animação) antes de tornar a arma visível na mão
         yield return new WaitForSeconds(drawDelay);
 
         if (currentWeapon != null && isWeaponDrawn)
         {
             currentWeapon.SetActive(true);
+            BoomerangWeapon boomerang = currentWeapon.GetComponent<BoomerangWeapon>();
+            if (boomerang != null)
+            {
+                boomerang.AttachToHandImmediate();
+            }
             Debug.Log("[Player_WeaponManager] Arma empunhada (Drawn) e visível.");
         }
     }
@@ -301,6 +330,12 @@ public class Player_WeaponManager : MonoBehaviour
                 offsetData.weaponAnimatorOverride = Resources.Load<RuntimeAnimatorController>("GunAnimation")
                     ?? Resources.Load<RuntimeAnimatorController>("Animations/Weapons/GunAnimation");
             }
+            else if (lowerName.Contains("boomerang") || lowerName.Contains("bumerangue"))
+            {
+                offsetData.weaponType = WeaponType.Boomerang;
+                offsetData.weaponAnimatorOverride = Resources.Load<RuntimeAnimatorController>("BoomerangAnimation")
+                    ?? Resources.Load<RuntimeAnimatorController>("Animations/Weapons/BoomerangAnimation");
+            }
             else
             {
                 offsetData.weaponType = WeaponType.Dagger;
@@ -322,6 +357,13 @@ public class Player_WeaponManager : MonoBehaviour
             {
                 offsetData.weaponAnimatorOverride = Resources.Load<RuntimeAnimatorController>("GunAnimation")
                     ?? Resources.Load<RuntimeAnimatorController>("Animations/Weapons/GunAnimation");
+            }
+            else if (offsetData.weaponType == WeaponType.Boomerang || lowerName.Contains("boomerang") || lowerName.Contains("bumerangue"))
+            {
+                offsetData.weaponType = WeaponType.Boomerang;
+                offsetData.weaponAnimatorOverride = Resources.Load<RuntimeAnimatorController>("BoomerangAnimation")
+                    ?? Resources.Load<RuntimeAnimatorController>("Animations/Weapons/BoomerangAnimation")
+                    ?? Resources.Load<RuntimeAnimatorController>("DaggerAnimation");
             }
             else if (offsetData.weaponType == WeaponType.Dagger)
             {
@@ -424,10 +466,16 @@ public class Player_WeaponManager : MonoBehaviour
                 attackScript.EquipAxeWeapon(weaponCollider);
                 attackScript.hasWeapon = true;
             }
-            else if (offsetData.weaponType == WeaponType.Gun)
+            else if (offsetData.weaponType == WeaponType.Gun || offsetData.weaponType == WeaponType.Boomerang)
             {
-                attackScript.hasWeapon = false; // Ataque balístico gerenciado pelo GunAttack
+                attackScript.hasWeapon = false; // Ataque gerenciado pelo GunAttack ou BoomerangWeapon
             }
+        }
+
+        BoomerangWeapon boomerangComp = weapon.GetComponent<BoomerangWeapon>();
+        if (boomerangComp != null)
+        {
+            boomerangComp.AttachToHandImmediate();
         }
     }
 
