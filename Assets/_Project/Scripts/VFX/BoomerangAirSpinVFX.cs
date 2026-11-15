@@ -19,7 +19,7 @@ public class BoomerangAirSpinVFX : MonoBehaviour
     public Vector3 localSpinAxis = new Vector3(0f, 0f, 1f);
 
     [Tooltip("Inclinação do plano de giro no ar (mantém o bumerangue girando horizontalmente em relação ao solo).")]
-    public Vector3 airPlaneTiltEuler = new Vector3(90f, 0f, 0f);
+    public Vector3 airPlaneTiltEuler = Vector3.zero;
 
     [Header("Anéis de Velocidade (LineRenderer estilo Istar)")]
     [Tooltip("Raio base do disco de vento/energia ao girar no ar.")]
@@ -313,8 +313,8 @@ public class BoomerangAirSpinVFX : MonoBehaviour
         for (int i = 0; i < count; i++)
         {
             float t = (float)i / count * Mathf.PI * 2f;
-            float y = Random.Range(-verticalJitter, verticalJitter);
-            lr.SetPosition(i, new Vector3(Mathf.Cos(t) * radius, y, Mathf.Sin(t) * radius));
+            float z = Random.Range(-verticalJitter, verticalJitter);
+            lr.SetPosition(i, new Vector3(Mathf.Cos(t) * radius, Mathf.Sin(t) * radius, z));
         }
     }
 
@@ -326,8 +326,8 @@ public class BoomerangAirSpinVFX : MonoBehaviour
         {
             float t = (float)i / (count - 1);
             float angle = Mathf.Lerp(startRad, endRad, t);
-            float y = (i == 0 || i == count - 1) ? 0f : Random.Range(-verticalJitter, verticalJitter);
-            lr.SetPosition(i, new Vector3(Mathf.Cos(angle) * radius, y, Mathf.Sin(angle) * radius));
+            float z = (i == 0 || i == count - 1) ? 0f : Random.Range(-verticalJitter, verticalJitter);
+            lr.SetPosition(i, new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius, z));
         }
     }
 

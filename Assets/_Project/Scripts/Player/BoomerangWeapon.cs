@@ -149,6 +149,7 @@ public class BoomerangWeapon : MonoBehaviour
     private float stateElapsedTime;
     private bool isDrawnInHand;
     private readonly HashSet<int> hitTargetsThisPhase = new HashSet<int>();
+    private readonly Dictionary<int, float> hitCooldowns = new Dictionary<int, float>();
 
     // Propriedades públicas da Máquina de Estados / Física
     public float ChargeNormalized => Mathf.Clamp01(currentCharge01);
@@ -470,6 +471,7 @@ public class BoomerangWeapon : MonoBehaviour
             case BoomerangState.Throw:
                 // Arremessado no ar em alta rotação
                 hitTargetsThisPhase.Clear();
+                hitCooldowns.Clear();
                 TriggerPlayerAnimation(AnimTriggerAttack);
                 TriggerPlayerAnimation(AnimTriggerShoot);
 
@@ -496,6 +498,7 @@ public class BoomerangWeapon : MonoBehaviour
             case BoomerangState.Returning:
                 // Voltando para o jogador com DynamicHoming e Clones Translúcidos na Volta
                 hitTargetsThisPhase.Clear();
+                hitCooldowns.Clear();
                 DetachIntoWorldSpace();
 
                 if (airSpinVFX != null)
@@ -504,7 +507,7 @@ public class BoomerangWeapon : MonoBehaviour
                 if (echoVFX != null)
                     echoVFX.SetEchoEmission(enableTranslucentClonesOnReturn, true);
 
-                currentReturnSpeed = Mathf.Max(returnHomingSpeed, flightVelocity.magnitude);
+                currentReturnSpeed = Mathf.Min(Mathf.Max(returnHomingSpeed, flightVelocity.magnitude), 26f);
                 break;
 
             case BoomerangState.SpinningShield:
@@ -610,8 +613,13 @@ public class BoomerangWeapon : MonoBehaviour
             worldPos = weaponManager.transform.position + Vector3.up * 1.1f + weaponManager.transform.forward * 0.6f;
         }
 
+        Vector3 flyDir = flightVelocity.sqrMagnitude > 0.001f ? flightVelocity.normalized : (weaponManager != null ? weaponManager.transform.forward : transform.forward);
+        flyDir.y = 0f;
+        if (flyDir.sqrMagnitude < 0.001f) flyDir = Vector3.forward;
+
         transform.SetParent(null, true);
         transform.position = worldPos;
+        transform.rotation = Quaternion.LookRotation(flyDir.normalized, Vector3.up) * Quaternion.Euler(-90f, 0f, 0f);
         transform.localScale = equippedWorldScale;
     }
 
@@ -814,6 +822,7 @@ public class BoomerangWeapon : MonoBehaviour
         Transform originTr = weaponManager != null ? weaponManager.transform : transform;
         throwOriginPos = originTr.position + Vector3.up * 1.1f;
         transform.position = throwOriginPos + aimDir * 0.65f;
+        transform.rotation = Quaternion.LookRotation(aimDir, Vector3.up) * Quaternion.Euler(-90f, 0f, 0f);
         travelledDistance = 0f;
         flightVelocity = aimDir * launchSpeed;
 
@@ -844,7 +853,7 @@ public class BoomerangWeapon : MonoBehaviour
                 if (normal.sqrMagnitude < 0.001f) normal = -dir;
                 normal.Normalize();
 
-                RegisterBounce(normal, hit.point);
+                RegisterBounce(normal, hit.point, enemy);
 
                 if (bouncesRemaining <= 0)
                 {
@@ -860,6 +869,16 @@ public class BoomerangWeapon : MonoBehaviour
         transform.position += flightVelocity * dt;
         travelledDistance += stepDist;
 
+        if (flightVelocity.sqrMagnitude > 0.001f)
+        {
+            Vector3 flyDir = flightVelocity.normalized;
+            flyDir.y = 0f;
+            if (flyDir.sqrMagnitude > 0.001f)
+            {
+                transform.rotation = Quaternion.LookRotation(flyDir.normalized, Vector3.up) * Quaternion.Euler(-90f, 0f, 0f);
+            }
+        }
+
         if (travelledDistance >= targetFlightDistance)
         {
             SetState(BoomerangState.Returning);
@@ -871,33 +890,75 @@ public class BoomerangWeapon : MonoBehaviour
         Transform playerTr = weaponManager != null ? weaponManager.transform : null;
         if (playerTr == null)
         {
-            SetState(BoomerangState.Charging);
+            CatchBoomerang();
             return;
         }
 
-        // DynamicHoming estilo Boomerang Fu: recalcula a rota para seguir o jogador mesmo se ele der Dash
         Vector3 targetPos = playerTr.position + Vector3.up * 1.1f;
         Vector3 toPlayer = targetPos - transform.position;
         float distToPlayer = toPlayer.magnitude;
 
-        if (distToPlayer <= 0.75f)
+        // Failsafe 1: Captura por proximidade direta (1.4m)
+        if (distToPlayer <= 1.4f)
         {
-            // Bumerangue voltou para a mão do astronauta!
-            currentChargeTime = 0f;
-            currentCharge01 = 0f;
-            SetState(BoomerangState.Charging);
+            CatchBoomerang();
             return;
         }
 
-        currentReturnSpeed += returnHomingAcceleration * dt;
+        // Failsafe 2: Failsafe de tempo de retorno (evita loop orbital infinito)
+        if (stateElapsedTime > 3.2f)
+        {
+            CatchBoomerang();
+            return;
+        }
+
+        // Failsafe 3: Detecção de overshoot (passou pelo jogador a curta distância)
+        if (distToPlayer < 3.0f && Vector3.Dot(flightVelocity, toPlayer) < 0f)
+        {
+            CatchBoomerang();
+            return;
+        }
+
+        // Limita a velocidade de retorno máxima para 26m/s para NÃO abrir a curva orbital
+        float maxReturnSpeed = Mathf.Max(returnHomingSpeed, 26f);
+        currentReturnSpeed = Mathf.Min(currentReturnSpeed + returnHomingAcceleration * dt, maxReturnSpeed);
+
+        // Taxa de curva dinâmica: quanto mais perto do jogador, mais afiada a curva!
+        float turnRate = Mathf.Lerp(38f, 16f, Mathf.Clamp01(distToPlayer / 10f));
         Vector3 desiredDir = toPlayer.normalized;
-        flightVelocity = Vector3.Lerp(flightVelocity.normalized, desiredDir, 14f * dt).normalized * currentReturnSpeed;
-        transform.position += flightVelocity * dt;
+        flightVelocity = Vector3.Lerp(flightVelocity.normalized, desiredDir, turnRate * dt).normalized * currentReturnSpeed;
+
+        Vector3 step = flightVelocity * dt;
+        if (step.magnitude >= distToPlayer)
+        {
+            CatchBoomerang();
+            return;
+        }
+
+        transform.position += step;
+
+        if (flightVelocity.sqrMagnitude > 0.001f)
+        {
+            Vector3 flyDir = flightVelocity.normalized;
+            flyDir.y = 0f;
+            if (flyDir.sqrMagnitude > 0.001f)
+            {
+                transform.rotation = Quaternion.LookRotation(flyDir.normalized, Vector3.up) * Quaternion.Euler(-90f, 0f, 0f);
+            }
+        }
 
         float hitRadius = (electricCrystalVFX != null && enableElectricCrystalVariant)
             ? electricCrystalVFX.GetExpandedHitRadius(0.6f)
             : 0.6f;
         CheckSpinningDiscEnemies(hitRadius);
+    }
+
+    private void CatchBoomerang()
+    {
+        currentChargeTime = 0f;
+        currentCharge01 = 0f;
+        chargeSpinAngle = 0f;
+        SetState(BoomerangState.Charging);
     }
 
     protected virtual void OnSpinningShieldUpdate(float dt)
@@ -944,27 +1005,108 @@ public class BoomerangWeapon : MonoBehaviour
     }
 
     /// <summary>
-    /// Registra um ricochete na parede ou inimigo, atualiza o vetor de velocidade e spawna o Eco Fantasma (Variante 2).
-    /// Pode ser chamado externamente quando detectar colisão.
+    /// Registra um ricochete na parede ou inimigo, calcula o próximo vetor (com mira inteligente em cadeia para outros inimigos)
+    /// e spawna o Eco Fantasma (Variante 2).
     /// </summary>
-    public virtual void RegisterBounce(Vector3 surfaceNormal, Vector3 bouncePoint)
+    public virtual void RegisterBounce(Vector3 surfaceNormal, Vector3 bouncePoint, DummyHealth hitEnemy = null)
     {
-        Vector3 inDir = flightVelocity.sqrMagnitude > 0.001f ? flightVelocity.normalized : transform.forward;
-        Vector3 reflectedDir = Vector3.Reflect(inDir, surfaceNormal.normalized);
-        reflectedDir.y = 0f;
-        if (reflectedDir.sqrMagnitude < 0.001f) reflectedDir = -inDir;
-        reflectedDir.Normalize();
-
-        float speed = flightVelocity.magnitude;
-        flightVelocity = reflectedDir * speed;
+        float speed = Mathf.Max(flightVelocity.magnitude, minThrowSpeed);
         bouncesRemaining--;
+
+        // 1. Procura o próximo inimigo para ricochete encadeado inteligente (Smart Chain Bounce)
+        DummyHealth nextTarget = FindNextBounceTarget(bouncePoint, hitEnemy, 14f);
+
+        Vector3 newDir;
+        if (nextTarget != null)
+        {
+            Vector3 targetCenter = nextTarget.transform.position + Vector3.up * 1.0f;
+            newDir = (targetCenter - bouncePoint);
+            newDir.y = 0f;
+            if (newDir.sqrMagnitude < 0.001f) newDir = surfaceNormal;
+            newDir.Normalize();
+
+            // Ajusta o alcance do próximo trecho para alcançar o alvo
+            targetFlightDistance = Vector3.Distance(bouncePoint, targetCenter) + 2.0f;
+        }
+        else
+        {
+            // Bateu em parede ou sem próximo inimigo: reflexão física
+            Vector3 inDir = flightVelocity.sqrMagnitude > 0.001f ? flightVelocity.normalized : transform.forward;
+            Vector3 reflected = Vector3.Reflect(inDir, surfaceNormal.normalized);
+            reflected.y = 0f;
+            if (reflected.sqrMagnitude < 0.001f) reflected = -inDir;
+            newDir = reflected.normalized;
+
+            // Se bateu no único inimigo e não há mais ninguém no raio, volta se os quiques acabaram
+            if (hitEnemy != null && bouncesRemaining <= 1)
+            {
+                bouncesRemaining = 0;
+            }
+            targetFlightDistance = Mathf.Lerp(minThrowDistance, maxThrowDistance, currentCharge01);
+        }
+
+        // Reseta a distância percorrida para o novo trecho
+        travelledDistance = 0f;
+        flightVelocity = newDir * speed;
+
+        // Desloca para fora da superfície de colisão para evitar multi-colisões no mesmo ponto
+        transform.position = bouncePoint + surfaceNormal * 0.15f + newDir * 0.15f;
+        if (newDir.sqrMagnitude > 0.001f)
+        {
+            transform.rotation = Quaternion.LookRotation(newDir.normalized, Vector3.up) * Quaternion.Euler(-90f, 0f, 0f);
+        }
 
         // Spawna Eco Translúcido de Ricochete (PDF Página 6)
         if (echoVFX != null && enableBounceEchoSpawning)
         {
-            Vector3 echoDir = Quaternion.Euler(0f, UnityEngine.Random.Range(-32f, 32f), 0f) * reflectedDir;
+            Vector3 echoDir = Quaternion.Euler(0f, UnityEngine.Random.Range(-32f, 32f), 0f) * newDir;
             echoVFX.SpawnBounceEchoClone(bouncePoint, echoDir, speed * 0.9f);
         }
+    }
+
+    private DummyHealth FindNextBounceTarget(Vector3 origin, DummyHealth ignoreEnemy, float searchRadius = 14f)
+    {
+        Collider[] colliders = Physics.OverlapSphere(origin, searchRadius);
+        DummyHealth bestTarget = null;
+        float bestScore = float.MaxValue;
+
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            Collider c = colliders[i];
+            if (c == null || IsPlayerCollider(c)) continue;
+
+            DummyHealth enemy = c.GetComponentInParent<DummyHealth>();
+            if (enemy == null || enemy == ignoreEnemy || enemy.CurrentHealth <= 0) continue;
+
+            Vector3 toEnemy = enemy.transform.position - origin;
+            toEnemy.y = 0f;
+            float distSqr = toEnemy.sqrMagnitude;
+            if (distSqr < 0.2f) continue;
+
+            int id = enemy.GetInstanceID();
+            bool hasCooldown = hitCooldowns.TryGetValue(id, out float cd) && Time.time < cd;
+            // Prioridade para inimigos que ainda não tomaram dano recente
+            float score = distSqr * (hasCooldown ? 4.0f : 1.0f);
+
+            // Verifica se não há parede entre a origem e o inimigo
+            Vector3 rayOrigin = origin + Vector3.up * 0.5f;
+            Vector3 rayDir = toEnemy.normalized;
+            if (Physics.Raycast(rayOrigin, rayDir, out RaycastHit wallHit, toEnemy.magnitude, ~0, QueryTriggerInteraction.Ignore))
+            {
+                if (wallHit.collider != null && !wallHit.collider.transform.IsChildOf(enemy.transform) && !IsPlayerCollider(wallHit.collider))
+                {
+                    continue; // Parede ou obstáculo bloqueando
+                }
+            }
+
+            if (score < bestScore)
+            {
+                bestScore = score;
+                bestTarget = enemy;
+            }
+        }
+
+        return bestTarget;
     }
 
     /// <summary>
@@ -1016,7 +1158,8 @@ public class BoomerangWeapon : MonoBehaviour
     {
         if (enemy == null) return;
         int id = enemy.GetInstanceID();
-        if (hitTargetsThisPhase.Contains(id)) return;
+        if (hitCooldowns.TryGetValue(id, out float cd) && Time.time < cd) return;
+        hitCooldowns[id] = Time.time + 0.28f;
         hitTargetsThisPhase.Add(id);
 
         float baseDmg = 15f * (offensiveStats != null ? offensiveStats.baseDamageMultiplier : 1f);

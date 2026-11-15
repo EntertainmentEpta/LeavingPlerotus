@@ -56,7 +56,7 @@ MonoBehaviour:
   airSpinSpeed: 1800
   chargeSpinSpeedMax: 720
   localSpinAxis: {x: 0, y: 0, z: 1}
-  airPlaneTiltEuler: {x: 90, y: 0, z: 0}
+  airPlaneTiltEuler: {x: 0, y: 0, z: 0}
   spinDiscRadius: 0.72
   ringLineWidth: 0.055
   primarySpinColor: {r: 0.2, g: 0.92, b: 1, a: 0.85}
