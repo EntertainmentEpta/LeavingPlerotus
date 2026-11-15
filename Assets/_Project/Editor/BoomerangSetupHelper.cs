@@ -268,10 +268,10 @@ public static class BoomerangSetupHelper
         // Componentes de integração com Player_WeaponManager e WeaponRack
         WeaponOffset offset = rootGO.AddComponent<WeaponOffset>();
         offset.weaponType = WeaponType.Boomerang;
-        offset.equipPosition = new Vector3(-0.04f, 0.06f, 0.02f);
-        offset.equipRotation = new Vector3(0f, 90f, 90f);
-        offset.stowedBackPosition = new Vector3(0f, 0.02f, -0.22f);
-        offset.stowedBackRotation = new Vector3(0f, 90f, 35f);
+        offset.equipPosition = new Vector3(-0.14f, 0.08f, 0.05f);
+        offset.equipRotation = new Vector3(0f, 0f, 90f);
+        offset.stowedBackPosition = new Vector3(0f, -0.08f, -0.20f);
+        offset.stowedBackRotation = new Vector3(0f, 0f, 45f);
         offset.weaponAnimatorOverride = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(CONTROLLER_RESOURCES)
                                       ?? AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(CONTROLLER_MAIN);
 

@@ -40,16 +40,16 @@ public class BoomerangWeapon : MonoBehaviour
 
     [Header("Encaixe Visual: Mão Direita vs Costas")]
     [Tooltip("Posição local quando empunhado na mão direita (mixamorig:RightHand).")]
-    public Vector3 handMountPosition = new Vector3(-0.04f, 0.06f, 0.02f);
+    public Vector3 handMountPosition = new Vector3(-0.14f, 0.08f, 0.05f);
 
     [Tooltip("Rotação local quando empunhado na mão direita.")]
-    public Vector3 handMountRotation = new Vector3(0f, 90f, 90f);
+    public Vector3 handMountRotation = new Vector3(0f, 0f, 90f);
 
     [Tooltip("Posição local quando preso nas costas do astronauta (mixamorig:Spine2).")]
-    public Vector3 backMountPosition = new Vector3(0f, 0.02f, -0.22f);
+    public Vector3 backMountPosition = new Vector3(0f, -0.08f, -0.20f);
 
     [Tooltip("Rotação local quando preso nas costas do astronauta.")]
-    public Vector3 backMountRotation = new Vector3(0f, 90f, 35f);
+    public Vector3 backMountRotation = new Vector3(0f, 0f, 45f);
 
     [Tooltip("Escala global do modelo visual do bumerangue.")]
     public Vector3 equippedWorldScale = new Vector3(0.55f, 0.55f, 0.55f);
@@ -139,6 +139,7 @@ public class BoomerangWeapon : MonoBehaviour
     // ─── Variáveis de Execução da Máquina de Estados ─────────────────────────
     private float currentChargeTime;
     private float currentCharge01;
+    private float chargeSpinAngle;
     private Vector3 flightVelocity;
     private Vector3 throwOriginPos;
     private float targetFlightDistance;
@@ -418,6 +419,11 @@ public class BoomerangWeapon : MonoBehaviour
 
             case BoomerangState.Charging:
                 SetAnimatorBoolSafe(AnimBoolIsCharging, false);
+                if (playerMovement != null)
+                    playerMovement.SetPlasmaFiring(false);
+                if (airSpinVFX != null)
+                    airSpinVFX.ResetChargeVisual();
+                chargeSpinAngle = 0f;
                 break;
 
             case BoomerangState.Throw:
@@ -553,6 +559,7 @@ public class BoomerangWeapon : MonoBehaviour
 
         if (visualPivot != null)
         {
+            chargeSpinAngle = 0f;
             visualPivot.localPosition = Vector3.zero;
             visualPivot.localRotation = Quaternion.identity;
         }
@@ -581,6 +588,7 @@ public class BoomerangWeapon : MonoBehaviour
 
         if (visualPivot != null)
         {
+            chargeSpinAngle = 0f;
             visualPivot.localPosition = Vector3.zero;
             visualPivot.localRotation = Quaternion.identity;
         }
@@ -620,15 +628,33 @@ public class BoomerangWeapon : MonoBehaviour
                 break;
 
             case BoomerangState.Charging:
-                // Na mão carregando o arremesso: leve inclinação/vibração de carga e brilho progressivo
-                if (airSpinVFX != null)
-                    airSpinVFX.UpdateChargeVisual(currentCharge01, dt);
+                // Na mão carregando o arremesso: giro acelerado da lâmina, inclinação e brilho progressivo
+                bool isActivelyCharging = currentChargeTime > 0.01f;
+
+                if (isActivelyCharging)
+                {
+                    // Acelera o giro de 360°/s (início) até 1800°/s (carga total)
+                    float spinSpeed = Mathf.Lerp(360f, 1800f, currentCharge01);
+                    chargeSpinAngle = (chargeSpinAngle + spinSpeed * dt) % 360f;
+
+                    if (airSpinVFX != null)
+                        airSpinVFX.UpdateChargeVisual(currentCharge01, dt);
+                }
+                else
+                {
+                    // Em repouso na mão (idle), desacelera suavemente para a orientação padrão
+                    chargeSpinAngle = Mathf.MoveTowardsAngle(chargeSpinAngle, 0f, 720f * dt);
+                    if (airSpinVFX != null)
+                        airSpinVFX.ResetChargeVisual();
+                }
 
                 if (visualPivot != null)
                 {
-                    float pullBackAngle = Mathf.Lerp(0f, -28f, currentCharge01);
-                    float shake = currentCharge01 > 0.7f ? Mathf.Sin(Time.time * 55f) * 2.5f * currentCharge01 : 0f;
-                    visualPivot.localRotation = Quaternion.Euler(shake, 0f, pullBackAngle);
+                    float pullBackAngle = Mathf.Lerp(0f, -24f, currentCharge01);
+                    float shake = currentCharge01 > 0.7f ? Mathf.Sin(Time.time * 60f) * 2.2f * currentCharge01 : 0f;
+                    Quaternion pullBack = Quaternion.Euler(shake, 0f, pullBackAngle);
+                    Quaternion spin = Quaternion.AngleAxis(chargeSpinAngle, Vector3.forward);
+                    visualPivot.localRotation = pullBack * spin;
                 }
 
                 if (useBuiltInStateAndPhysics)
@@ -736,11 +762,23 @@ public class BoomerangWeapon : MonoBehaviour
             {
                 currentChargeTime += dt;
                 currentCharge01 = Mathf.Clamp01(currentChargeTime / Mathf.Max(0.05f, maxChargeTime));
-                RotatePlayerTowardsMouse();
+                Vector3 aimDir = GetMouseAimDirection();
+                RotatePlayerTowardsDirection(aimDir);
+
+                // Permite movimentação strafing fluida enquanto carrega (mira fixa no mouse, pernas correndo)
+                if (playerMovement != null)
+                {
+                    playerMovement.SetPlasmaFiring(true);
+                    playerMovement.SetPlasmaAimDirection(aimDir);
+                }
             }
 
             if (Input.GetMouseButtonUp(0) && currentState == BoomerangState.Charging && currentChargeTime > 0.01f)
             {
+                if (playerMovement != null)
+                {
+                    playerMovement.SetPlasmaFiring(false);
+                }
                 LaunchThrow(currentCharge01);
             }
         }
@@ -761,6 +799,10 @@ public class BoomerangWeapon : MonoBehaviour
     /// </summary>
     public virtual void LaunchThrow(float charge01)
     {
+        if (playerMovement != null)
+            playerMovement.SetPlasmaFiring(false);
+
+        chargeSpinAngle = 0f;
         currentCharge01 = Mathf.Clamp01(charge01);
         Vector3 aimDir = GetMouseAimDirection();
         RotatePlayerTowardsDirection(aimDir);

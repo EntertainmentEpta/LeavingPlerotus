@@ -194,6 +194,11 @@ public class BoomerangAirSpinVFX : MonoBehaviour
         EnsureVFXObjects();
         isSpinningInAir = active;
 
+        if (outerSpinRingLR != null) outerSpinRingLR.enabled = active;
+        if (innerSpinRingLR != null) innerSpinRingLR.enabled = active;
+        if (motionArcLR1 != null) motionArcLR1.enabled = active;
+        if (motionArcLR2 != null) motionArcLR2.enabled = active;
+
         if (vfxContainer != null)
             vfxContainer.SetActive(active);
 
@@ -236,13 +241,46 @@ public class BoomerangAirSpinVFX : MonoBehaviour
     }
 
     /// <summary>
-    /// Feedback sutil na mão do astronauta durante o estado Charging.
+    /// Feedback visual na mão do astronauta durante o estado Charging (aceleração de luz e rastros nas pontas).
     /// </summary>
     public void UpdateChargeVisual(float charge01, float deltaTime)
     {
+        EnsureVFXObjects();
+
+        if (vfxContainer != null && !vfxContainer.activeSelf)
+        {
+            vfxContainer.SetActive(true);
+            if (outerSpinRingLR != null) outerSpinRingLR.enabled = false;
+            if (innerSpinRingLR != null) innerSpinRingLR.enabled = false;
+            if (motionArcLR1 != null) motionArcLR1.enabled = false;
+            if (motionArcLR2 != null) motionArcLR2.enabled = false;
+        }
+
         if (airSpinLight != null)
         {
-            airSpinLight.intensity = Mathf.Lerp(0.8f, 3.0f, charge01);
+            airSpinLight.intensity = Mathf.Lerp(0.8f, 3.8f, charge01);
+        }
+
+        bool showTrails = charge01 > 0.15f;
+        if (upperTipTrail != null) upperTipTrail.emitting = showTrails;
+        if (lowerTipTrail != null) lowerTipTrail.emitting = showTrails;
+    }
+
+    /// <summary>
+    /// Desativa os efeitos visuais e luz de carregamento na mão.
+    /// </summary>
+    public void ResetChargeVisual()
+    {
+        if (!isSpinningInAir)
+        {
+            if (vfxContainer != null)
+                vfxContainer.SetActive(false);
+
+            if (upperTipTrail != null)
+                upperTipTrail.emitting = false;
+
+            if (lowerTipTrail != null)
+                lowerTipTrail.emitting = false;
         }
     }
 

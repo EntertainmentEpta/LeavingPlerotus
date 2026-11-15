@@ -12,8 +12,8 @@ public class WeaponOffset : MonoBehaviour
     public Vector3 equipRotation;
 
     [Header("Configurações de Encaixe nas Costas (Stowed / Boomerang)")]
-    public Vector3 stowedBackPosition = new Vector3(0f, 0.02f, -0.22f);
-    public Vector3 stowedBackRotation = new Vector3(0f, 90f, 35f);
+    public Vector3 stowedBackPosition = new Vector3(0f, -0.08f, -0.20f);
+    public Vector3 stowedBackRotation = new Vector3(0f, 0f, 45f);
 
     [HideInInspector]
     public bool isStowedOnBack = false;

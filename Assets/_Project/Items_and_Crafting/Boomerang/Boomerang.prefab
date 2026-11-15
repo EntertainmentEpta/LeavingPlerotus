@@ -143,10 +143,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BoomerangWeapon
   currentState: 0
-  handMountPosition: {x: -0.04, y: 0.06, z: 0.02}
-  handMountRotation: {x: 0, y: 90, z: 90}
-  backMountPosition: {x: 0, y: 0.02, z: -0.22}
-  backMountRotation: {x: 0, y: 90, z: 35}
+  handMountPosition: {x: -0.14, y: 0.08, z: 0.05}
+  handMountRotation: {x: 0, y: 0, z: 90}
+  backMountPosition: {x: 0, y: -0.08, z: -0.20}
+  backMountRotation: {x: 0, y: 0, z: 45}
   equippedWorldScale: {x: 0.55, y: 0.55, z: 0.55}
   enableElectricCrystalVariant: 1
   enableTranslucentClonesOnReturn: 1
@@ -191,10 +191,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WeaponOffset
   weaponType: 4
-  equipPosition: {x: -0.04, y: 0.06, z: 0.02}
-  equipRotation: {x: 0, y: 90, z: 90}
-  stowedBackPosition: {x: 0, y: 0.02, z: -0.22}
-  stowedBackRotation: {x: 0, y: 90, z: 35}
+  equipPosition: {x: -0.14, y: 0.08, z: 0.05}
+  equipRotation: {x: 0, y: 0, z: 90}
+  stowedBackPosition: {x: 0, y: -0.08, z: -0.20}
+  stowedBackRotation: {x: 0, y: 0, z: 45}
   isStowedOnBack: 0
   disableEditorLiveHandSnap: 0
   weaponAnimatorOverride: {fileID: 9100000, guid: 85bb69af8567f814d89cc76a0339825e, type: 2}
