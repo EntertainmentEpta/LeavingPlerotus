@@ -167,6 +167,9 @@ public class ItemDatabase : MonoBehaviour
         // Unificação Golem legado
         MapAlias("golem_chip_t1", "01go");
 
+        // Unificação Bismutado T3 (alias legado com acento)
+        MapAlias("bismutado_glandula_t3", "bismutado_glândula_t3", "bismutado_t3");
+
         Debug.Log("[ITEM DATABASE] " + itemLookup.Count + " chaves/itens registrados.");
     }
 

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using TMPro;
@@ -572,6 +573,9 @@ public class DashM : MonoBehaviour
             leanCoroutine = StartCoroutine(AnimateDashLean(totalDuration));
         }
 
+        bool startedOnNavMesh = NavMesh.SamplePosition(transform.position, out _, 1.5f, NavMesh.AllAreas);
+        bool dashBlockedByBoundary = false;
+
         rb.linearVelocity = Vector3.zero; 
         rb.linearVelocity = dashDirection * dashSpeed;
         float elapsed = 0f;
@@ -583,8 +587,17 @@ public class DashM : MonoBehaviour
                 isInPerfectDodgeWindow = false;
             }
 
+            if (!dashBlockedByBoundary && ShouldStopDashForBoundary(dashDirection, startedOnNavMesh))
+            {
+                dashBlockedByBoundary = true;
+                rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            }
+            else if (dashBlockedByBoundary)
+            {
+                rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            }
             // No Dash Normal (sem Perfect Dash): aplica repulsão radial suave lateral para contornar inimigos fluidamente
-            if (!isCurrentDashPerfectTriggered)
+            else if (!isCurrentDashPerfectTriggered)
             {
                 ApplyRadialSoftRepulsion(dashDirection);
             }
@@ -1389,6 +1402,61 @@ public class DashM : MonoBehaviour
         }
 
         Destroy(vfxInstance, 3.5f);
+    }
+
+    /// <summary>
+    /// Impede que o dash atravesse paredes finas ou avance para fora do piso/NavMesh do mapa.
+    /// </summary>
+    private bool ShouldStopDashForBoundary(Vector3 dashDirection, bool startedOnNavMesh)
+    {
+        float lookAheadDist = Mathf.Max(0.45f, dashSpeed * Time.fixedDeltaTime * 1.5f);
+
+        Vector3 chestOrigin = transform.position + Vector3.up * 0.6f;
+        RaycastHit[] wallHits = Physics.SphereCastAll(chestOrigin, 0.25f, dashDirection, lookAheadDist, ~0, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < wallHits.Length; i++)
+        {
+            Collider col = wallHits[i].collider;
+            if (IsIgnoredDashObstacle(col)) continue;
+            if (wallHits[i].normal.y < 0.45f)
+            {
+                return true;
+            }
+        }
+
+        Vector3 aheadPos = transform.position + dashDirection * lookAheadDist;
+        bool hasSolidFloor = false;
+        RaycastHit[] floorHits = Physics.RaycastAll(aheadPos + Vector3.up * 1.5f, Vector3.down, 4.5f, ~0, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < floorHits.Length; i++)
+        {
+            if (IsIgnoredDashObstacle(floorHits[i].collider)) continue;
+            if (floorHits[i].normal.y >= 0.4f)
+            {
+                hasSolidFloor = true;
+                break;
+            }
+        }
+
+        if (!hasSolidFloor) return true;
+
+        if (startedOnNavMesh && LevelGenerator.Instance != null && LevelGenerator.Instance.useNavMesh && LevelGenerator.Instance.useNavMeshConstraint)
+        {
+            if (!NavMesh.SamplePosition(aheadPos, out _, 0.85f, NavMesh.AllAreas))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool IsIgnoredDashObstacle(Collider col)
+    {
+        if (col == null || col.isTrigger) return true;
+        if (col.gameObject.layer == 2) return true; // Ignore Raycast
+        if (col.transform == transform || col.transform.IsChildOf(transform)) return true;
+        if (col.CompareTag("Player") || col.CompareTag("Enemy")) return true;
+        if (col.GetComponentInParent<NavMeshAgent>() != null) return true;
+        return false;
     }
 
 #if UNITY_EDITOR

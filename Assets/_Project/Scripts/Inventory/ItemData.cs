@@ -66,7 +66,17 @@ public static class ItemIdentityValidator
     public static string Normalize(string itemId)
     {
         if (string.IsNullOrWhiteSpace(itemId)) return string.Empty;
-        return itemId.Trim().ToLowerInvariant().Replace(' ', '_');
+        string normalized = itemId.Trim().ToLowerInvariant().Replace(' ', '_')
+            .Normalize(System.Text.NormalizationForm.FormD);
+        var sb = new System.Text.StringBuilder(normalized.Length);
+        foreach (char c in normalized)
+        {
+            if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark)
+            {
+                sb.Append(c);
+            }
+        }
+        return sb.ToString().Normalize(System.Text.NormalizationForm.FormC);
     }
 }
 

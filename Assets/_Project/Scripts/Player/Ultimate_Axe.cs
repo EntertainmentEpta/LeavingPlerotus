@@ -715,18 +715,9 @@ public class Ultimate_Axe : MonoBehaviour
 
         MeshRenderer mr = quadObj.GetComponent<MeshRenderer>();
 
-        Material ringMat = null;
-#if UNITY_EDITOR
-        ringMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/_Project/Art/Materials/Shockwave.mat");
-        if (ringMat == null) ringMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/_Project/Art/Materials/Glow_01.mat");
-#endif
-        if (ringMat == null)
-        {
-            ringMat = new Material(Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default"));
-            ringMat.color = shockwaveColor;
-        }
+        Material ringMat = CreateShockwaveRingMaterial(shockwaveColor, disableAlphaClipForSmoothFade: true);
 
-        mr.material = new Material(ringMat);
+        mr.material = ringMat;
         if (mr.material.HasProperty("_Cull")) mr.material.SetInt("_Cull", 0);
 
         float elapsed = 0f;
@@ -790,18 +781,7 @@ public class Ultimate_Axe : MonoBehaviour
         impactLight.range = shockwaveRadius * 1.5f;
         StartCoroutine(FadeLightCoroutine(impactLight));
 
-        Material shockwaveMat = null;
-#if UNITY_EDITOR
-        shockwaveMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/_Project/Art/Materials/Shockwave.mat");
-        if (shockwaveMat == null) shockwaveMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/_Project/Art/Materials/Glow_01.mat");
-#endif
-
-        if (shockwaveMat == null)
-        {
-            shockwaveMat = new Material(Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default"));
-            shockwaveMat.color = shockwaveColor;
-        }
-
+        Material shockwaveMat = CreateShockwaveRingMaterial(shockwaveColor, disableAlphaClipForSmoothFade: true);
         if (shockwaveMat.HasProperty("_Cull")) shockwaveMat.SetInt("_Cull", 0);
 
         for (int i = 0; i < shockwaveRingCount; i++)
@@ -811,6 +791,7 @@ public class Ultimate_Axe : MonoBehaviour
         }
 
         Destroy(parentVFX, ringExpansionDuration + 0.5f);
+        Destroy(shockwaveMat, ringExpansionDuration + 0.6f);
     }
 
     private IEnumerator AnimateSingleRingCoroutine(Transform parent, Vector3 centerPos, Material mat, float duration, int ringIndex)
@@ -826,7 +807,8 @@ public class Ultimate_Axe : MonoBehaviour
         quadFlat.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
         Destroy(quadFlat.GetComponent<Collider>());
         MeshRenderer mrTop = quadFlat.GetComponent<MeshRenderer>();
-        mrTop.material = mat;
+        Material ringInstance = new Material(mat);
+        mrTop.material = ringInstance;
 
         float elapsed = 0f;
         float maxScale = (shockwaveRadius * 4.5f) + (ringIndex * 1.5f);
@@ -848,16 +830,89 @@ public class Ultimate_Axe : MonoBehaviour
             Color currentC = Color.Lerp(ringColor, shockwaveColor, t);
             currentC.a = alpha;
 
-            if (mat.HasProperty("_Color")) mat.SetColor("_Color", currentC);
-            else if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", currentC);
+            if (ringInstance.HasProperty("_BaseColor")) ringInstance.SetColor("_BaseColor", currentC);
+            if (ringInstance.HasProperty("_Color")) ringInstance.SetColor("_Color", currentC);
 
             yield return null;
         }
 
+        Destroy(ringInstance);
         if (ringObj != null)
         {
             Destroy(ringObj);
         }
+    }
+
+    private static Texture2D _fallbackRingTex;
+
+    private static Texture2D GetFallbackRingTexture()
+    {
+        if (_fallbackRingTex != null) return _fallbackRingTex;
+
+        const int size = 64;
+        _fallbackRingTex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        _fallbackRingTex.wrapMode = TextureWrapMode.Clamp;
+        _fallbackRingTex.filterMode = FilterMode.Bilinear;
+
+        Color[] pixels = new Color[size * size];
+        float half = (size - 1) * 0.5f;
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dx = (x - half) / half;
+                float dy = (y - half) / half;
+                float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                float ringBand = 1f - Mathf.Clamp01(Mathf.Abs(dist - 0.72f) / 0.22f);
+                float edgeMask = 1f - Mathf.SmoothStep(0.85f, 1.0f, dist);
+                float alpha = Mathf.Pow(ringBand, 1.6f) * edgeMask;
+                pixels[y * size + x] = new Color(1f, 1f, 1f, alpha);
+            }
+        }
+        _fallbackRingTex.SetPixels(pixels);
+        _fallbackRingTex.Apply(false, true);
+        return _fallbackRingTex;
+    }
+
+    private static Material CreateShockwaveRingMaterial(Color initialColor, bool disableAlphaClipForSmoothFade)
+    {
+        Material sourceMat = null;
+#if UNITY_EDITOR
+        sourceMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/_Project/Art/Materials/Shockwave.mat");
+        if (sourceMat == null) sourceMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/_Project/Art/Materials/Glow_01.mat");
+#endif
+        Material ringMat;
+        if (sourceMat != null)
+        {
+            ringMat = new Material(sourceMat);
+        }
+        else
+        {
+            Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                ?? Shader.Find("Universal Render Pipeline/Unlit")
+                ?? Shader.Find("Sprites/Default");
+            ringMat = new Material(shader);
+            Texture2D ringTex = GetFallbackRingTexture();
+            if (ringMat.HasProperty("_BaseMap")) ringMat.SetTexture("_BaseMap", ringTex);
+            if (ringMat.HasProperty("_MainTex")) ringMat.SetTexture("_MainTex", ringTex);
+            if (ringMat.HasProperty("_Surface")) ringMat.SetFloat("_Surface", 1f);
+            if (ringMat.HasProperty("_Blend")) ringMat.SetFloat("_Blend", 2f);
+            if (ringMat.HasProperty("_SrcBlend")) ringMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            if (ringMat.HasProperty("_DstBlend")) ringMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+            if (ringMat.HasProperty("_ZWrite")) ringMat.SetInt("_ZWrite", 0);
+            ringMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            ringMat.renderQueue = 3000;
+        }
+
+        if (disableAlphaClipForSmoothFade)
+        {
+            if (ringMat.HasProperty("_AlphaClip")) ringMat.SetFloat("_AlphaClip", 0f);
+            ringMat.DisableKeyword("_ALPHATEST_ON");
+        }
+
+        if (ringMat.HasProperty("_BaseColor")) ringMat.SetColor("_BaseColor", initialColor);
+        if (ringMat.HasProperty("_Color")) ringMat.SetColor("_Color", initialColor);
+        return ringMat;
     }
 
     private IEnumerator FadeLightCoroutine(Light pointLight)

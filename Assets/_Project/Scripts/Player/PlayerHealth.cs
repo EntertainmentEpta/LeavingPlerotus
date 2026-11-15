@@ -1162,14 +1162,17 @@ public class PlayerHealth : MonoBehaviour
         }
     }
 
-    public void Heal(int amount)
+    public void Heal(int amount, bool playHealAudio = true)
     {
         if (isDead || !canHeal) return;
         currentHealth += amount;
         if (currentHealth > maxHealth) currentHealth = maxHealth;
         UpdateHealthBar();
 
-        PlayHealSound();
+        if (playHealAudio)
+        {
+            PlayHealSound();
+        }
     }
     
     [Header("Luz de Dano (DAMAGELIGHT)")]

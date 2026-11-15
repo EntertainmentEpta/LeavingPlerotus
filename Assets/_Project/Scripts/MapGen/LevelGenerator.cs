@@ -34,6 +34,10 @@ public class LevelGenerator : MonoBehaviour
     {
         Instance = this;
         EnsureAudioListenerInGameScene();
+        if (GetComponent<AbyssBackdropController>() == null)
+        {
+            gameObject.AddComponent<AbyssBackdropController>();
+        }
         if (barrierPrefab == null)
         {
             barrierPrefab = Resources.Load<GameObject>("Barreira");

@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.AI;
 
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerM : MonoBehaviour
@@ -53,6 +54,9 @@ public class PlayerM : MonoBehaviour
     private float currentRotationSpeed;
     private bool isPlasmaActionLocked;
     private Vector3 plasmaAimDirection;
+    private Vector3 lastSafeGroundedPos;
+    private bool hasLastSafeGroundedPos;
+    private bool hasSeenNavMesh;
 
     public bool IsPlasmaActionLocked => isPlasmaActionLocked;
 
@@ -187,6 +191,7 @@ public class PlayerM : MonoBehaviour
             (JournalBookUI.Instance != null && JournalBookUI.Instance.IsOpen))
         {
             if (rb != null) rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            EnforceBoundsAndVoidRescue();
             return;
         }
 
@@ -194,12 +199,19 @@ public class PlayerM : MonoBehaviour
         if (ult != null && ult.IsUltimateActive())
         {
             rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
+            EnforceBoundsAndVoidRescue();
             return;
         }
 
-        if (dashScript != null && dashScript.isDashing) return;
+        if (dashScript != null && dashScript.isDashing)
+        {
+            EnforceBoundsAndVoidRescue();
+            return;
+        }
+
         MovePlayer();
         HandleStepClimbing();
+        EnforceBoundsAndVoidRescue();
     }
 
     public void SetPlasmaFiring(bool isFiring)
@@ -380,7 +392,7 @@ public class PlayerM : MonoBehaviour
         Vector3 footOrigin = transform.position + Vector3.up * 0.05f;
         Vector3 stepOrigin = transform.position + Vector3.up * maxStepHeight;
 
-        int mask = (whatIsGround.value != 0) ? whatIsGround.value : ~0;
+        int mask = (whatIsGround.value != 0) ? (whatIsGround.value | (1 << 0)) : ~0;
 
         // Raio inferior: detecta se os pés bateram em algum obstáculo/degrau
         if (Physics.Raycast(footOrigin, moveDirNorm, out RaycastHit footHit, stepCheckDistance, mask, QueryTriggerInteraction.Ignore))
@@ -390,15 +402,121 @@ public class PlayerM : MonoBehaviour
                 // Raio superior: verifica se na altura do degrau o espaço está LIVRE (não é parede alta)
                 if (!Physics.Raycast(stepOrigin, moveDirNorm, stepCheckDistance + 0.15f, mask, QueryTriggerInteraction.Ignore))
                 {
-                    // Espaço livre! Aplica elevação suave para deslizar sobre o degrau
-                    float climbAmount = (footHit.point.y + maxStepHeight) - transform.position.y;
-                    if (climbAmount > 0.01f && climbAmount <= maxStepHeight + 0.15f)
+                    // Garante que existe superfície caminhável adiante (evita escalar bordas de parede/vazio)
+                    Vector3 landProbeOrigin = transform.position + moveDirNorm * (stepCheckDistance + 0.25f) + Vector3.up * (maxStepHeight + 0.5f);
+                    if (Physics.Raycast(landProbeOrigin, Vector3.down, out RaycastHit landHit, maxStepHeight + 0.8f, mask, QueryTriggerInteraction.Ignore) &&
+                        landHit.collider != null && !landHit.collider.isTrigger && landHit.normal.y >= 0.6f)
                     {
-                        rb.position += Vector3.up * (stepSmoothSpeed * Time.fixedDeltaTime);
-                        rb.linearVelocity = new Vector3(rb.linearVelocity.x, Mathf.Max(rb.linearVelocity.y, 0.4f), rb.linearVelocity.z);
+                        bool navValid = !(LevelGenerator.Instance != null && LevelGenerator.Instance.useNavMesh && LevelGenerator.Instance.useNavMeshConstraint && hasSeenNavMesh) ||
+                                        NavMesh.SamplePosition(landHit.point, out _, 1.0f, NavMesh.AllAreas);
+                        if (navValid)
+                        {
+                            // Espaço livre! Aplica elevação suave para deslizar sobre o degrau
+                            float climbAmount = (footHit.point.y + maxStepHeight) - transform.position.y;
+                            if (climbAmount > 0.01f && climbAmount <= maxStepHeight + 0.15f)
+                            {
+                                rb.position += Vector3.up * (stepSmoothSpeed * Time.fixedDeltaTime);
+                                rb.linearVelocity = new Vector3(rb.linearVelocity.x, Mathf.Max(rb.linearVelocity.y, 0.4f), rb.linearVelocity.z);
+                            }
+                        }
                     }
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Mantém o jogador dentro dos limites do NavMesh/piso em salas procedurais (ex.: salas de transição sem paredes)
+    /// e resgata para a última posição segura caso caia no vazio.
+    /// </summary>
+    private void EnforceBoundsAndVoidRescue()
+    {
+        if (rb == null) return;
+
+        // Salas procedurais usam Default (layer 0) além de Ground (layer 3); usa ~0 filtrando entidades/triggers no RaycastAll.
+        int floorMask = ~((1 << 2) | (1 << 5) | (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10));
+        bool hasFloorBelow = TryGetWalkableFloorBelow(transform.position, 1.8f, floorMask, out _);
+        bool navConstraintActive = LevelGenerator.Instance != null && LevelGenerator.Instance.useNavMesh && LevelGenerator.Instance.useNavMeshConstraint;
+        bool hasNavMeshNear = NavMesh.SamplePosition(transform.position, out _, 1.25f, NavMesh.AllAreas);
+        if (hasNavMeshNear) hasSeenNavMesh = true;
+
+        if (hasFloorBelow && (!navConstraintActive || !hasSeenNavMesh || hasNavMeshNear))
+        {
+            lastSafeGroundedPos = transform.position;
+            hasLastSafeGroundedPos = true;
+        }
+
+        if (navConstraintActive && hasSeenNavMesh)
+        {
+            bool insideTightNav = NavMesh.SamplePosition(transform.position, out _, 0.75f, NavMesh.AllAreas);
+            if ((!insideTightNav || !hasFloorBelow) && NavMesh.SamplePosition(transform.position, out NavMeshHit closestNav, 6.0f, NavMesh.AllAreas))
+            {
+                Vector2 curXZ = new Vector2(transform.position.x, transform.position.z);
+                Vector2 navXZ = new Vector2(closestNav.position.x, closestNav.position.z);
+                float xzDist = Vector2.Distance(curXZ, navXZ);
+
+                if (!hasFloorBelow || xzDist > 0.75f)
+                {
+                    // Se ainda há piso válido, mantém rb.position.y intacto para não interferir na colisão física com a malha.
+                    bool shouldRescueY = !hasFloorBelow && transform.position.y < closestNav.position.y - 0.5f;
+                    float targetY = shouldRescueY ? closestNav.position.y + 0.1f : rb.position.y;
+                    Vector3 clampedPos = new Vector3(closestNav.position.x, targetY, closestNav.position.z);
+                    Vector3 outward = transform.position - clampedPos;
+                    outward.y = 0f;
+
+                    if (xzDist > 0.02f || shouldRescueY)
+                    {
+                        rb.position = clampedPos;
+                    }
+
+                    Vector3 vel = rb.linearVelocity;
+                    if (outward.sqrMagnitude > 0.0001f)
+                    {
+                        Vector3 outwardNorm = outward.normalized;
+                        float outwardSpeed = Vector3.Dot(new Vector3(vel.x, 0f, vel.z), outwardNorm);
+                        if (outwardSpeed > 0f)
+                        {
+                            vel -= outwardNorm * outwardSpeed;
+                        }
+                    }
+                    if (shouldRescueY && vel.y < 0f) vel.y = 0f;
+                    rb.linearVelocity = vel;
+                    return;
+                }
+            }
+        }
+
+        if (hasLastSafeGroundedPos && !TryGetWalkableFloorBelow(transform.position, 8.0f, floorMask, out _) && transform.position.y < lastSafeGroundedPos.y - 2.5f)
+        {
+            rb.position = lastSafeGroundedPos + Vector3.up * 0.1f;
+            rb.linearVelocity = Vector3.zero;
+        }
+    }
+
+    private bool TryGetWalkableFloorBelow(Vector3 pos, float maxDistance, int mask, out RaycastHit bestHit)
+    {
+        bestHit = default;
+        RaycastHit[] hits = Physics.RaycastAll(pos + Vector3.up * 0.5f, Vector3.down, maxDistance + 0.5f, mask, QueryTriggerInteraction.Ignore);
+        float closestDist = float.MaxValue;
+        bool found = false;
+
+        for (int i = 0; i < hits.Length; i++)
+        {
+            Collider col = hits[i].collider;
+            if (col == null || col.isTrigger) continue;
+            if (col.gameObject.layer == 2) continue; // Ignore Raycast
+            if (col.transform == transform || col.transform.IsChildOf(transform)) continue;
+            if (col.CompareTag("Player") || col.CompareTag("Enemy")) continue;
+            if (hits[i].normal.y < 0.45f) continue;
+
+            if (hits[i].distance < closestDist)
+            {
+                closestDist = hits[i].distance;
+                bestHit = hits[i];
+                found = true;
+            }
+        }
+
+        return found;
     }
 }

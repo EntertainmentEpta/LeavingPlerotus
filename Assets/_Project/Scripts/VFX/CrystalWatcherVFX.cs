@@ -247,25 +247,47 @@ public class CrystalWatcherVFX : MonoBehaviour
     // =============================================
     // MATERIAL — configura material aditivo para todas as partículas
     // =============================================
+    private static Texture2D _softTex;
+
     void SetupParticleMaterial(ParticleSystem ps)
     {
         var renderer = ps.GetComponent<ParticleSystemRenderer>();
         renderer.renderMode = ParticleSystemRenderMode.Billboard;
 
-        // Tenta usar o shader aditivo do projeto, senão usa fallback
-        Shader addShader = Shader.Find("Particles/Standard Unlit");
-        if (addShader == null) addShader = Shader.Find("Sprites/Default");
+        Shader addShader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+            ?? Shader.Find("Universal Render Pipeline/Unlit")
+            ?? Shader.Find("Sprites/Default")
+            ?? Shader.Find("Particles/Standard Unlit");
 
         Material mat = new Material(addShader);
-        mat.SetFloat("_Mode", 1); // Additive blending
-        mat.color = Color.white;
-
-        // Tenta configurar modo aditivo
-        if (mat.HasProperty("_SrcBlend"))
+        if (_softTex == null)
         {
-            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+            const int s = 32;
+            _softTex = new Texture2D(s, s, TextureFormat.RGBA32, false);
+            _softTex.wrapMode = TextureWrapMode.Clamp;
+            Color[] px = new Color[s * s];
+            float h = (s - 1) * 0.5f;
+            for (int y = 0; y < s; y++)
+                for (int x = 0; x < s; x++)
+                {
+                    float d = Mathf.Clamp01(Mathf.Sqrt((x - h) * (x - h) + (y - h) * (y - h)) / h);
+                    px[y * s + x] = new Color(1f, 1f, 1f, Mathf.Pow(1f - d, 2f));
+                }
+            _softTex.SetPixels(px);
+            _softTex.Apply(false, true);
         }
+        if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", _softTex);
+        if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", _softTex);
+        if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1f);
+        if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 2f);
+        if (mat.HasProperty("_Mode")) mat.SetFloat("_Mode", 1f);
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+        mat.color = Color.white;
+        if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 0);
+        mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        mat.renderQueue = 3000;
 
         renderer.material = mat;
     }

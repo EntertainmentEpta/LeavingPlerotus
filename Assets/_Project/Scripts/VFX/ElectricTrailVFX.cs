@@ -72,12 +72,20 @@ public class ElectricTrailVFX : MonoBehaviour
             lineRenderer.SetPosition(i, basePoint);
         }
 
-        // Shader Additive para brilho elétrico neon
-        Shader addShader = Shader.Find("Mobile/Particles/Additive");
-        if (addShader == null) addShader = Shader.Find("Particles/Additive");
-        if (addShader == null) addShader = Shader.Find("Sprites/Default");
+        // Shader Additive URP para brilho elétrico neon
+        Shader addShader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+            ?? Shader.Find("Universal Render Pipeline/Unlit")
+            ?? Shader.Find("Sprites/Default");
 
         Material mat = new Material(addShader);
+        if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1f);
+        if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 2f);
+        if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 0);
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", trailColor);
+        mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        mat.renderQueue = 3000;
         mat.color = trailColor;
         lineRenderer.material = mat;
 

@@ -74,12 +74,17 @@ public class SpawnIndicator : MonoBehaviour
         if (peakColor == new Color(0.15f, 0.85f, 1f, 1f))
             peakColor = new Color(1.0f, 0.85f, 0.1f, 1f);
 
-        Shader additiveShader = Shader.Find("Legacy Shaders/Particles/Additive");
-        if (additiveShader == null)
-        {
-            additiveShader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
-        }
+        Shader additiveShader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+            ?? Shader.Find("Universal Render Pipeline/Unlit")
+            ?? Shader.Find("Sprites/Default");
         sharedMaterial = new Material(additiveShader);
+        if (sharedMaterial.HasProperty("_Surface")) sharedMaterial.SetFloat("_Surface", 1f);
+        if (sharedMaterial.HasProperty("_Blend")) sharedMaterial.SetFloat("_Blend", 2f);
+        if (sharedMaterial.HasProperty("_SrcBlend")) sharedMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        if (sharedMaterial.HasProperty("_DstBlend")) sharedMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        if (sharedMaterial.HasProperty("_ZWrite")) sharedMaterial.SetInt("_ZWrite", 0);
+        sharedMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        sharedMaterial.renderQueue = 3000;
 
         BuildRings();
         BuildParticles();

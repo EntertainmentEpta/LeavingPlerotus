@@ -164,10 +164,7 @@ public class UltimateVFX : MonoBehaviour
         // Renderer
         var renderer = auraObj.GetComponent<ParticleSystemRenderer>();
         renderer.renderMode = ParticleSystemRenderMode.Billboard;
-        renderer.material = new Material(Shader.Find("Particles/Standard Unlit"));
-        renderer.material.SetColor("_Color", primaryColor);
-        renderer.material.EnableKeyword("_EMISSION");
-        renderer.material.SetColor("_EmissionColor", primaryColor * glowIntensity);
+        renderer.material = CreateUrpParticleMaterial(primaryColor, glowIntensity);
     }
     
     void CreateBurstEffect()
@@ -224,10 +221,62 @@ public class UltimateVFX : MonoBehaviour
         // Renderer
         var renderer = burstObj.GetComponent<ParticleSystemRenderer>();
         renderer.renderMode = ParticleSystemRenderMode.Billboard;
-        renderer.material = new Material(Shader.Find("Particles/Standard Unlit"));
-        renderer.material.SetColor("_Color", primaryColor);
-        renderer.material.EnableKeyword("_EMISSION");
-        renderer.material.SetColor("_EmissionColor", primaryColor * glowIntensity * 2f);
+        renderer.material = CreateUrpParticleMaterial(primaryColor, glowIntensity * 2f);
+    }
+
+    private static Texture2D _softParticleTex;
+
+    private static Texture2D GetSoftParticleTexture()
+    {
+        if (_softParticleTex != null) return _softParticleTex;
+
+        const int size = 32;
+        _softParticleTex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        _softParticleTex.wrapMode = TextureWrapMode.Clamp;
+        _softParticleTex.filterMode = FilterMode.Bilinear;
+
+        Color[] pixels = new Color[size * size];
+        float half = (size - 1) * 0.5f;
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dx = (x - half) / half;
+                float dy = (y - half) / half;
+                float dist = Mathf.Clamp01(Mathf.Sqrt(dx * dx + dy * dy));
+                float alpha = Mathf.Pow(1f - dist, 2.2f);
+                pixels[y * size + x] = new Color(1f, 1f, 1f, alpha);
+            }
+        }
+        _softParticleTex.SetPixels(pixels);
+        _softParticleTex.Apply(false, true);
+        return _softParticleTex;
+    }
+
+    private static Material CreateUrpParticleMaterial(Color color, float emissionScale)
+    {
+        Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+            ?? Shader.Find("Universal Render Pipeline/Unlit")
+            ?? Shader.Find("Sprites/Default")
+            ?? Shader.Find("Particles/Standard Unlit");
+
+        Material mat = new Material(shader);
+        Texture2D tex = GetSoftParticleTexture();
+        if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
+        if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", tex);
+        if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1f);
+        if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 2f); // Additive
+        if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 0);
+        mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        mat.renderQueue = 3000;
+
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
+        if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
+        mat.EnableKeyword("_EMISSION");
+        if (mat.HasProperty("_EmissionColor")) mat.SetColor("_EmissionColor", color * emissionScale);
+        return mat;
     }
     
     void CreateLight()

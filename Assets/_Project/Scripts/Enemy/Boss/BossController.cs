@@ -1819,8 +1819,13 @@ public class BossController : MonoBehaviour
                 Renderer rend = spitObj.GetComponent<Renderer>();
                 if (rend != null)
                 {
-                    Material mat = new Material(Shader.Find("Standard"));
-                    mat.color = new Color(0.1f, 0.9f, 0.1f);
+                    Shader litShader = Shader.Find("Universal Render Pipeline/Lit")
+                        ?? Shader.Find("Universal Render Pipeline/Simple Lit")
+                        ?? Shader.Find("Standard");
+                    Material mat = new Material(litShader);
+                    Color spitColor = new Color(0.1f, 0.9f, 0.1f);
+                    if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", spitColor);
+                    mat.color = spitColor;
                     mat.EnableKeyword("_EMISSION");
                     mat.SetColor("_EmissionColor", new Color(0f, 0.6f, 0f));
                     rend.material = mat;

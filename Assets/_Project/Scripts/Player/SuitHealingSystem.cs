@@ -42,8 +42,26 @@ public class SuitHealingSystem : MonoBehaviour
     [Header("Controles")]
     public KeyCode healKey = KeyCode.Q;
 
+    [Header("Áudio das Cápsulas de Cura (SFX)")]
+    [Tooltip("Som quando a 1ª cápsula (ou carga intermediária) fica pronta.")]
+    public AudioClip firstCapsuleReadyClip;
+    [Tooltip("Som quando a 2ª cápsula (todas as cargas) fica pronta para uso.")]
+    public AudioClip allCapsulesReadyClip;
+    [Tooltip("Som ao usar a cápsula de cura [Q] (regeneração/injeção).")]
+    public AudioClip capsuleUsedClip;
+    [Tooltip("Som opcional enquanto uma cápsula está recarregando (ex: som contínuo suave de síntese).")]
+    public AudioClip rechargingClip;
+
+    [Range(0f, 1f)] public float sfxVolume = 0.85f;
+    [Range(0f, 1f)] public float rechargingVolume = 0.25f;
+    [Tooltip("Se marcado e 'rechargingClip' estiver definido, toca um loop suave enquanto estiver recarregando uma cápsula.")]
+    public bool enableRechargingLoop = false;
+
     // Componentes e Estado
     private PlayerHealth playerHealth;
+    private AudioSource sfxSource;
+    private AudioSource rechargeLoopSource;
+    private bool clipsLoaded = false;
     private bool tookDamageInCurrentRoom = false;
     private bool isInCombat = false;
     public bool isInAnomalyRoom = false;
@@ -95,6 +113,7 @@ public class SuitHealingSystem : MonoBehaviour
         }
 
         playerHealth = GetComponent<PlayerHealth>() ?? GetComponentInParent<PlayerHealth>();
+        InitializeAudio();
 
         PlayerHealth.OnPlayerDamaged += OnPlayerTookDamage;
         RoomController.OnRoomCleared += OnRoomCleared;
@@ -119,6 +138,7 @@ public class SuitHealingSystem : MonoBehaviour
         currentPotions = Mathf.Max(1, currentPotions);
         currentSynthesisTimer = 0f;
         playerHealth = GetComponent<PlayerHealth>() ?? GetComponentInParent<PlayerHealth>() ?? FindFirstObjectByType<PlayerHealth>();
+        StopRechargeLoopAudio();
         Debug.Log($"🧪 [SuitHealing] Sistema de cura resetado com sucesso pós-morte/respawn! Cápsulas: {currentPotions}/{maxPotions}");
     }
 
@@ -126,14 +146,19 @@ public class SuitHealingSystem : MonoBehaviour
     {
         PlayerHealth.OnPlayerDamaged -= OnPlayerTookDamage;
         RoomController.OnRoomCleared -= OnRoomCleared;
+        StopRechargeLoopAudio();
     }
 
     private void Update()
     {
-        if (DialogManager.BlocksGameplayInput || GamePause.IsPaused) return;
-        if (CheatConsole.IsOpen) return;
-        if (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen()) return;
-        if (JournalBookUI.Instance != null && JournalBookUI.Instance.IsOpen) return;
+        if (DialogManager.BlocksGameplayInput || GamePause.IsPaused ||
+            CheatConsole.IsOpen ||
+            (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen()) ||
+            (JournalBookUI.Instance != null && JournalBookUI.Instance.IsOpen))
+        {
+            StopRechargeLoopAudio();
+            return;
+        }
 
         combatCheckTimer += Time.deltaTime;
         if (combatCheckTimer >= 0.5f)
@@ -162,8 +187,13 @@ public class SuitHealingSystem : MonoBehaviour
 
             if (currentSynthesisTimer >= baseSynthesisDuration)
             {
+                int previousPotions = currentPotions;
                 currentSynthesisTimer = 0f;
                 currentPotions = Mathf.Min(maxPotions, currentPotions + 1);
+                if (currentPotions > previousPotions)
+                {
+                    PlayCapsuleReadyAudio(currentPotions);
+                }
                 Debug.Log($"🧪 [SuitHealing] Eptinho sintetizou +1 cápsula de cura! Total: {currentPotions}/{maxPotions}");
             }
         }
@@ -171,6 +201,8 @@ public class SuitHealingSystem : MonoBehaviour
         {
             currentSynthesisTimer = 0f;
         }
+
+        UpdateRechargeLoopAudio();
 
         if (Input.GetKeyDown(healKey))
         {
@@ -205,7 +237,8 @@ public class SuitHealingSystem : MonoBehaviour
             float pct = (isInCombat && !isInAnomalyRoom) ? combatHealPercent : safeRoomHealPercent;
             int healAmount = Mathf.Max(1, Mathf.RoundToInt(maxHp * pct));
 
-            playerHealth.Heal(healAmount);
+            playerHealth.Heal(healAmount, false);
+            PlayCapsuleUsedAudio();
             TriggerHealVFX();
 
             if (SuitHealingUI.Instance != null)
@@ -220,7 +253,7 @@ public class SuitHealingSystem : MonoBehaviour
         // (aproveitando imediatamente o slot liberado se uma poção foi gasta, ou preenchendo a síntese atual!)
         if (hadSobrecarga)
         {
-            AccelerateSynthesis(30f);
+            AccelerateSynthesis(30f, usedPotion ? 0.45f : 0f);
             if (SuitHealingUI.Instance != null)
             {
                 SuitHealingUI.Instance.TriggerSobrecargaConsumedFeedback();
@@ -236,7 +269,7 @@ public class SuitHealingSystem : MonoBehaviour
         }
     }
 
-    public void AccelerateSynthesis(float seconds)
+    public void AccelerateSynthesis(float seconds, float readyAudioDelay = 0f)
     {
         if (currentPotions < maxPotions)
         {
@@ -244,8 +277,13 @@ public class SuitHealingSystem : MonoBehaviour
             Debug.Log($"⚡ [SuitHealing] Síntese acelerada em +{seconds}s! Progresso atual: {currentSynthesisTimer:F1}/{baseSynthesisDuration:F0}s");
             if (currentSynthesisTimer >= baseSynthesisDuration)
             {
+                int previousPotions = currentPotions;
                 currentSynthesisTimer = 0f;
                 currentPotions = Mathf.Min(maxPotions, currentPotions + 1);
+                if (currentPotions > previousPotions)
+                {
+                    PlayCapsuleReadyAudio(currentPotions, readyAudioDelay);
+                }
             }
         }
     }
@@ -329,5 +367,147 @@ public class SuitHealingSystem : MonoBehaviour
         }
 
         Destroy(healFxObj, 1.2f);
+    }
+
+    private void OnDisable()
+    {
+        StopRechargeLoopAudio();
+    }
+
+    private void InitializeAudio()
+    {
+        if (sfxSource == null)
+        {
+            sfxSource = gameObject.AddComponent<AudioSource>();
+            sfxSource.playOnAwake = false;
+            sfxSource.loop = false;
+            sfxSource.spatialBlend = 0f;
+        }
+
+        if (rechargeLoopSource == null)
+        {
+            rechargeLoopSource = gameObject.AddComponent<AudioSource>();
+            rechargeLoopSource.playOnAwake = false;
+            rechargeLoopSource.loop = true;
+            rechargeLoopSource.spatialBlend = 0f;
+        }
+
+        SyncAudioMixerGroup();
+        EnsureAudioClipsLoaded();
+    }
+
+    private void SyncAudioMixerGroup()
+    {
+        if (GlobalAudioManager.Instance == null || GlobalAudioManager.Instance.sfxGroup == null) return;
+        if (sfxSource != null && sfxSource.outputAudioMixerGroup == null)
+            sfxSource.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
+        if (rechargeLoopSource != null && rechargeLoopSource.outputAudioMixerGroup == null)
+            rechargeLoopSource.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
+    }
+
+    private void EnsureAudioClipsLoaded()
+    {
+        if (clipsLoaded) return;
+        clipsLoaded = true;
+
+        firstCapsuleReadyClip ??= LoadHealingClip("SoundFX/SuitHealing/CargaPronta", "SoundFX/Shield 1/Carga Pronta = WAV", "Assets/_Project/Audio/SoundFX/Shield 1/Carga Pronta = WAV.wav");
+        allCapsulesReadyClip ??= LoadHealingClip("SoundFX/SuitHealing/ProntasParaUso", "SoundFX/Shield 1/Prontas para uso = WAV", "Assets/_Project/Audio/SoundFX/Shield 1/Prontas para uso = WAV.wav");
+        capsuleUsedClip ??= LoadHealingClip("SoundFX/SuitHealing/Regenerando", "SoundFX/Shield 1/Regenerando = WAV", "Assets/_Project/Audio/SoundFX/Shield 1/Regenerando = WAV.wav");
+        rechargingClip ??= LoadHealingClip("SoundFX/SuitHealing/Recarregando", null, null);
+    }
+
+    private static AudioClip LoadHealingClip(string primaryResourcePath, string secondaryResourcePath, string editorAssetPath)
+    {
+        AudioClip clip = !string.IsNullOrEmpty(primaryResourcePath) ? Resources.Load<AudioClip>(primaryResourcePath) : null;
+        if (clip != null) return clip;
+
+        if (!string.IsNullOrEmpty(secondaryResourcePath))
+        {
+            clip = Resources.Load<AudioClip>(secondaryResourcePath);
+            if (clip != null) return clip;
+        }
+
+#if UNITY_EDITOR
+        if (!string.IsNullOrEmpty(editorAssetPath))
+        {
+            clip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(editorAssetPath);
+        }
+#endif
+        return clip;
+    }
+
+    private void PlayCapsuleReadyAudio(int newPotionCount, float delay = 0f)
+    {
+        EnsureAudioClipsLoaded();
+        AudioClip clip = (newPotionCount >= maxPotions) ? allCapsulesReadyClip : firstCapsuleReadyClip;
+        if (clip == null) clip = firstCapsuleReadyClip ?? allCapsulesReadyClip;
+        if (clip == null) return;
+
+        if (delay > 0f)
+        {
+            StartCoroutine(PlaySfxDelayedRoutine(clip, delay));
+        }
+        else
+        {
+            PlayOneShotSfx(clip);
+        }
+    }
+
+    private void PlayCapsuleUsedAudio()
+    {
+        EnsureAudioClipsLoaded();
+        PlayOneShotSfx(capsuleUsedClip);
+    }
+
+    private IEnumerator PlaySfxDelayedRoutine(AudioClip clip, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        PlayOneShotSfx(clip);
+    }
+
+    private void PlayOneShotSfx(AudioClip clip)
+    {
+        if (clip == null) return;
+        if (sfxSource == null) InitializeAudio();
+        SyncAudioMixerGroup();
+
+        float effectiveVol = Mathf.Clamp01(sfxVolume) * GlobalAudioManager.SFXVolumeMultiplier;
+        sfxSource.PlayOneShot(clip, effectiveVol);
+    }
+
+    private void UpdateRechargeLoopAudio()
+    {
+        bool shouldPlay = enableRechargingLoop &&
+                          rechargingClip != null &&
+                          currentPotions < maxPotions &&
+                          (playerHealth == null || !playerHealth.isDead);
+
+        if (!shouldPlay)
+        {
+            StopRechargeLoopAudio();
+            return;
+        }
+
+        if (rechargeLoopSource == null) InitializeAudio();
+        SyncAudioMixerGroup();
+
+        if (rechargeLoopSource.clip != rechargingClip)
+        {
+            rechargeLoopSource.clip = rechargingClip;
+        }
+
+        rechargeLoopSource.volume = Mathf.Clamp01(rechargingVolume) * GlobalAudioManager.SFXVolumeMultiplier;
+        if (!rechargeLoopSource.isPlaying)
+        {
+            rechargeLoopSource.Play();
+        }
+    }
+
+    private void StopRechargeLoopAudio()
+    {
+        if (rechargeLoopSource != null && rechargeLoopSource.isPlaying)
+        {
+            rechargeLoopSource.Stop();
+        }
     }
 }
