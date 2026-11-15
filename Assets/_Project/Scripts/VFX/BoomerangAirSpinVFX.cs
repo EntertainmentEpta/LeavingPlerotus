@@ -63,9 +63,9 @@ public class BoomerangAirSpinVFX : MonoBehaviour
 
     public void Initialize(Transform visualRoot, Transform upperTip, Transform lowerTip)
     {
-        visualSpinTarget = visualRoot != null ? visualRoot : transform;
-        upperTipTransform = upperTip;
-        lowerTipTransform = lowerTip;
+        visualSpinTarget = (visualRoot != null && visualRoot.IsChildOf(transform)) ? visualRoot : transform;
+        upperTipTransform = (upperTip != null && upperTip.IsChildOf(transform)) ? upperTip : transform;
+        lowerTipTransform = (lowerTip != null && lowerTip.IsChildOf(transform)) ? lowerTip : transform;
 
         EnsureVFXObjects();
         SetAirSpinActive(false);

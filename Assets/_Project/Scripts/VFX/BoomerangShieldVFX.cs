@@ -73,7 +73,7 @@ public class BoomerangShieldVFX : MonoBehaviour
 
     public void Initialize(Transform visualRoot)
     {
-        visualSpinTarget = visualRoot != null ? visualRoot : transform;
+        visualSpinTarget = (visualRoot != null && visualRoot.IsChildOf(transform)) ? visualRoot : transform;
         EnsureShieldVFXObjects();
         SetShieldActive(false);
     }
@@ -157,7 +157,7 @@ public class BoomerangShieldVFX : MonoBehaviour
 
         if (active && triggerParryFlash)
         {
-            parryFlashTimer = 0.2f; // Janela de Parry de 0.2s do Isaac
+            parryFlashTimer = 0.2f; // Janela de Parry de 0.2s
         }
     }
 
@@ -298,12 +298,12 @@ public class BoomerangShieldVFX : MonoBehaviour
     }
 
     /// <summary>
-    /// Disparado quando o Parry de 0.2s reflete um projétil ou atordoa um ataque melee (pronto para o Isaac chamar!).
+    /// Disparado quando o Parry de 0.2s reflete um projétil ou atordoa um ataque melee.
     /// </summary>
     public void TriggerParrySuccessVFX(Vector3 contactWorldPoint, GameObject attackerOrProjectile = null)
     {
         parryFlashTimer = 0.25f;
-        ElectricTrailVFX.CreateTrailSegment(transform.position, contactWorldPoint, 2, 0.35f);
+        ElectricTrailVFX.CreateTrailSegment(transform.position, contactWorldPoint, 2, 0.35f, hostileToPlayer: false);
 
         if (attackerOrProjectile != null)
         {
@@ -334,7 +334,7 @@ public class BoomerangShieldVFX : MonoBehaviour
     public void TriggerShieldMeleeParalysis(GameObject targetEnemy)
     {
         if (targetEnemy == null) return;
-        ElectricTrailVFX.CreateTrailSegment(transform.position, targetEnemy.transform.position, 2, 0.35f);
+        ElectricTrailVFX.CreateTrailSegment(transform.position, targetEnemy.transform.position, 2, 0.35f, hostileToPlayer: false);
         ElectricShockVFX.AttachToPlayer(targetEnemy, shieldParalysisDuration);
         ElectrocutedStatus.ApplyElectrocuted(targetEnemy, 3, 0.50f, shieldParalysisDuration);
 

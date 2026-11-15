@@ -8,8 +8,8 @@ using UnityEngine;
 ///    como Humanoid e vincula os AnimationClips diretamente no BoomerangAnimation.controller.
 /// 2. O material do Bumerangue com a textura boomerang_texture.png.
 /// 3. O Prefab completo do Bumerangue (em Assets/_Project/Items_and_Crafting/Boomerang/Boomerang.prefab e
-///    em Assets/_Project/Props/WeaponRack/Resources/Boomerang.prefab) com todos os componentes visuais e VFX do Lucas
-///    e a Máquina de Estados pronta para o Isaac.
+///    em Assets/_Project/Props/WeaponRack/Resources/Boomerang.prefab) com todos os componentes visuais, VFX
+///    e a Máquina de Estados.
 /// </summary>
 [InitializeOnLoad]
 public static class BoomerangSetupHelper
@@ -270,7 +270,7 @@ public static class BoomerangSetupHelper
         offset.weaponType = WeaponType.Boomerang;
         offset.equipPosition = new Vector3(-0.04f, 0.06f, 0.02f);
         offset.equipRotation = new Vector3(0f, 90f, 90f);
-        offset.stowedBackPosition = new Vector3(0f, 0.16f, -0.19f);
+        offset.stowedBackPosition = new Vector3(0f, 0.02f, -0.22f);
         offset.stowedBackRotation = new Vector3(0f, 90f, 35f);
         offset.weaponAnimatorOverride = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(CONTROLLER_RESOURCES)
                                       ?? AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(CONTROLLER_MAIN);

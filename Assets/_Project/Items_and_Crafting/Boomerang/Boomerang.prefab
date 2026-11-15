@@ -145,7 +145,7 @@ MonoBehaviour:
   currentState: 0
   handMountPosition: {x: -0.04, y: 0.06, z: 0.02}
   handMountRotation: {x: 0, y: 90, z: 90}
-  backMountPosition: {x: 0, y: 0.16, z: -0.19}
+  backMountPosition: {x: 0, y: 0.02, z: -0.22}
   backMountRotation: {x: 0, y: 90, z: 35}
   equippedWorldScale: {x: 0.55, y: 0.55, z: 0.55}
   enableElectricCrystalVariant: 1
@@ -193,7 +193,7 @@ MonoBehaviour:
   weaponType: 4
   equipPosition: {x: -0.04, y: 0.06, z: 0.02}
   equipRotation: {x: 0, y: 90, z: 90}
-  stowedBackPosition: {x: 0, y: 0.16, z: -0.19}
+  stowedBackPosition: {x: 0, y: 0.02, z: -0.22}
   stowedBackRotation: {x: 0, y: 90, z: 35}
   isStowedOnBack: 0
   disableEditorLiveHandSnap: 0
@@ -339,6 +339,14 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: d0632b85eeb2611448e21149f41e48e0, type: 2}
+    - target: {fileID: -2438366028636536625, guid: cbb0a4e41a08c124db27ace651420e7f, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.675
+      objectReference: {fileID: 0}
+    - target: {fileID: -873613683320707955, guid: cbb0a4e41a08c124db27ace651420e7f, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.675
+      objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: cbb0a4e41a08c124db27ace651420e7f, type: 3}
       propertyPath: m_Name
       value: boomerang

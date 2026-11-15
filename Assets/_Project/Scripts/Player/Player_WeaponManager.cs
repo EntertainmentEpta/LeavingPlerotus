@@ -66,7 +66,7 @@ public class Player_WeaponManager : MonoBehaviour
                     isWeaponDrawn = currentWeapon.activeSelf;
                     if (attackScript != null)
                     {
-                        bool isMelee = offset.weaponType != WeaponType.Gun;
+                        bool isMelee = offset.weaponType != WeaponType.Gun && offset.weaponType != WeaponType.Boomerang;
                         attackScript.hasWeapon = isWeaponDrawn && isMelee;
                     }
                     if (offset.weaponAnimatorOverride != null)
@@ -99,7 +99,7 @@ public class Player_WeaponManager : MonoBehaviour
                     WeaponOffset offset = currentWeapon.GetComponent<WeaponOffset>();
                     if (attackScript != null)
                     {
-                        bool isMelee = offset == null || offset.weaponType != WeaponType.Gun;
+                        bool isMelee = offset == null || (offset.weaponType != WeaponType.Gun && offset.weaponType != WeaponType.Boomerang);
                         attackScript.hasWeapon = isMelee;
                     }
                     if (playerAnimator != null && activeWeaponController != null)

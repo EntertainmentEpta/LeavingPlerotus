@@ -81,7 +81,7 @@ public class BoomerangEchoVFX : MonoBehaviour
 
     public void Initialize(Transform boomerangVisualRoot)
     {
-        visualRoot = boomerangVisualRoot != null ? boomerangVisualRoot : transform;
+        visualRoot = (boomerangVisualRoot != null && boomerangVisualRoot.IsChildOf(transform)) ? boomerangVisualRoot : transform;
         CacheMeshes();
         EnsureEchoMaterial();
     }
@@ -198,7 +198,7 @@ public class BoomerangEchoVFX : MonoBehaviour
 
     /// <summary>
     /// Spawna um Eco Fantasma autônomo (PDF Página 6 — Bounce + Multishot) que sai voando e girando
-    /// com anéis translúcidos de velocidade. Pronto para ser chamado pelo Isaac nos ricochetes!
+    /// com anéis translúcidos de velocidade. Pronto para ser chamado nos ricochetes!
     /// </summary>
     public void SpawnBounceEchoClone(Vector3 origin, Vector3 flightDirection, float customSpeed = -1f, float customDuration = -1f)
     {

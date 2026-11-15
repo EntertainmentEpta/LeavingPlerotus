@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Máquina de Estados do Bumerangue (compartilhada entre Lucas [Arte/Animações/VFX] e Isaac [Física/Combate]).
+/// Máquina de Estados do Bumerangue.
 /// </summary>
 public enum BoomerangState
 {
@@ -18,16 +18,16 @@ public enum BoomerangState
 /// <summary>
 /// Controlador principal do Bumerangue (Opção B - Boomerang).
 ///
-/// 🔹 Parte do Lucas (100% implementada aqui e nos scripts de VFX):
+/// 🔹 Arte / Animações / VFX:
 ///    - Encaixe visual nas costas (Stowed / WeaponRack), na mão direita do astronauta e girando em alta rotação no ar.
 ///    - Integração com as animações Astronaut_tirandodascostas_boomerang, Astronaut_guardando_boomerang e Astronaut_defense.
 ///    - Efeito de Escudo Giratório Defensivo (BoomerangShieldVFX) ao redor/frente do corpo do player.
 ///    - Variante 1: Cristal Desacoplante Elétrico (BoomerangElectricCrystalVFX — estilo Istar com LineRenderer).
 ///    - Variante 2: Clones Translúcidos na Volta & Ecos de Ricochete (BoomerangEchoVFX — estilo SharpBlur).
 ///
-/// 🔹 Parte do Isaac (Estrutura de Estados e Hooks prontos para expandir):
+/// 🔹 Física / Combate (Estrutura de Estados e Hooks):
 ///    - Máquina de Estados completa (Stowed, Charging, Throw, Returning, SpinningShield).
-///    - Propriedades e métodos marcados na região ISAAC_PHYSICS_AND_COMBAT_HOOKS para plugar a física vetorial
+///    - Propriedades e métodos marcados na região PHYSICS_AND_COMBAT_HOOKS para plugar a física vetorial
 ///      definitiva, cálculo de quiques (2 a 6) e janela de Parry de 0.2s.
 /// </summary>
 public class BoomerangWeapon : MonoBehaviour
@@ -38,7 +38,7 @@ public class BoomerangWeapon : MonoBehaviour
 
     public event Action<BoomerangState, BoomerangState> OnStateChanged;
 
-    [Header("Encaixe Visual: Mão Direita vs Costas (Lucas)")]
+    [Header("Encaixe Visual: Mão Direita vs Costas")]
     [Tooltip("Posição local quando empunhado na mão direita (mixamorig:RightHand).")]
     public Vector3 handMountPosition = new Vector3(-0.04f, 0.06f, 0.02f);
 
@@ -46,7 +46,7 @@ public class BoomerangWeapon : MonoBehaviour
     public Vector3 handMountRotation = new Vector3(0f, 90f, 90f);
 
     [Tooltip("Posição local quando preso nas costas do astronauta (mixamorig:Spine2).")]
-    public Vector3 backMountPosition = new Vector3(0f, 0.16f, -0.19f);
+    public Vector3 backMountPosition = new Vector3(0f, 0.02f, -0.22f);
 
     [Tooltip("Rotação local quando preso nas costas do astronauta.")]
     public Vector3 backMountRotation = new Vector3(0f, 90f, 35f);
@@ -54,7 +54,7 @@ public class BoomerangWeapon : MonoBehaviour
     [Tooltip("Escala global do modelo visual do bumerangue.")]
     public Vector3 equippedWorldScale = new Vector3(0.55f, 0.55f, 0.55f);
 
-    [Header("Variantes e VFX (Lucas — Ativáveis no Inspector)")]
+    [Header("Variantes e VFX (Ativáveis no Inspector)")]
     [Tooltip("Variante 1 (PDF Pág. 5): Pontas de cristal se desacoplam no ar soltando feixes de eletricidade (estilo Istar).")]
     public bool enableElectricCrystalVariant = true;
 
@@ -67,7 +67,7 @@ public class BoomerangWeapon : MonoBehaviour
     [Tooltip("Upgrade Melee (PDF Pág. 8): Escudo giratório aplica paralisia elétrica ao contato.")]
     public bool enableShieldMeleeParalysis = true;
 
-    [Header("Parâmetros de Física / Máquina de Estados (Prontos para o Isaac)")]
+    [Header("Parâmetros de Física / Máquina de Estados")]
     [Tooltip("Se verdadeiro, ativa os controles e física base para testar todas as animações e VFX imediatamente.")]
     public bool useBuiltInStateAndPhysics = true;
 
@@ -119,7 +119,7 @@ public class BoomerangWeapon : MonoBehaviour
     public Transform piramideInferior;
     public Transform piramideBrancaInferior;
 
-    // ─── Módulos de VFX do Lucas ──────────────────────────────────────────────
+    // ─── Módulos de VFX ───────────────────────────────────────────────────────
     [Header("Módulos de VFX (Auto-Configurados)")]
     public BoomerangAirSpinVFX airSpinVFX;
     public BoomerangElectricCrystalVFX electricCrystalVFX;
@@ -136,7 +136,7 @@ public class BoomerangWeapon : MonoBehaviour
     private WeaponOffset weaponOffset;
     private ItemFloat itemFloat;
 
-    // ─── Variáveis de Execução da Máquina de Estados (Isaac & Preview) ────────
+    // ─── Variáveis de Execução da Máquina de Estados ─────────────────────────
     private float currentChargeTime;
     private float currentCharge01;
     private Vector3 flightVelocity;
@@ -149,7 +149,7 @@ public class BoomerangWeapon : MonoBehaviour
     private bool isDrawnInHand;
     private readonly HashSet<int> hitTargetsThisPhase = new HashSet<int>();
 
-    // Propriedades públicas prontas para o Isaac ler/modificar
+    // Propriedades públicas da Máquina de Estados / Física
     public float ChargeNormalized => Mathf.Clamp01(currentCharge01);
     public bool IsInParryWindow => currentState == BoomerangState.SpinningShield && stateElapsedTime <= parryWindowDuration;
     public int BouncesRemaining { get => bouncesRemaining; set => bouncesRemaining = value; }
@@ -194,7 +194,7 @@ public class BoomerangWeapon : MonoBehaviour
     /// </summary>
     public void BindAndNormalizeModelHierarchy()
     {
-        if (visualPivot == null)
+        if (visualPivot == null || !visualPivot.IsChildOf(transform))
         {
             Transform existingPivot = transform.Find("VisualPivot");
             if (existingPivot != null)
@@ -203,7 +203,7 @@ public class BoomerangWeapon : MonoBehaviour
             }
         }
 
-        if (modelRoot == null)
+        if (modelRoot == null || !modelRoot.IsChildOf(transform))
         {
             modelRoot = FindChildRecursive(transform, "boomerang");
         }
@@ -239,11 +239,15 @@ public class BoomerangWeapon : MonoBehaviour
         // Zeramos a posição local dele dentro do VisualPivot para centralizar o giro exatamente no anel_central!
         if (modelRoot != null)
         {
+            if (modelRoot.parent != visualPivot)
+            {
+                modelRoot.SetParent(visualPivot, false);
+            }
             modelRoot.localPosition = Vector3.zero;
             modelRoot.localRotation = Quaternion.identity;
         }
 
-        Transform searchRoot = modelRoot != null ? modelRoot : transform;
+        Transform searchRoot = (modelRoot != null && modelRoot.IsChildOf(transform)) ? modelRoot : transform;
         anelCentral = FindChildRecursive(searchRoot, "anel_central");
         baseLaminaSuperior = FindChildRecursive(searchRoot, "base_lamina_superior");
         baseLaminaInferior = FindChildRecursive(searchRoot, "base_lamina_inferior");
@@ -267,9 +271,9 @@ public class BoomerangWeapon : MonoBehaviour
         if (shieldVFX == null)
             shieldVFX = GetComponent<BoomerangShieldVFX>() ?? gameObject.AddComponent<BoomerangShieldVFX>();
 
-        Transform spinTarget = visualPivot != null ? visualPivot : (modelRoot != null ? modelRoot : transform);
-        Transform upperTip = piramideSuperior != null ? piramideSuperior : transform;
-        Transform lowerTip = piramideInferior != null ? piramideInferior : transform;
+        Transform spinTarget = (visualPivot != null && visualPivot.IsChildOf(transform)) ? visualPivot : ((modelRoot != null && modelRoot.IsChildOf(transform)) ? modelRoot : transform);
+        Transform upperTip = (piramideSuperior != null && piramideSuperior.IsChildOf(transform)) ? piramideSuperior : transform;
+        Transform lowerTip = (piramideInferior != null && piramideInferior.IsChildOf(transform)) ? piramideInferior : transform;
 
         airSpinVFX.Initialize(spinTarget, upperTip, lowerTip);
         electricCrystalVFX.Initialize(piramideSuperior, piramideInferior, baseLaminaSuperior, baseLaminaInferior);
@@ -341,7 +345,7 @@ public class BoomerangWeapon : MonoBehaviour
         if (shieldVFX != null)
             shieldVFX.enableMeleeParalysisUpgrade = enableShieldMeleeParalysis;
 
-        // Atalhos rápidos no Editor para o Lucas testar variantes em tempo real (Ctrl + 1 / 2 / 3)
+        // Atalhos rápidos no Editor para testar variantes em tempo real (Ctrl + 1 / 2 / 3)
 #if UNITY_EDITOR
         if (Input.GetKey(KeyCode.LeftControl))
         {
@@ -377,13 +381,13 @@ public class BoomerangWeapon : MonoBehaviour
     }
 
     // =========================================================================
-    // MÁQUINA DE ESTADOS — TRANSIÇÕES E VISUAIS (LUCAS + ISAAC)
+    // MÁQUINA DE ESTADOS — TRANSIÇÕES E VISUAIS
     // =========================================================================
 
     /// <summary>
     /// Muda o estado do Bumerangue na Máquina de Estados e configura automaticamente
-    /// todos os encaixes visuais (Costas, Mão, Ar, Escudo), animações e VFX do Lucas.
-    /// O Isaac pode chamar SetState() diretamente a partir da física dele!
+    /// todos os encaixes visuais (Costas, Mão, Ar, Escudo), animações e VFX.
+    /// Pode ser chamado diretamente pela lógica de física ou combate.
     /// </summary>
     public void SetState(BoomerangState newState)
     {
@@ -524,7 +528,7 @@ public class BoomerangWeapon : MonoBehaviour
     }
 
     // =========================================================================
-    // ENCAIXES VISUAIS: MÃO DIREITA, COSTAS E MUNDO (LUCAS)
+    // ENCAIXES VISUAIS: MÃO DIREITA, COSTAS E MUNDO
     // =========================================================================
 
     /// <summary>
@@ -675,8 +679,8 @@ public class BoomerangWeapon : MonoBehaviour
     }
 
     // =========================================================================
-    // #region ISAAC_PHYSICS_AND_COMBAT_HOOKS
-    // (O Isaac pode editar/sobrescrever estes métodos ou desativar useBuiltInStateAndPhysics)
+    // #region PHYSICS_AND_COMBAT_HOOKS
+    // (Métodos expansíveis para física vetorial customizada ou desativar useBuiltInStateAndPhysics)
     // =========================================================================
 
     private void HandleBuiltInInputs(float dt)
@@ -749,7 +753,7 @@ public class BoomerangWeapon : MonoBehaviour
 
     protected virtual void OnChargingUpdate(float dt)
     {
-        // Hook para o Isaac caso queira adicionar lógica extra durante o carregamento
+        // Hook para lógica extra durante o carregamento
     }
 
     /// <summary>
@@ -899,7 +903,7 @@ public class BoomerangWeapon : MonoBehaviour
 
     /// <summary>
     /// Registra um ricochete na parede ou inimigo, atualiza o vetor de velocidade e spawna o Eco Fantasma (Variante 2).
-    /// O Isaac pode chamar este método quando detectar colisão na física dele.
+    /// Pode ser chamado externamente quando detectar colisão.
     /// </summary>
     public virtual void RegisterBounce(Vector3 surfaceNormal, Vector3 bouncePoint)
     {

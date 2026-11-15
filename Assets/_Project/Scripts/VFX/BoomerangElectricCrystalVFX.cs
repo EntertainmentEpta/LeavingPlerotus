@@ -86,10 +86,10 @@ public class BoomerangElectricCrystalVFX : MonoBehaviour
         Transform upperBase,
         Transform lowerBase)
     {
-        upperCrystalPivot = upperCrystal;
-        lowerCrystalPivot = lowerCrystal;
-        upperBladeBase = upperBase;
-        lowerBladeBase = lowerBase;
+        upperCrystalPivot = (upperCrystal != null && upperCrystal.IsChildOf(transform)) ? upperCrystal : null;
+        lowerCrystalPivot = (lowerCrystal != null && lowerCrystal.IsChildOf(transform)) ? lowerCrystal : null;
+        upperBladeBase = (upperBase != null && upperBase.IsChildOf(transform)) ? upperBase : null;
+        lowerBladeBase = (lowerBase != null && lowerBase.IsChildOf(transform)) ? lowerBase : null;
 
         if (upperCrystalPivot != null && !initialPositionsCached)
         {
@@ -332,11 +332,11 @@ public class BoomerangElectricCrystalVFX : MonoBehaviour
             trailTimer = 0f;
             if (Vector3.Distance(prevUpperWorldPos, curUpper) > 0.05f)
             {
-                ElectricTrailVFX.CreateTrailSegment(prevUpperWorldPos, curUpper, 3, 0.35f);
+                ElectricTrailVFX.CreateTrailSegment(prevUpperWorldPos, curUpper, 3, 0.35f, hostileToPlayer: false);
             }
             if (Vector3.Distance(prevLowerWorldPos, curLower) > 0.05f)
             {
-                ElectricTrailVFX.CreateTrailSegment(prevLowerWorldPos, curLower, 3, 0.35f);
+                ElectricTrailVFX.CreateTrailSegment(prevLowerWorldPos, curLower, 3, 0.35f, hostileToPlayer: false);
             }
             prevUpperWorldPos = curUpper;
             prevLowerWorldPos = curLower;
@@ -345,14 +345,14 @@ public class BoomerangElectricCrystalVFX : MonoBehaviour
 
     /// <summary>
     /// Aplica o efeito visual de choque elétrico (ElectricShockVFX) e paralisia (ElectrocutedStatus / StunVFX)
-    /// em um inimigo atingido pelo Cristal Desacoplante Elétrico. Pode ser chamado pela física do Isaac.
+    /// em um inimigo atingido pelo Cristal Desacoplante Elétrico.
     /// </summary>
     public void TriggerElectricCrystalHit(GameObject targetEnemy, Vector3 hitPoint)
     {
         if (targetEnemy == null) return;
 
         // Dispara arco elétrico visual entre o centro do bumerangue e o inimigo (estilo Istar)
-        ElectricTrailVFX.CreateTrailSegment(transform.position, targetEnemy.transform.position, 3, 0.4f);
+        ElectricTrailVFX.CreateTrailSegment(transform.position, targetEnemy.transform.position, 3, 0.4f, hostileToPlayer: false);
         ElectricShockVFX.AttachToPlayer(targetEnemy, paralysisDuration);
 
         // Aplica status de choque/paralisia visual no inimigo
@@ -372,7 +372,7 @@ public class BoomerangElectricCrystalVFX : MonoBehaviour
     }
 
     /// <summary>
-    /// Retorna o raio de colisão expandido atual considerando o desacoplamento dos cristais (útil para o Isaac).
+    /// Retorna o raio de colisão expandido atual considerando o desacoplamento dos cristais.
     /// </summary>
     public float GetExpandedHitRadius(float baseRadius = 0.65f)
     {
