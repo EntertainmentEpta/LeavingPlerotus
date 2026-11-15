@@ -47,6 +47,8 @@ public class EnemyDrops : MonoBehaviour
     public float launchForce = 3f;
 
     [Header("Posicionamento seguro dos drops")]
+    [Tooltip("Ativado: valida com NavMesh. Desativado: usa o posicionamento anterior por raycast.")]
+    public bool validateDropPositionWithNavMesh = true;
     [Min(0.1f), Tooltip("Distância horizontal máxima da morte, incluindo a dispersão.")]
     public float navMeshSearchRadius = 2f;
     [Min(0.05f), Tooltip("Distância de cada consulta local à NavMesh.")]
@@ -89,9 +91,40 @@ public class EnemyDrops : MonoBehaviour
     {
         try
         {
-            Debug.Log("[ENEMY DROPS] SpawnDrops chamado para " + gameObject.name);
+            Debug.Log("[ENEMY DROPS] SpawnDrops chamado para " + gameObject.name +
+                " | modo: " + (validateDropPositionWithNavMesh ? "NavMesh" : "Anterior (raycast)"));
             
             Vector3 basePosition = transform.position;
+            if (!validateDropPositionWithNavMesh)
+            {
+                RaycastHit[] groundHits = Physics.RaycastAll(transform.position + Vector3.up * 1.5f, Vector3.down, 15f);
+                float bestGroundY = float.MinValue;
+                bool foundGround = false;
+                foreach (var h in groundHits)
+                {
+                    if (h.collider == null || h.collider.isTrigger) continue;
+                    if (h.collider.transform.root == transform.root) continue;
+                    if (h.collider.CompareTag("Enemy") || h.collider.CompareTag("Player")) continue;
+                    if (h.collider.GetComponentInParent<DummyHealth>() != null) continue;
+                    if (h.collider.GetComponentInParent<ShardSwarmHealth>() != null) continue;
+
+                    if (h.point.y <= transform.position.y + 0.8f && h.point.y > bestGroundY)
+                    {
+                        bestGroundY = h.point.y;
+                        foundGround = true;
+                    }
+                }
+
+                if (foundGround)
+                {
+                    basePosition = new Vector3(transform.position.x, bestGroundY + 0.35f, transform.position.z);
+                }
+                else
+                {
+                    basePosition = transform.position + Vector3.up * Mathf.Min(spawnHeight, 0.4f);
+                }
+            }
+
             // --- SISTEMA DE PACTOS DO JOGADOR ---
             bool hasGreed = false;
             bool doubleEssence = false;
@@ -365,11 +398,13 @@ public class EnemyDrops : MonoBehaviour
             prefabToSpawn = prefabToSpawn.transform.root.gameObject;
         }
 
-        if (!TryFindDropPosition(position, out Vector3 safePosition))
+        Vector3 safePosition = position;
+        if (validateDropPositionWithNavMesh && !TryFindDropPosition(position, out safePosition, out string rejection))
         {
-            Debug.LogWarning($"[ENEMY DROPS] Drop '{prefabToSpawn.name}' cancelado em '{name}' ({transform.position}): " +
-                $"nenhuma posição segura após {Mathf.Clamp(dropPositionAttempts, 1, 16)} tentativas, raio {navMeshSearchRadius}m. " +
-                "Verifique o bake NavMesh, tipo/áreas do agente, altura do pivô, máscaras e obstáculos. Sem fallback inválido.", this);
+            Debug.LogWarning($"[ENEMY DROPS] [NavMesh] Drop '{prefabToSpawn.name}' cancelado em '{name}' " +
+                $"(cena={gameObject.scene.name}, origem={transform.position}, agente={dropAgentTypeId}, " +
+                $"areas={dropNavMeshAreaMask}, mascaraFisica={dropCollisionMask.value}, raio={navMeshSearchRadius}m): " +
+                rejection, this);
             return null;
         }
 
@@ -418,9 +453,10 @@ public class EnemyDrops : MonoBehaviour
     }
 
     // Tentativas determinísticas: não consomem Random e não alteram as rolagens de loot.
-    private bool TryFindDropPosition(Vector3 requestedPosition, out Vector3 position)
+    private bool TryFindDropPosition(Vector3 requestedPosition, out Vector3 position, out string rejection)
     {
         position = default;
+        rejection = null;
         Vector3 origin = transform.position;
         float radius = Mathf.Max(0.1f, navMeshSearchRadius);
         float sampleRadius = Mathf.Clamp(navMeshSampleRadius, 0.05f, radius);
@@ -428,9 +464,21 @@ public class EnemyDrops : MonoBehaviour
         var filter = new NavMeshQueryFilter { agentTypeID = dropAgentTypeId, areaMask = dropNavMeshAreaMask };
 
         // Âncora local: candidatos não podem atravessar bordas ou ilhas da NavMesh.
-        if (!NavMesh.SamplePosition(origin, out NavMeshHit anchor, radius, filter) ||
-            Mathf.Abs(anchor.position.y - origin.y) > Mathf.Max(0f, maxDropVerticalDistance)) return false;
+        if (!NavMesh.SamplePosition(origin, out NavMeshHit anchor, radius, filter))
+        {
+            rejection = $"0 candidatos testados; {DiagnoseMissingDropAnchor(origin, radius, filter)}";
+            return false;
+        }
+        if (Mathf.Abs(anchor.position.y - origin.y) > Mathf.Max(0f, maxDropVerticalDistance))
+        {
+            rejection = $"0 candidatos testados; ANCORA_ALTURA: origemY={origin.y:F3}, " +
+                $"navY={anchor.position.y:F3}, limite={maxDropVerticalDistance:F3}m.";
+            return false;
+        }
 
+        int sampleMisses = 0, outsideRadius = 0, wrongHeight = 0, invalidRoute = 0;
+        int rejectedGround = 0, obstacles = 0, blockedRoutes = 0;
+        string groundDetail = "-", obstacleDetail = "-", routeDetail = "-";
         for (int i = 0; i < attempts; i++)
         {
             Vector3 candidate = requestedPosition;
@@ -441,13 +489,36 @@ public class EnemyDrops : MonoBehaviour
                 float distance = radius * Mathf.Sqrt((i - 1f) / (attempts - 1f));
                 candidate = origin + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * distance;
             }
-            candidate.y = origin.y;
-            if (!NavMesh.SamplePosition(candidate, out NavMeshHit hit, sampleRadius, filter)) continue;
+            // O raio local não deve ser consumido pela altura do pivô acima do piso.
+            // O limite vertical em relação ao inimigo continua sendo validado abaixo.
+            candidate.y = anchor.position.y;
+            if (!NavMesh.SamplePosition(candidate, out NavMeshHit hit, sampleRadius, filter))
+            {
+                sampleMisses++;
+                continue;
+            }
             Vector3 delta = hit.position - origin;
-            if (new Vector2(delta.x, delta.z).sqrMagnitude > radius * radius ||
-                Mathf.Abs(delta.y) > Mathf.Max(0f, maxDropVerticalDistance)) continue;
-            if (NavMesh.Raycast(anchor.position, hit.position, out NavMeshHit boundary, filter)) continue;
-            if (!HasDropGround(hit.position)) continue;
+            if (new Vector2(delta.x, delta.z).sqrMagnitude > radius * radius)
+            {
+                outsideRadius++;
+                continue;
+            }
+            if (Mathf.Abs(delta.y) > Mathf.Max(0f, maxDropVerticalDistance))
+            {
+                wrongHeight++;
+                continue;
+            }
+            if (NavMesh.Raycast(anchor.position, hit.position, out NavMeshHit boundary, filter))
+            {
+                invalidRoute++;
+                continue;
+            }
+            if (!HasDropGround(hit.position, out string groundReason))
+            {
+                rejectedGround++;
+                groundDetail = groundReason;
+                continue;
+            }
 
             float clearance = Mathf.Max(0.05f, dropClearanceRadius);
             Vector3 bottom = hit.position + Vector3.up * (clearance + 0.05f);
@@ -457,14 +528,59 @@ public class EnemyDrops : MonoBehaviour
             int count = Physics.OverlapCapsuleNonAlloc(bottom, top, clearance, dropOverlapBuffer,
                 dropCollisionMask, QueryTriggerInteraction.Ignore);
             bool blocked = count == dropOverlapBuffer.Length; // Saturação: resultado incompleto, rejeitar.
+            if (blocked) obstacleDetail = "buffer de overlap saturado (32)";
             for (int j = 0; j < count && !blocked; j++)
-                if (!IsDyingEnemyCollider(dropOverlapBuffer[j])) blocked = true;
-            if (blocked || !HasClearDropRoute(origin + Vector3.up * (spawn.y - origin.y), spawn)) continue;
+            {
+                if (IsDyingEnemyCollider(dropOverlapBuffer[j])) continue;
+                blocked = true;
+                obstacleDetail = DescribeDropCollider(dropOverlapBuffer[j]);
+            }
+            if (blocked)
+            {
+                obstacles++;
+                continue;
+            }
+            if (!HasClearDropRoute(origin + Vector3.up * (spawn.y - origin.y), spawn, out string routeReason))
+            {
+                blockedRoutes++;
+                routeDetail = routeReason;
+                continue;
+            }
 
             position = spawn;
             return true;
         }
-        return false; // Inclui NavMesh ausente: nunca instancia na posição original sem validar.
+
+        rejection = $"{attempts} candidatos testados; SEM_AMOSTRA_LOCAL={sampleMisses} (raio={sampleRadius}m), " +
+            $"FORA_DO_RAIO={outsideRadius}, ALTURA_CANDIDATO={wrongHeight}, CAMINHO_NAVMESH_INVALIDO={invalidRoute}, " +
+            $"CHAO_REJEITADO={rejectedGround} (ultimo: {groundDetail}), " +
+            $"OBSTACULO={obstacles} (ultimo: {obstacleDetail}), ROTA_FISICA_BLOQUEADA={blockedRoutes} (ultimo: {routeDetail}).";
+        return false; // Nunca instancia sem validar no modo NavMesh.
+    }
+
+    // Consultas adicionais apenas para diagnosticar uma âncora ausente; nunca viram fallback.
+    private string DiagnoseMissingDropAnchor(Vector3 origin, float radius, NavMeshQueryFilter filter)
+    {
+        if (NavMesh.GetSettingsByID(filter.agentTypeID).agentTypeID == -1)
+            return "AGENTE_INCOMPATIVEL: tipo de agente não cadastrado no projeto.";
+        if (filter.areaMask == 0)
+            return "AREAS_INCOMPATIVEIS: máscara de áreas vazia.";
+        if (NavMesh.CalculateTriangulation().indices.Length == 0)
+            return "NAVMESH_AUSENTE: nenhuma triangulação carregada; verificar bake e ativação da Surface.";
+
+        filter.areaMask = NavMesh.AllAreas;
+        if (NavMesh.SamplePosition(origin, out NavMeshHit sameAgent, radius, filter))
+            return $"AREAS_INCOMPATIVEIS: há NavMesh local para este agente, mas fora da máscara permitida (areaHit={sameAgent.mask}).";
+
+        for (int i = 0; i < NavMesh.GetSettingsCount(); i++)
+        {
+            int otherAgent = NavMesh.GetSettingsByIndex(i).agentTypeID;
+            if (otherAgent == dropAgentTypeId) continue;
+            filter.agentTypeID = otherAgent;
+            if (NavMesh.SamplePosition(origin, out NavMeshHit otherHit, radius, filter))
+                return $"AGENTE_INCOMPATIVEL_LOCAL: encontrada NavMesh apenas com outro agente (id={otherAgent}, pos={otherHit.position}).";
+        }
+        return "NAVMESH_SEM_COBERTURA_LOCAL: há triangulação carregada, mas nenhuma amostra no raio 3D da origem; verificar posição, altura e cobertura do bake.";
     }
 
     private bool IsDyingEnemyCollider(Collider collider)
@@ -472,11 +588,22 @@ public class EnemyDrops : MonoBehaviour
         return collider != null && (collider.transform == transform || collider.transform.IsChildOf(transform));
     }
 
-    private bool HasDropGround(Vector3 point)
+    private static string DescribeDropCollider(Collider collider)
     {
+        return collider == null ? "collider ausente" :
+            $"'{collider.name}' (id={collider.GetInstanceID()}, layer={collider.gameObject.layer}, tipo={collider.GetType().Name})";
+    }
+
+    private bool HasDropGround(Vector3 point, out string rejection)
+    {
+        rejection = null;
         int count = Physics.RaycastNonAlloc(point + Vector3.up * 0.2f, Vector3.down, dropRayBuffer,
             0.4f, dropCollisionMask, QueryTriggerInteraction.Ignore);
-        if (count == dropRayBuffer.Length) return false;
+        if (count == dropRayBuffer.Length)
+        {
+            rejection = "buffer de chão saturado (32)";
+            return false;
+        }
         float closest = float.PositiveInfinity;
         RaycastHit ground = default;
         for (int i = 0; i < count; i++)
@@ -486,22 +613,41 @@ public class EnemyDrops : MonoBehaviour
             closest = hit.distance;
             ground = hit;
         }
-        return !float.IsPositiveInfinity(closest) && ground.normal.y >= 0.7f &&
-            ground.collider.GetComponentInParent<DummyHealth>() == null &&
-            ground.collider.GetComponentInParent<ShardSwarmHealth>() == null &&
-            ground.collider.GetComponentInParent<PlayerHealth>() == null;
+        if (float.IsPositiveInfinity(closest))
+        {
+            rejection = $"sem collider de chão a +/-0.2m do NavMesh em {point}; conferir máscara física e alinhamento do bake";
+            return false;
+        }
+        if (ground.normal.y < 0.7f ||
+            ground.collider.GetComponentInParent<DummyHealth>() != null ||
+            ground.collider.GetComponentInParent<ShardSwarmHealth>() != null ||
+            ground.collider.GetComponentInParent<PlayerHealth>() != null)
+        {
+            rejection = $"normalY={ground.normal.y:F3} (min=0.7) ou collider de personagem: {DescribeDropCollider(ground.collider)}";
+            return false;
+        }
+        return true;
     }
 
-    private bool HasClearDropRoute(Vector3 from, Vector3 to)
+    private bool HasClearDropRoute(Vector3 from, Vector3 to, out string rejection)
     {
+        rejection = null;
         Vector3 direction = to - from;
         float distance = direction.magnitude;
         if (distance < 0.01f) return true;
         int count = Physics.RaycastNonAlloc(from, direction / distance, dropRayBuffer, distance,
             dropCollisionMask, QueryTriggerInteraction.Ignore);
-        if (count == dropRayBuffer.Length) return false;
+        if (count == dropRayBuffer.Length)
+        {
+            rejection = "buffer de rota saturado (32)";
+            return false;
+        }
         for (int i = 0; i < count; i++)
-            if (!IsDyingEnemyCollider(dropRayBuffer[i].collider)) return false;
+        {
+            if (IsDyingEnemyCollider(dropRayBuffer[i].collider)) continue;
+            rejection = DescribeDropCollider(dropRayBuffer[i].collider);
+            return false;
+        }
         return true;
     }
 
