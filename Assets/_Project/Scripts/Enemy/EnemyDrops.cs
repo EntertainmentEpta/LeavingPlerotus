@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.AI;
 using System.Collections.Generic;
 
 /// <summary>
@@ -29,7 +30,7 @@ public class EnemyDrops : MonoBehaviour
     public bool isEliteDrops = false;
 
     [Header("Item Característico (Roleta)")]
-    [Tooltip("Chance do inimigo dropar ALGUM item da lista (0-1)")]
+    [Tooltip("Chance de o inimigo dropar ALGUM item da lista (0-1)")]
     [Range(0f, 1f)]
     public float globalDropChance = 0.38f;
     [Tooltip("Quantidade de itens dropados se der drop (da opção sorteada)")]
@@ -45,6 +46,27 @@ public class EnemyDrops : MonoBehaviour
     [Tooltip("Força de impulso para cima")]
     public float launchForce = 3f;
 
+    [Header("Posicionamento seguro dos drops")]
+    [Tooltip("Ativado: valida com NavMesh. Desativado: usa o posicionamento anterior por raycast.")]
+    public bool validateDropPositionWithNavMesh = true;
+    [Min(0.1f), Tooltip("Distância horizontal máxima da morte, incluindo a dispersão.")]
+    public float navMeshSearchRadius = 2f;
+    [Min(0.05f), Tooltip("Distância de cada consulta local à NavMesh.")]
+    public float navMeshSampleRadius = 0.75f;
+    [Min(0f), Tooltip("Diferença vertical máxima em relação ao pivô do inimigo; evita outros andares.")]
+    public float maxDropVerticalDistance = 1f;
+    [Range(1, 16)] public int dropPositionAttempts = 10;
+    [Tooltip("Máscara de áreas NavMesh permitidas (1 = Walkable).")]
+    public int dropNavMeshAreaMask = 1;
+    [Tooltip("Tipo de agente usado pelo bake global do projeto (0 = Humanoid).")]
+    public int dropAgentTypeId = 0;
+    [Min(0.05f), Tooltip("Folga física ao redor do drop; ajustar para os maiores visuais do prefab.")]
+    public float dropClearanceRadius = 0.25f;
+    [Tooltip("Camadas sólidas usadas para chão e obstáculos. Triggers são ignorados.")]
+    public LayerMask dropCollisionMask = ~0;
+
+    private readonly Collider[] dropOverlapBuffer = new Collider[32];
+    private readonly RaycastHit[] dropRayBuffer = new RaycastHit[32];
     private DummyHealth health;
 
     void Start()
@@ -69,34 +91,38 @@ public class EnemyDrops : MonoBehaviour
     {
         try
         {
-            Debug.Log("[ENEMY DROPS] SpawnDrops chamado para " + gameObject.name);
+            Debug.Log("[ENEMY DROPS] SpawnDrops chamado para " + gameObject.name +
+                " | modo: " + (validateDropPositionWithNavMesh ? "NavMesh" : "Anterior (raycast)"));
             
             Vector3 basePosition = transform.position;
-            RaycastHit[] groundHits = Physics.RaycastAll(transform.position + Vector3.up * 1.5f, Vector3.down, 15f);
-            float bestGroundY = float.MinValue;
-            bool foundGround = false;
-            foreach (var h in groundHits)
+            if (!validateDropPositionWithNavMesh)
             {
-                if (h.collider == null || h.collider.isTrigger) continue;
-                if (h.collider.transform.root == transform.root) continue;
-                if (h.collider.CompareTag("Enemy") || h.collider.CompareTag("Player")) continue;
-                if (h.collider.GetComponentInParent<DummyHealth>() != null) continue;
-                if (h.collider.GetComponentInParent<ShardSwarmHealth>() != null) continue;
-
-                if (h.point.y <= transform.position.y + 0.8f && h.point.y > bestGroundY)
+                RaycastHit[] groundHits = Physics.RaycastAll(transform.position + Vector3.up * 1.5f, Vector3.down, 15f);
+                float bestGroundY = float.MinValue;
+                bool foundGround = false;
+                foreach (var h in groundHits)
                 {
-                    bestGroundY = h.point.y;
-                    foundGround = true;
-                }
-            }
+                    if (h.collider == null || h.collider.isTrigger) continue;
+                    if (h.collider.transform.root == transform.root) continue;
+                    if (h.collider.CompareTag("Enemy") || h.collider.CompareTag("Player")) continue;
+                    if (h.collider.GetComponentInParent<DummyHealth>() != null) continue;
+                    if (h.collider.GetComponentInParent<ShardSwarmHealth>() != null) continue;
 
-            if (foundGround)
-            {
-                basePosition = new Vector3(transform.position.x, bestGroundY + 0.35f, transform.position.z);
-            }
-            else
-            {
-                basePosition = transform.position + Vector3.up * Mathf.Min(spawnHeight, 0.4f);
+                    if (h.point.y <= transform.position.y + 0.8f && h.point.y > bestGroundY)
+                    {
+                        bestGroundY = h.point.y;
+                        foundGround = true;
+                    }
+                }
+
+                if (foundGround)
+                {
+                    basePosition = new Vector3(transform.position.x, bestGroundY + 0.35f, transform.position.z);
+                }
+                else
+                {
+                    basePosition = transform.position + Vector3.up * Mathf.Min(spawnHeight, 0.4f);
+                }
             }
 
             // --- SISTEMA DE PACTOS DO JOGADOR ---
@@ -142,13 +168,13 @@ public class EnemyDrops : MonoBehaviour
             GameObject essence = SpawnDrop(essencePrefab, basePosition);
             
             // Configura a quantidade de essência
-            EssencePickup essenceScript = essence.GetComponent<EssencePickup>();
+            EssencePickup essenceScript = essence != null ? essence.GetComponent<EssencePickup>() : null;
             if (essenceScript != null)
             {
                 essenceScript.essenceValue = finalEssence;
             }
 
-            Debug.Log($"[ENEMY DROPS] Dropou {finalEssence} de essência! (base:{essenceAmount} × mult:{roomMultiplier:F2} | sala {RunManager.instance?.currentRoomNumber})");
+            if (essence != null) Debug.Log($"[ENEMY DROPS] Dropou {finalEssence} de essência! (base:{essenceAmount} × mult:{roomMultiplier:F2} | sala {RunManager.instance?.currentRoomNumber})");
         }
         else
         {
@@ -214,14 +240,14 @@ public class EnemyDrops : MonoBehaviour
         if (hasGreed)
         {
             effectiveDropChance = Mathf.Clamp01(effectiveDropChance * 2.5f);
-            Debug.Log($"[ENEMY DROPS] A Ganância ativa! Chance de drop amplificada para {effectiveDropChance * 100:F0}%");
+            Debug.Log($"[ENEMY DROPS] A Ganância está ativa! Chance de drop amplificada para {effectiveDropChance * 100:F0}%");
         }
 
         // --- PACTO A SINFONIA DO CAOS: +20% na chance geral de drop! ---
         if (hasChaos)
         {
             effectiveDropChance = Mathf.Clamp01(effectiveDropChance + 0.20f);
-            Debug.Log($"[ENEMY DROPS] A Sinfonia do Caos ativa: +20% na chance geral de drop! (Total: {effectiveDropChance * 100:F0}%)");
+            Debug.Log($"[ENEMY DROPS] A Sinfonia do Caos está ativa: +20% na chance geral de drop! (Total: {effectiveDropChance * 100:F0}%)");
         }
 
         if (lootPool != null && lootPool.Count > 0 && Random.value <= effectiveDropChance)
@@ -346,7 +372,7 @@ public class EnemyDrops : MonoBehaviour
                         SpawnDrop(selectedPrefab, basePosition + offset);
                     }
 
-                    Debug.Log("[ENEMY DROPS] Dropou item da roleta: " + selectedPrefab.name);
+                    Debug.Log("[ENEMY DROPS] Item sorteado na roleta (spawn sujeito à validação): " + selectedPrefab.name);
                 }
             }
         }
@@ -365,16 +391,26 @@ public class EnemyDrops : MonoBehaviour
     {
         if (prefab == null) return null;
 
-        // Se o prefab atribuido for um objeto filho (ex: Visual), recupera a raiz com o pickup
+        // Se o prefab atribuído for um objeto filho (ex.: Visual), recupera a raiz com o pickup
         GameObject prefabToSpawn = prefab;
         if (prefabToSpawn.transform.parent != null)
         {
             prefabToSpawn = prefabToSpawn.transform.root.gameObject;
         }
 
-        GameObject drop = Instantiate(prefabToSpawn, position, Quaternion.identity);
+        Vector3 safePosition = position;
+        if (validateDropPositionWithNavMesh && !TryFindDropPosition(position, out safePosition, out string rejection))
+        {
+            Debug.LogWarning($"[ENEMY DROPS] [NavMesh] Drop '{prefabToSpawn.name}' cancelado em '{name}' " +
+                $"(cena={gameObject.scene.name}, origem={transform.position}, agente={dropAgentTypeId}, " +
+                $"areas={dropNavMeshAreaMask}, mascaraFisica={dropCollisionMask.value}, raio={navMeshSearchRadius}m): " +
+                rejection, this);
+            return null;
+        }
 
-        // Se o drop nao tiver CharacteristicItemPickup nem ItemPickup, recupera ou anexa dinamicamente
+        GameObject drop = Instantiate(prefabToSpawn, safePosition, Quaternion.identity);
+
+        // Se o drop não tiver CharacteristicItemPickup nem ItemPickup, recupera ou anexa dinamicamente
         // Ignora objetos com EssencePickup para não interferir na física e coleta de essência
         if (drop.GetComponent<EssencePickup>() == null &&
             drop.GetComponent<CharacteristicItemPickup>() == null && 
@@ -414,6 +450,205 @@ public class EnemyDrops : MonoBehaviour
         }
 
         return drop;
+    }
+
+    // Tentativas determinísticas: não consomem Random e não alteram as rolagens de loot.
+    private bool TryFindDropPosition(Vector3 requestedPosition, out Vector3 position, out string rejection)
+    {
+        position = default;
+        rejection = null;
+        Vector3 origin = transform.position;
+        float radius = Mathf.Max(0.1f, navMeshSearchRadius);
+        float sampleRadius = Mathf.Clamp(navMeshSampleRadius, 0.05f, radius);
+        int attempts = Mathf.Clamp(dropPositionAttempts, 1, 16);
+        var filter = new NavMeshQueryFilter { agentTypeID = dropAgentTypeId, areaMask = dropNavMeshAreaMask };
+
+        // Âncora local: candidatos não podem atravessar bordas ou ilhas da NavMesh.
+        if (!NavMesh.SamplePosition(origin, out NavMeshHit anchor, radius, filter))
+        {
+            rejection = $"0 candidatos testados; {DiagnoseMissingDropAnchor(origin, radius, filter)}";
+            return false;
+        }
+        if (Mathf.Abs(anchor.position.y - origin.y) > Mathf.Max(0f, maxDropVerticalDistance))
+        {
+            rejection = $"0 candidatos testados; ANCORA_ALTURA: origemY={origin.y:F3}, " +
+                $"navY={anchor.position.y:F3}, limite={maxDropVerticalDistance:F3}m.";
+            return false;
+        }
+
+        int sampleMisses = 0, outsideRadius = 0, wrongHeight = 0, invalidRoute = 0;
+        int rejectedGround = 0, obstacles = 0, blockedRoutes = 0;
+        string groundDetail = "-", obstacleDetail = "-", routeDetail = "-";
+        for (int i = 0; i < attempts; i++)
+        {
+            Vector3 candidate = requestedPosition;
+            if (i == 1) candidate = origin;
+            else if (i > 1)
+            {
+                float angle = (i - 2) * 2.39996323f; // Espiral de ângulo áureo, limitada ao raio.
+                float distance = radius * Mathf.Sqrt((i - 1f) / (attempts - 1f));
+                candidate = origin + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * distance;
+            }
+            // O raio local não deve ser consumido pela altura do pivô acima do piso.
+            // O limite vertical em relação ao inimigo continua sendo validado abaixo.
+            candidate.y = anchor.position.y;
+            if (!NavMesh.SamplePosition(candidate, out NavMeshHit hit, sampleRadius, filter))
+            {
+                sampleMisses++;
+                continue;
+            }
+            Vector3 delta = hit.position - origin;
+            if (new Vector2(delta.x, delta.z).sqrMagnitude > radius * radius)
+            {
+                outsideRadius++;
+                continue;
+            }
+            if (Mathf.Abs(delta.y) > Mathf.Max(0f, maxDropVerticalDistance))
+            {
+                wrongHeight++;
+                continue;
+            }
+            if (NavMesh.Raycast(anchor.position, hit.position, out NavMeshHit boundary, filter))
+            {
+                invalidRoute++;
+                continue;
+            }
+            if (!HasDropGround(hit.position, out string groundReason))
+            {
+                rejectedGround++;
+                groundDetail = groundReason;
+                continue;
+            }
+
+            float clearance = Mathf.Max(0.05f, dropClearanceRadius);
+            Vector3 bottom = hit.position + Vector3.up * (clearance + 0.05f);
+            Vector3 spawn = hit.position + Vector3.up * Mathf.Max(spawnHeight, clearance + 0.05f);
+            // Espaço do solo até acima do spawn: rejeita pedras, troncos e tetos baixos.
+            Vector3 top = spawn + Vector3.up * 1.2f;
+            int count = Physics.OverlapCapsuleNonAlloc(bottom, top, clearance, dropOverlapBuffer,
+                dropCollisionMask, QueryTriggerInteraction.Ignore);
+            bool blocked = count == dropOverlapBuffer.Length; // Saturação: resultado incompleto, rejeitar.
+            if (blocked) obstacleDetail = "buffer de overlap saturado (32)";
+            for (int j = 0; j < count && !blocked; j++)
+            {
+                if (IsDyingEnemyCollider(dropOverlapBuffer[j])) continue;
+                blocked = true;
+                obstacleDetail = DescribeDropCollider(dropOverlapBuffer[j]);
+            }
+            if (blocked)
+            {
+                obstacles++;
+                continue;
+            }
+            if (!HasClearDropRoute(origin + Vector3.up * (spawn.y - origin.y), spawn, out string routeReason))
+            {
+                blockedRoutes++;
+                routeDetail = routeReason;
+                continue;
+            }
+
+            position = spawn;
+            return true;
+        }
+
+        rejection = $"{attempts} candidatos testados; SEM_AMOSTRA_LOCAL={sampleMisses} (raio={sampleRadius}m), " +
+            $"FORA_DO_RAIO={outsideRadius}, ALTURA_CANDIDATO={wrongHeight}, CAMINHO_NAVMESH_INVALIDO={invalidRoute}, " +
+            $"CHAO_REJEITADO={rejectedGround} (ultimo: {groundDetail}), " +
+            $"OBSTACULO={obstacles} (ultimo: {obstacleDetail}), ROTA_FISICA_BLOQUEADA={blockedRoutes} (ultimo: {routeDetail}).";
+        return false; // Nunca instancia sem validar no modo NavMesh.
+    }
+
+    // Consultas adicionais apenas para diagnosticar uma âncora ausente; nunca viram fallback.
+    private string DiagnoseMissingDropAnchor(Vector3 origin, float radius, NavMeshQueryFilter filter)
+    {
+        if (NavMesh.GetSettingsByID(filter.agentTypeID).agentTypeID == -1)
+            return "AGENTE_INCOMPATIVEL: tipo de agente não cadastrado no projeto.";
+        if (filter.areaMask == 0)
+            return "AREAS_INCOMPATIVEIS: máscara de áreas vazia.";
+        if (NavMesh.CalculateTriangulation().indices.Length == 0)
+            return "NAVMESH_AUSENTE: nenhuma triangulação carregada; verificar bake e ativação da Surface.";
+
+        filter.areaMask = NavMesh.AllAreas;
+        if (NavMesh.SamplePosition(origin, out NavMeshHit sameAgent, radius, filter))
+            return $"AREAS_INCOMPATIVEIS: há NavMesh local para este agente, mas fora da máscara permitida (areaHit={sameAgent.mask}).";
+
+        for (int i = 0; i < NavMesh.GetSettingsCount(); i++)
+        {
+            int otherAgent = NavMesh.GetSettingsByIndex(i).agentTypeID;
+            if (otherAgent == dropAgentTypeId) continue;
+            filter.agentTypeID = otherAgent;
+            if (NavMesh.SamplePosition(origin, out NavMeshHit otherHit, radius, filter))
+                return $"AGENTE_INCOMPATIVEL_LOCAL: encontrada NavMesh apenas com outro agente (id={otherAgent}, pos={otherHit.position}).";
+        }
+        return "NAVMESH_SEM_COBERTURA_LOCAL: há triangulação carregada, mas nenhuma amostra no raio 3D da origem; verificar posição, altura e cobertura do bake.";
+    }
+
+    private bool IsDyingEnemyCollider(Collider collider)
+    {
+        return collider != null && (collider.transform == transform || collider.transform.IsChildOf(transform));
+    }
+
+    private static string DescribeDropCollider(Collider collider)
+    {
+        return collider == null ? "collider ausente" :
+            $"'{collider.name}' (id={collider.GetInstanceID()}, layer={collider.gameObject.layer}, tipo={collider.GetType().Name})";
+    }
+
+    private bool HasDropGround(Vector3 point, out string rejection)
+    {
+        rejection = null;
+        int count = Physics.RaycastNonAlloc(point + Vector3.up * 0.2f, Vector3.down, dropRayBuffer,
+            0.4f, dropCollisionMask, QueryTriggerInteraction.Ignore);
+        if (count == dropRayBuffer.Length)
+        {
+            rejection = "buffer de chão saturado (32)";
+            return false;
+        }
+        float closest = float.PositiveInfinity;
+        RaycastHit ground = default;
+        for (int i = 0; i < count; i++)
+        {
+            RaycastHit hit = dropRayBuffer[i];
+            if (IsDyingEnemyCollider(hit.collider) || hit.distance >= closest) continue;
+            closest = hit.distance;
+            ground = hit;
+        }
+        if (float.IsPositiveInfinity(closest))
+        {
+            rejection = $"sem collider de chão a +/-0.2m do NavMesh em {point}; conferir máscara física e alinhamento do bake";
+            return false;
+        }
+        if (ground.normal.y < 0.7f ||
+            ground.collider.GetComponentInParent<DummyHealth>() != null ||
+            ground.collider.GetComponentInParent<ShardSwarmHealth>() != null ||
+            ground.collider.GetComponentInParent<PlayerHealth>() != null)
+        {
+            rejection = $"normalY={ground.normal.y:F3} (min=0.7) ou collider de personagem: {DescribeDropCollider(ground.collider)}";
+            return false;
+        }
+        return true;
+    }
+
+    private bool HasClearDropRoute(Vector3 from, Vector3 to, out string rejection)
+    {
+        rejection = null;
+        Vector3 direction = to - from;
+        float distance = direction.magnitude;
+        if (distance < 0.01f) return true;
+        int count = Physics.RaycastNonAlloc(from, direction / distance, dropRayBuffer, distance,
+            dropCollisionMask, QueryTriggerInteraction.Ignore);
+        if (count == dropRayBuffer.Length)
+        {
+            rejection = "buffer de rota saturado (32)";
+            return false;
+        }
+        for (int i = 0; i < count; i++)
+        {
+            if (IsDyingEnemyCollider(dropRayBuffer[i].collider)) continue;
+            rejection = DescribeDropCollider(dropRayBuffer[i].collider);
+            return false;
+        }
+        return true;
     }
 
     public bool IsEliteMob()
@@ -456,7 +691,7 @@ public class EnemyDrops : MonoBehaviour
                 return Mathf.Clamp((int)data.tier + 1, 1, 4);
             }
 
-            // Fallback pelo próprio itemId do pickup (ex: "04px", "bismutado_placa_t2")
+            // Fallback pelo próprio itemId do pickup (ex.: "04px", "bismutado_placa_t2")
             string idLower = id.ToLower();
             if (idLower.Contains("_t4") || idLower.EndsWith("t4") || idLower.StartsWith("04")) return 4;
             if (idLower.Contains("_t3") || idLower.EndsWith("t3") || idLower.StartsWith("03")) return 3;
@@ -525,7 +760,7 @@ public class EnemyDrops : MonoBehaviour
             offset.y = 0;
             SpawnDrop(selectedT4, basePosition + offset);
             droppedAny = true;
-            Debug.Log($"[ELITE DROPS] ★ ROLAGEM TIER 4 SUCESSO! ({t4Chance * 100:F0}%): {selectedT4.name}");
+            Debug.Log($"[ELITE DROPS] ★ ROLAGEM DO TIER 4 COM SUCESSO (spawn sujeito à validação)! ({t4Chance * 100:F0}%): {selectedT4.name}");
         }
 
         // 2. Rolagem Tier 3 (40%)
@@ -536,7 +771,7 @@ public class EnemyDrops : MonoBehaviour
             offset.y = 0;
             SpawnDrop(selectedT3, basePosition + offset);
             droppedAny = true;
-            Debug.Log($"[ELITE DROPS] ★ ROLAGEM TIER 3 SUCESSO! ({t3Chance * 100:F0}%): {selectedT3.name}");
+            Debug.Log($"[ELITE DROPS] ★ ROLAGEM DO TIER 3 COM SUCESSO (spawn sujeito à validação)! ({t3Chance * 100:F0}%): {selectedT3.name}");
         }
 
         // 3. Rolagem Tier 2 (80%)
@@ -547,7 +782,7 @@ public class EnemyDrops : MonoBehaviour
             offset.y = 0;
             SpawnDrop(selectedT2, basePosition + offset);
             droppedAny = true;
-            Debug.Log($"[ELITE DROPS] ★ ROLAGEM TIER 2 SUCESSO! ({t2Chance * 100:F0}%): {selectedT2.name}");
+            Debug.Log($"[ELITE DROPS] ★ ROLAGEM DO TIER 2 COM SUCESSO (spawn sujeito à validação)! ({t2Chance * 100:F0}%): {selectedT2.name}");
         }
 
         // 4. Proteção contra azar (garante ao menos 1 item T2+ se todas as rolagens falharem)
@@ -560,7 +795,7 @@ public class EnemyDrops : MonoBehaviour
                 Vector3 offset = Random.insideUnitSphere * spawnRadius;
                 offset.y = 0;
                 SpawnDrop(fallback, basePosition + offset);
-                Debug.Log($"[ELITE DROPS] Proteção de azar ativada: Drop Tier 2 garantido ({fallback.name})");
+                Debug.Log($"[ELITE DROPS] Proteção contra azar ativada: item sorteado (spawn sujeito à validação) ({fallback.name})");
             }
         }
     }

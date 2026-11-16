@@ -109,6 +109,11 @@ public class DashM : MonoBehaviour
     private bool isPerfectDodgeRoutineRunning = false;
     private bool isCurrentDashPerfectTriggered = false;
 
+    [Header("Biomassa do Traje (Esquiva Perfeita)")]
+    [Tooltip("Biomassa (0-100) concedida ao SuitHealingSystem a cada Esquiva Perfeita. No máximo 1x por esquiva.")]
+    public float perfectDodgeBiomassReward = 35f;
+    private bool perfectDodgeBiomassAwarded = false;
+
     public bool IsPerfectDodgeInvulnerable => isPerfectDodgeRoutineRunning || perfectDodgePostInvulTimer > 0f;
     private bool hasPerfectDodgeCharge = false;
     private float perfectDodgeChargeTimer = 0f;
@@ -485,6 +490,7 @@ public class DashM : MonoBehaviour
 
         // Checagem proativa de Esquiva Perfeita no instante exato da ativação
         isCurrentDashPerfectTriggered = false;
+        perfectDodgeBiomassAwarded = false; // Libera a recompensa de Biomassa para este novo dash
         if (IsAnyImminentAttackNearby(out GameObject imminentAttacker))
         {
             isCurrentDashPerfectTriggered = true;
@@ -660,11 +666,12 @@ public class DashM : MonoBehaviour
 
     /// <summary>
     /// Disparado pelo PlayerHealth quando o jogador esquiva com sucesso dentro da janela inicial.
-    /// Ativa hit-stop, after-image, restaura 1 dash, acelera cura do Eptinho e concede 100% crítico no próximo golpe.
+    /// Ativa hit-stop, after-image, restaura 1 dash, carrega +35% de Biomassa do traje e concede 100% crítico no próximo golpe.
     /// </summary>
     [ContextMenu("Testar Esquiva Perfeita")]
     public void DebugTriggerPerfectDodge()
     {
+        perfectDodgeBiomassAwarded = false;
         TriggerPerfectDodge(null);
     }
 
@@ -677,6 +684,16 @@ public class DashM : MonoBehaviour
         if (t4 != null)
         {
             t4.OnPerfectDodge();
+        }
+
+        // Esquiva Perfeita carrega a Biomassa do traje (no máximo 1x por esquiva)
+        if (!perfectDodgeBiomassAwarded)
+        {
+            perfectDodgeBiomassAwarded = true;
+            if (SuitHealingSystem.Instance != null)
+            {
+                SuitHealingSystem.Instance.AddBiomass(perfectDodgeBiomassReward);
+            }
         }
 
         if (enableLayerPhasing)
@@ -1002,7 +1019,7 @@ public class DashM : MonoBehaviour
             perfectDodgeBlurVolume.weight = 0f;
         }
 
-        // 4. Ativa a Sobrecarga do Perfect Dash (Barra Especial de 3 Escolhas: Crítico / Dash Extra / Cura Q)
+        // 4. Ativa a Sobrecarga do Perfect Dash (Barra Especial: Crítico garantido / Dash Extra)
         hasPerfectDodgeCharge = true;
         perfectDodgeChargeTimer = perfectDodgeChargeDuration;
         isNextAttackGuaranteedCrit = true;
@@ -1162,7 +1179,7 @@ public class DashM : MonoBehaviour
     /// Consome o bônus de crítico garantido ao desferir um golpe.
     /// </summary>
     /// <summary>
-    /// Consome a Sobrecarga do Perfect Dash (quando gasta em Dash Livre, Ataque Crítico ou Síntese Q).
+    /// Consome a Sobrecarga do Perfect Dash (quando gasta em Dash Livre ou Ataque Crítico).
     /// </summary>
     public bool ConsumePerfectDodgeCharge()
     {

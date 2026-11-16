@@ -69,6 +69,7 @@ public class CheatConsole : MonoBehaviour
         new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "arma adaga", aliases = "adaga, dagger", description = "Equipa a Adaga de Plasma diretamente na mão do personagem.", executePayload = "arma adaga" },
         new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "forca 10", aliases = "dano [X], str [X], strength [X]", description = "Multiplica o dano base por 10x (aceita qualquer valor: ex: forca 5, forca 50).", executePayload = "forca 10" },
         new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "heal", aliases = "vida, curar, god", description = "Restaura instantaneamente toda a vida e armadura do jogador ao máximo.", executePayload = "heal" },
+        new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "biomassa", aliases = "biomass, bio, fullbio", description = "Enche a Biomassa do traje para 100% (libera a cura no [Q]).", executePayload = "biomassa" },
         new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "poison", aliases = "veneno", description = "Ativa o efeito Tier 4 Veneno (dano contínuo verde nos inimigos).", executePayload = "poison" },
         new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "thorns", aliases = "espinhos, espinho", description = "Concede +20 de dano refletido por espinhos contra qualquer atacante.", executePayload = "thorns" },
         new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "pact", aliases = "pacto, mercador", description = "Alterna o visual das garras corrompidas do Pacto do Mercador.", executePayload = "pact" },
@@ -769,6 +770,7 @@ public class CheatConsole : MonoBehaviour
                     if (dummy.CompareTag("Player")) continue;
                     
                     dummy.isInvulnerable = false;
+                    dummy.grantsBiomass = false; // killall não concede Biomassa
                     dummy.TakeDamage(999999);
                     count++;
                 }
@@ -856,6 +858,27 @@ public class CheatConsole : MonoBehaviour
             else
             {
                 Debug.LogWarning("💻 CHEAT: PlayerHealth não encontrado na cena!");
+            }
+        }
+        else if (string.Equals(command, "biomassa", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "biomass", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "bio", System.StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(command, "fullbio", System.StringComparison.OrdinalIgnoreCase))
+        {
+            SuitHealingSystem suit = SuitHealingSystem.Instance != null ? SuitHealingSystem.Instance : Object.FindFirstObjectByType<SuitHealingSystem>();
+            if (suit != null)
+            {
+                suit.FillBiomass();
+                string msg = "BIOMASSA DO TRAJE EM 100%! Pressione [Q] para curar.";
+                Debug.Log($"💻 CHEAT: {msg}");
+                if (EptinhoPopupController.instancia != null)
+                {
+                    EptinhoPopupController.instancia.MostrarPopupAviso(msg);
+                }
+            }
+            else
+            {
+                Debug.LogWarning("💻 CHEAT: SuitHealingSystem não encontrado na cena!");
             }
         }
         else if (string.Equals(command, "allmobs", System.StringComparison.OrdinalIgnoreCase) ||
