@@ -189,7 +189,23 @@ public class GunAttack : MonoBehaviour
 
         if (firingInput && !IsRecharging && !isAimSessionActive) BeginAimSession();
 
-        if (AimSettings.IsMouseAim)
+        PrimaryAttackKnife meleeAimAssist = weaponManager != null
+            ? weaponManager.attackScript
+            : GetComponentInParent<PrimaryAttackKnife>();
+        Vector3 aimAssistDirection = Vector3.zero;
+        if (firingInput && !IsRecharging && !dashing && meleeAimAssist != null)
+            aimAssistDirection = meleeAimAssist.GetAimAssistDirection();
+
+        if (aimAssistDirection.sqrMagnitude > 0.0001f)
+        {
+            Vector3 currentDirection = currentAimDirection.sqrMagnitude > 0.0001f
+                ? currentAimDirection.normalized
+                : aimAssistDirection;
+            float blend = 1f - Mathf.Exp(-meleeAimAssist.aimAssistSmoothing * Time.deltaTime);
+            currentAimDirection = Vector3.Slerp(currentDirection, aimAssistDirection, blend).normalized;
+            hasCurrentAimPoint = true;
+        }
+        else if (AimSettings.IsMouseAim)
         {
             hasCurrentAimPoint = TryGetAimPoint(out currentAimPoint);
             if (firingInput && !IsRecharging && !dashing) UpdateCurrentAimDirection();

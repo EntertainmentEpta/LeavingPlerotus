@@ -9,6 +9,10 @@ public class PlayerEssence : MonoBehaviour
     public int currentEssence = 0;
     public int totalEssenceCollected = 0;
 
+    [Header("Teste no Editor")]
+    [Tooltip("Preserva a essência inicial configurada no Inspector durante testes no Editor.")]
+    public bool preserveInitialEssenceInEditor = false;
+
     [Header("Eventos (Opcional)")]
     [Tooltip("Evento disparado quando coleta essência")]
     public UnityEngine.Events.UnityEvent<int> onEssenceCollected;
@@ -54,5 +58,14 @@ public class PlayerEssence : MonoBehaviour
     public int GetEssence()
     {
         return currentEssence;
+    }
+
+    public void ResetRunEssence()
+    {
+        if (Application.isEditor && preserveInitialEssenceInEditor)
+            return;
+
+        currentEssence = 0;
+        onEssenceChanged?.Invoke(0);
     }
 }

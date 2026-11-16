@@ -1,17 +1,17 @@
 using UnityEngine;
 
-public sealed class TunerMarkVFX : MonoBehaviour
+public sealed class LegacyTunerMarkVFX : MonoBehaviour
 {
     private const int PointCount = 20;
     private const float Height = 1.5f;
     private const float Radius = 0.35f;
     private LineRenderer line;
 
-    public static TunerMarkVFX Attach(Transform target)
+    public static LegacyTunerMarkVFX Attach(Transform target)
     {
         GameObject marker = new GameObject("TunerMarkTarget");
         marker.transform.SetParent(target, false);
-        TunerMarkVFX vfx = marker.AddComponent<TunerMarkVFX>();
+        LegacyTunerMarkVFX vfx = marker.AddComponent<LegacyTunerMarkVFX>();
         vfx.CreateMarker();
         return vfx;
     }

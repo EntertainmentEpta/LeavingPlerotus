@@ -527,9 +527,6 @@ public class InventoryUI : MonoBehaviour
     /// </summary>
     public bool IsOpen()
     {
-        if (panelObject != null && panelObject.activeSelf) return true;
-        if (customPanel != null && customPanel.activeSelf) return true;
-        if (infusionHistoryPanelObj != null && infusionHistoryPanelObj.activeSelf) return true;
         if (!gameObject.activeInHierarchy) return false;
         return isOpen;
     }
@@ -696,7 +693,7 @@ public class InventoryUI : MonoBehaviour
         canvasObject = new GameObject("InventoryUI_Canvas");
         inventoryCanvas = canvasObject.AddComponent<Canvas>();
         inventoryCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        inventoryCanvas.sortingOrder = 500;
+        inventoryCanvas.sortingOrder = 100;
         CanvasInstance = inventoryCanvas;
         
         CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
@@ -1858,7 +1855,7 @@ public class InfusionHistorySlotHover : MonoBehaviour, UnityEngine.EventSystems.
         }
         else
         {
-            extra.AppendLine("<color=#AAAAAA><i>Composto catalisador padr\u00E3o sem atributos base.</i></color>");
+            extra.AppendLine("<color=#AAAAAA><i>Composto catalisador padrão sem atributos base.</i></color>");
         }
 
         if (itemData.tier == ItemTier.Legendary && itemData.tier4Effect != Tier4EffectType.None)
@@ -1889,16 +1886,16 @@ public class InfusionHistorySlotHover : MonoBehaviour, UnityEngine.EventSystems.
         string s = stat.ToLower();
         if (s.Contains("damage")) return "Poder de Dano";
         if (s.Contains("attackspeed")) return "Velocidade de Ataque";
-        if (s.Contains("critchance")) return "Chance de Cr\u00EDtico";
-        if (s.Contains("critmultiplier")) return "Dano Cr\u00EDtico";
+        if (s.Contains("critchance")) return "Chance de Crítico";
+        if (s.Contains("critmultiplier")) return "Dano Crítico";
         if (s.Contains("weaponrange")) return "Alcance da Arma";
-        if (s.Contains("knockback")) return "For\u00E7a de Impacto";
-        if (s.Contains("piercing")) return "Perfura\u00E7\u00E3o";
-        if (s.Contains("health")) return "Vida M\u00E1xima";
+        if (s.Contains("knockback")) return "Força de Impacto";
+        if (s.Contains("piercing")) return "Perfuração";
+        if (s.Contains("health")) return "Vida Máxima";
         if (s.Contains("armorregen")) return "Regen. de Armadura";
-        if (s.Contains("armor")) return "Armadura M\u00E1xima";
+        if (s.Contains("armor")) return "Armadura Máxima";
         if (s.Contains("dodge")) return "Esquiva";
-        if (s.Contains("damagenegation")) return "Nega\u00E7\u00E3o de Dano";
+        if (s.Contains("damagenegation")) return "Negação de Dano";
         if (s.Contains("thorns")) return "Espinhos";
         if (s.Contains("speed")) return "Velocidade de Movimento";
         if (s.Contains("dashcooldown")) return "Recarga do Dash";

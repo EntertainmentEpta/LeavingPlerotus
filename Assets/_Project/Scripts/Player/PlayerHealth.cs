@@ -127,10 +127,7 @@ public class PlayerHealth : MonoBehaviour
         // Reseta essência da run ao renascer na base
         PlayerEssence essence = GetComponent<PlayerEssence>() ?? GetComponentInChildren<PlayerEssence>() ?? Object.FindFirstObjectByType<PlayerEssence>();
         if (essence != null)
-        {
-            essence.currentEssence = 0;
-            essence.onEssenceChanged?.Invoke(0);
-        }
+            essence.ResetRunEssence();
 
         // Fecha e esconde texto de cochicho do Mercador
         if (MerchantPopupController.Instance != null)
@@ -193,10 +190,7 @@ public class PlayerHealth : MonoBehaviour
         // Reseta essência da run ao renascer na base
         PlayerEssence essence = GetComponent<PlayerEssence>() ?? GetComponentInChildren<PlayerEssence>() ?? Object.FindFirstObjectByType<PlayerEssence>();
         if (essence != null)
-        {
-            essence.currentEssence = 0;
-            essence.onEssenceChanged?.Invoke(0);
-        }
+            essence.ResetRunEssence();
 
         // Fecha e esconde texto de cochicho do Mercador
         if (MerchantPopupController.Instance != null)
@@ -363,10 +357,7 @@ public class PlayerHealth : MonoBehaviour
         // Reseta essência da run ao renascer na base
         PlayerEssence essence = GetComponent<PlayerEssence>() ?? GetComponentInChildren<PlayerEssence>() ?? Object.FindFirstObjectByType<PlayerEssence>();
         if (essence != null)
-        {
-            essence.currentEssence = 0;
-            essence.onEssenceChanged?.Invoke(0);
-        }
+            essence.ResetRunEssence();
 
         // Fecha e esconde texto de cochicho do Mercador
         if (MerchantPopupController.Instance != null)
@@ -492,10 +483,7 @@ public class PlayerHealth : MonoBehaviour
         // Reseta essência da run ao renascer na base
         PlayerEssence essence = GetComponent<PlayerEssence>() ?? GetComponentInChildren<PlayerEssence>() ?? Object.FindFirstObjectByType<PlayerEssence>();
         if (essence != null)
-        {
-            essence.currentEssence = 0;
-            essence.onEssenceChanged?.Invoke(0);
-        }
+            essence.ResetRunEssence();
 
         // Fecha e esconde texto de cochicho do Mercador
         if (MerchantPopupController.Instance != null)

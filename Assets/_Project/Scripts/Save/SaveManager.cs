@@ -338,10 +338,7 @@ public class SaveManager : MonoBehaviour
         // Reseta essência volátil acumulada durante a run
         PlayerEssence essence = player.GetComponent<PlayerEssence>() ?? player.GetComponentInChildren<PlayerEssence>();
         if (essence != null)
-        {
-            essence.currentEssence = 0;
-            essence.onEssenceChanged?.Invoke(0);
-        }
+            essence.ResetRunEssence();
 
         SavePersistentData(); // Persiste a Bolsa Sintética imediatamente
         Debug.Log($"[SAVE] Morte: {toDiscard.Count} item(s) de run descartado(s). Recursos de base salvos.");

@@ -2112,8 +2112,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c53e7519e486fec47962f3a1501e57c4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerEssence
-  currentEssence: 0
-  totalEssenceCollected: 0
+  currentEssence: 10000
+  totalEssenceCollected: 10000
+  preserveInitialEssenceInEditor: 1
   onEssenceCollected:
     m_PersistentCalls:
       m_Calls: []
@@ -2502,6 +2503,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Tier4EffectManager
   explosiveDashEffect: {fileID: 0}
+  tunerMarkVFXPrefab: {fileID: 7506375208789833769, guid: f2df6dc50003abc43a60589ef64eb0e7, type: 3}
+  tunerMarkDuration: 4
+  tunerBossMarkDuration: 5
+  tunerCooldownAfterMark: 4
+  tunerBossCooldownAfterMark: 8
+  tunerTriggerDamagePercent: 0.3
+  tunerBossTriggerDamagePercent: 0.1
   poisonDamagePerTick: 5
   poisonDuration: 5
   poisonTickInterval: 1
@@ -4439,6 +4447,15 @@ MonoBehaviour:
   daggerRange: 6
   swordRange: 7
   axeRange: 7.5
+  aimAssistRange: 6
+  daggerAimAssistRange: 5
+  aimAssistConeAngle: 80
+  daggerAimAssistConeAngle: 70
+  aimAssistCloseRange: 2
+  aimAssistSmoothing: 8
+  enemyLayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
   hitImpactVariations:
   - {fileID: 5085208710604937735, guid: 415eb90ccc98be644a2a61308ed50644, type: 3}
   criticalHitImpactPrefab: {fileID: 8827767439292419669, guid: eb35369d1a0ba8548a679606b869f46e, type: 3}
