@@ -12,6 +12,7 @@ public class ElectricTrailVFX : MonoBehaviour
     public int damagePerTick = 5;
     public float lifetime = 2.5f;     // Permanece ativa por ~2-3s
     public Color trailColor = new Color(0.2f, 0.9f, 1.0f, 0.9f); // Ciano Elétrico Neon
+    public bool isHostileToPlayer = true; // Se false, a trail não causa dano ao Player (ex: arma do próprio player)
 
     private LineRenderer lineRenderer;
     private Vector3[] basePositions;
@@ -20,7 +21,7 @@ public class ElectricTrailVFX : MonoBehaviour
 
     public AudioClip zapSoundClip;
 
-    public static void CreateTrailSegment(Vector3 startPos, Vector3 endPos, int damage, float trailLifetime, AudioClip zapClip = null)
+    public static void CreateTrailSegment(Vector3 startPos, Vector3 endPos, int damage, float trailLifetime, AudioClip zapClip = null, bool hostileToPlayer = true)
     {
         GameObject trailObj = new GameObject("ElectricAirTrail");
         Vector3 midPoint = (startPos + endPos) * 0.5f;
@@ -30,6 +31,7 @@ public class ElectricTrailVFX : MonoBehaviour
         trail.damagePerTick = (damage > 0) ? damage : 5;
         trail.lifetime = (trailLifetime > 0f) ? trailLifetime : 2.5f;
         trail.zapSoundClip = zapClip;
+        trail.isHostileToPlayer = hostileToPlayer;
         trail.SetupAirLine(startPos, endPos);
     }
 
@@ -154,6 +156,8 @@ public class ElectricTrailVFX : MonoBehaviour
 
     private void TriggerStatusOnPlayer(Collider other)
     {
+        if (!isHostileToPlayer) return;
+
         if (other.CompareTag("Player") || (other.transform.root != null && other.transform.root.CompareTag("Player")))
         {
             int actualDamage = (damagePerTick > 0) ? damagePerTick : 5;
