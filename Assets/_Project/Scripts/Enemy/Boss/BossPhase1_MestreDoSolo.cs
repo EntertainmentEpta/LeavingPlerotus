@@ -362,6 +362,11 @@ public class BossPhase1_MestreDoSolo : MonoBehaviour
             animator.Play("SpellGround", 0, 0f);
         }
 
+        if (bossController != null)
+        {
+            bossController.PlayPillarSummonSound();
+        }
+
         if (playerTransform == null)
         {
             GameObject p = GameObject.FindGameObjectWithTag("Player");

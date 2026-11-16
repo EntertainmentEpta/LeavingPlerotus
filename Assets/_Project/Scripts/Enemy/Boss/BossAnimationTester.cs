@@ -542,6 +542,22 @@ public class BossAnimationTester : MonoBehaviour
         }
         Debug.Log("[BossAnimationTester] 💀 Disparou Sequência Completa de Morte & Absorção pela Terra!");
     }
+
+    // =====================================================
+    // TESTE DE SONS ISOLADOS (ÁUDIO)
+    // =====================================================
+    public void TestSoundStomp() { FindReferences(); if (bossController != null) bossController.PlayStompSound(); }
+    public void TestSoundJump() { FindReferences(); if (bossController != null) bossController.PlayJumpSound(); }
+    public void TestSoundWalk() { FindReferences(); if (bossController != null) bossController.PlayFootstepSound(); }
+    public void TestSoundPillars() { FindReferences(); if (bossController != null) bossController.PlayPillarSummonSound(); }
+    public void TestSoundSuper360() { FindReferences(); if (bossController != null) bossController.PlaySuperAttack360Sound(); }
+    public void TestSoundPowerUp() { FindReferences(); if (bossController != null) bossController.PlayPowerUpSound(); }
+    public void TestSoundRefraction() { FindReferences(); if (bossController != null) bossController.PlayRefractionSound(); }
+    public void TestSoundPhase1To2() { FindReferences(); if (bossController != null) bossController.PlayPhase1To2Sound(); }
+    public void TestSoundPhase2To3() { FindReferences(); if (bossController != null) bossController.PlayPhase2To3Sound(); }
+    public void TestSoundHit() { FindReferences(); if (bossController != null) bossController.PlayHitSound(); }
+    public void TestSoundDeath() { FindReferences(); if (bossController != null) bossController.PlayDeathSound(); }
+    public void TestSoundAcidSpit() { FindReferences(); if (bossController != null) bossController.PlayAcidSpitSound(); }
 }
 
 // =====================================================
@@ -811,6 +827,37 @@ public class BossAnimationTesterEditor : Editor
             tester.TriggerBossDeath();
         }
         GUI.backgroundColor = Color.white;
+
+        // -------------------------------------------------------------
+        // SEÇÃO: TESTES DE ÁUDIO / SONS ISOLADOS
+        // -------------------------------------------------------------
+        EditorGUILayout.Space(15);
+        EditorGUILayout.LabelField("🔊 TESTES DE SONS / ÁUDIOS DO BOSS", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox("Clique nos botões abaixo para disparar e ouvir cada efeito sonoro individualmente em tempo real!", MessageType.None);
+
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("🦶 Som: Stomp", GUILayout.Height(26))) tester.TestSoundStomp();
+        if (GUILayout.Button("🦘 Som: Jump", GUILayout.Height(26))) tester.TestSoundJump();
+        if (GUILayout.Button("🐾 Som: Andar", GUILayout.Height(26))) tester.TestSoundWalk();
+        EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("🪄 Som: Pilares", GUILayout.Height(26))) tester.TestSoundPillars();
+        if (GUILayout.Button("🌊 Som: Espinhos 360°", GUILayout.Height(26))) tester.TestSoundSuper360();
+        if (GUILayout.Button("🛡️ Som: PowerUp", GUILayout.Height(26))) tester.TestSoundPowerUp();
+        EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("👻 Som: Refração", GUILayout.Height(26))) tester.TestSoundRefraction();
+        if (GUILayout.Button("🧪 Som: Cuspe Ácido", GUILayout.Height(26))) tester.TestSoundAcidSpit();
+        if (GUILayout.Button("💥 Som: Tomar Hit", GUILayout.Height(26))) tester.TestSoundHit();
+        EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("🔄 Som: Fase 1 ➔ 2", GUILayout.Height(26))) tester.TestSoundPhase1To2();
+        if (GUILayout.Button("🔄 Som: Fase 2 ➔ 3", GUILayout.Height(26))) tester.TestSoundPhase2To3();
+        if (GUILayout.Button("💀 Som: Morte", GUILayout.Height(26))) tester.TestSoundDeath();
+        EditorGUILayout.EndHorizontal();
 
         EditorGUILayout.Space(10);
     }
