@@ -207,6 +207,69 @@ public class BossAnimationEvents : MonoBehaviour
         }
     }
 
+    // =========================================================================
+    // 🔊 EVENTOS DE ÁUDIO EXPOSTOS NO DROPDOWN DO ANIMATOR DO UNITY
+    // =========================================================================
+    public void AnimEvent_Footstep()
+    {
+        var boss = GetBoss();
+        if (boss != null) boss.PlayFootstepSound();
+    }
+
+    public void AnimEvent_StompSound()
+    {
+        var boss = GetBoss();
+        if (boss != null) boss.PlayStompSound();
+    }
+
+    public void AnimEvent_JumpSound()
+    {
+        var boss = GetBoss();
+        if (boss != null) boss.PlayJumpSound();
+    }
+
+    public void AnimEvent_PillarSummonSound()
+    {
+        var boss = GetBoss();
+        if (boss != null) boss.PlayPillarSummonSound();
+    }
+
+    public void AnimEvent_SuperAttack360Sound()
+    {
+        var boss = GetBoss();
+        if (boss != null) boss.PlaySuperAttack360Sound();
+    }
+
+    public void AnimEvent_PowerUpSound()
+    {
+        var boss = GetBoss();
+        if (boss != null) boss.PlayPowerUpSound();
+    }
+
+    public void AnimEvent_RefractionSound()
+    {
+        var boss = GetBoss();
+        if (boss != null) boss.PlayRefractionSound();
+    }
+
+    public void AnimEvent_AcidSpitSound()
+    {
+        var boss = GetBoss();
+        if (boss != null) boss.PlayAcidSpitSound();
+    }
+
+    public void AnimEvent_DeathSound()
+    {
+        var boss = GetBoss();
+        if (boss != null) boss.PlayDeathSound();
+    }
+
+    public void AnimEvent_HitSound()
+    {
+        var boss = GetBoss();
+        if (boss != null) boss.PlayHitSound();
+    }
+
     private void OnAnimatorMove()
     {
         var boss = GetBoss();
