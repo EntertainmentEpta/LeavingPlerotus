@@ -42,6 +42,22 @@ public class Tier4EffectManager : MonoBehaviour
     [Min(0.02f)] public float homingTargetRefreshInterval = 0.1f;
     public Color homingBatteryOrbTint = new Color(126f / 255f, 61f / 255f, 202f / 255f, 1f);
 
+    [Header("Crystal Tuner T4 - Marca")]
+    [Tooltip("Prefab visual instanciado sobre o inimigo marcado. Se vazio, usa a marca procedural.")]
+    public GameObject tunerMarkVFXPrefab;
+    [Min(3f)]
+    public float tunerMarkDuration = 4f;
+    [Min(3f)]
+    public float tunerBossMarkDuration = 5f;
+    [Min(2f)]
+    public float tunerCooldownAfterMark = 4f;
+    [Min(6f)]
+    public float tunerBossCooldownAfterMark = 8f;
+    [Range(0f, 1f)]
+    public float tunerTriggerDamagePercent = 0.30f;
+    [Range(0f, 1f)]
+    public float tunerBossTriggerDamagePercent = 0.10f;
+
     private PlayerHealth playerHealth;
     private float defaultShieldRegenDelay;
     private const float TotemDashShieldRestorePercent = 0.20f;
@@ -53,12 +69,9 @@ public class Tier4EffectManager : MonoBehaviour
     private float pendingSentinelLifesteal;
     private const float BismutadoAreaDamagePercent = 0.20f;
     private const float BismutadoAreaRadius = 3.5f;
-    private const float TunerMarkedDamagePercent = 0.20f;
-    private const float TunerMarkDuration = 5f;
-    private const float TunerCooldownAfterExpiry = 20f;
-    private const float TunerCooldownAfterKill = 10f;
     private GameObject tunerMarkedTarget;
     private TunerMarkVFX tunerMarkVFX;
+    private bool tunerMarkedTargetIsBoss;
     private float tunerMarkExpiresAt;
     private float tunerCooldownUntil;
 
@@ -98,8 +111,9 @@ public class Tier4EffectManager : MonoBehaviour
 
         if (tunerMarkedTarget != null && Time.time >= tunerMarkExpiresAt)
         {
+            bool wasBoss = tunerMarkedTargetIsBoss;
             ClearTunerMark();
-            tunerCooldownUntil = Time.time + TunerCooldownAfterExpiry;
+            tunerCooldownUntil = Time.time + GetTunerCooldown(wasBoss);
         }
 
         if (tunerMarkedTarget == null && Time.time >= tunerCooldownUntil)
@@ -402,15 +416,31 @@ public class Tier4EffectManager : MonoBehaviour
     public int ModifyIncomingDamage(GameObject target, int damage)
     {
         if (damage <= 0 || !IsTunerMarked(target)) return damage;
-        return Mathf.Max(1, Mathf.RoundToInt(damage * (1f + TunerMarkedDamagePercent)));
+
+        if (!TryGetTargetHealth(target, out int currentHealth, out int maxHealth))
+            return damage;
+
+        int halfHealth = Mathf.CeilToInt(maxHealth * 0.5f);
+        bool crossesHalfHealth = currentHealth <= halfHealth ||
+                                 currentHealth - damage <= halfHealth;
+        if (!crossesHalfHealth) return damage;
+
+        bool isBoss = IsBossTarget(target);
+        float bonus = isBoss ? tunerBossTriggerDamagePercent : tunerTriggerDamagePercent;
+        ConsumeTunerMark(isBoss);
+        int amplifiedDamage = Mathf.RoundToInt(damage * (1f + bonus));
+        Debug.Log($"[Tier4EffectManager] Marca do Tuner consumida em {target.name}: " +
+                  $"+{bonus:P0} dano explosivo{(isBoss ? " de Boss" : "")}.");
+        return Mathf.Max(1, amplifiedDamage);
     }
 
     public void NotifyEnemyDamaged(GameObject target, bool targetDied)
     {
         if (!IsTunerMarked(target) || !targetDied) return;
 
-        ClearTunerMark();
-        tunerCooldownUntil = Time.time + TunerCooldownAfterKill;
+        bool wasBoss = tunerMarkedTargetIsBoss;
+        ClearTunerMark(true);
+        tunerCooldownUntil = Time.time + GetTunerCooldown(wasBoss);
     }
 
     private bool IsTunerMarked(GameObject target)
@@ -437,18 +467,70 @@ public class Tier4EffectManager : MonoBehaviour
         if (candidates.Count == 0) return;
 
         tunerMarkedTarget = candidates[Random.Range(0, candidates.Count)];
-        tunerMarkExpiresAt = Time.time + TunerMarkDuration;
-        tunerMarkVFX = TunerMarkVFX.Attach(tunerMarkedTarget.transform);
-        Debug.Log($"[Tier4EffectManager] Tuner marcou {tunerMarkedTarget.name} por {TunerMarkDuration}s.");
+        tunerMarkedTargetIsBoss = IsBossTarget(tunerMarkedTarget);
+        float markDuration = tunerMarkedTargetIsBoss ? tunerBossMarkDuration : tunerMarkDuration;
+        tunerMarkExpiresAt = Time.time + markDuration;
+        tunerMarkVFX = TunerMarkVFX.AttachMark(tunerMarkedTarget, markDuration, tunerMarkVFXPrefab);
+        Debug.Log($"[Tier4EffectManager] Tuner marcou {tunerMarkedTarget.name} por {markDuration:0.0}s" +
+                  $"{(tunerMarkedTargetIsBoss ? " (Boss)" : "")}.");
     }
 
-    private void ClearTunerMark()
+    private void ClearTunerMark(bool triggerShatter = false)
     {
         if (tunerMarkVFX != null)
-            Destroy(tunerMarkVFX.gameObject);
+        {
+            if (triggerShatter)
+                tunerMarkVFX.TriggerShatter();
+            else
+                tunerMarkVFX.Expire();
+        }
         tunerMarkVFX = null;
         tunerMarkedTarget = null;
+        tunerMarkedTargetIsBoss = false;
         tunerMarkExpiresAt = 0f;
+    }
+
+    private void ConsumeTunerMark(bool isBoss)
+    {
+        ClearTunerMark(true);
+        tunerCooldownUntil = Time.time + GetTunerCooldown(isBoss);
+    }
+
+    private float GetTunerCooldown(bool isBoss)
+    {
+        return isBoss ? tunerBossCooldownAfterMark : tunerCooldownAfterMark;
+    }
+
+    private bool IsBossTarget(GameObject target)
+    {
+        return target != null &&
+               (target.GetComponent<BossController>() != null ||
+                target.GetComponentInParent<BossController>() != null);
+    }
+
+    private bool TryGetTargetHealth(GameObject target, out int currentHealth, out int maxHealth)
+    {
+        DummyHealth dummyHealth = target.GetComponent<DummyHealth>() ??
+                                  target.GetComponentInParent<DummyHealth>();
+        if (dummyHealth != null)
+        {
+            currentHealth = dummyHealth.CurrentHealth;
+            maxHealth = dummyHealth.maxHealth;
+            return maxHealth > 0;
+        }
+
+        ShardSwarmHealth swarmHealth = target.GetComponent<ShardSwarmHealth>() ??
+                                       target.GetComponentInParent<ShardSwarmHealth>();
+        if (swarmHealth != null)
+        {
+            currentHealth = swarmHealth.CurrentHealth;
+            maxHealth = swarmHealth.maxHealth;
+            return maxHealth > 0;
+        }
+
+        currentHealth = 0;
+        maxHealth = 0;
+        return false;
     }
 
     /// <summary>

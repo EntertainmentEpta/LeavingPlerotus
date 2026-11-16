@@ -47,6 +47,15 @@ public class PrimaryAttackKnife : MonoBehaviour
     public float swordRange = 7f;
     public float axeRange = 7.5f; 
 
+    [Header("Soft Aim Assist")]
+    [Min(0.1f)] public float aimAssistRange = 6f;
+    [Min(0.1f)] public float daggerAimAssistRange = 5f;
+    [Range(1f, 180f)] public float aimAssistConeAngle = 80f;
+    [Range(1f, 180f)] public float daggerAimAssistConeAngle = 70f;
+    [Min(0.1f)] public float aimAssistCloseRange = 2f;
+    [Min(0.1f)] public float aimAssistSmoothing = 8f;
+    public LayerMask enemyLayerMask = ~0;
+
     [Header("VFX")]
     [Tooltip("Arraste aqui suas variações de VFX para hits NORMAIS. O script vai sortear um deles a cada hit!")]
     public GameObject[] hitImpactVariations;
@@ -484,6 +493,109 @@ public class PrimaryAttackKnife : MonoBehaviour
             canAttack = true;
             isAttacking = false;
         }
+    }
+
+    public Vector3 GetAimAssistDirection()
+    {
+        PlayerM movement = GetComponent<PlayerM>() ?? GetComponentInParent<PlayerM>();
+        Vector3 inputDirection = movement != null ? movement.MoveDirection : Vector3.zero;
+        inputDirection = Vector3.ProjectOnPlane(inputDirection, Vector3.up).normalized;
+        bool hasMovementIntent = inputDirection.sqrMagnitude > 0.0001f;
+        Vector3 aimDirection = hasMovementIntent
+            ? inputDirection
+            : Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
+
+        GetAimAssistSettings(out float searchRange, out float coneAngle);
+        int layerMask = enemyLayerMask.value == 0 ? Physics.AllLayers : enemyLayerMask.value;
+        Collider[] nearbyColliders = Physics.OverlapSphere(
+            transform.position,
+            searchRange,
+            layerMask,
+            QueryTriggerInteraction.Ignore);
+
+        GameObject closestTarget = null;
+        float closestDistance = float.PositiveInfinity;
+        GameObject coneTarget = null;
+        float coneScore = float.PositiveInfinity;
+        HashSet<GameObject> evaluatedTargets = new HashSet<GameObject>();
+
+        foreach (Collider nearbyCollider in nearbyColliders)
+        {
+            GameObject target = ResolveEnemyTarget(nearbyCollider);
+            if (target == null || !evaluatedTargets.Add(target)) continue;
+
+            Vector3 toTarget = Vector3.ProjectOnPlane(target.transform.position - transform.position, Vector3.up);
+            float distance = toTarget.magnitude;
+            if (distance <= 0.001f || distance > searchRange) continue;
+
+            if (distance <= aimAssistCloseRange)
+            {
+                if (distance < closestDistance)
+                {
+                    closestDistance = distance;
+                    closestTarget = target;
+                }
+                continue;
+            }
+
+            float angle = Vector3.Angle(aimDirection, toTarget);
+            if (angle > coneAngle * 0.5f) continue;
+
+            float score = (distance / searchRange) + (angle / (coneAngle * 0.5f));
+            if (score < coneScore)
+            {
+                coneScore = score;
+                coneTarget = target;
+            }
+        }
+
+        GameObject selectedTarget = closestTarget ?? coneTarget;
+        Vector3 targetDirection = Vector3.zero;
+        if (selectedTarget != null)
+        {
+            targetDirection = Vector3.ProjectOnPlane(
+                selectedTarget.transform.position - transform.position,
+                Vector3.up);
+            if (targetDirection.sqrMagnitude > 0.0001f)
+            {
+                targetDirection.Normalize();
+                return targetDirection;
+            }
+        }
+
+        return Vector3.zero;
+    }
+
+    private void GetAimAssistSettings(out float searchRange, out float coneAngle)
+    {
+        searchRange = aimAssistRange;
+        coneAngle = aimAssistConeAngle;
+
+        Player_WeaponManager weaponManager = GetComponent<Player_WeaponManager>() ??
+                                             GetComponentInParent<Player_WeaponManager>();
+        WeaponOffset weapon = weaponManager != null && weaponManager.rightHand != null &&
+                              weaponManager.rightHand.childCount > 0
+            ? weaponManager.rightHand.GetChild(0).GetComponent<WeaponOffset>()
+            : null;
+
+        if (weapon != null && weapon.weaponType == WeaponType.Dagger)
+        {
+            searchRange = daggerAimAssistRange;
+            coneAngle = daggerAimAssistConeAngle;
+        }
+    }
+
+    private GameObject ResolveEnemyTarget(Collider collider)
+    {
+        DummyHealth dummyHealth = collider.GetComponentInParent<DummyHealth>();
+        if (dummyHealth != null && dummyHealth.CurrentHealth > 0)
+            return dummyHealth.gameObject;
+
+        ShardSwarmHealth swarmHealth = collider.GetComponentInParent<ShardSwarmHealth>();
+        if (swarmHealth != null && swarmHealth.CurrentHealth > 0)
+            return swarmHealth.gameObject;
+
+        return null;
     }
 
     private System.Collections.IEnumerator BackupAttackSequenceCoroutine()

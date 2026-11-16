@@ -2121,8 +2121,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c53e7519e486fec47962f3a1501e57c4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerEssence
-  currentEssence: 0
-  totalEssenceCollected: 0
+  currentEssence: 10000
+  totalEssenceCollected: 10000
+  preserveInitialEssenceInEditor: 1
   onEssenceCollected:
     m_PersistentCalls:
       m_Calls: []

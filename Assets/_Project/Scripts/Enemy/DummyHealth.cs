@@ -344,7 +344,12 @@ public class DummyHealth : MonoBehaviour
 
         if (dummyRenderer != null)
         {
-            StartCoroutine(isPoison ? FlashPoisonGreen() : FlashRed());
+            if (isPoison)
+                StartCoroutine(FlashPoisonGreen());
+            else if (!isProjectile)
+                StartCoroutine(FlashWhite());
+            else
+                StartCoroutine(FlashRed());
         }
 
         if (CurrentHealth <= 0)
@@ -388,6 +393,16 @@ public class DummyHealth : MonoBehaviour
 
     IEnumerator FlashRed()
     {
+        yield return FlashColor(hitColor, hitFlashTime);
+    }
+
+    IEnumerator FlashWhite()
+    {
+        yield return FlashColor(Color.white, 0.08f);
+    }
+
+    IEnumerator FlashColor(Color flashColor, float duration)
+    {
         if (!isFlashing)
         {
             flashRends = GetComponentsInChildren<Renderer>();
@@ -412,12 +427,12 @@ public class DummyHealth : MonoBehaviour
         {
             if (flashRends[i] == null) continue;
             Material m = flashRends[i].material;
-            if (hasBase[i]) m.SetColor("_BaseColor", hitColor);
-            if (hasTint[i]) m.color = hitColor;
-            if (hasEmis[i]) { m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", hitColor * 0.8f); }
+            if (hasBase[i]) m.SetColor("_BaseColor", flashColor);
+            if (hasTint[i]) m.color = flashColor;
+            if (hasEmis[i]) { m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", flashColor * 0.8f); }
         }
 
-        yield return new WaitForSeconds(hitFlashTime);
+        yield return new WaitForSeconds(duration);
 
         for (int i = 0; i < flashRends.Length; i++)
         {

@@ -55,6 +55,7 @@ public class PlayerM : MonoBehaviour
     private Vector3 plasmaAimDirection;
 
     public bool IsPlasmaActionLocked => isPlasmaActionLocked;
+    public Vector3 MoveDirection => moveDirection;
 
     [HideInInspector]
     public float debuffSpeedMultiplier = 1.0f;
@@ -242,10 +243,20 @@ public class PlayerM : MonoBehaviour
 
     private void MovePlayer()
     {
+        bool isAttacking = attackScript != null && attackScript.isAttacking;
         bool inDamageWindow = attackScript != null && attackScript.isHitboxActive;
         
-        Vector3 targetVelocity = moveDirection * targetSpeed;
         Vector3 currentVelocity = rb.linearVelocity; 
+        if (isAttacking)
+        {
+            rb.linearVelocity = Vector3.Lerp(
+                currentVelocity,
+                new Vector3(0f, currentVelocity.y, 0f),
+                5f * Time.fixedDeltaTime);
+            return;
+        }
+
+        Vector3 targetVelocity = moveDirection * targetSpeed;
 
         if (inDamageWindow)
         {
@@ -270,6 +281,18 @@ public class PlayerM : MonoBehaviour
 
     private void LookAtMoveDirection()
     {
+        if (attackScript != null && attackScript.isAttacking)
+        {
+            Vector3 aimAssistDirection = attackScript.GetAimAssistDirection();
+            if (aimAssistDirection.sqrMagnitude > 0.0001f)
+            {
+                float blend = 1f - Mathf.Exp(-attackScript.aimAssistSmoothing * Time.deltaTime);
+                Quaternion targetRotation = Quaternion.LookRotation(aimAssistDirection, Vector3.up);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, blend);
+            }
+            return;
+        }
+
         if (isPlasmaActionLocked && plasmaAimDirection.sqrMagnitude > 0.0001f)
         {
             Quaternion aimRotation = Quaternion.LookRotation(plasmaAimDirection, Vector3.up);
