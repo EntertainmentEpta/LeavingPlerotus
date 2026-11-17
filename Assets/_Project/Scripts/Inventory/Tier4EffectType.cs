@@ -19,7 +19,9 @@ public enum Tier4EffectType
     Sentinel_T4Effect = 10,     // Sentinela: rouba vida com base no dano causado
     Bismutado_T4Effect = 11,    // Bismutado: ataques causam dano extra em área
     Tuner_T4Effect = 12,        // Tuner: marca inimigos aleatórios
-    Golem_T4Effect = 13         // Golem: Esquiva Perfeita atordoa inimigos em área (AoE)
-    // Futuros efeitos:
-    // VampiricStrike, ChainLightning, FrostNova, etc.
+    Golem_T4Effect = 13,        // Golem: Esquiva Perfeita atordoa inimigos em área (AoE)
+    Boomerang_ElectricCrystal = 14,   // Glaive T4: Pontas de cristal elétricas em área
+    Boomerang_TranslucentClones = 15, // Glaive T4: Clones translúcidos rastreadores na volta
+    Boomerang_BounceEcho = 16,        // Glaive T4: Ecos fantasmas autônomos ao ricochetear
+    Boomerang_ShieldParalysis = 17    // Glaive T4 (Evasion): Escudo aplica paralisia elétrica melee
 }

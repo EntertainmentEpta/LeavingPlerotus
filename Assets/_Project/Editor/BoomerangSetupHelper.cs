@@ -25,8 +25,8 @@ public static class BoomerangSetupHelper
     private const string ANIM_HOLSTER_FBX = BOOMERANG_FOLDER + "/Astronaut_guardando_boomerang.fbx";
     private const string ANIM_DEFENSE_FBX = BOOMERANG_FOLDER + "/Astronaut_defense.fbx";
 
-    private const string CONTROLLER_MAIN = "Assets/_Project/Animations/Weapons/BoomerangAnimation.controller";
     private const string CONTROLLER_RESOURCES = "Assets/_Project/Props/WeaponRack/Resources/BoomerangAnimation.controller";
+    private const string CONTROLLER_MAIN = CONTROLLER_RESOURCES;
 
     static BoomerangSetupHelper()
     {
@@ -268,7 +268,7 @@ public static class BoomerangSetupHelper
         // Componentes de integração com Player_WeaponManager e WeaponRack
         WeaponOffset offset = rootGO.AddComponent<WeaponOffset>();
         offset.weaponType = WeaponType.Boomerang;
-        offset.equipPosition = new Vector3(-0.14f, 0.08f, 0.05f);
+        offset.equipPosition = new Vector3(0.02f, 0.02f, 0.03f);
         offset.equipRotation = new Vector3(0f, 0f, 90f);
         offset.stowedBackPosition = new Vector3(0f, -0.08f, -0.20f);
         offset.stowedBackRotation = new Vector3(0f, 0f, 45f);

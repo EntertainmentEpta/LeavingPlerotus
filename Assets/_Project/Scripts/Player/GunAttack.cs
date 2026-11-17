@@ -160,7 +160,10 @@ public class GunAttack : MonoBehaviour
         RefreshOwnerReferences();
         if (!IsEquippedInPlayerHand())
         {
-            RestoreAimCursor();
+            if (!(IsCurrentEquippedWeapon() && AimSettings.IsMouseAim))
+            {
+                RestoreAimCursor();
+            }
             if (playerMovement != null) playerMovement.SetPlasmaFiring(false);
             if (aimConeObject != null) aimConeObject.SetActive(false);
             if (batteryHUDCanvas != null) batteryHUDCanvas.gameObject.SetActive(false);
@@ -313,9 +316,35 @@ public class GunAttack : MonoBehaviour
         return transform.IsChildOf(weaponManager.transform);
     }
 
+    private void LateUpdate()
+    {
+        if (IsCurrentEquippedWeapon())
+        {
+            UpdateAimCursor();
+        }
+    }
+
+    private void OnApplicationFocus(bool hasFocus)
+    {
+        if (hasFocus && IsCurrentEquippedWeapon())
+        {
+            UpdateAimCursor();
+        }
+    }
+
+    private bool IsCurrentEquippedWeapon()
+    {
+        if (!gameObject.activeInHierarchy) return false;
+        RefreshOwnerReferences();
+        if (weaponManager == null) return false;
+
+        return weaponManager.currentWeapon == gameObject ||
+               (weaponManager.currentWeapon != null && weaponManager.currentWeapon.GetComponent<GunAttack>() == this);
+    }
+
     private void UpdateAimCursor()
     {
-        if (IsAnyUIOpen())
+        if (AimSettings.IsGameplayUIOpen())
         {
             return;
         }
@@ -329,8 +358,7 @@ public class GunAttack : MonoBehaviour
                 aimCursorOverrideActive = true;
             }
 
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            AimSettings.ShowAimCursor();
         }
         else
         {
@@ -342,28 +370,11 @@ public class GunAttack : MonoBehaviour
     {
         if (!aimCursorOverrideActive) return;
 
-        if (!IsAnyUIOpen())
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
+        AimSettings.HideAimCursorIfNoUI();
         aimCursorOverrideActive = false;
     }
 
-    private bool IsAnyUIOpen()
-    {
-        if (DialogManager.BlocksGameplayInput || GamePause.IsPaused) return true;
-        if (CheatConsole.IsOpen) return true;
-        if (InventoryUI.Instance != null && InventoryUI.Instance.IsOpen()) return true;
-        if (SyntheticBagUI.Instance != null && SyntheticBagUI.Instance.IsOpen()) return true;
-        if (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen()) return true;
-        if (JournalBookUI.Instance != null && JournalBookUI.Instance.IsOpen) return true;
-        if (EptinhoMenuController.instancia != null && EptinhoMenuController.instancia.IsOpen()) return true;
-        if (MerchantUIController.HasInstance && MerchantUIController.Instance.IsUiOpen()) return true;
-        if (DeathScreenUI.Instance != null && DeathScreenUI.Instance.deathPanel != null && DeathScreenUI.Instance.deathPanel.activeSelf) return true;
-        if (VictoryScreenUI.Instance != null && VictoryScreenUI.Instance.victoryPanel != null && VictoryScreenUI.Instance.victoryPanel.activeSelf) return true;
-        return false;
-    }
+    private bool IsAnyUIOpen() => AimSettings.IsGameplayUIOpen();
 
     private Vector3 GetPlayerDirectionAim()
     {
@@ -727,10 +738,10 @@ public class GunAttack : MonoBehaviour
 
     private void CreateAimCone()
     {
-        Shader coneShader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
-        if (coneShader == null) return;
-
         if (aimConeObject != null) return;
+        aimConeMaterial = AimSettings.CreateGroundIndicatorMaterial(aimConeColor, "PlasmaAimRangeMaterial");
+        if (aimConeMaterial == null) return;
+
         aimConeObject = new GameObject("PlasmaAimRange");
         DontDestroyOnLoad(aimConeObject);
         aimConeTransform = aimConeObject.transform;
@@ -738,20 +749,6 @@ public class GunAttack : MonoBehaviour
         MeshRenderer meshRenderer = aimConeObject.AddComponent<MeshRenderer>();
         aimConeMesh = new Mesh { name = "PlasmaAimRangeMesh" };
         meshFilter.sharedMesh = aimConeMesh;
-
-        aimConeMaterial = new Material(coneShader) { name = "PlasmaAimRangeMaterial" };
-        aimConeMaterial.color = aimConeColor;
-        if (aimConeMaterial.HasProperty("_Surface")) aimConeMaterial.SetFloat("_Surface", 1f);
-        if (aimConeMaterial.HasProperty("_Blend")) aimConeMaterial.SetFloat("_Blend", 0f);
-        if (aimConeMaterial.HasProperty("_SrcBlend")) aimConeMaterial.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
-        if (aimConeMaterial.HasProperty("_DstBlend")) aimConeMaterial.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
-        if (aimConeMaterial.HasProperty("_ZWrite")) aimConeMaterial.SetInt("_ZWrite", 0);
-        if (aimConeMaterial.HasProperty("_Cull")) aimConeMaterial.SetInt("_Cull", (int)CullMode.Off);
-        if (aimConeMaterial.HasProperty("_BaseColor")) aimConeMaterial.SetColor("_BaseColor", aimConeColor);
-        if (aimConeMaterial.HasProperty("_Color")) aimConeMaterial.SetColor("_Color", aimConeColor);
-        if (coneShader.name == "Universal Render Pipeline/Unlit")
-            aimConeMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-        aimConeMaterial.renderQueue = (int)RenderQueue.Transparent;
 
         meshRenderer.sharedMaterial = aimConeMaterial;
         meshRenderer.shadowCastingMode = ShadowCastingMode.Off;

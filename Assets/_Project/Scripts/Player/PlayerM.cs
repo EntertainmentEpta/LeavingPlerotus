@@ -53,6 +53,7 @@ public class PlayerM : MonoBehaviour
     private float targetSpeed;
     private float currentRotationSpeed;
     private bool isPlasmaActionLocked;
+    private float plasmaMoveSpeedMultiplier = 1f;
     private Vector3 plasmaAimDirection;
     private Vector3 lastSafeGroundedPos;
     private bool hasLastSafeGroundedPos;
@@ -77,6 +78,7 @@ public class PlayerM : MonoBehaviour
     private void OnEnable()
     {
         isPlasmaActionLocked = false;
+        plasmaMoveSpeedMultiplier = 1f;
         UnityEngine.AI.NavMeshAgent navAgent = GetComponent<UnityEngine.AI.NavMeshAgent>() ?? GetComponentInParent<UnityEngine.AI.NavMeshAgent>() ?? GetComponentInChildren<UnityEngine.AI.NavMeshAgent>();
         if (navAgent != null)
         {
@@ -215,9 +217,10 @@ public class PlayerM : MonoBehaviour
         EnforceBoundsAndVoidRescue();
     }
 
-    public void SetPlasmaFiring(bool isFiring)
+    public void SetPlasmaFiring(bool isFiring, float speedMultiplier = 0.85f)
     {
         isPlasmaActionLocked = isFiring;
+        plasmaMoveSpeedMultiplier = isFiring ? Mathf.Clamp(speedMultiplier, 0f, 1.5f) : 1f;
     }
 
     public void SetPlasmaAimDirection(Vector3 direction)
@@ -252,8 +255,8 @@ public class PlayerM : MonoBehaviour
         }
         else
         {
-            // Ao atirar com arma de plasma, mantém 85% da velocidade para sensação tática de recuo sem paralisar o jogador
-            float firingPenalty = isPlasmaActionLocked ? 0.85f : 1.0f;
+            // Ao atirar com arma à distância ou carregar Glaive, aplica o multiplicador de velocidade da ação (0.85 Pistola, 0.10 Glaive)
+            float firingPenalty = isPlasmaActionLocked ? plasmaMoveSpeedMultiplier : 1.0f;
             targetSpeed = sprintSpeed * totalSpeedMult * firingPenalty;
             currentRotationSpeed = rotationSpeed;
         }

@@ -166,6 +166,38 @@ public class LoreManager : MonoBehaviour
             }
         );
 
+        EnsureCanonicalScripture(
+            "scripture_weapon_ressonadora",
+            "Esquema de Armamento: Ressonadora",
+            "\"Os projeteis convencionais perdiam estabilidade ao cruzar o campo magnetico das galerias. Adaptamos uma camara de quartzo pressurizado alimentada por prismalita bruta para disparar pulsos de plasma a media distancia sem perder cadencia.\"",
+            true,
+            "eq_arma_projetil",
+            "Ressonadora",
+            "Libera a forja da arma Ressonadora no Robozinho de Síntese (4x Pó de Cristal, 3x Quartzo Básico, 2x Prismalita).",
+            new List<CraftingIngredient>
+            {
+                new CraftingIngredient { itemId = "po_de_cristal", quantity = 4 },
+                new CraftingIngredient { itemId = "quartzo_basico", quantity = 3 },
+                new CraftingIngredient { itemId = "prismalita", quantity = 2 }
+            }
+        );
+
+        EnsureCanonicalScripture(
+            "scripture_weapon_glaive",
+            "Esquema de Armamento: Glaive",
+            "\"Inspirada nos nodos orbitais de Plerotus, esta lamina curva converte energia cinetica do arremesso em ricochetes sucessivos entre multiplos alvos e cria um campo protetor ao retornar para a manopla.\"",
+            true,
+            "eq_arma_boomerang",
+            "Glaive",
+            "Libera a forja da arma Glaive no Robozinho de Síntese (4x Pó de Cristal, 3x Lithos, 2x Cristal Explosivo).",
+            new List<CraftingIngredient>
+            {
+                new CraftingIngredient { itemId = "po_de_cristal", quantity = 4 },
+                new CraftingIngredient { itemId = "lithos", quantity = 3 },
+                new CraftingIngredient { itemId = "cristal_explosivo", quantity = 2 }
+            }
+        );
+
         // ─── ARCO 1: A FEBRE DO OURO MINERAL (Expedição Plerotus - Dias 01 a 60) ───
         EnsureCanonicalScripture(
             "scripture_lore_01",
@@ -415,31 +447,31 @@ public class LoreManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Retorna a próxima escritura ainda não descoberta pelo jogador.
-    /// Dá prioridade para blueprints primeiro, e depois crônicas de lore.
-    /// Se todas já foram descobertas, retorna uma aleatória para releitura.
+    /// Retorna aleatoriamente uma escritura com blueprint ainda não descoberta pelo jogador
+    /// (misturando blueprints de armas e melhorias no mesmo sorteio, sem ordem fixa).
+    /// Quando todos os blueprints forem descobertos, sorteia entre as crônicas restantes.
     /// </summary>
     public LoreScriptureData GetNextUndiscoveredScripture()
     {
         if (allScriptures == null || allScriptures.Count == 0) return null;
 
-        // 1. Tenta encontrar uma com blueprint ainda não descoberta
+        List<LoreScriptureData> undiscoveredBlueprints = new List<LoreScriptureData>();
+        List<LoreScriptureData> undiscoveredLore = new List<LoreScriptureData>();
+
         foreach (var sc in allScriptures)
         {
-            if (sc != null && sc.hasBlueprint && !IsScriptureDiscovered(sc.scriptureId))
-            {
-                return sc;
-            }
+            if (sc == null || IsScriptureDiscovered(sc.scriptureId)) continue;
+            if (sc.hasBlueprint && !string.IsNullOrEmpty(sc.blueprintEquipmentId))
+                undiscoveredBlueprints.Add(sc);
+            else
+                undiscoveredLore.Add(sc);
         }
 
-        // 2. Tenta encontrar qualquer crônica de lore ainda não descoberta
-        foreach (var sc in allScriptures)
-        {
-            if (sc != null && !IsScriptureDiscovered(sc.scriptureId))
-            {
-                return sc;
-            }
-        }
+        if (undiscoveredBlueprints.Count > 0)
+            return undiscoveredBlueprints[UnityEngine.Random.Range(0, undiscoveredBlueprints.Count)];
+
+        if (undiscoveredLore.Count > 0)
+            return undiscoveredLore[UnityEngine.Random.Range(0, undiscoveredLore.Count)];
 
         // 3. Fallback: todas já descobertas, retorna uma aleatória
         return allScriptures[UnityEngine.Random.Range(0, allScriptures.Count)];

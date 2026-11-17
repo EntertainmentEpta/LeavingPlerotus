@@ -114,23 +114,45 @@ public class CraftingManager : MonoBehaviour
         fireRecipe.resultType = CraftingResultType.Equipment;
         fireRecipe.resultEquipment = EquipmentManager.Instance != null ? EquipmentManager.Instance.GetEquipmentData("eq_extintor_nave") : null;
 
-        // Garante que a receita do Machado de Cristal esteja disponível no Crafting
-        if (!allRecipes.Exists(r => r != null && (r.recipeId == "recipe_crystal_axe" || r.recipeId == "recipe_machado_cristal")))
+        // Garante que a receita do Talhador (arma inicial) esteja registrada
+        CraftingRecipe axeRecipe = allRecipes.Find(r => r != null && (r.recipeId == "recipe_crystal_axe" || r.recipeId == "recipe_machado_cristal"));
+        if (axeRecipe == null)
         {
-            CraftingRecipe axeRecipe = ScriptableObject.CreateInstance<CraftingRecipe>();
-            axeRecipe.recipeId     = "recipe_crystal_axe";
-            axeRecipe.recipeName   = "Machado de Cristal";
-            axeRecipe.description  = "Armamento pesado de corte cristalino. Causa alto impacto, golpes em área e estilhaços.";
-            axeRecipe.ingredients  = new List<CraftingIngredient>
-            {
-                new CraftingIngredient { itemId = "po_de_cristal", quantity = 3 },
-                new CraftingIngredient { itemId = "melocactus", quantity = 2 }
-            };
-            axeRecipe.resultType   = CraftingResultType.Equipment;
-            axeRecipe.resultEquipment = EquipmentManager.Instance != null ? EquipmentManager.Instance.GetEquipmentData("eq_crystal_axe") : null;
-
+            axeRecipe = ScriptableObject.CreateInstance<CraftingRecipe>();
+            axeRecipe.recipeId = "recipe_crystal_axe";
             allRecipes.Add(axeRecipe);
         }
+        axeRecipe.recipeName = "Talhador";
+        axeRecipe.description = "Armamento pesado inicial de corte cristalino. Causa alto impacto, golpes em área devastadores e Ground Slam sísmico.";
+        axeRecipe.ingredients = new List<CraftingIngredient>
+        {
+            new CraftingIngredient { itemId = "po_de_cristal", quantity = 3 },
+            new CraftingIngredient { itemId = "melocactus", quantity = 2 }
+        };
+        axeRecipe.resultType = CraftingResultType.Equipment;
+        axeRecipe.resultEquipment = EquipmentManager.Instance != null ? EquipmentManager.Instance.GetEquipmentData("eq_crystal_axe") : null;
+
+        // Armamento desbloqueável por Blueprint aleatório: Ressonadora
+        EnsureInfusionRecipe("recipe_arma_projetil", "Ressonadora",
+            "Armamento balístico de disparos de plasma a distância com cadência e recarga ágeis.",
+            "eq_arma_projetil",
+            new List<CraftingIngredient>
+            {
+                new CraftingIngredient { itemId = "po_de_cristal", quantity = 4 },
+                new CraftingIngredient { itemId = "quartzo_basico", quantity = 3 },
+                new CraftingIngredient { itemId = "prismalita", quantity = 2 }
+            });
+
+        // Armamento desbloqueável por Blueprint aleatório: Glaive
+        EnsureInfusionRecipe("recipe_arma_boomerang", "Glaive",
+            "Lâmina orbital de arremesso com ricochete em cadeia, escudo giratório e descarga elétrica.",
+            "eq_arma_boomerang",
+            new List<CraftingIngredient>
+            {
+                new CraftingIngredient { itemId = "po_de_cristal", quantity = 4 },
+                new CraftingIngredient { itemId = "lithos", quantity = 3 },
+                new CraftingIngredient { itemId = "cristal_explosivo", quantity = 2 }
+            });
 
         // Receitas de Expansão da Câmara de Infusão e Chassi Térmico (Exclusivamente recursos da Bolsa Sintética)
         EnsureInfusionRecipe("recipe_camara_infusao_1", "Câmara de Infusão Expandida I",
@@ -290,11 +312,23 @@ public class CraftingManager : MonoBehaviour
     {
         if (recipe == null || SaveManager.instance == null) return false;
 
-        // Armas em desenvolvimento estão bloqueadas para craft no playtest
-        if (recipe.recipeId == "recipe_arma_projetil" || recipe.recipeId == "weapon_dagger" ||
+        // Protótipos classificados e armas iniciais já prontas no Expositor não são re-craftados
+        if (recipe.recipeId == "weapon_dagger" || recipe.recipeId == "recipe_crystal_axe" || recipe.recipeId == "recipe_machado_cristal" ||
             (recipe.recipeId != null && recipe.recipeId.StartsWith("weapon_classified_")))
         {
             return false;
+        }
+
+        // Ressonadora e Glaive exigem ter encontrado o respectivo Blueprint no mapa
+        if (recipe.recipeId == "recipe_arma_projetil")
+        {
+            if (LoreManager.Instance != null && !LoreManager.Instance.IsBlueprintUnlocked("eq_arma_projetil"))
+                return false;
+        }
+        else if (recipe.recipeId == "recipe_arma_boomerang")
+        {
+            if (LoreManager.Instance != null && !LoreManager.Instance.IsBlueprintUnlocked("eq_arma_boomerang"))
+                return false;
         }
 
         // Verifica pré-requisito de progressão (ex: Tier I obrigatório antes do Tier II)
@@ -386,13 +420,12 @@ public class CraftingManager : MonoBehaviour
                 EquipmentData equipData = recipe.resultEquipment;
                 if (equipData == null && EquipmentManager.Instance != null)
                 {
-                    string targetEquipId = recipe.recipeId == "recipe_crystal_axe" ? "eq_crystal_axe" :
-                        (recipe.recipeId.StartsWith("recipe_") ? recipe.recipeId.Replace("recipe_", "equip_") : recipe.recipeId);
+                    string targetEquipId = ResolveEquipmentIdForRecipe(recipe.recipeId);
                     equipData = EquipmentManager.Instance.GetEquipmentData(targetEquipId);
                     recipe.resultEquipment = equipData;
                 }
 
-                // Registra a melhoria craftada no save
+                // Registra a melhoria/arma craftada no save
                 if (equipData != null)
                 {
                     SaveManager.instance.AddCraftedEquipment(equipData.equipmentId);
@@ -400,11 +433,11 @@ public class CraftingManager : MonoBehaviour
                     {
                         EquipmentManager.Instance?.Equip(equipData.equipmentId);
                     }
-                    Debug.Log($"[CRAFTING] Melhoria craftada: {equipData.equipmentName}");
+                    Debug.Log($"[CRAFTING] Equipamento/arma craftado: {equipData.equipmentName}");
                 }
                 else
                 {
-                    string fallbackId = recipe.recipeId == "recipe_crystal_axe" ? "eq_crystal_axe" : recipe.recipeId.Replace("recipe_", "equip_");
+                    string fallbackId = ResolveEquipmentIdForRecipe(recipe.recipeId);
                     Debug.LogWarning($"[CRAFTING] AVISO: resultEquipment era nulo para a receita '{recipe.recipeName}'. Usando ID '{fallbackId}'.");
                     SaveManager.instance.AddCraftedEquipment(fallbackId);
                 }
@@ -414,11 +447,24 @@ public class CraftingManager : MonoBehaviour
         // 3. Salva progresso imediatamente
         SaveManager.instance.SavePersistentData();
 
-        // 4. Dispara evento
+        // 4. Dispara evento e atualiza WeaponRack se estiver na Base
         OnCraftCompleted?.Invoke(recipe);
+        if (WeaponRack.Instance != null)
+        {
+            WeaponRack.Instance.RefreshUnlockedVisualsNow();
+        }
 
         Debug.Log($"[CRAFTING] ✓ Craft concluído: {recipe.recipeName}");
         return true;
+    }
+
+    private static string ResolveEquipmentIdForRecipe(string recipeId)
+    {
+        if (recipeId == "recipe_crystal_axe" || recipeId == "recipe_machado_cristal") return "eq_crystal_axe";
+        if (recipeId == "recipe_arma_projetil") return "eq_arma_projetil";
+        if (recipeId == "recipe_arma_boomerang") return "eq_arma_boomerang";
+        if (!string.IsNullOrEmpty(recipeId) && recipeId.StartsWith("recipe_")) return recipeId.Replace("recipe_", "equip_");
+        return recipeId;
     }
 
     /// <summary>

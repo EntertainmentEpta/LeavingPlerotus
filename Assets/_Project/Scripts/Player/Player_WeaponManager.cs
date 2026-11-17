@@ -270,7 +270,7 @@ public class Player_WeaponManager : MonoBehaviour
             BoomerangWeapon boomerang = currentWeapon.GetComponent<BoomerangWeapon>();
             if (boomerang != null)
             {
-                boomerang.AttachToHandImmediate();
+                boomerang.EquipInHandImmediate();
             }
             Debug.Log("[Player_WeaponManager] Arma empunhada (Drawn) e visível.");
         }
@@ -475,7 +475,7 @@ public class Player_WeaponManager : MonoBehaviour
         BoomerangWeapon boomerangComp = weapon.GetComponent<BoomerangWeapon>();
         if (boomerangComp != null)
         {
-            boomerangComp.AttachToHandImmediate();
+            boomerangComp.EquipInHandImmediate();
         }
     }
 
@@ -505,5 +505,18 @@ public class Player_WeaponManager : MonoBehaviour
         }
 
         Debug.Log("[Player_WeaponManager] Arma desequipada com sucesso. O jogador está com as mãos livres.");
+    }
+
+    /// <summary>
+    /// Chamado por Animation Event opcional no clipe de arremesso da Glaive/Bumerangue.
+    /// </summary>
+    public void AnimEvent_BoomerangReleasePoint()
+    {
+        if (currentWeapon == null) return;
+        BoomerangWeapon bw = currentWeapon.GetComponent<BoomerangWeapon>();
+        if (bw != null)
+        {
+            bw.AnimEvent_BoomerangReleasePoint();
+        }
     }
 }
