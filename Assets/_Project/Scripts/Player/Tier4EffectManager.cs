@@ -218,6 +218,10 @@ public class Tier4EffectManager : MonoBehaviour
                 break;
 
             case Tier4EffectType.Golem_T4Effect:
+            case Tier4EffectType.Boomerang_ElectricCrystal:
+            case Tier4EffectType.Boomerang_TranslucentClones:
+            case Tier4EffectType.Boomerang_BounceEcho:
+            case Tier4EffectType.Boomerang_ShieldParalysis:
                 activeEffects.Add(effectType);
                 Debug.Log($"[Tier4EffectManager] Efeito {effectType} ATIVADO!");
                 break;
@@ -312,6 +316,10 @@ public class Tier4EffectManager : MonoBehaviour
                 break;
 
             case Tier4EffectType.Golem_T4Effect:
+            case Tier4EffectType.Boomerang_ElectricCrystal:
+            case Tier4EffectType.Boomerang_TranslucentClones:
+            case Tier4EffectType.Boomerang_BounceEcho:
+            case Tier4EffectType.Boomerang_ShieldParalysis:
                 activeEffects.Remove(effectType);
                 Debug.Log($"[Tier4EffectManager] Efeito {effectType} DESATIVADO!");
                 break;

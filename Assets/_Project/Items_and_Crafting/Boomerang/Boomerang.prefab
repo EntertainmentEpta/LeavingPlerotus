@@ -142,16 +142,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fa1dcfdfeeceab94eb225c2253d121af, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BoomerangWeapon
-  currentState: 0
-  handMountPosition: {x: -0.14, y: 0.08, z: 0.05}
+  currentState: 1
+  handMountPosition: {x: 0.02, y: 0.02, z: 0.03}
   handMountRotation: {x: 0, y: 0, z: 90}
   backMountPosition: {x: 0, y: -0.08, z: -0.20}
   backMountRotation: {x: 0, y: 0, z: 45}
   equippedWorldScale: {x: 0.55, y: 0.55, z: 0.55}
-  enableElectricCrystalVariant: 1
-  enableTranslucentClonesOnReturn: 1
-  enableBounceEchoSpawning: 1
-  enableShieldMeleeParalysis: 1
+  enableElectricCrystalVariant: 0
+  enableTranslucentClonesOnReturn: 0
+  enableBounceEchoSpawning: 0
+  enableShieldMeleeParalysis: 0
   useBuiltInStateAndPhysics: 1
   maxChargeTime: 0.85
   minThrowSpeed: 14
@@ -160,8 +160,8 @@ MonoBehaviour:
   maxThrowDistance: 13.5
   returnHomingSpeed: 22
   returnHomingAcceleration: 28
-  minBounces: 2
-  maxBounces: 6
+  minBounces: 0
+  maxBounces: 1
   parryWindowDuration: 0.2
   lockPlayerMovementDuringShield: 0
   shieldAlternateKey: 114
@@ -191,7 +191,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WeaponOffset
   weaponType: 4
-  equipPosition: {x: -0.14, y: 0.08, z: 0.05}
+  equipPosition: {x: 0.02, y: 0.02, z: 0.03}
   equipRotation: {x: 0, y: 0, z: 90}
   stowedBackPosition: {x: 0, y: -0.08, z: -0.20}
   stowedBackRotation: {x: 0, y: 0, z: 45}

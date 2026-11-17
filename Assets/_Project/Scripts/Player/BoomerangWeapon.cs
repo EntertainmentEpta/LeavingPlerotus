@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 /// <summary>
 /// Máquina de Estados do Bumerangue.
@@ -33,14 +34,14 @@ public enum BoomerangState
 public class BoomerangWeapon : MonoBehaviour
 {
     [Header("Estado Atual da Máquina de Estados")]
-    [SerializeField] private BoomerangState currentState = BoomerangState.Stowed;
+    [SerializeField] private BoomerangState currentState = BoomerangState.Charging;
     public BoomerangState CurrentState => currentState;
 
     public event Action<BoomerangState, BoomerangState> OnStateChanged;
 
     [Header("Encaixe Visual: Mão Direita vs Costas")]
-    [Tooltip("Posição local quando empunhado na mão direita (mixamorig:RightHand).")]
-    public Vector3 handMountPosition = new Vector3(-0.14f, 0.08f, 0.05f);
+    [Tooltip("Posição local quando empunhado na mão direita.")]
+    public Vector3 handMountPosition = new Vector3(0.02f, 0.02f, 0.03f);
 
     [Tooltip("Rotação local quando empunhado na mão direita.")]
     public Vector3 handMountRotation = new Vector3(0f, 0f, 90f);
@@ -54,27 +55,27 @@ public class BoomerangWeapon : MonoBehaviour
     [Tooltip("Escala global do modelo visual do bumerangue.")]
     public Vector3 equippedWorldScale = new Vector3(0.55f, 0.55f, 0.55f);
 
-    [Header("Variantes e VFX (Ativáveis no Inspector)")]
-    [Tooltip("Variante 1 (PDF Pág. 5): Pontas de cristal se desacoplam no ar soltando feixes de eletricidade (estilo Istar).")]
-    public bool enableElectricCrystalVariant = true;
+    [Header("Variantes e Efeitos Tier 4 (Ativados por Tier4EffectManager ou Teste no Inspector)")]
+    [Tooltip("Tier 4: Pontas de cristal se desacoplam no ar soltando feixes de eletricidade (estilo Istar).")]
+    public bool enableElectricCrystalVariant = false;
 
-    [Tooltip("Variante 2 (PDF Pág. 6): Gera clones translúcidos na volta (Returning) e ecos nos ricochetes.")]
-    public bool enableTranslucentClonesOnReturn = true;
+    [Tooltip("Tier 4: Gera clones translúcidos na volta (Returning).")]
+    public bool enableTranslucentClonesOnReturn = false;
 
-    [Tooltip("Variante 2 (PDF Pág. 6): Spawna um eco fantasma autônomo a cada ricochete.")]
-    public bool enableBounceEchoSpawning = true;
+    [Tooltip("Tier 4: Spawna um eco fantasma autônomo a cada ricochete.")]
+    public bool enableBounceEchoSpawning = false;
 
-    [Tooltip("Upgrade Melee (PDF Pág. 8): Escudo giratório aplica paralisia elétrica ao contato.")]
-    public bool enableShieldMeleeParalysis = true;
+    [Tooltip("Tier 4 (Evasion): Escudo giratório aplica paralisia elétrica ao contato.")]
+    public bool enableShieldMeleeParalysis = false;
 
     [Header("Parâmetros de Física / Máquina de Estados")]
     [Tooltip("Se verdadeiro, ativa os controles e física base para testar todas as animações e VFX imediatamente.")]
     public bool useBuiltInStateAndPhysics = true;
 
-    [Tooltip("Tempo máximo segurando o botão de ataque para atingir 100% de força (Charging).")]
+    [Tooltip("Tempo máximo segurando o botão de ataque após armar para atingir 100% de força.")]
     public float maxChargeTime = 0.85f;
 
-    [Tooltip("Velocidade mínima de arremesso (clique rápido).")]
+    [Tooltip("Velocidade mínima de arremesso (sem carga).")]
     public float minThrowSpeed = 14f;
 
     [Tooltip("Velocidade máxima de arremesso (carga máxima).")]
@@ -92,11 +93,11 @@ public class BoomerangWeapon : MonoBehaviour
     [Tooltip("Aceleração extra na volta para alcançar o jogador mesmo se ele der Dash.")]
     public float returnHomingAcceleration = 28f;
 
-    [Tooltip("Quantidade mínima de quiques (sem carga).")]
-    public int minBounces = 2;
+    [Tooltip("Quantidade base mínima de quiques (sem carga).")]
+    public int minBounces = 0;
 
-    [Tooltip("Quantidade máxima de quiques (carga máxima).")]
-    public int maxBounces = 6;
+    [Tooltip("Quantidade base máxima de quiques (carga máxima).")]
+    public int maxBounces = 1;
 
     [Tooltip("Janela de Parry nos primeiros 0.2s do estado SpinningShield (reflete projéteis / atordoa melee).")]
     public float parryWindowDuration = 0.2f;
@@ -106,6 +107,55 @@ public class BoomerangWeapon : MonoBehaviour
 
     [Tooltip("Tecla alternativa (além do Botão Direito do Mouse) para ativar o Escudo Giratório.")]
     public KeyCode shieldAlternateKey = KeyCode.R;
+
+    [Header("Cursor")]
+    [Tooltip("Mantém o cursor do mouse sempre visível e destravado enquanto a Glaive estiver equipada.")]
+    public bool alwaysShowCursorWhenEquipped = true;
+
+    [Header("Antecipação e Timing de Arremesso")]
+    [Tooltip("Nome do estado de ataque/arremesso no Animator (para sincronizar o ponto de soltura).")]
+    public string attackStateName = "Attack1";
+
+    [Tooltip("Se verdadeiro, soltar o botão antes do evento BoomerangDrawReady cancela o ataque (estilo arco).")]
+    public bool requireDrawReadyEvent = true;
+
+    [Tooltip("Momento normalizado (0..1) do evento ThrowBoomerang (fallback caso o evento seja pulado em transições).")]
+    [Range(0.1f, 0.9f)]
+    public float releaseNormalizedTime = 0.352f;
+
+    [Tooltip("Ponto normalizado (0..1) onde a antecipação segura a pose armada antes do evento ThrowBoomerang.")]
+    [Range(0.1f, 0.85f)]
+    public float holdAtApexNormalizedTime = 0.30f;
+
+    [Tooltip("Tempo máximo (segundos) que o jogador pode segurar o carregamento antes do arremesso automático.")]
+    public float maxHoldDuration = 1.5f;
+
+    [Tooltip("Velocidade inicial antes de BoomerangDrawReady (1.0 garante que um clique rápido solte antes do evento e cancele).")]
+    public float initialAnticipationSpeed = 1.0f;
+
+    [Tooltip("Velocidade após soltar logo depois de BoomerangDrawReady para concluir rapidamente até ThrowBoomerang.")]
+    public float quickTapAnticipationSpeed = 2.85f;
+
+    [Tooltip("Velocidade mínima da antecipação enquanto o jogador segura para carregar o arremesso.")]
+    public float chargeHoldAnticipationSpeed = 0.25f;
+
+    [Tooltip("Velocidade após soltar um ataque carregado para cruzar o evento ThrowBoomerang e concluir a animação.")]
+    public float throwFollowThroughSpeed = 1.65f;
+
+    [Tooltip("Janela após BoomerangDrawReady em que a soltura ainda usa velocidade acelerada de tirinho rápido.")]
+    public float quickReleaseAfterCommitWindow = 0.28f;
+
+    [Tooltip("Multiplicador da velocidade de movimento enquanto segura/carrega o ataque (0.10 = redução de 90%).")]
+    [Range(0f, 1f)]
+    public float aimingMoveSpeedMultiplier = 0.10f;
+
+    [Header("Indicador de Alcance no Chão")]
+    [Tooltip("Cor do indicador translúcido no chão mostrando direção e alcance do arremesso.")]
+    public Color aimIndicatorColor = new Color(0.05f, 0.75f, 1f, 0.22f);
+    [Min(0.1f)] public float aimIndicatorWidth = 0.9f;
+    [Min(0f)] public float aimIndicatorGroundOffset = 0.04f;
+    [Tooltip("Se verdadeiro, mostra o indicador no chão apenas enquanto estiver segurando/carregando o arremesso (como a Pistola).")]
+    public bool showAimIndicatorOnlyWhileAttacking = true;
 
     // ─── Referências Internas da Hierarquia do Modelo (boomerang.fbx) ─────────
     [Header("Referências da Hierarquia do Modelo (Auto-Bind)")]
@@ -130,6 +180,7 @@ public class BoomerangWeapon : MonoBehaviour
     private Player_WeaponManager weaponManager;
     private PlayerM playerMovement;
     private PlayerAttributesOffensive offensiveStats;
+    private Tier4EffectManager tier4EffectManager;
     private Animator playerAnimator;
     private Transform rightHandAnchor;
     private Transform backSpineAnchor;
@@ -146,8 +197,32 @@ public class BoomerangWeapon : MonoBehaviour
     private float travelledDistance;
     private float currentReturnSpeed;
     private int bouncesRemaining;
+    private int piercingRemaining;
     private float stateElapsedTime;
     private bool isDrawnInHand;
+    private bool isWindupThrowPending;
+    private bool hasCommittedDraw;
+    private float drawCommitTime;
+    private float fullChargeReachedAt = -1f;
+    private bool isPerfectChargeThrow;
+    private bool isReleaseRequested;
+    private bool isQuickTapRelease;
+    private bool animEventReleaseSignaled;
+    private bool passedEventWhileHolding;
+    private float releaseWaitElapsed;
+    private bool aimCursorOverrideActive;
+    private GameObject aimIndicatorObject;
+    private Transform aimIndicatorTransform;
+    private Mesh aimIndicatorMesh;
+    private Material aimIndicatorMaterial;
+    private float cachedIndicatorRange = -1f;
+    private float cachedIndicatorWidth = -1f;
+    private float cachedIndicatorCharge = -1f;
+
+    private bool IsElectricCrystalActive => enableElectricCrystalVariant || (tier4EffectManager != null && tier4EffectManager.HasEffect(Tier4EffectType.Boomerang_ElectricCrystal));
+    private bool IsTranslucentClonesActive => enableTranslucentClonesOnReturn || (tier4EffectManager != null && tier4EffectManager.HasEffect(Tier4EffectType.Boomerang_TranslucentClones));
+    private bool IsBounceEchoActive => enableBounceEchoSpawning || (tier4EffectManager != null && tier4EffectManager.HasEffect(Tier4EffectType.Boomerang_BounceEcho));
+    private bool IsShieldParalysisActive => enableShieldMeleeParalysis || (tier4EffectManager != null && tier4EffectManager.HasEffect(Tier4EffectType.Boomerang_ShieldParalysis));
     private readonly HashSet<int> hitTargetsThisPhase = new HashSet<int>();
     private readonly Dictionary<int, float> hitCooldowns = new Dictionary<int, float>();
 
@@ -165,6 +240,7 @@ public class BoomerangWeapon : MonoBehaviour
     private static readonly int AnimBoolIsDefending = Animator.StringToHash("IsDefending");
     private static readonly int AnimBoolIsReloading = Animator.StringToHash("IsReloading");
     private static readonly int AnimBoolIsCharging = Animator.StringToHash("IsCharging");
+    private static readonly int AnimFloatAttackSpeed = Animator.StringToHash("AttackSpeed");
 
     private void Awake()
     {
@@ -184,9 +260,17 @@ public class BoomerangWeapon : MonoBehaviour
 
         if (IsEquippedByPlayer())
         {
-            // Quando equipado pelo Player_WeaponManager, começa na mão pronto para uso
-            AttachToHandImmediate();
-            isDrawnInHand = true;
+            // Começa empunhado na mão por padrão (salvo se o WeaponManager já tiver mandado guardar nas costas)
+            if (weaponManager == null || weaponManager.isWeaponDrawn)
+            {
+                EquipInHandImmediate();
+            }
+            else
+            {
+                currentState = BoomerangState.Stowed;
+                isDrawnInHand = false;
+                AttachToBackImmediate();
+            }
         }
     }
 
@@ -281,7 +365,7 @@ public class BoomerangWeapon : MonoBehaviour
         electricCrystalVFX.Initialize(piramideSuperior, piramideInferior, baseLaminaSuperior, baseLaminaInferior);
         echoVFX.Initialize(spinTarget);
         shieldVFX.Initialize(spinTarget);
-        shieldVFX.enableMeleeParalysisUpgrade = enableShieldMeleeParalysis;
+        shieldVFX.enableMeleeParalysisUpgrade = IsShieldParalysisActive;
     }
 
     private void TryBindPlayerReferences()
@@ -300,7 +384,8 @@ public class BoomerangWeapon : MonoBehaviour
         if (weaponManager != null)
         {
             playerMovement = weaponManager.GetComponent<PlayerM>() ?? weaponManager.GetComponentInParent<PlayerM>();
-            offensiveStats = weaponManager.GetComponent<PlayerAttributesOffensive>() ?? weaponManager.GetComponentInParent<PlayerAttributesOffensive>();
+            offensiveStats = weaponManager.GetComponent<PlayerAttributesOffensive>() ?? weaponManager.GetComponentInParent<PlayerAttributesOffensive>() ?? PlayerAttributesOffensive.Instance;
+            tier4EffectManager = weaponManager.GetComponentInChildren<Tier4EffectManager>() ?? weaponManager.GetComponentInParent<Tier4EffectManager>();
             rightHandAnchor = weaponManager.rightHand;
             playerAnimator = weaponManager.playerAnimator;
 
@@ -321,11 +406,55 @@ public class BoomerangWeapon : MonoBehaviour
 
     private bool IsEquippedByPlayer()
     {
-        if (IsInLobbyRack()) return false;
-        if (weaponManager != null && weaponManager.currentWeapon == gameObject) return true;
-        if (transform.parent != null && (transform.parent.name.Contains("RightHand") || transform.parent.name.Contains("Spine")))
-            return true;
-        return weaponManager != null;
+        if (IsInLobbyRack() || weaponManager == null) return false;
+        if (weaponManager.currentWeapon != null)
+            return weaponManager.currentWeapon == gameObject;
+        return transform.parent != null && (transform.parent.name.Contains("RightHand") || transform.parent.name.Contains("Spine"));
+    }
+
+    private void OnDisable()
+    {
+        RestoreAimCursor();
+        if (aimIndicatorObject != null) aimIndicatorObject.SetActive(false);
+    }
+
+    private void OnDestroy()
+    {
+        if (aimIndicatorMesh != null) Destroy(aimIndicatorMesh);
+        if (aimIndicatorMaterial != null) Destroy(aimIndicatorMaterial);
+        if (aimIndicatorObject != null) Destroy(aimIndicatorObject);
+    }
+
+    private void OnApplicationFocus(bool hasFocus)
+    {
+        if (hasFocus && !IsInLobbyRack() && IsEquippedByPlayer())
+        {
+            UpdateAimCursor();
+        }
+    }
+
+    private void UpdateAimCursor()
+    {
+        if (AimSettings.IsGameplayUIOpen())
+            return;
+
+        if (alwaysShowCursorWhenEquipped || AimSettings.IsMouseAim)
+        {
+            aimCursorOverrideActive = true;
+            AimSettings.ShowAimCursor();
+        }
+        else
+        {
+            RestoreAimCursor();
+        }
+    }
+
+    private void RestoreAimCursor()
+    {
+        if (!aimCursorOverrideActive) return;
+
+        AimSettings.HideAimCursorIfNoUI();
+        aimCursorOverrideActive = false;
     }
 
     private void Update()
@@ -335,7 +464,13 @@ public class BoomerangWeapon : MonoBehaviour
 
         TryBindPlayerReferences();
         if (!IsEquippedByPlayer())
+        {
+            RestoreAimCursor();
+            if (aimIndicatorObject != null) aimIndicatorObject.SetActive(false);
             return;
+        }
+
+        UpdateAimCursor();
 
         if (itemFloat != null && itemFloat.enabled)
             itemFloat.enabled = false;
@@ -343,9 +478,9 @@ public class BoomerangWeapon : MonoBehaviour
         float dt = Time.deltaTime;
         stateElapsedTime += dt;
 
-        // Sincroniza flag de upgrade no módulo de escudo
+        // Sincroniza flag de upgrade Tier 4 no módulo de escudo
         if (shieldVFX != null)
-            shieldVFX.enableMeleeParalysisUpgrade = enableShieldMeleeParalysis;
+            shieldVFX.enableMeleeParalysisUpgrade = IsShieldParalysisActive;
 
         // Atalhos rápidos no Editor para testar variantes em tempo real (Ctrl + 1 / 2 / 3)
 #if UNITY_EDITOR
@@ -375,6 +510,7 @@ public class BoomerangWeapon : MonoBehaviour
         }
 
         UpdateCurrentStateVisualsAndLogic(dt);
+        UpdateGroundAimIndicator();
 
         if (echoVFX != null)
         {
@@ -420,12 +556,26 @@ public class BoomerangWeapon : MonoBehaviour
 
             case BoomerangState.Charging:
                 SetAnimatorBoolSafe(AnimBoolIsCharging, false);
+                if (newStateNeedsResetSpeed())
+                {
+                    SetAnimatorFloatSafe(AnimFloatAttackSpeed, 1f);
+                }
+                isWindupThrowPending = false;
+                hasCommittedDraw = false;
+                drawCommitTime = 0f;
+                isReleaseRequested = false;
+                isQuickTapRelease = false;
+                animEventReleaseSignaled = false;
+                passedEventWhileHolding = false;
+                releaseWaitElapsed = 0f;
                 if (playerMovement != null)
                     playerMovement.SetPlasmaFiring(false);
                 if (airSpinVFX != null)
                     airSpinVFX.ResetChargeVisual();
                 chargeSpinAngle = 0f;
                 break;
+
+                bool newStateNeedsResetSpeed() => currentState != BoomerangState.Throw;
 
             case BoomerangState.Throw:
             case BoomerangState.Returning:
@@ -469,29 +619,34 @@ public class BoomerangWeapon : MonoBehaviour
                 break;
 
             case BoomerangState.Throw:
-                // Arremessado no ar em alta rotação
+                // Arremessado no ar em alta rotação (a animação Attack1 já começou na antecipação;
+                // só dispara o trigger aqui caso LaunchThrow tenha sido chamado direto por script externo)
                 hitTargetsThisPhase.Clear();
                 hitCooldowns.Clear();
-                TriggerPlayerAnimation(AnimTriggerAttack);
-                TriggerPlayerAnimation(AnimTriggerShoot);
+                SetAnimatorFloatSafe(AnimFloatAttackSpeed, throwFollowThroughSpeed);
+                if (!IsInAttackAnimationState())
+                {
+                    TriggerPlayerAnimation(AnimTriggerAttack);
+                    TriggerPlayerAnimation(AnimTriggerShoot);
+                }
 
                 DetachIntoWorldSpace();
 
                 float areaMult = GetPlayerAreaMultiplier();
                 if (airSpinVFX != null)
                 {
-                    airSpinVFX.SetRadiusMultiplier(enableElectricCrystalVariant ? areaMult * 1.4f : areaMult);
+                    airSpinVFX.SetRadiusMultiplier(IsElectricCrystalActive ? areaMult * 1.4f : areaMult);
                     airSpinVFX.SetAirSpinActive(true);
                 }
 
                 if (electricCrystalVFX != null)
                 {
-                    electricCrystalVFX.SetDecoupledState(enableElectricCrystalVariant, areaMult);
+                    electricCrystalVFX.SetDecoupledState(IsElectricCrystalActive, areaMult);
                 }
 
                 if (echoVFX != null)
                 {
-                    echoVFX.SetEchoEmission(enableTranslucentClonesOnReturn, false);
+                    echoVFX.SetEchoEmission(IsTranslucentClonesActive, false);
                 }
                 break;
 
@@ -505,9 +660,9 @@ public class BoomerangWeapon : MonoBehaviour
                     airSpinVFX.SetAirSpinActive(true);
 
                 if (echoVFX != null)
-                    echoVFX.SetEchoEmission(enableTranslucentClonesOnReturn, true);
+                    echoVFX.SetEchoEmission(IsTranslucentClonesActive, true);
 
-                currentReturnSpeed = Mathf.Min(Mathf.Max(returnHomingSpeed, flightVelocity.magnitude), 26f);
+                currentReturnSpeed = Mathf.Min(Mathf.Max(returnHomingSpeed, flightVelocity.magnitude) * Mathf.Lerp(1f, GetAttackSpeedMultiplier(), 0.4f), 28f);
                 break;
 
             case BoomerangState.SpinningShield:
@@ -541,7 +696,20 @@ public class BoomerangWeapon : MonoBehaviour
     // =========================================================================
 
     /// <summary>
-    /// Prende o bumerangue visualmente na mão direita do astronauta (mixamorig:RightHand).
+    /// Coloca a Glaive já pronta na mão do astronauta (estado Charging), evitando iniciar guardada nas costas.
+    /// </summary>
+    public void EquipInHandImmediate()
+    {
+        currentState = BoomerangState.Charging;
+        stateElapsedTime = 0f;
+        isDrawnInHand = true;
+        TryBindPlayerReferences();
+        AttachToHandImmediate();
+        SetAnimatorBoolSafe(AnimBoolIsCharging, true);
+    }
+
+    /// <summary>
+    /// Prende o bumerangue visualmente na mão direita do astronauta (mixamorig:RightHand / Hand_Hitbx).
     /// </summary>
     public void AttachToHandImmediate()
     {
@@ -552,13 +720,7 @@ public class BoomerangWeapon : MonoBehaviour
             weaponOffset.disableEditorLiveHandSnap = false;
         }
 
-        if (rightHandAnchor != null)
-        {
-            transform.SetParent(rightHandAnchor, false);
-            transform.localPosition = weaponOffset != null ? weaponOffset.equipPosition : handMountPosition;
-            transform.localEulerAngles = weaponOffset != null ? weaponOffset.equipRotation : handMountRotation;
-            transform.localScale = equippedWorldScale;
-        }
+        SnapToHandPose();
 
         if (visualPivot != null)
         {
@@ -566,6 +728,17 @@ public class BoomerangWeapon : MonoBehaviour
             visualPivot.localPosition = Vector3.zero;
             visualPivot.localRotation = Quaternion.identity;
         }
+    }
+
+    private void SnapToHandPose()
+    {
+        if (rightHandAnchor == null) return;
+        if (transform.parent != rightHandAnchor)
+            transform.SetParent(rightHandAnchor, false);
+
+        transform.localPosition = weaponOffset != null ? weaponOffset.equipPosition : handMountPosition;
+        transform.localEulerAngles = weaponOffset != null ? weaponOffset.equipRotation : handMountRotation;
+        ApplyCompensatedScale(rightHandAnchor, equippedWorldScale);
     }
 
     /// <summary>
@@ -580,20 +753,51 @@ public class BoomerangWeapon : MonoBehaviour
             weaponOffset.disableEditorLiveHandSnap = false;
         }
 
-        Transform targetBack = backSpineAnchor != null ? backSpineAnchor : rightHandAnchor;
-        if (targetBack != null)
-        {
-            transform.SetParent(targetBack, false);
-            transform.localPosition = weaponOffset != null ? weaponOffset.stowedBackPosition : backMountPosition;
-            transform.localEulerAngles = weaponOffset != null ? weaponOffset.stowedBackRotation : backMountRotation;
-            transform.localScale = equippedWorldScale;
-        }
+        SnapToBackPose();
 
         if (visualPivot != null)
         {
             chargeSpinAngle = 0f;
             visualPivot.localPosition = Vector3.zero;
             visualPivot.localRotation = Quaternion.identity;
+        }
+    }
+
+    private void SnapToBackPose()
+    {
+        Transform targetBack = backSpineAnchor != null ? backSpineAnchor : rightHandAnchor;
+        if (targetBack == null) return;
+        if (transform.parent != targetBack)
+            transform.SetParent(targetBack, false);
+
+        transform.localPosition = weaponOffset != null ? weaponOffset.stowedBackPosition : backMountPosition;
+        transform.localEulerAngles = weaponOffset != null ? weaponOffset.stowedBackRotation : backMountRotation;
+        ApplyCompensatedScale(targetBack, equippedWorldScale);
+    }
+
+    private void ApplyCompensatedScale(Transform parentAnchor, Vector3 desiredWorldScale)
+    {
+        Vector3 pLossy = parentAnchor.lossyScale;
+        float sx = Mathf.Abs(pLossy.x) > 0.0001f ? desiredWorldScale.x / pLossy.x : desiredWorldScale.x;
+        float sy = Mathf.Abs(pLossy.y) > 0.0001f ? desiredWorldScale.y / pLossy.y : desiredWorldScale.y;
+        float sz = Mathf.Abs(pLossy.z) > 0.0001f ? desiredWorldScale.z / pLossy.z : desiredWorldScale.z;
+        transform.localScale = new Vector3(sx, sy, sz);
+    }
+
+    private void LateUpdate()
+    {
+        if (IsInLobbyRack() || !IsEquippedByPlayer()) return;
+
+        UpdateAimCursor();
+
+        // Garante que a Glaive permaneça 100% colada na mão (ou nas costas) após o Animator atualizar os ossos
+        if (currentState == BoomerangState.Charging)
+        {
+            SnapToHandPose();
+        }
+        else if (currentState == BoomerangState.Stowed)
+        {
+            SnapToBackPose();
         }
     }
 
@@ -719,7 +923,14 @@ public class BoomerangWeapon : MonoBehaviour
 
     private void HandleBuiltInInputs(float dt)
     {
-        if (CheatConsole.IsOpen) return;
+        if (AimSettings.IsGameplayUIOpen())
+        {
+            if (isWindupThrowPending && !isReleaseRequested)
+            {
+                CancelAttackAnticipation();
+            }
+            return;
+        }
 
         // Tecla G: Alterna entre Stowed (preso nas costas) e empunhado na mão
         if (Input.GetKeyDown(KeyCode.G) && (currentState == BoomerangState.Stowed || (currentState == BoomerangState.Charging && currentChargeTime <= 0.01f)))
@@ -755,45 +966,334 @@ public class BoomerangWeapon : MonoBehaviour
             return;
         }
 
-        // Botão Esquerdo do Mouse: Carregar (Charging) -> Soltar para Arremessar (Throw)
+        // Botão Esquerdo do Mouse: Inicia antecipação do ataque imediatamente ao clicar;
+        // velocidade da antecipação desacelera se segurar para carregar, e solta a Glaive no timing exato ao largar.
         if (currentState == BoomerangState.Stowed || currentState == BoomerangState.Charging)
         {
-            if (Input.GetMouseButtonDown(0))
+            if (Input.GetMouseButtonDown(0) && !isWindupThrowPending)
             {
-                currentChargeTime = 0f;
-                currentCharge01 = 0f;
-                if (currentState != BoomerangState.Charging)
-                    SetState(BoomerangState.Charging);
+                BeginAttackAnticipation();
             }
 
-            if (Input.GetMouseButton(0) && currentState == BoomerangState.Charging)
+            if (isWindupThrowPending && currentState == BoomerangState.Charging)
             {
-                currentChargeTime += dt;
-                currentCharge01 = Mathf.Clamp01(currentChargeTime / Mathf.Max(0.05f, maxChargeTime));
-                Vector3 aimDir = GetMouseAimDirection();
-                RotatePlayerTowardsDirection(aimDir);
-
-                // Permite movimentação strafing fluida enquanto carrega (mira fixa no mouse, pernas correndo)
-                if (playerMovement != null)
-                {
-                    playerMovement.SetPlasmaFiring(true);
-                    playerMovement.SetPlasmaAimDirection(aimDir);
-                }
-            }
-
-            if (Input.GetMouseButtonUp(0) && currentState == BoomerangState.Charging && currentChargeTime > 0.01f)
-            {
-                if (playerMovement != null)
-                {
-                    playerMovement.SetPlasmaFiring(false);
-                }
-                LaunchThrow(currentCharge01);
+                UpdateAttackAnticipationAndRelease(dt);
             }
         }
         else if (currentState == BoomerangState.Throw && Input.GetMouseButtonDown(0) && stateElapsedTime > 0.15f)
         {
             // Permite puxar o bumerangue de volta mais cedo clicando novamente
             SetState(BoomerangState.Returning);
+        }
+    }
+
+    /// <summary>
+    /// Chamado via Animation Event BoomerangDrawReady no início da puxada para confirmar o arremesso.
+    /// Soltar o clique antes desse ponto cancela a animação sem jogar o bumerangue (comportamento estilo arco).
+    /// </summary>
+    public void AnimEvent_BoomerangDrawReady()
+    {
+        if (!isWindupThrowPending || hasCommittedDraw) return;
+
+        hasCommittedDraw = true;
+        drawCommitTime = currentChargeTime;
+        fullChargeReachedAt = -1f;
+    }
+
+    /// <summary>
+    /// Chamado via Animation Event ThrowBoomerang no clipe de arremesso no frame exato em que a Glaive deixa a mão.
+    /// </summary>
+    public void AnimEvent_BoomerangReleasePoint()
+    {
+        if (!isWindupThrowPending) return;
+
+        // Se chegou direto no ponto de arremesso com o botão ainda pressionado, considera também já armado
+        if (!hasCommittedDraw)
+        {
+            hasCommittedDraw = true;
+            drawCommitTime = currentChargeTime;
+        }
+
+        if (isReleaseRequested)
+        {
+            animEventReleaseSignaled = true;
+        }
+        else
+        {
+            // Se o evento disparar antes da soltura (ex: ajuste no clipe), segura até o player soltar ou atingir o limite
+            passedEventWhileHolding = true;
+        }
+    }
+
+    private void BeginAttackAnticipation()
+    {
+        currentChargeTime = 0f;
+        currentCharge01 = 0f;
+        isWindupThrowPending = true;
+        hasCommittedDraw = !requireDrawReadyEvent;
+        drawCommitTime = 0f;
+        fullChargeReachedAt = -1f;
+        isPerfectChargeThrow = false;
+        isReleaseRequested = false;
+        isQuickTapRelease = false;
+        animEventReleaseSignaled = false;
+        passedEventWhileHolding = false;
+        releaseWaitElapsed = 0f;
+
+        if (currentState != BoomerangState.Charging)
+        {
+            SetState(BoomerangState.Charging);
+        }
+        else
+        {
+            SnapToHandPose();
+        }
+
+        float atkMult = GetAttackSpeedMultiplier();
+        SetAnimatorFloatSafe(AnimFloatAttackSpeed, initialAnticipationSpeed * Mathf.Lerp(1f, atkMult, 0.55f));
+        TriggerPlayerAnimation(AnimTriggerAttack);
+
+        if (playerMovement != null)
+        {
+            Vector3 aimDir = GetMouseAimDirection();
+            RotatePlayerTowardsDirection(aimDir);
+            playerMovement.SetPlasmaFiring(true, aimingMoveSpeedMultiplier);
+            playerMovement.SetPlasmaAimDirection(aimDir);
+        }
+    }
+
+    private void UpdateAttackAnticipationAndRelease(float dt)
+    {
+        bool buttonHeld = Input.GetMouseButton(0);
+        if (!isReleaseRequested)
+        {
+            if (buttonHeld)
+            {
+                currentChargeTime += dt;
+                float atkMult = GetAttackSpeedMultiplier();
+                float effectiveChargeDuration = Mathf.Max(0.12f, maxChargeTime / atkMult);
+                float effectiveMaxHold = Mathf.Max(effectiveChargeDuration + 0.15f, maxHoldDuration / Mathf.Lerp(1f, atkMult, 0.5f));
+
+                // Fallback caso o clipe atual no Animator não possua o evento BoomerangDrawReady
+                if (!hasCommittedDraw && !requireDrawReadyEvent)
+                {
+                    hasCommittedDraw = true;
+                    drawCommitTime = currentChargeTime;
+                }
+
+                // A carga real começa em 0 exatamente no evento BoomerangDrawReady e cresce de forma determinística
+                if (hasCommittedDraw)
+                {
+                    float heldSinceCommit = Mathf.Max(0f, currentChargeTime - drawCommitTime);
+                    currentCharge01 = Mathf.Clamp01(heldSinceCommit / effectiveChargeDuration);
+                    if (currentCharge01 >= 0.999f && fullChargeReachedAt < 0f)
+                    {
+                        fullChargeReachedAt = currentChargeTime;
+                    }
+                }
+                else
+                {
+                    currentCharge01 = 0f;
+                }
+
+                Vector3 aimDir = GetMouseAimDirection();
+                RotatePlayerTowardsDirection(aimDir);
+
+                if (playerMovement != null)
+                {
+                    playerMovement.SetPlasmaFiring(true, aimingMoveSpeedMultiplier);
+                    playerMovement.SetPlasmaAimDirection(aimDir);
+                }
+
+                float speed = ComputeHoldAnticipationSpeed();
+                SetAnimatorFloatSafe(AnimFloatAttackSpeed, speed);
+
+                // Limite máximo segurando: não deixa ficar carregando para sempre e arremessa com força máxima
+                if (currentChargeTime >= effectiveMaxHold)
+                {
+                    if (!hasCommittedDraw)
+                    {
+                        hasCommittedDraw = true;
+                        drawCommitTime = currentChargeTime;
+                    }
+                    isPerfectChargeThrow = false;
+                    TriggerReleaseSequence(isQuickTap: false);
+                }
+            }
+
+            if (!isReleaseRequested && (Input.GetMouseButtonUp(0) || !buttonHeld))
+            {
+                // Se soltou ANTES de passar pelo evento BoomerangDrawReady, cancela igual um arco sem atirar
+                if (!hasCommittedDraw)
+                {
+                    CancelAttackAnticipation();
+                    return;
+                }
+
+                // Timing perfeito: soltou dentro de 0.30s após atingir carga total (antes do limite automático)
+                isPerfectChargeThrow = fullChargeReachedAt >= 0f && (currentChargeTime - fullChargeReachedAt) <= 0.30f;
+
+                float heldAfterCommit = Mathf.Max(0f, currentChargeTime - drawCommitTime);
+                bool isFastPostCommit = heldAfterCommit <= quickReleaseAfterCommitWindow;
+                TriggerReleaseSequence(isFastPostCommit);
+            }
+        }
+
+        if (!isReleaseRequested) return;
+
+        if (playerMovement != null)
+        {
+            Vector3 aimDir = GetMouseAimDirection();
+            playerMovement.SetPlasmaFiring(true, aimingMoveSpeedMultiplier);
+            playerMovement.SetPlasmaAimDirection(aimDir);
+        }
+
+        releaseWaitElapsed += dt;
+        float attackNorm = GetAttackStateNormalizedTime();
+        bool reachedReleaseFallback = IsInAttackAnimationState() && attackNorm >= releaseNormalizedTime && releaseWaitElapsed >= 0.08f;
+        bool failsafeExpired = releaseWaitElapsed >= (isQuickTapRelease ? 0.28f : 0.30f);
+
+        if (animEventReleaseSignaled || passedEventWhileHolding || reachedReleaseFallback || failsafeExpired)
+        {
+            // Mantém EXATAMENTE a carga que o indicador no chão exibiu (sem cortes artificiais!)
+            float launchCharge = currentCharge01;
+            isWindupThrowPending = false;
+            hasCommittedDraw = false;
+            isReleaseRequested = false;
+            animEventReleaseSignaled = false;
+            passedEventWhileHolding = false;
+
+            if (playerMovement != null)
+            {
+                playerMovement.SetPlasmaFiring(false);
+            }
+
+            SetAnimatorFloatSafe(AnimFloatAttackSpeed, throwFollowThroughSpeed * GetAttackSpeedMultiplier());
+            LaunchThrow(launchCharge);
+        }
+    }
+
+    private void CancelAttackAnticipation()
+    {
+        isWindupThrowPending = false;
+        hasCommittedDraw = false;
+        drawCommitTime = 0f;
+        isReleaseRequested = false;
+        isQuickTapRelease = false;
+        animEventReleaseSignaled = false;
+        passedEventWhileHolding = false;
+        releaseWaitElapsed = 0f;
+        currentChargeTime = 0f;
+        currentCharge01 = 0f;
+        chargeSpinAngle = 0f;
+
+        if (playerMovement != null)
+        {
+            playerMovement.SetPlasmaFiring(false);
+        }
+
+        if (airSpinVFX != null)
+        {
+            airSpinVFX.ResetChargeVisual();
+        }
+
+        if (visualPivot != null)
+        {
+            visualPivot.localRotation = Quaternion.identity;
+        }
+
+        SetAnimatorFloatSafe(AnimFloatAttackSpeed, 1f);
+
+        if (playerAnimator != null && playerAnimator.isActiveAndEnabled)
+        {
+            playerAnimator.ResetTrigger(AnimTriggerAttack);
+            if (IsInAttackAnimationState())
+            {
+                bool isMoving = Mathf.Abs(Input.GetAxisRaw("Horizontal")) > 0.05f || Mathf.Abs(Input.GetAxisRaw("Vertical")) > 0.05f;
+                playerAnimator.CrossFadeInFixedTime(isMoving ? "Running" : "Idle Default State", 0.14f, 0);
+            }
+        }
+    }
+
+    private float ComputeHoldAnticipationSpeed()
+    {
+        // Enquanto ainda não atingiu BoomerangDrawReady, mantém velocidade consistente para o mínimo de segurada estilo arco
+        if (!hasCommittedDraw)
+        {
+            return initialAnticipationSpeed;
+        }
+
+        // Após armar em BoomerangDrawReady, desacelera matematicamente enquanto continua segurando
+        float timeSinceCommit = Mathf.Max(0f, currentChargeTime - drawCommitTime);
+        float slowBlend = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(timeSinceCommit / 0.18f));
+        float baseSpeed = Mathf.Lerp(initialAnticipationSpeed, chargeHoldAnticipationSpeed, slowBlend);
+
+        // Freia progressivamente até 0 ao se aproximar de holdAtApexNormalizedTime (justo antes do evento ThrowBoomerang)
+        if (IsInAttackAnimationState())
+        {
+            float normTime = GetAttackStateNormalizedTime();
+            if (normTime >= holdAtApexNormalizedTime)
+            {
+                return 0f;
+            }
+
+            float brakeStart = Mathf.Max(0.05f, holdAtApexNormalizedTime - 0.06f);
+            if (normTime > brakeStart)
+            {
+                float brakeFactor = 1f - Mathf.InverseLerp(brakeStart, holdAtApexNormalizedTime, normTime);
+                return baseSpeed * brakeFactor;
+            }
+        }
+
+        return baseSpeed;
+    }
+
+    private void TriggerReleaseSequence(bool isQuickTap)
+    {
+        isReleaseRequested = true;
+        isQuickTapRelease = isQuickTap;
+        releaseWaitElapsed = 0f;
+
+        float postReleaseSpeed = isQuickTap ? quickTapAnticipationSpeed : throwFollowThroughSpeed;
+        SetAnimatorFloatSafe(AnimFloatAttackSpeed, postReleaseSpeed);
+    }
+
+    private bool IsInAttackAnimationState()
+    {
+        if (playerAnimator == null || !playerAnimator.isActiveAndEnabled) return false;
+        AnimatorStateInfo info = playerAnimator.GetCurrentAnimatorStateInfo(0);
+        if (info.IsName(attackStateName)) return true;
+        if (playerAnimator.IsInTransition(0))
+        {
+            AnimatorStateInfo next = playerAnimator.GetNextAnimatorStateInfo(0);
+            if (next.IsName(attackStateName)) return true;
+        }
+        return false;
+    }
+
+    private float GetAttackStateNormalizedTime()
+    {
+        if (playerAnimator == null || !playerAnimator.isActiveAndEnabled) return 1f;
+        AnimatorStateInfo info = playerAnimator.GetCurrentAnimatorStateInfo(0);
+        if (info.IsName(attackStateName)) return info.normalizedTime;
+        if (playerAnimator.IsInTransition(0))
+        {
+            AnimatorStateInfo next = playerAnimator.GetNextAnimatorStateInfo(0);
+            if (next.IsName(attackStateName)) return next.normalizedTime;
+        }
+        return 0f;
+    }
+
+    private void SetAnimatorFloatSafe(int floatHash, float value)
+    {
+        if (playerAnimator == null || !playerAnimator.isActiveAndEnabled) return;
+        foreach (AnimatorControllerParameter p in playerAnimator.parameters)
+        {
+            if (p.type == AnimatorControllerParameterType.Float && p.nameHash == floatHash)
+            {
+                playerAnimator.SetFloat(floatHash, value);
+                return;
+            }
         }
     }
 
@@ -815,50 +1315,121 @@ public class BoomerangWeapon : MonoBehaviour
         Vector3 aimDir = GetMouseAimDirection();
         RotatePlayerTowardsDirection(aimDir);
 
-        float launchSpeed = Mathf.Lerp(minThrowSpeed, maxThrowSpeed, currentCharge01);
-        targetFlightDistance = Mathf.Lerp(minThrowDistance, maxThrowDistance, currentCharge01);
-        bouncesRemaining = Mathf.RoundToInt(Mathf.Lerp(minBounces, maxBounces, currentCharge01));
+        float atkMult = GetAttackSpeedMultiplier();
+        float launchSpeed = Mathf.Lerp(minThrowSpeed, maxThrowSpeed, currentCharge01) * Mathf.Lerp(1f, atkMult, 0.4f);
+        targetFlightDistance = GetEffectiveThrowDistance(currentCharge01);
+
+        int bonusBounces = offensiveStats != null ? Mathf.Max(0, offensiveStats.bounceCount) : 0;
+        bouncesRemaining = Mathf.RoundToInt(Mathf.Lerp(minBounces, maxBounces, currentCharge01)) + bonusBounces;
+        piercingRemaining = offensiveStats != null ? Mathf.Max(0, offensiveStats.piercing) : 0;
 
         Transform originTr = weaponManager != null ? weaponManager.transform : transform;
         throwOriginPos = originTr.position + Vector3.up * 1.1f;
-        transform.position = throwOriginPos + aimDir * 0.65f;
+        const float launchOffset = 0.65f;
+        transform.position = throwOriginPos + aimDir * launchOffset;
         transform.rotation = Quaternion.LookRotation(aimDir, Vector3.up) * Quaternion.Euler(-90f, 0f, 0f);
-        travelledDistance = 0f;
+
+        // Começa contando a distância a partir do jogador (launchOffset) para coincidir 100% com a ponta do indicador no chão
+        travelledDistance = launchOffset;
         flightVelocity = aimDir * launchSpeed;
 
         SetState(BoomerangState.Throw);
+
+        // Multishot: spawna lâminas-eco espectrais em leque quando multiShotChance ativar
+        SpawnMultishotSpectralClones(throwOriginPos + aimDir * launchOffset, aimDir, launchSpeed, targetFlightDistance, atkMult);
+    }
+
+    private void SpawnMultishotSpectralClones(Vector3 spawnPos, Vector3 aimDir, float speed, float range, float atkMult)
+    {
+        if (echoVFX == null || offensiveStats == null || offensiveStats.multiShotChance <= 0f) return;
+
+        float chance = Mathf.Max(0f, offensiveStats.multiShotChance);
+        int extraCount = Mathf.FloorToInt(chance / 100f);
+        float remainder = (chance % 100f) / 100f;
+        if (UnityEngine.Random.value < remainder) extraCount++;
+        extraCount = Mathf.Clamp(extraCount, 0, 4);
+        if (extraCount <= 0) return;
+
+        float spreadAngle = offensiveStats.spread > 0.5f ? offensiveStats.spread : 14f;
+        Transform ownerRoot = weaponManager != null ? weaponManager.transform.root : transform.root;
+
+        for (int i = 0; i < extraCount; i++)
+        {
+            int pairIndex = (i / 2) + 1;
+            float sign = (i % 2 == 0) ? 1f : -1f;
+            float angle = sign * spreadAngle * pairIndex;
+            Vector3 cloneDir = Quaternion.Euler(0f, angle, 0f) * aimDir;
+            echoVFX.SpawnSpectralMultishotClone(
+                spawnPos,
+                cloneDir,
+                speed * Mathf.Lerp(0.95f, 1.05f, atkMult - 1f),
+                range,
+                offensiveStats.piercing,
+                ownerRoot,
+                (hitEnemy, hitPt, dir) => ApplyBoomerangDamageToEnemy(hitEnemy, hitPt, dir, 0.55f));
+        }
     }
 
     protected virtual void OnThrowPhysicsUpdate(float dt)
     {
         float stepDist = flightVelocity.magnitude * dt;
+        float remainingDist = Mathf.Max(0f, targetFlightDistance - travelledDistance);
+        float clampedStepDist = Mathf.Min(stepDist, remainingDist);
         Vector3 dir = flightVelocity.sqrMagnitude > 0.001f ? flightVelocity.normalized : transform.forward;
-        float hitRadius = (electricCrystalVFX != null && enableElectricCrystalVariant)
+        float hitRadius = (electricCrystalVFX != null && IsElectricCrystalActive)
             ? electricCrystalVFX.GetExpandedHitRadius(0.6f)
             : 0.6f;
 
-        // Detecção de colisão / ricochete em paredes e inimigos
-        if (Physics.SphereCast(transform.position, 0.28f, dir, out RaycastHit hit, stepDist + 0.25f, ~0, QueryTriggerInteraction.Ignore))
+        // Detecção de colisão / piercing / ricochete em paredes e inimigos
+        if (Physics.SphereCast(transform.position, 0.28f, dir, out RaycastHit hit, clampedStepDist + 0.25f, ~0, QueryTriggerInteraction.Ignore))
         {
             if (!IsPlayerCollider(hit.collider))
             {
                 DummyHealth enemy = hit.collider.GetComponentInParent<DummyHealth>();
                 if (enemy != null)
                 {
-                    ApplyBoomerangDamageToEnemy(enemy, hit.point);
+                    int enemyId = enemy.GetInstanceID();
+                    bool onCooldown = hitCooldowns.TryGetValue(enemyId, out float cd) && Time.time < cd;
+                    ApplyBoomerangDamageToEnemy(enemy, hit.point, dir, 1f);
+
+                    // Piercing: atravessa N inimigos em linha reta sem gastar quique
+                    if (piercingRemaining > 0 && !onCooldown)
+                    {
+                        piercingRemaining--;
+                    }
+                    else if (!onCooldown)
+                    {
+                        if (TryConsumeOrRollBounce())
+                        {
+                            Vector3 eNorm = hit.normal;
+                            eNorm.y = 0f;
+                            if (eNorm.sqrMagnitude < 0.001f) eNorm = -dir;
+                            RegisterBounce(eNorm.normalized, hit.point, enemy);
+                            return;
+                        }
+                        else
+                        {
+                            SetState(BoomerangState.Returning);
+                            return;
+                        }
+                    }
                 }
-
-                Vector3 normal = hit.normal;
-                normal.y = 0f;
-                if (normal.sqrMagnitude < 0.001f) normal = -dir;
-                normal.Normalize();
-
-                RegisterBounce(normal, hit.point, enemy);
-
-                if (bouncesRemaining <= 0)
+                else
                 {
-                    SetState(BoomerangState.Returning);
-                    return;
+                    // Colidiu com parede/obstáculo
+                    if (TryConsumeOrRollBounce())
+                    {
+                        Vector3 wNorm = hit.normal;
+                        wNorm.y = 0f;
+                        if (wNorm.sqrMagnitude < 0.001f) wNorm = -dir;
+                        RegisterBounce(wNorm.normalized, hit.point, null);
+                        return;
+                    }
+                    else
+                    {
+                        SetState(BoomerangState.Returning);
+                        return;
+                    }
                 }
             }
         }
@@ -866,8 +1437,8 @@ public class BoomerangWeapon : MonoBehaviour
         // Verifica inimigos na área das pontas de cristal desacopladas
         CheckSpinningDiscEnemies(hitRadius);
 
-        transform.position += flightVelocity * dt;
-        travelledDistance += stepDist;
+        transform.position += dir * clampedStepDist;
+        travelledDistance += clampedStepDist;
 
         if (flightVelocity.sqrMagnitude > 0.001f)
         {
@@ -879,10 +1450,29 @@ public class BoomerangWeapon : MonoBehaviour
             }
         }
 
-        if (travelledDistance >= targetFlightDistance)
+        if (travelledDistance >= targetFlightDistance - 0.01f)
         {
             SetState(BoomerangState.Returning);
         }
+    }
+
+    private bool TryConsumeOrRollBounce()
+    {
+        if (bouncesRemaining > 0)
+        {
+            bouncesRemaining--;
+            return true;
+        }
+
+        if (offensiveStats != null && offensiveStats.bounceChance > 0f)
+        {
+            if (UnityEngine.Random.value < Mathf.Clamp01(offensiveStats.bounceChance / 100f))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected virtual void OnReturningPhysicsUpdate(float dt)
@@ -947,7 +1537,7 @@ public class BoomerangWeapon : MonoBehaviour
             }
         }
 
-        float hitRadius = (electricCrystalVFX != null && enableElectricCrystalVariant)
+        float hitRadius = (electricCrystalVFX != null && IsElectricCrystalActive)
             ? electricCrystalVFX.GetExpandedHitRadius(0.6f)
             : 0.6f;
         CheckSpinningDiscEnemies(hitRadius);
@@ -958,6 +1548,7 @@ public class BoomerangWeapon : MonoBehaviour
         currentChargeTime = 0f;
         currentCharge01 = 0f;
         chargeSpinAngle = 0f;
+        isPerfectChargeThrow = false;
         SetState(BoomerangState.Charging);
     }
 
@@ -983,7 +1574,7 @@ public class BoomerangWeapon : MonoBehaviour
                 }
             }
 
-            // 2. Contato com inimigos (Parry atordoa nos primeiros 0.2s ou Paralisia do Upgrade Melee)
+            // 2. Contato com inimigos (Parry atordoa nos primeiros 0.2s ou Paralisia do Tier 4 Evasion)
             DummyHealth enemy = c.GetComponentInParent<DummyHealth>();
             if (enemy != null)
             {
@@ -995,7 +1586,7 @@ public class BoomerangWeapon : MonoBehaviour
                     {
                         shieldVFX.TriggerParrySuccessVFX(enemy.transform.position, enemy.gameObject);
                     }
-                    else if (enableShieldMeleeParalysis && shieldVFX != null)
+                    else if (IsShieldParalysisActive && shieldVFX != null)
                     {
                         shieldVFX.TriggerShieldMeleeParalysis(enemy.gameObject);
                     }
@@ -1006,12 +1597,11 @@ public class BoomerangWeapon : MonoBehaviour
 
     /// <summary>
     /// Registra um ricochete na parede ou inimigo, calcula o próximo vetor (com mira inteligente em cadeia para outros inimigos)
-    /// e spawna o Eco Fantasma (Variante 2).
+    /// e spawna o Eco Fantasma (Tier 4).
     /// </summary>
     public virtual void RegisterBounce(Vector3 surfaceNormal, Vector3 bouncePoint, DummyHealth hitEnemy = null)
     {
         float speed = Mathf.Max(flightVelocity.magnitude, minThrowSpeed);
-        bouncesRemaining--;
 
         // 1. Procura o próximo inimigo para ricochete encadeado inteligente (Smart Chain Bounce)
         DummyHealth nextTarget = FindNextBounceTarget(bouncePoint, hitEnemy, 14f);
@@ -1026,7 +1616,7 @@ public class BoomerangWeapon : MonoBehaviour
             newDir.Normalize();
 
             // Ajusta o alcance do próximo trecho para alcançar o alvo
-            targetFlightDistance = Vector3.Distance(bouncePoint, targetCenter) + 2.0f;
+            targetFlightDistance = Vector3.Distance(bouncePoint, targetCenter) + 1.5f;
         }
         else
         {
@@ -1037,12 +1627,12 @@ public class BoomerangWeapon : MonoBehaviour
             if (reflected.sqrMagnitude < 0.001f) reflected = -inDir;
             newDir = reflected.normalized;
 
-            // Se bateu no único inimigo e não há mais ninguém no raio, volta se os quiques acabaram
-            if (hitEnemy != null && bouncesRemaining <= 1)
+            // Se bateu no único inimigo e não há mais ninguém no raio, encerra quiques restantes e volta
+            if (hitEnemy != null)
             {
                 bouncesRemaining = 0;
             }
-            targetFlightDistance = Mathf.Lerp(minThrowDistance, maxThrowDistance, currentCharge01);
+            targetFlightDistance = GetEffectiveThrowDistance(currentCharge01);
         }
 
         // Reseta a distância percorrida para o novo trecho
@@ -1056,8 +1646,8 @@ public class BoomerangWeapon : MonoBehaviour
             transform.rotation = Quaternion.LookRotation(newDir.normalized, Vector3.up) * Quaternion.Euler(-90f, 0f, 0f);
         }
 
-        // Spawna Eco Translúcido de Ricochete (PDF Página 6)
-        if (echoVFX != null && enableBounceEchoSpawning)
+        // Spawna Eco Translúcido de Ricochete (Tier 4)
+        if (echoVFX != null && IsBounceEchoActive)
         {
             Vector3 echoDir = Quaternion.Euler(0f, UnityEngine.Random.Range(-32f, 32f), 0f) * newDir;
             echoVFX.SpawnBounceEchoClone(bouncePoint, echoDir, speed * 0.9f);
@@ -1141,6 +1731,7 @@ public class BoomerangWeapon : MonoBehaviour
 
     private void CheckSpinningDiscEnemies(float radius)
     {
+        Vector3 moveDir = flightVelocity.sqrMagnitude > 0.001f ? flightVelocity.normalized : transform.forward;
         Collider[] hits = Physics.OverlapSphere(transform.position, radius);
         for (int i = 0; i < hits.Length; i++)
         {
@@ -1149,28 +1740,83 @@ public class BoomerangWeapon : MonoBehaviour
             DummyHealth enemy = c.GetComponentInParent<DummyHealth>();
             if (enemy != null)
             {
-                ApplyBoomerangDamageToEnemy(enemy, enemy.transform.position);
+                ApplyBoomerangDamageToEnemy(enemy, enemy.transform.position, moveDir, 1f);
             }
         }
     }
 
-    private void ApplyBoomerangDamageToEnemy(DummyHealth enemy, Vector3 hitPoint)
+    private void ApplyBoomerangDamageToEnemy(DummyHealth enemy, Vector3 hitPoint, Vector3 hitDirection, float damageScale = 1f)
     {
         if (enemy == null) return;
         int id = enemy.GetInstanceID();
-        if (hitCooldowns.TryGetValue(id, out float cd) && Time.time < cd) return;
-        hitCooldowns[id] = Time.time + 0.28f;
-        hitTargetsThisPhase.Add(id);
+        if (damageScale >= 0.99f)
+        {
+            if (hitCooldowns.TryGetValue(id, out float cd) && Time.time < cd) return;
+            hitCooldowns[id] = Time.time + 0.28f;
+            hitTargetsThisPhase.Add(id);
+        }
 
         float baseDmg = 15f * (offensiveStats != null ? offensiveStats.baseDamageMultiplier : 1f);
-        float mult = Mathf.Lerp(0.85f, 1.6f, currentCharge01);
-        int finalDamage = Mathf.Max(1, Mathf.RoundToInt(baseDmg * mult));
-        enemy.TakeDamage(finalDamage, false, false, true);
+        float chargeMult = Mathf.Lerp(0.85f, 1.6f, currentCharge01);
 
-        if (enableElectricCrystalVariant && electricCrystalVFX != null)
+        // Sinergias de Crítico: critChance + Timing Perfeito (+25%) + Retorno pelas costas (+15%)
+        float critChance01 = offensiveStats != null ? Mathf.Clamp01(offensiveStats.critChance / 100f) : 0.05f;
+        if (isPerfectChargeThrow) critChance01 += 0.25f;
+        if (currentState == BoomerangState.Returning) critChance01 += 0.15f;
+        critChance01 = Mathf.Clamp01(critChance01);
+
+        bool isCritical = UnityEngine.Random.value < critChance01;
+        float critMult = isCritical && offensiveStats != null ? Mathf.Max(1f, offensiveStats.critMultiplier) : (isCritical ? 1.5f : 1f);
+
+        int finalDamage = Mathf.Max(1, Mathf.RoundToInt(baseDmg * chargeMult * critMult * damageScale));
+        enemy.TakeDamage(finalDamage, isCritical, false, true);
+
+        // Slow on Hit e Knockback dos atributos do jogador
+        if (offensiveStats != null)
+        {
+            if (offensiveStats.slowOnHit > 0f)
+            {
+                enemy.ApplySlow(Mathf.Clamp01(offensiveStats.slowOnHit), 2f);
+            }
+
+            if (offensiveStats.knockback > 0f)
+            {
+                ApplyBoomerangKnockback(enemy, hitDirection, offensiveStats.knockback);
+            }
+        }
+
+        // Efeitos Tier 4 genéricos ao causar dano/acerto (Veneno, Sangramento, Sentinela, Bismutado, etc.)
+        if (tier4EffectManager != null)
+        {
+            tier4EffectManager.ApplyDamageDealtEffects(finalDamage);
+            tier4EffectManager.ApplyAreaDamageEffects(enemy.gameObject, finalDamage);
+            if (enemy.CurrentHealth > 0)
+            {
+                tier4EffectManager.ApplyOnHitEffects(enemy.gameObject, isCritical);
+            }
+        }
+
+        if (IsElectricCrystalActive && electricCrystalVFX != null)
         {
             electricCrystalVFX.TriggerElectricCrystalHit(enemy.gameObject, hitPoint);
         }
+    }
+
+    private void ApplyBoomerangKnockback(DummyHealth target, Vector3 direction, float knockbackStrength)
+    {
+        if (target == null || knockbackStrength <= 0f) return;
+        Rigidbody targetRb = target.GetComponent<Rigidbody>() ?? target.GetComponentInParent<Rigidbody>();
+        if (targetRb == null || targetRb.isKinematic) return;
+
+        float effective = knockbackStrength * Mathf.Clamp01(1f - target.knockbackResistance);
+        if (effective <= 0.001f) return;
+
+        Vector3 pushDir = Vector3.ProjectOnPlane(direction, Vector3.up);
+        if (pushDir.sqrMagnitude < 0.001f) pushDir = target.transform.position - transform.position;
+        pushDir.y = 0f;
+        if (pushDir.sqrMagnitude < 0.001f) return;
+
+        targetRb.AddForce(pushDir.normalized * (4.5f * effective), ForceMode.Impulse);
     }
 
     private bool IsPlayerCollider(Collider c)
@@ -1180,11 +1826,179 @@ public class BoomerangWeapon : MonoBehaviour
         return c.CompareTag("Player");
     }
 
+    private float GetAttackSpeedMultiplier()
+    {
+        if (offensiveStats != null && offensiveStats.attackSpeedMelee > 0.05f)
+            return Mathf.Clamp(offensiveStats.attackSpeedMelee, 0.5f, 2.0f);
+        return 1f;
+    }
+
+    private float GetProjectileRangeMultiplier()
+    {
+        // Base padrão em PlayerAttributesOffensive é 10.0f
+        if (offensiveStats != null && offensiveStats.weaponRangeProjectile > 0.1f)
+            return Mathf.Clamp(offensiveStats.weaponRangeProjectile / 10f, 0.5f, 3.0f);
+        return 1f;
+    }
+
+    private float GetEffectiveThrowDistance(float charge01)
+    {
+        float baseDist = Mathf.Lerp(minThrowDistance, maxThrowDistance, Mathf.Clamp01(charge01));
+        return baseDist * GetProjectileRangeMultiplier();
+    }
+
     private float GetPlayerAreaMultiplier()
     {
-        if (offensiveStats != null && offensiveStats.weaponRangeMelee > 0.05f)
-            return Mathf.Clamp(offensiveStats.weaponRangeMelee, 0.75f, 2.5f);
+        // Glaive não depende de weaponRangeMelee; escala padrão de área
         return 1f;
+    }
+
+    private void CreateGroundAimIndicator()
+    {
+        if (aimIndicatorObject != null) return;
+        aimIndicatorMaterial = AimSettings.CreateGroundIndicatorMaterial(aimIndicatorColor, "BoomerangAimRangeMaterial", useVertexColors: true);
+        if (aimIndicatorMaterial == null) return;
+
+        aimIndicatorObject = new GameObject("BoomerangAimRange");
+        DontDestroyOnLoad(aimIndicatorObject);
+        aimIndicatorTransform = aimIndicatorObject.transform;
+        MeshFilter meshFilter = aimIndicatorObject.AddComponent<MeshFilter>();
+        MeshRenderer meshRenderer = aimIndicatorObject.AddComponent<MeshRenderer>();
+        aimIndicatorMesh = new Mesh { name = "BoomerangAimRangeMesh" };
+        meshFilter.sharedMesh = aimIndicatorMesh;
+
+        meshRenderer.sharedMaterial = aimIndicatorMaterial;
+        meshRenderer.shadowCastingMode = ShadowCastingMode.Off;
+        meshRenderer.receiveShadows = false;
+        meshRenderer.sortingOrder = 10;
+        aimIndicatorObject.SetActive(false);
+    }
+
+    private void UpdateGroundAimIndicator()
+    {
+        bool shouldShow = IsEquippedByPlayer()
+            && !AimSettings.IsGameplayUIOpen()
+            && currentState == BoomerangState.Charging
+            && (!showAimIndicatorOnlyWhileAttacking || isWindupThrowPending);
+
+        if (aimIndicatorObject == null)
+        {
+            if (!shouldShow) return;
+            CreateGroundAimIndicator();
+        }
+        if (aimIndicatorObject == null) return;
+
+        if (aimIndicatorObject.activeSelf != shouldShow)
+            aimIndicatorObject.SetActive(shouldShow);
+        if (!shouldShow) return;
+
+        Transform playerTr = weaponManager != null ? weaponManager.transform : transform;
+        Vector3 aimDir = GetMouseAimDirection();
+        aimDir.y = 0f;
+        if (aimDir.sqrMagnitude < 0.0001f) aimDir = playerTr.forward;
+        aimDir.Normalize();
+
+        Vector3 origin = playerTr.position;
+        origin.y += aimIndicatorGroundOffset;
+        aimIndicatorTransform.position = origin;
+        aimIndicatorTransform.rotation = Quaternion.LookRotation(aimDir, Vector3.up);
+
+        float charge = isWindupThrowPending ? currentCharge01 : 0f;
+        float range = GetEffectiveThrowDistance(charge);
+        if (!Mathf.Approximately(range, cachedIndicatorRange)
+            || !Mathf.Approximately(aimIndicatorWidth, cachedIndicatorWidth)
+            || Mathf.Abs(charge - cachedIndicatorCharge) > 0.005f)
+        {
+            BuildGroundAimIndicatorMesh(range, aimIndicatorWidth, charge);
+            cachedIndicatorRange = range;
+            cachedIndicatorWidth = aimIndicatorWidth;
+            cachedIndicatorCharge = charge;
+        }
+    }
+
+    private void BuildGroundAimIndicatorMesh(float range, float width, float charge01)
+    {
+        float safeRange = Mathf.Max(0.8f, range);
+        float halfW = Mathf.Max(0.15f, width * 0.5f);
+        float railW = Mathf.Min(halfW * 0.25f, 0.075f);
+        float innerW = Mathf.Max(0.04f, halfW - railW);
+        float tipLen = Mathf.Clamp(safeRange * 0.14f, 0.45f, 0.95f);
+        float bodyEnd = Mathf.Max(0.2f, safeRange - tipLen);
+        float pulseZ = Mathf.Lerp(0.15f, bodyEnd, charge01);
+
+        // Paleta dinâmica: azul cristalino -> ciano luminoso -> dourado-turquesa ao atingir 100%
+        Color baseTint = Color.Lerp(new Color(0.06f, 0.72f, 0.96f, 1f), new Color(0.20f, 0.95f, 1.0f, 1f), charge01);
+        Color tipTint = charge01 >= 0.98f
+            ? new Color(1.0f, 0.94f, 0.48f, 1f)
+            : Color.Lerp(new Color(0.28f, 0.95f, 1.0f, 1f), new Color(0.70f, 1.0f, 0.96f, 1f), charge01);
+
+        Color bodyStart = new Color(baseTint.r, baseTint.g, baseTint.b, 0.04f);
+        Color bodyMid = new Color(baseTint.r, baseTint.g, baseTint.b, Mathf.Lerp(0.16f, 0.28f, charge01));
+        Color bodyEndCol = new Color(tipTint.r, tipTint.g, tipTint.b, Mathf.Lerp(0.24f, 0.38f, charge01));
+        Color railStart = new Color(baseTint.r, baseTint.g, baseTint.b, 0.10f);
+        Color railEnd = new Color(tipTint.r, tipTint.g, tipTint.b, Mathf.Lerp(0.55f, 0.88f, charge01));
+        Color tipPeak = new Color(1f, tipTint.g, tipTint.b, Mathf.Lerp(0.75f, 0.96f, charge01));
+        Color spineCol = new Color(1f, 1f, 1f, Mathf.Lerp(0.20f, 0.52f, charge01));
+        float spineHalfW = 0.025f;
+
+        List<Vector3> verts = new List<Vector3>(24);
+        List<Color> cols = new List<Color>(24);
+        List<int> tris = new List<int>(48);
+
+        void AddQuad(Vector3 bl, Vector3 br, Vector3 tr, Vector3 tl, Color cbl, Color cbr, Color ctr, Color ctl)
+        {
+            int idx = verts.Count;
+            verts.Add(bl); verts.Add(br); verts.Add(tr); verts.Add(tl);
+            cols.Add(cbl); cols.Add(cbr); cols.Add(ctr); cols.Add(ctl);
+            tris.Add(idx); tris.Add(idx + 2); tris.Add(idx + 1);
+            tris.Add(idx); tris.Add(idx + 3); tris.Add(idx + 2);
+        }
+
+        // 1. Preenchimento translúcido com degradê longitudinal (da base até a ponta)
+        AddQuad(
+            new Vector3(-innerW, 0f, 0f), new Vector3(innerW, 0f, 0f),
+            new Vector3(innerW, 0f, pulseZ), new Vector3(-innerW, 0f, pulseZ),
+            bodyStart, bodyStart, bodyMid, bodyMid);
+        AddQuad(
+            new Vector3(-innerW, 0f, pulseZ), new Vector3(innerW, 0f, pulseZ),
+            new Vector3(innerW, 0f, bodyEnd), new Vector3(-innerW, 0f, bodyEnd),
+            bodyMid, bodyMid, bodyEndCol, bodyEndCol);
+
+        // 2. Trilhos laterais luminosos (esquerda e direita)
+        AddQuad(
+            new Vector3(-halfW, 0f, 0f), new Vector3(-innerW, 0f, 0f),
+            new Vector3(-innerW, 0f, bodyEnd), new Vector3(-halfW, 0f, bodyEnd),
+            railStart, railStart, railEnd, railEnd);
+        AddQuad(
+            new Vector3(innerW, 0f, 0f), new Vector3(halfW, 0f, 0f),
+            new Vector3(halfW, 0f, bodyEnd), new Vector3(innerW, 0f, bodyEnd),
+            railStart, railStart, railEnd, railEnd);
+
+        // 3. Eixo central fino de mira
+        AddQuad(
+            new Vector3(-spineHalfW, 0f, 0.1f), new Vector3(spineHalfW, 0f, 0.1f),
+            new Vector3(spineHalfW, 0f, bodyEnd), new Vector3(-spineHalfW, 0f, bodyEnd),
+            new Color(spineCol.r, spineCol.g, spineCol.b, 0.04f),
+            new Color(spineCol.r, spineCol.g, spineCol.b, 0.04f),
+            spineCol, spineCol);
+
+        // 4. Ponta em chevron brilhante na distância EXATA de retorno (safeRange)
+        int tipStart = verts.Count;
+        float flareW = halfW * 1.28f;
+        verts.Add(new Vector3(-flareW, 0f, bodyEnd));
+        verts.Add(new Vector3( flareW, 0f, bodyEnd));
+        verts.Add(new Vector3(0f,      0f, safeRange));
+        cols.Add(railEnd);
+        cols.Add(railEnd);
+        cols.Add(tipPeak);
+        tris.Add(tipStart); tris.Add(tipStart + 2); tris.Add(tipStart + 1);
+
+        aimIndicatorMesh.Clear();
+        aimIndicatorMesh.SetVertices(verts);
+        aimIndicatorMesh.SetColors(cols);
+        aimIndicatorMesh.SetTriangles(tris, 0);
+        aimIndicatorMesh.RecalculateNormals();
+        aimIndicatorMesh.RecalculateBounds();
     }
 
     private Vector3 GetMouseAimDirection()

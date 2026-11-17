@@ -66,10 +66,25 @@ public class BoomerangEchoVFX : MonoBehaviour
         public GameObject ringGO;
     }
 
+    private class SpectralMultishotClone
+    {
+        public Vector3 position;
+        public Vector3 direction;
+        public float speed;
+        public float travelled;
+        public float maxDistance;
+        public float spinAngle;
+        public int piercingRemaining;
+        public Transform ownerRoot;
+        public readonly HashSet<int> hitEnemyIds = new HashSet<int>();
+        public System.Action<DummyHealth, Vector3, Vector3> onHit;
+    }
+
     private Transform visualRoot;
     private MeshFilter[] cachedMeshFilters;
     private readonly List<AfterimageSnapshot> activeAfterimages = new List<AfterimageSnapshot>();
     private readonly List<AutonomousBounceEcho> activeBounceEchoes = new List<AutonomousBounceEcho>();
+    private readonly List<SpectralMultishotClone> activeMultishotClones = new List<SpectralMultishotClone>();
 
     private Material baseEchoMaterial;
     private readonly List<Material> materialPool = new List<Material>();
@@ -242,6 +257,37 @@ public class BoomerangEchoVFX : MonoBehaviour
         });
     }
 
+    /// <summary>
+    /// Spawna uma cópia holográfica de Multishot que voa em linha reta pelo alcance indicado
+    /// aplicando dano espectral sem precisar retornar para a mão do jogador.
+    /// </summary>
+    public void SpawnSpectralMultishotClone(
+        Vector3 origin,
+        Vector3 direction,
+        float speed,
+        float maxDistance,
+        int piercing,
+        Transform ownerRoot,
+        System.Action<DummyHealth, Vector3, Vector3> onHitEnemy)
+    {
+        direction.y = 0f;
+        if (direction.sqrMagnitude < 0.001f) direction = Vector3.forward;
+        direction.Normalize();
+
+        activeMultishotClones.Add(new SpectralMultishotClone
+        {
+            position = origin,
+            direction = direction,
+            speed = Mathf.Max(4f, speed),
+            travelled = 0f,
+            maxDistance = Mathf.Max(1f, maxDistance),
+            spinAngle = Random.Range(0f, 360f),
+            piercingRemaining = Mathf.Max(0, piercing),
+            ownerRoot = ownerRoot,
+            onHit = onHitEnemy
+        });
+    }
+
     public void UpdateEchoes(float deltaTime)
     {
         poolCursor = 0;
@@ -335,11 +381,82 @@ public class BoomerangEchoVFX : MonoBehaviour
                 }
             }
         }
+
+        UpdateSpectralMultishotClones(deltaTime, currentWorldToRoot, root.lossyScale);
+    }
+
+    private void UpdateSpectralMultishotClones(float dt, Matrix4x4 currentWorldToRoot, Vector3 worldScale)
+    {
+        for (int i = activeMultishotClones.Count - 1; i >= 0; i--)
+        {
+            SpectralMultishotClone clone = activeMultishotClones[i];
+            float step = clone.speed * dt;
+            bool stopped = false;
+
+            if (Physics.SphereCast(clone.position, 0.35f, clone.direction, out RaycastHit hit, step + 0.15f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                if (clone.ownerRoot == null || !hit.collider.transform.IsChildOf(clone.ownerRoot))
+                {
+                    DummyHealth enemy = hit.collider.GetComponentInParent<DummyHealth>();
+                    if (enemy != null)
+                    {
+                        int id = enemy.GetInstanceID();
+                        if (!clone.hitEnemyIds.Contains(id))
+                        {
+                            clone.hitEnemyIds.Add(id);
+                            clone.onHit?.Invoke(enemy, hit.point, clone.direction);
+                            if (clone.piercingRemaining > 0)
+                            {
+                                clone.piercingRemaining--;
+                            }
+                            else
+                            {
+                                stopped = true;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        stopped = true;
+                    }
+                }
+            }
+
+            clone.position += clone.direction * step;
+            clone.travelled += step;
+            clone.spinAngle += 1440f * dt;
+
+            if (stopped || clone.travelled >= clone.maxDistance)
+            {
+                activeMultishotClones.RemoveAt(i);
+                continue;
+            }
+
+            float remainFrac = 1f - Mathf.Clamp01(clone.travelled / clone.maxDistance);
+            float alpha = Mathf.Clamp(remainFrac * 1.4f, 0.15f, 1f) * 0.65f;
+            Material mat = GetPooledMaterial(alpha);
+            Quaternion rot = Quaternion.Euler(-90f, clone.spinAngle, 0f);
+            Matrix4x4 cloneMatrix = Matrix4x4.TRS(clone.position, rot, worldScale * 0.9f);
+
+            if (cachedMeshFilters != null)
+            {
+                for (int m = 0; m < cachedMeshFilters.Length; m++)
+                {
+                    MeshFilter mf = cachedMeshFilters[m];
+                    if (mf == null || mf.sharedMesh == null || !mf.gameObject.activeInHierarchy)
+                        continue;
+
+                    Matrix4x4 localMat = currentWorldToRoot * mf.transform.localToWorldMatrix;
+                    Graphics.DrawMesh(mf.sharedMesh, cloneMatrix * localMat, mat, gameObject.layer);
+                }
+            }
+        }
     }
 
     public void ClearAllEchoes()
     {
         activeAfterimages.Clear();
+        activeMultishotClones.Clear();
         for (int i = 0; i < activeBounceEchoes.Count; i++)
         {
             if (activeBounceEchoes[i].ringGO != null)
