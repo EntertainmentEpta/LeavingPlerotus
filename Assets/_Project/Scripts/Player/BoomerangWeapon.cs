@@ -145,9 +145,13 @@ public class BoomerangWeapon : MonoBehaviour
     [Tooltip("Janela após BoomerangDrawReady em que a soltura ainda usa velocidade acelerada de tirinho rápido.")]
     public float quickReleaseAfterCommitWindow = 0.28f;
 
-    [Tooltip("Multiplicador da velocidade de movimento enquanto segura/carrega o ataque (0.10 = redução de 90%).")]
+    [Tooltip("Multiplicador inicial da velocidade de movimento ao apertar/segurar o ataque (0.10 = redução de 90%).")]
     [Range(0f, 1f)]
     public float aimingMoveSpeedMultiplier = 0.10f;
+
+    [Tooltip("Multiplicador mínimo da velocidade de movimento ao atingir carga máxima (0 = jogador praticamente parado).")]
+    [Range(0f, 1f)]
+    public float minChargeMoveSpeedMultiplier = 0f;
 
     [Header("Indicador de Alcance no Chão")]
     [Tooltip("Cor do indicador translúcido no chão mostrando direção e alcance do arremesso.")]
@@ -210,6 +214,9 @@ public class BoomerangWeapon : MonoBehaviour
     private bool animEventReleaseSignaled;
     private bool passedEventWhileHolding;
     private float releaseWaitElapsed;
+    private bool isThrowFollowThroughMoveLock;
+    private float throwFollowThroughMoveLockElapsed;
+    private float throwFollowThroughMoveLockMultiplier;
     private bool aimCursorOverrideActive;
     private GameObject aimIndicatorObject;
     private Transform aimIndicatorTransform;
@@ -414,6 +421,10 @@ public class BoomerangWeapon : MonoBehaviour
 
     private void OnDisable()
     {
+        isThrowFollowThroughMoveLock = false;
+        throwFollowThroughMoveLockElapsed = 0f;
+        if (playerMovement != null)
+            playerMovement.SetPlasmaFiring(false);
         RestoreAimCursor();
         if (aimIndicatorObject != null) aimIndicatorObject.SetActive(false);
     }
@@ -509,6 +520,7 @@ public class BoomerangWeapon : MonoBehaviour
             HandleBuiltInInputs(dt);
         }
 
+        UpdateThrowFollowThroughMoveLock(dt);
         UpdateCurrentStateVisualsAndLogic(dt);
         UpdateGroundAimIndicator();
 
@@ -568,7 +580,7 @@ public class BoomerangWeapon : MonoBehaviour
                 animEventReleaseSignaled = false;
                 passedEventWhileHolding = false;
                 releaseWaitElapsed = 0f;
-                if (playerMovement != null)
+                if (playerMovement != null && !isThrowFollowThroughMoveLock)
                     playerMovement.SetPlasmaFiring(false);
                 if (airSpinVFX != null)
                     airSpinVFX.ResetChargeVisual();
@@ -591,6 +603,7 @@ public class BoomerangWeapon : MonoBehaviour
         {
             case BoomerangState.Stowed:
                 // Preso nas costas do astronauta (animação Astronaut_guardando_boomerang)
+                ClearThrowFollowThroughMoveLock();
                 isDrawnInHand = false;
                 if (electricCrystalVFX != null) electricCrystalVFX.SnapCoupledImmediate();
                 if (airSpinVFX != null) airSpinVFX.SetAirSpinActive(false);
@@ -663,10 +676,28 @@ public class BoomerangWeapon : MonoBehaviour
                     echoVFX.SetEchoEmission(IsTranslucentClonesActive, true);
 
                 currentReturnSpeed = Mathf.Min(Mathf.Max(returnHomingSpeed, flightVelocity.magnitude) * Mathf.Lerp(1f, GetAttackSpeedMultiplier(), 0.4f), 28f);
+
+                // Inverte imediatamente qualquer velocidade residual para frente ao atingir a distância limite,
+                // evitando ultrapassar a ponta da marcação no chão antes de iniciar o retorno
+                if (weaponManager != null)
+                {
+                    Vector3 toPlayerAtTurn = (weaponManager.transform.position + Vector3.up * 1.1f) - transform.position;
+                    toPlayerAtTurn.y = 0f;
+                    if (toPlayerAtTurn.sqrMagnitude > 0.001f)
+                    {
+                        Vector3 backDir = toPlayerAtTurn.normalized;
+                        if (Vector3.Dot(flightVelocity, backDir) <= 0.1f)
+                        {
+                            Vector3 sideDir = Vector3.Cross(Vector3.up, backDir).normalized;
+                            flightVelocity = (backDir * 0.94f + sideDir * 0.34f).normalized * currentReturnSpeed;
+                        }
+                    }
+                }
                 break;
 
             case BoomerangState.SpinningShield:
                 // Escudo Giratório Defensivo ao redor do corpo do player (Astronaut_defense)
+                ClearThrowFollowThroughMoveLock();
                 isDrawnInHand = true;
                 DetachIntoWorldSpace();
 
@@ -1057,7 +1088,7 @@ public class BoomerangWeapon : MonoBehaviour
         {
             Vector3 aimDir = GetMouseAimDirection();
             RotatePlayerTowardsDirection(aimDir);
-            playerMovement.SetPlasmaFiring(true, aimingMoveSpeedMultiplier);
+            playerMovement.SetPlasmaFiring(true, GetChargingMoveSpeedMultiplier());
             playerMovement.SetPlasmaAimDirection(aimDir);
         }
     }
@@ -1101,7 +1132,7 @@ public class BoomerangWeapon : MonoBehaviour
 
                 if (playerMovement != null)
                 {
-                    playerMovement.SetPlasmaFiring(true, aimingMoveSpeedMultiplier);
+                    playerMovement.SetPlasmaFiring(true, GetChargingMoveSpeedMultiplier());
                     playerMovement.SetPlasmaAimDirection(aimDir);
                 }
 
@@ -1144,7 +1175,7 @@ public class BoomerangWeapon : MonoBehaviour
         if (playerMovement != null)
         {
             Vector3 aimDir = GetMouseAimDirection();
-            playerMovement.SetPlasmaFiring(true, aimingMoveSpeedMultiplier);
+            playerMovement.SetPlasmaFiring(true, GetChargingMoveSpeedMultiplier());
             playerMovement.SetPlasmaAimDirection(aimDir);
         }
 
@@ -1157,16 +1188,14 @@ public class BoomerangWeapon : MonoBehaviour
         {
             // Mantém EXATAMENTE a carga que o indicador no chão exibiu (sem cortes artificiais!)
             float launchCharge = currentCharge01;
+            float releaseMoveMultiplier = GetChargingMoveSpeedMultiplier();
             isWindupThrowPending = false;
             hasCommittedDraw = false;
             isReleaseRequested = false;
             animEventReleaseSignaled = false;
             passedEventWhileHolding = false;
 
-            if (playerMovement != null)
-            {
-                playerMovement.SetPlasmaFiring(false);
-            }
+            BeginThrowFollowThroughMoveLock(releaseMoveMultiplier);
 
             SetAnimatorFloatSafe(AnimFloatAttackSpeed, throwFollowThroughSpeed * GetAttackSpeedMultiplier());
             LaunchThrow(launchCharge);
@@ -1175,6 +1204,7 @@ public class BoomerangWeapon : MonoBehaviour
 
     private void CancelAttackAnticipation()
     {
+        ClearThrowFollowThroughMoveLock();
         isWindupThrowPending = false;
         hasCommittedDraw = false;
         drawCommitTime = 0f;
@@ -1297,6 +1327,56 @@ public class BoomerangWeapon : MonoBehaviour
         }
     }
 
+    private float GetChargingMoveSpeedMultiplier()
+    {
+        return Mathf.Lerp(aimingMoveSpeedMultiplier, minChargeMoveSpeedMultiplier, Mathf.Clamp01(currentCharge01));
+    }
+
+    private void BeginThrowFollowThroughMoveLock(float moveMultiplier)
+    {
+        if (playerMovement == null)
+        {
+            ClearThrowFollowThroughMoveLock();
+            return;
+        }
+
+        isThrowFollowThroughMoveLock = true;
+        throwFollowThroughMoveLockElapsed = 0f;
+        throwFollowThroughMoveLockMultiplier = Mathf.Clamp01(moveMultiplier);
+        playerMovement.SetPlasmaFiring(true, throwFollowThroughMoveLockMultiplier);
+    }
+
+    private void UpdateThrowFollowThroughMoveLock(float dt)
+    {
+        if (!isThrowFollowThroughMoveLock) return;
+
+        throwFollowThroughMoveLockElapsed += dt;
+        bool inThrowFlightState = currentState == BoomerangState.Throw || currentState == BoomerangState.Returning;
+        bool animStillPlaying = IsInAttackAnimationState();
+        bool withinSafetyWindow = throwFollowThroughMoveLockElapsed < 1.5f;
+
+        if (!inThrowFlightState || !animStillPlaying || !withinSafetyWindow)
+        {
+            ClearThrowFollowThroughMoveLock();
+            return;
+        }
+
+        if (playerMovement != null)
+        {
+            playerMovement.SetPlasmaFiring(true, throwFollowThroughMoveLockMultiplier);
+        }
+    }
+
+    private void ClearThrowFollowThroughMoveLock()
+    {
+        isThrowFollowThroughMoveLock = false;
+        throwFollowThroughMoveLockElapsed = 0f;
+        if (playerMovement != null && !isWindupThrowPending)
+        {
+            playerMovement.SetPlasmaFiring(false);
+        }
+    }
+
     protected virtual void OnChargingUpdate(float dt)
     {
         // Hook para lógica extra durante o carregamento
@@ -1307,7 +1387,7 @@ public class BoomerangWeapon : MonoBehaviour
     /// </summary>
     public virtual void LaunchThrow(float charge01)
     {
-        if (playerMovement != null)
+        if (playerMovement != null && !isThrowFollowThroughMoveLock)
             playerMovement.SetPlasmaFiring(false);
 
         chargeSpinAngle = 0f;
@@ -1513,10 +1593,11 @@ public class BoomerangWeapon : MonoBehaviour
         float maxReturnSpeed = Mathf.Max(returnHomingSpeed, 26f);
         currentReturnSpeed = Mathf.Min(currentReturnSpeed + returnHomingAcceleration * dt, maxReturnSpeed);
 
-        // Taxa de curva dinâmica: quanto mais perto do jogador, mais afiada a curva!
+        // Curva firme via RotateTowards (nunca colapsa nem avança para frente quando oposto)
         float turnRate = Mathf.Lerp(38f, 16f, Mathf.Clamp01(distToPlayer / 10f));
         Vector3 desiredDir = toPlayer.normalized;
-        flightVelocity = Vector3.Lerp(flightVelocity.normalized, desiredDir, turnRate * dt).normalized * currentReturnSpeed;
+        Vector3 curDir = flightVelocity.sqrMagnitude > 0.001f ? flightVelocity.normalized : desiredDir;
+        flightVelocity = Vector3.RotateTowards(curDir, desiredDir, turnRate * dt, 0f).normalized * currentReturnSpeed;
 
         Vector3 step = flightVelocity * dt;
         if (step.magnitude >= distToPlayer)
@@ -1545,6 +1626,7 @@ public class BoomerangWeapon : MonoBehaviour
 
     private void CatchBoomerang()
     {
+        ClearThrowFollowThroughMoveLock();
         currentChargeTime = 0f;
         currentCharge01 = 0f;
         chargeSpinAngle = 0f;

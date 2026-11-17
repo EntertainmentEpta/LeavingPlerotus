@@ -325,7 +325,15 @@ public class WeaponRack : MonoBehaviour
             {
                 GameObject go = new GameObject("Slot_4_Boomerang");
                 go.transform.SetParent(transform, true);
-                go.transform.position = rackBasePos + (rgt * 1.45f) + (Vector3.up * 1.15f) + (fwd * 0.22f);
+                if (slot3_PistolaAnchor != null && slot2_MachadoAnchor != null)
+                {
+                    Vector3 step = slot3_PistolaAnchor.position - slot2_MachadoAnchor.position;
+                    go.transform.position = slot3_PistolaAnchor.position + step;
+                }
+                else
+                {
+                    go.transform.position = rackBasePos + (rgt * 1.45f) + (Vector3.up * 1.15f) + (fwd * 0.22f);
+                }
                 go.transform.localRotation = Quaternion.identity;
                 slot4_BoomerangAnchor = go.transform;
             }

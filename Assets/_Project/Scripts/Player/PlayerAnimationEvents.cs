@@ -17,9 +17,10 @@ public class PlayerAnimationEvents : MonoBehaviour
 
     private void OnAnimatorMove()
     {
-        // Durante a Ultimate, não interfere com o salto da habilidade
+        // Durante a Ultimate ou uso da Glaive/Bumerangue, não aplica root motion (evita impulso indesejado no início do charge)
         PlayerUltimate ult = GetComponentInParent<PlayerUltimate>() ?? GetComponent<PlayerUltimate>();
         if (ult != null && ult.IsUltimateActive()) return;
+        if (GetActiveBoomerang() != null) return;
 
         if (anim == null) anim = GetComponent<Animator>();
         if (playerRb == null) playerRb = GetComponentInParent<Rigidbody>() ?? GetComponent<Rigidbody>();
