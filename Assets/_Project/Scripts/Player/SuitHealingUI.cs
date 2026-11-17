@@ -30,11 +30,14 @@ public class SuitHealingUI : MonoBehaviour
     private TextMeshProUGUI subtitleText;
     private TextMeshProUGUI barText;
     private Image barFillImage;
+    private Image[] slotPills = new Image[SuitHealingSystem.UpgradedMaxSlots];
     private SuitHealingSystem healingSystem;
     private CanvasGroup canvasGroup;
     private Sprite hudPixel;
     private bool textStateValid;
     private int displayedPercent;
+    private int displayedStoredSlots;
+    private int displayedMaxSlots;
     private int displayedIntegrity;
     private bool displayedFull, displayedWarning, displayedDodge, displayedCombat, displayedAnomaly;
     private KeyCode displayedKey;
@@ -88,7 +91,11 @@ public class SuitHealingUI : MonoBehaviour
     private void BindHealingSystem(SuitHealingSystem next)
     {
         if (ReferenceEquals(healingSystem, next)) return;
-        if (!ReferenceEquals(healingSystem, null)) healingSystem.OnBiomassChanged -= HandleBiomassChanged;
+        if (!ReferenceEquals(healingSystem, null))
+        {
+            healingSystem.OnBiomassChanged -= HandleBiomassChanged;
+            healingSystem.OnHealingStateChanged -= HandleHealingStateChanged;
+        }
         healingSystem = next;
         textStateValid = false;
         healFeedbackTimer = insufficientWarningTimer = perfectDodgeAlertTimer = gainFlashTimer = 0f;
@@ -96,7 +103,13 @@ public class SuitHealingUI : MonoBehaviour
         {
             lastBiomass = healingSystem.CurrentBiomass;
             healingSystem.OnBiomassChanged += HandleBiomassChanged;
+            healingSystem.OnHealingStateChanged += HandleHealingStateChanged;
         }
+    }
+
+    private void HandleHealingStateChanged(int stored, int max, float biomass)
+    {
+        RefreshVisuals();
     }
 
     private void HandleBiomassChanged(float biomass)
@@ -194,7 +207,10 @@ public class SuitHealingUI : MonoBehaviour
         if (healingSystem == null || barFillImage == null) return;
 
         int percent = healingSystem.BiomassPercent;
-        bool isFull = healingSystem.IsBiomassFull;
+        int stored = healingSystem.StoredSlots;
+        int maxSlots = healingSystem.MaxSlots;
+        bool hasSlotReady = stored > 0;
+        bool allFull = healingSystem.AreAllSlotsFull;
         float readyPulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 6f);
 
         // 1. Borda do painel
@@ -212,7 +228,7 @@ public class SuitHealingUI : MonoBehaviour
             {
                 panelOutline.effectColor = new Color(1f, 0.25f, 0.25f, 0.95f);
             }
-            else if (isFull)
+            else if (hasSlotReady)
             {
                 panelOutline.effectColor = Color.Lerp(panelBorderColor, readyColor, readyPulse);
             }
@@ -223,17 +239,40 @@ public class SuitHealingUI : MonoBehaviour
         }
 
         if (panelOutline != null)
-            panelOutline.effectDistance = isFull ? new Vector2(2f + readyPulse, -2f - readyPulse) : new Vector2(1.5f, -1.5f);
+            panelOutline.effectDistance = hasSlotReady ? new Vector2(2f + readyPulse, -2f - readyPulse) : new Vector2(1.5f, -1.5f);
         if (panelBgImage != null)
-            panelBgImage.color = isFull
-                ? Color.Lerp(new Color(0.04f, 0.08f, 0.06f, 0.94f), new Color(0.03f, 0.18f, 0.10f, 0.94f), readyPulse)
+            panelBgImage.color = hasSlotReady
+                ? Color.Lerp(new Color(0.04f, 0.08f, 0.06f, 0.94f), new Color(0.03f, 0.18f, 0.10f, 0.94f), readyPulse * (allFull ? 1f : 0.55f))
                 : new Color(0.04f, 0.08f, 0.06f, 0.94f);
+
+        // 1.5 Pills dos Slots Guardados (2 base, 3 com melhoria do robozinho)
+        for (int i = 0; i < slotPills.Length; i++)
+        {
+            if (slotPills[i] == null) continue;
+            bool slotUnlocked = i < maxSlots;
+            if (slotPills[i].gameObject.activeSelf != slotUnlocked)
+                slotPills[i].gameObject.SetActive(slotUnlocked);
+            if (!slotUnlocked) continue;
+
+            if (i < stored)
+            {
+                slotPills[i].color = Color.Lerp(readyColor, gainFlashColor, readyPulse * 0.4f);
+            }
+            else if (i == stored && healingSystem.CurrentBiomass > 0.5f)
+            {
+                slotPills[i].color = new Color(0.14f, 0.42f, 0.28f, 0.95f);
+            }
+            else
+            {
+                slotPills[i].color = new Color(0.09f, 0.16f, 0.12f, 0.9f);
+            }
+        }
 
         // 2. Barra de Biomassa
         if (barFillImage != null)
         {
             barFillImage.fillAmount = healingSystem.BiomassNormalized;
-            if (isFull)
+            if (allFull)
             {
                 barFillImage.color = Color.Lerp(readyColor, gainFlashColor, readyPulse * 0.6f);
             }
@@ -251,13 +290,16 @@ public class SuitHealingUI : MonoBehaviour
         int integrity = Mathf.RoundToInt(healingSystem.SuitIntegrityPercent);
         bool warning = insufficientWarningTimer > 0f;
         bool dodge = perfectDodgeAlertTimer > 0f;
-        if (textStateValid && displayedPercent == percent && displayedFull == isFull &&
+        if (textStateValid && displayedPercent == percent &&
+            displayedStoredSlots == stored && displayedMaxSlots == maxSlots &&
             displayedIntegrity == integrity && displayedWarning == warning && displayedDodge == dodge &&
             displayedCombat == healingSystem.IsInCombat && displayedAnomaly == healingSystem.isInAnomalyRoom &&
             displayedKey == healingSystem.healKey) return;
         textStateValid = true;
         displayedPercent = percent;
-        displayedFull = isFull;
+        displayedStoredSlots = stored;
+        displayedMaxSlots = maxSlots;
+        displayedFull = allFull;
         displayedIntegrity = integrity;
         displayedWarning = warning;
         displayedDodge = dodge;
@@ -272,16 +314,20 @@ public class SuitHealingUI : MonoBehaviour
 
             if (insufficientWarningTimer > 0f)
             {
-                statusText.text = $"<color=#FF5555><b>BIOMASSA INSUFICIENTE [{percent}%]</b></color> {keyHint}";
+                statusText.text = $"<color=#FF5555><b>SEM SLOTS [{percent}%]</b></color> {keyHint}";
             }
-            else if (isFull)
+            else if (allFull)
             {
-                statusText.text = $"<color=#00FFAA><b>CÁPSULA PRONTA [100%]</b></color> {keyHint}";
+                statusText.text = $"<color=#00FFAA><b>SLOTS CHEIOS ({stored}/{maxSlots})</b></color> {keyHint}";
+            }
+            else if (hasSlotReady)
+            {
+                statusText.text = $"<color=#00FFAA><b>CURA PRONTA ({stored}/{maxSlots})</b></color> {keyHint}";
             }
             else
             {
                 string pctColor = percent >= 50 ? "#00FFAA" : "#FFD27A";
-                statusText.text = $"<color={pctColor}><b>CURA NO TRAJE [{percent}%]</b></color> {keyHint}";
+                statusText.text = $"<color={pctColor}><b>CURA ({stored}/{maxSlots})</b></color> {keyHint}";
             }
         }
 
@@ -293,7 +339,7 @@ public class SuitHealingUI : MonoBehaviour
             }
             else if (insufficientWarningTimer > 0f)
             {
-                subtitleText.text = "<color=#FFAAAA>Acerte golpes, abata inimigos ou esquive no tempo certo!</color>";
+                subtitleText.text = "<color=#FFAAAA>Complete 100% de biomassa para guardar 1 slot de cura!</color>";
             }
             else
             {
@@ -305,13 +351,13 @@ public class SuitHealingUI : MonoBehaviour
 
         if (barText != null)
         {
-            if (isFull)
+            if (allFull)
             {
-                barText.text = $"<color=#FFFFFF><b>100% • PRONTA PARA USO • [{healingSystem.healKey}]</b></color>";
+                barText.text = $"<color=#FFFFFF><b>RESERVATÓRIO CHEIO ({stored}/{maxSlots}) • [{healingSystem.healKey}]</b></color>";
             }
             else
             {
-                barText.text = $"BIOMASSA: <b>{percent}%</b>";
+                barText.text = $"BIOMASSA: <b>{percent}%</b>  →  SLOT #{stored + 1}/{maxSlots}";
             }
         }
     }
@@ -367,15 +413,49 @@ public class SuitHealingUI : MonoBehaviour
         infoRect.offsetMin = new Vector2(8, 4);
         infoRect.offsetMax = new Vector2(-8, -4);
 
-        // Linha 1: Título / Status Principal
+        // Linha 1: Título / Status Principal + Pills dos Slots no canto superior direito
         GameObject textObj = new GameObject("StatusText");
         textObj.transform.SetParent(infoContainer.transform, false);
 
         RectTransform textRect = textObj.AddComponent<RectTransform>();
         textRect.anchorMin = new Vector2(0, 0.65f);
-        textRect.anchorMax = new Vector2(1f, 1f);
+        textRect.anchorMax = new Vector2(0.76f, 1f);
         textRect.offsetMin = Vector2.zero;
         textRect.offsetMax = Vector2.zero;
+
+        GameObject slotsRow = new GameObject("SlotPills");
+        slotsRow.transform.SetParent(infoContainer.transform, false);
+        RectTransform slotsRowRect = slotsRow.AddComponent<RectTransform>();
+        slotsRowRect.anchorMin = new Vector2(0.76f, 0.68f);
+        slotsRowRect.anchorMax = new Vector2(1f, 0.96f);
+        slotsRowRect.offsetMin = Vector2.zero;
+        slotsRowRect.offsetMax = Vector2.zero;
+
+        HorizontalLayoutGroup slotsLayout = slotsRow.AddComponent<HorizontalLayoutGroup>();
+        slotsLayout.spacing = 4f;
+        slotsLayout.childAlignment = TextAnchor.MiddleRight;
+        slotsLayout.childControlWidth = false;
+        slotsLayout.childControlHeight = false;
+        slotsLayout.childForceExpandWidth = false;
+        slotsLayout.childForceExpandHeight = false;
+
+        for (int i = 0; i < slotPills.Length; i++)
+        {
+            GameObject pillObj = new GameObject($"Slot_{i + 1}");
+            pillObj.transform.SetParent(slotsRow.transform, false);
+            RectTransform pillRt = pillObj.AddComponent<RectTransform>();
+            pillRt.sizeDelta = new Vector2(22f, 12f);
+
+            Image pillImg = pillObj.AddComponent<Image>();
+            pillImg.sprite = pixel;
+            pillImg.color = new Color(0.09f, 0.16f, 0.12f, 0.9f);
+
+            Outline pillOut = pillObj.AddComponent<Outline>();
+            pillOut.effectColor = new Color(0.25f, 0.7f, 0.45f, 0.7f);
+            pillOut.effectDistance = new Vector2(1f, -1f);
+
+            slotPills[i] = pillImg;
+        }
 
         statusText = textObj.AddComponent<TextMeshProUGUI>();
         statusText.fontSize = 14;

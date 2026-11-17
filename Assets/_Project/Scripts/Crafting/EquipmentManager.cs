@@ -134,6 +134,11 @@ public class EquipmentManager : MonoBehaviour
         EnsureBlueprintEquipment("equip_capacidade_infusao_2", "Chassi Térmico Modular II", "Dissipação criogênica avançada. Permite até 10 infusões ativas simultâneas na mesma run.", EquipmentEffectType.InfusionCapacityExpansion, 10.0f);
         EnsureBlueprintEquipment("equip_reservatorio_cura", "Reservatório de Biossíntese Auxiliar", "Expande os canais de síntese do traje, concedendo +1 Cápsula Máxima de Cura ao Eptinho (totalizando 3 cápsulas).", EquipmentEffectType.ExtraPotionSlot, 1.0f);
 
+        // Definições canônicas das armas forjáveis no Robozinho
+        EnsureBlueprintEquipment("eq_crystal_axe", "Talhador", "Armamento pesado de corte cristalino. Causa alto impacto, golpes em área devastadores e Ground Slam sísmico.", EquipmentEffectType.DamageBoost, 0f);
+        EnsureBlueprintEquipment("eq_arma_projetil", "Ressonadora", "Armamento balístico de disparos de plasma concentrados com cadência e recarga ágeis.", EquipmentEffectType.UnlockProjectileWeapon, 1.0f);
+        EnsureBlueprintEquipment("eq_arma_boomerang", "Glaive", "Lâmina orbital de arremesso com ricochete em cadeia, escudo giratório e descarga elétrica.", EquipmentEffectType.RangeBoost, 0f);
+
         BuildLookup();
 
         // Garante que o Monitor Telemétrico de Atributos do Robozinho esteja registrado

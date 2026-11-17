@@ -338,23 +338,23 @@ public class WeaponRack : MonoBehaviour
         {
             slots = new List<WeaponRackSlot>();
 
-            // Slot 0: Adaga de Plasma (Já liberada)
+            // Slot 0: Adaga de Quartzo (Arma inicial - Já liberada)
             slots.Add(new WeaponRackSlot
             {
                 weaponId = "dagger",
-                displayName = "ADAGA DE PLASMA",
-                description = "Armamento leve em desenvolvimento. Indisponível no teste atual.",
+                displayName = "ADAGA DE QUARTZO",
+                description = "Armamento leve de alta cadência inicial da expedição.",
                 weaponType = WeaponType.Dagger,
-                unlockedByDefault = false,
+                unlockedByDefault = true,
                 requiredCraftId = "",
                 weaponPrefab = Resources.Load<GameObject>("dagger_low")
             });
 
-            // Slot 1: Machado de Cristal (Desbloqueado gratuitamente desde o início)
+            // Slot 1: Talhador (Arma inicial - Já liberada)
             slots.Add(new WeaponRackSlot
             {
                 weaponId = "crystal_axe",
-                displayName = "MACHADO DE CRISTAL",
+                displayName = "TALHADOR",
                 description = "Golpes pesados devastadores em área com alto impacto.",
                 weaponType = WeaponType.Axe,
                 unlockedByDefault = true,
@@ -362,11 +362,11 @@ public class WeaponRack : MonoBehaviour
                 weaponPrefab = Resources.Load<GameObject>("Crystal_Axe")
             });
 
-            // Slot 2: Pistola de Plasma (Desbloqueável no Robozinho)
+            // Slot 2: Ressonadora (Desbloqueada por Blueprint aleatório + Craft no Robozinho)
             slots.Add(new WeaponRackSlot
             {
                 weaponId = "gunfake",
-                displayName = "PISTOLA DE PLASMA",
+                displayName = "RESSONADORA",
                 description = "Disparos de plasma de médio alcance com recarga rápida.",
                 weaponType = WeaponType.Gun,
                 unlockedByDefault = false,
@@ -375,7 +375,7 @@ public class WeaponRack : MonoBehaviour
             });
         }
 
-        // Garante que o Slot 3 (Bumerangue) exista mesmo em prefabs/cenas já salvos com 3 slots
+        // Garante que o Slot 3 (Glaive) exista mesmo em prefabs/cenas já salvos com 3 slots
         bool hasBoomerangSlot = false;
         for (int i = 0; i < slots.Count; i++)
         {
@@ -391,13 +391,45 @@ public class WeaponRack : MonoBehaviour
             slots.Add(new WeaponRackSlot
             {
                 weaponId = "boomerang",
-                displayName = "BUMERANGUE DE CRISTAL",
-                description = "Lâmina energética que ricocheteia, gera escudo giratório e desacopla cristais elétricos.",
+                displayName = "GLAIVE",
+                description = "Lâmina orbital energética que ricocheteia, gera escudo giratório e desacopla cristais elétricos.",
                 weaponType = WeaponType.Boomerang,
-                unlockedByDefault = true,
-                requiredCraftId = "",
+                unlockedByDefault = false,
+                requiredCraftId = "eq_arma_boomerang",
                 weaponPrefab = Resources.Load<GameObject>("Boomerang")
             });
+        }
+
+        // Normaliza nomes, IDs e regras de desbloqueio mesmo em cenas já serializadas anteriormente
+        for (int i = 0; i < slots.Count; i++)
+        {
+            WeaponRackSlot s = slots[i];
+            if (s == null) continue;
+
+            if (s.weaponType == WeaponType.Dagger || s.weaponId == "dagger")
+            {
+                s.displayName = "ADAGA DE QUARTZO";
+                s.unlockedByDefault = true;
+                s.requiredCraftId = "";
+            }
+            else if (s.weaponType == WeaponType.Axe || s.weaponId == "crystal_axe")
+            {
+                s.displayName = "TALHADOR";
+                s.unlockedByDefault = true;
+                s.requiredCraftId = "eq_crystal_axe";
+            }
+            else if (s.weaponType == WeaponType.Gun || s.weaponId == "gunfake")
+            {
+                s.displayName = "RESSONADORA";
+                s.unlockedByDefault = false;
+                s.requiredCraftId = "eq_arma_projetil";
+            }
+            else if (s.weaponType == WeaponType.Boomerang || s.weaponId == "boomerang")
+            {
+                s.displayName = "GLAIVE";
+                s.unlockedByDefault = false;
+                s.requiredCraftId = "eq_arma_boomerang";
+            }
         }
 
         if (slots.Count > 0) slots[0].displayPoint = slot1_AdagaAnchor;
@@ -835,7 +867,14 @@ public class WeaponRack : MonoBehaviour
             }
             else
             {
-                promptTMP.text = $"<color=#FF3333><b>{activeHoverSlot.displayName}</b></color>\n<size=75%><color=#FF6666>[ EM DESENVOLVIMENTO • INDISPONÍVEL ]</color></size>";
+                bool bpUnlocked = !string.IsNullOrEmpty(activeHoverSlot.requiredCraftId) &&
+                                  LoreManager.Instance != null &&
+                                  LoreManager.Instance.IsBlueprintUnlocked(activeHoverSlot.requiredCraftId);
+                string lockSub = bpUnlocked
+                    ? "BLUEPRINT ENCONTRADO • FORJE NO ROBOZINHO"
+                    : "BLOQUEADA • ENCONTRE O BLUEPRINT NO MAPA";
+                string titleShown = bpUnlocked ? activeHoverSlot.displayName : "? ? ?  [PROJETO BLOQUEADO]";
+                promptTMP.text = $"<color=#FF5555><b>{titleShown}</b></color>\n<size=75%><color=#FFAA66>[ {lockSub} ]</color></size>";
             }
         }
 
@@ -867,7 +906,13 @@ public class WeaponRack : MonoBehaviour
             if (lockedSound != null) AudioSource.PlayClipAtPoint(lockedSound, transform.position);
             if (EptinhoPopupController.instancia != null)
             {
-                EptinhoPopupController.instancia.MostrarPopupAviso($"<color=#FF4444>{slot.displayName}</color> está em desenvolvimento e indisponível para este teste. Empunhe o Machado de Cristal!");
+                bool bpUnlocked = !string.IsNullOrEmpty(slot.requiredCraftId) &&
+                                  LoreManager.Instance != null &&
+                                  LoreManager.Instance.IsBlueprintUnlocked(slot.requiredCraftId);
+                string hint = bpUnlocked
+                    ? $"Você já encontrou o Blueprint de <color=#00FFAA>{slot.displayName}</color>! Vá até o <b>Robozinho de Síntese</b> para forjar."
+                    : "Esta arma ainda está bloqueada. Explore o mapa para encontrar o Blueprint aleatório dela!";
+                EptinhoPopupController.instancia.MostrarPopupAviso(hint);
             }
             return;
         }
@@ -900,14 +945,36 @@ public class WeaponRack : MonoBehaviour
     {
         if (slot == null) return false;
 
-        // Machado de Cristal e Bumerangue estão liberados para o playtest
-        if (slot.weaponType == WeaponType.Axe || slot.weaponType == WeaponType.Boomerang || slot.unlockedByDefault)
+        // Adaga de Quartzo e Talhador são liberados desde o início (além deUnlockAllSlots para testes)
+        if (slot.unlockedByDefault || slot.weaponType == WeaponType.Dagger || slot.weaponType == WeaponType.Axe)
         {
             return true;
         }
 
-        // Adaga de Plasma e Pistola de Plasma estão temporariamente indisponíveis (em desenvolvimento)
+        // Ressonadora e Glaive liberam após serem forjadas no Robozinho
+        if (!string.IsNullOrEmpty(slot.requiredCraftId))
+        {
+            if (SaveManager.instance != null &&
+                (SaveManager.instance.GetAllCraftedEquipmentIds().Contains(slot.requiredCraftId) ||
+                 SaveManager.instance.GetCraftedEquipmentCount(slot.requiredCraftId) > 0))
+            {
+                return true;
+            }
+            if (EquipmentManager.Instance != null && EquipmentManager.Instance.IsOwned(slot.requiredCraftId))
+            {
+                return true;
+            }
+        }
+
         return false;
+    }
+
+    /// <summary>
+    /// Atualiza imediatamente os materiais e highlights das armas no expositor após craftar no Robozinho.
+    /// </summary>
+    public void RefreshUnlockedVisualsNow()
+    {
+        UpdateFloatingAnimations();
     }
 
     /// <summary>
@@ -922,6 +989,7 @@ public class WeaponRack : MonoBehaviour
                 if (slot != null) slot.unlockedByDefault = true;
             }
         }
+        RefreshUnlockedVisualsNow();
     }
 
     private bool IsWeaponCurrentlyEquipped(WeaponRackSlot slot)

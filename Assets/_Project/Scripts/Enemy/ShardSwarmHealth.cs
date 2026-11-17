@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.AI;
 using System.Collections;
+using System.Collections.Generic;
 
 /// <summary>
 /// Sistema de vida exclusivo do Shard Swarm.
@@ -66,13 +68,30 @@ public class ShardSwarmHealth : MonoBehaviour
     [HideInInspector] public System.Action<int, GameObject> onDamageTaken = null;
     [HideInInspector] public System.Action onDeath = null;
 
-    private Color originalRenderColor;
-    private Color originalBaseColor;
-    private bool hasBaseColor = false;
     private Renderer dummyRenderer;
+    private Animator[] allAnimators;
+    private float[] savedAnimatorSpeeds;
+    private NavMeshAgent navAgent;
+    private Rigidbody rb;
+    private readonly List<Behaviour> enemyAIBehaviours = new List<Behaviour>();
+    private readonly List<Behaviour> pausedAIBehaviours = new List<Behaviour>();
+    private Coroutine hitStopCo;
+    private bool isHitStopActive;
+    private bool savedNavWasStopped;
+    private bool biomassKillRewarded = false;
+
+    [Header("Biomassa do Traje")]
+    public bool grantsBiomass = true;
+    private const float BiomassPerHit = 2f;
+    private const float BiomassPerKill = 8f;
+    private const float BiomassPerEliteKill = 40f;
 
     private void Start()
     {
+        navAgent = GetComponent<NavMeshAgent>();
+        rb = GetComponent<Rigidbody>();
+        allAnimators = GetComponentsInChildren<Animator>(true);
+        DummyHealth.CollectEnemyAIBehaviours(gameObject, enemyAIBehaviours);
         // Aplica escalonamento de HP por sala (+3% por sala avançada conforme GDD)
         if (RunManager.instance != null && RunManager.instance.currentRoomNumber > 1)
         {
@@ -89,15 +108,6 @@ public class ShardSwarmHealth : MonoBehaviour
         }
 
         dummyRenderer = GetComponentInChildren<Renderer>();
-        if (dummyRenderer != null)
-        {
-            originalRenderColor = dummyRenderer.material.color;
-            if (dummyRenderer.material.HasProperty("_BaseColor"))
-            {
-                hasBaseColor = true;
-                originalBaseColor = dummyRenderer.material.GetColor("_BaseColor");
-            }
-        }
 
         if (healthBarSlider == null)
         {
@@ -199,8 +209,18 @@ public class ShardSwarmHealth : MonoBehaviour
         CurrentHealth -= damage;
         onDamageTaken?.Invoke(damage, null);
 
+        if (grantsBiomass && !isPoison && damage > 0 && SuitHealingSystem.Instance != null)
+        {
+            SuitHealingSystem.Instance.AddBiomass(BiomassPerHit);
+        }
+
         UpdateHealthBar();
         ShowHealthBar();
+
+        if (!isPoison)
+        {
+            ApplyHitStop(isCritical ? 0.12f : 0.08f);
+        }
 
         if (floatingDamageTextPrefab == null)
         {
@@ -227,7 +247,7 @@ public class ShardSwarmHealth : MonoBehaviour
 
         if (dummyRenderer != null)
         {
-            StartCoroutine(FlashRed());
+            StartCoroutine(isPoison ? FlashRed() : FlashWhite());
         }
 
         if (CurrentHealth <= 0)
@@ -258,19 +278,157 @@ public class ShardSwarmHealth : MonoBehaviour
         }
     }
 
+    private bool isFlashing = false;
+    private Renderer[] flashRends;
+    private Color[] origBase, origTint, origEmis;
+    private bool[] hasBase, hasTint, hasEmis;
+
     IEnumerator FlashRed()
     {
-        dummyRenderer.material.color = hitColor;
-        if (hasBaseColor) dummyRenderer.material.SetColor("_BaseColor", hitColor);
-        yield return new WaitForSeconds(hitFlashTime);
-        dummyRenderer.material.color = originalRenderColor;
-        if (hasBaseColor) dummyRenderer.material.SetColor("_BaseColor", originalBaseColor);
+        yield return FlashColor(hitColor, hitFlashTime);
+    }
+
+    IEnumerator FlashWhite()
+    {
+        yield return FlashColor(Color.white, 0.08f);
+    }
+
+    IEnumerator FlashColor(Color flashColor, float duration)
+    {
+        if (!isFlashing)
+        {
+            flashRends = DummyHealth.CollectFlashMeshRenderers(gameObject);
+            int n = flashRends.Length;
+            origBase = new Color[n]; origTint = new Color[n]; origEmis = new Color[n];
+            hasBase = new bool[n]; hasTint = new bool[n]; hasEmis = new bool[n];
+
+            for (int i = 0; i < n; i++)
+            {
+                if (flashRends[i] == null) continue;
+                Material m = flashRends[i].material;
+                hasBase[i] = m.HasProperty("_BaseColor");
+                hasTint[i] = m.HasProperty("_Color");
+                hasEmis[i] = m.HasProperty("_EmissionColor");
+                if (hasBase[i]) origBase[i] = m.GetColor("_BaseColor");
+                if (hasTint[i]) origTint[i] = m.color;
+                if (hasEmis[i]) origEmis[i] = m.GetColor("_EmissionColor");
+            }
+            isFlashing = true;
+        }
+
+        for (int i = 0; i < flashRends.Length; i++)
+        {
+            if (flashRends[i] == null) continue;
+            Material m = flashRends[i].material;
+            if (hasBase[i]) m.SetColor("_BaseColor", flashColor);
+            if (hasTint[i]) m.color = flashColor;
+            if (hasEmis[i]) { m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", flashColor * 0.8f); }
+        }
+
+        yield return new WaitForSeconds(duration);
+
+        for (int i = 0; i < flashRends.Length; i++)
+        {
+            if (flashRends[i] == null) continue;
+            Material m = flashRends[i].material;
+            if (hasBase[i]) m.SetColor("_BaseColor", origBase[i]);
+            if (hasTint[i]) m.color = origTint[i];
+            if (hasEmis[i]) m.SetColor("_EmissionColor", origEmis[i]);
+        }
+        isFlashing = false;
+    }
+
+    public void ApplyHitStop(float duration = 0.08f)
+    {
+        if (!gameObject.activeInHierarchy || CurrentHealth <= 0 || isDead) return;
+        if (rb != null && Mathf.Abs(rb.linearVelocity.y) > 1.5f) return;
+
+        if (hitStopCo != null)
+        {
+            StopCoroutine(hitStopCo);
+            RestoreHitStopState();
+        }
+        hitStopCo = StartCoroutine(HitStopRoutine(duration));
+    }
+
+    private void OnDisable()
+    {
+        RestoreHitStopState();
+    }
+
+    private IEnumerator HitStopRoutine(float duration)
+    {
+        isHitStopActive = true;
+        if (enemyAIBehaviours.Count == 0) DummyHealth.CollectEnemyAIBehaviours(gameObject, enemyAIBehaviours);
+        if (allAnimators == null || allAnimators.Length == 0) allAnimators = GetComponentsInChildren<Animator>(true);
+
+        savedAnimatorSpeeds = new float[allAnimators.Length];
+        for (int i = 0; i < allAnimators.Length; i++)
+        {
+            if (allAnimators[i] != null)
+            {
+                savedAnimatorSpeeds[i] = allAnimators[i].speed;
+                allAnimators[i].speed = 0f;
+            }
+        }
+
+        if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh)
+        {
+            savedNavWasStopped = navAgent.isStopped;
+            navAgent.isStopped = true;
+            navAgent.velocity = Vector3.zero;
+        }
+
+        if (rb != null && !rb.isKinematic)
+        {
+            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+        }
+
+        DummyHealth.PauseActiveAIBehaviours(enemyAIBehaviours, pausedAIBehaviours);
+        yield return new WaitForSecondsRealtime(duration);
+        RestoreHitStopState();
+        hitStopCo = null;
+    }
+
+    private void RestoreHitStopState()
+    {
+        if (!isHitStopActive) return;
+        isHitStopActive = false;
+
+        if (allAnimators != null && savedAnimatorSpeeds != null)
+        {
+            int count = Mathf.Min(allAnimators.Length, savedAnimatorSpeeds.Length);
+            for (int i = 0; i < count; i++)
+            {
+                if (allAnimators[i] != null)
+                {
+                    allAnimators[i].speed = savedAnimatorSpeeds[i] > 0.001f ? savedAnimatorSpeeds[i] : 1f;
+                }
+            }
+        }
+
+        if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh)
+        {
+            navAgent.isStopped = savedNavWasStopped;
+        }
+
+        DummyHealth.ResumePausedAIBehaviours(pausedAIBehaviours);
     }
 
     private void Die()
     {
         if (isDead) return;
         isDead = true;
+        RestoreHitStopState();
+
+        if (!biomassKillRewarded)
+        {
+            biomassKillRewarded = true;
+            if (grantsBiomass && SuitHealingSystem.Instance != null)
+            {
+                SuitHealingSystem.Instance.AddBiomass(isElite ? BiomassPerEliteKill : BiomassPerKill);
+            }
+        }
 
         try { onDeath?.Invoke(); } catch (System.Exception ex) { Debug.LogError($"[ShardSwarmHealth] Erro em onDeath: {ex}"); }
 

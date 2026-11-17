@@ -133,7 +133,7 @@ public class DevCheatConsole : MonoBehaviour
     /// Destrava e crafta todas as melhorias equipáveis cadastradas no jogo.
     /// </summary>
     /// <summary>
-    /// Desbloqueia todas as armas (Adaga, Machado e Pistola) no save e no expositor.
+    /// Desbloqueia todas as armas (Adaga de Quartzo, Talhador, Ressonadora e Glaive) no save e no expositor.
     /// </summary>
     public void UnlockAllWeapons()
     {
@@ -141,7 +141,19 @@ public class DevCheatConsole : MonoBehaviour
         {
             SaveManager.instance.AddCraftedEquipment("eq_crystal_axe");
             SaveManager.instance.AddCraftedEquipment("eq_arma_projetil");
-                        SaveManager.instance.SavePersistentData();
+            SaveManager.instance.AddCraftedEquipment("eq_arma_boomerang");
+
+            if (SaveManager.instance.CachedData != null)
+            {
+                if (SaveManager.instance.CachedData.unlockedRobotBlueprints == null)
+                    SaveManager.instance.CachedData.unlockedRobotBlueprints = new System.Collections.Generic.List<string>();
+                if (!SaveManager.instance.CachedData.unlockedRobotBlueprints.Contains("eq_arma_projetil"))
+                    SaveManager.instance.CachedData.unlockedRobotBlueprints.Add("eq_arma_projetil");
+                if (!SaveManager.instance.CachedData.unlockedRobotBlueprints.Contains("eq_arma_boomerang"))
+                    SaveManager.instance.CachedData.unlockedRobotBlueprints.Add("eq_arma_boomerang");
+            }
+
+            SaveManager.instance.SavePersistentData();
         }
 
         if (WeaponRack.Instance != null)
@@ -149,7 +161,7 @@ public class DevCheatConsole : MonoBehaviour
             WeaponRack.Instance.UnlockAllSlots();
         }
 
-        Log("<color=#55FF55>[CHEAT OK]</color> Todas as armas desbloqueadas permanentemente!");
+        Log("<color=#55FF55>[CHEAT OK]</color> Todas as armas (Adaga de Quartzo, Talhador, Ressonadora e Glaive) desbloqueadas!");
     }
 
     public void UnlockAllEquipment()

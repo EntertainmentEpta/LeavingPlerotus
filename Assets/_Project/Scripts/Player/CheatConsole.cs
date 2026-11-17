@@ -63,10 +63,11 @@ public class CheatConsole : MonoBehaviour
         new CheatEntry { category = "✨ SINERGIAS & LORE", command = "limparescrituras", aliases = "clearscriptures, clearlore", description = "Reseta todas as escrituras coletadas para páginas em branco.", executePayload = "limparescrituras" },
 
         // ⚔️ Combate, Dano & Atributos
-        new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "armas", aliases = "weapons, allweapons, liberararmas, unlockweapons", description = "Desbloqueia permanentemente todas as armas no Expositor (Machado, Pistola e Adaga).", executePayload = "armas" },
-        new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "arma pistola", aliases = "pistola, gun", description = "Equipa a Pistola diretamente na mão do personagem.", executePayload = "arma pistola" },
-        new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "arma machado", aliases = "machado, axe", description = "Equipa o Machado de Cristal diretamente na mão do personagem.", executePayload = "arma machado" },
-        new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "arma adaga", aliases = "adaga, dagger", description = "Equipa a Adaga de Plasma diretamente na mão do personagem.", executePayload = "arma adaga" },
+        new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "armas", aliases = "weapons, allweapons, liberararmas, unlockweapons", description = "Desbloqueia permanentemente todas as armas no Expositor (Adaga de Quartzo, Talhador, Ressonadora e Glaive).", executePayload = "armas" },
+        new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "arma pistola", aliases = "pistola, gun, ressonadora", description = "Equipa a Ressonadora diretamente na mão do personagem.", executePayload = "arma pistola" },
+        new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "arma machado", aliases = "machado, axe, talhador", description = "Equipa o Talhador diretamente na mão do personagem.", executePayload = "arma machado" },
+        new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "arma adaga", aliases = "adaga, dagger, quartzo", description = "Equipa a Adaga de Quartzo diretamente na mão do personagem.", executePayload = "arma adaga" },
+        new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "arma glaive", aliases = "glaive, boomerang, bumerangue", description = "Equipa a Glaive diretamente na mão do personagem.", executePayload = "arma glaive" },
         new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "forca 10", aliases = "dano [X], str [X], strength [X]", description = "Multiplica o dano base por 10x (aceita qualquer valor: ex: forca 5, forca 50).", executePayload = "forca 10" },
         new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "heal", aliases = "vida, curar, god", description = "Restaura instantaneamente toda a vida e armadura do jogador ao máximo.", executePayload = "heal" },
         new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "biomassa", aliases = "biomass, bio, fullbio", description = "Enche a Biomassa do traje para 100% (libera a cura no [Q]).", executePayload = "biomassa" },
@@ -1466,7 +1467,7 @@ public class CheatConsole : MonoBehaviour
     }
 
     /// <summary>
-    /// Desbloqueia permanentemente todas as armas no save e no expositor WeaponRack.
+    /// Desbloqueia permanentemente todas as armas (incluindo Ressonadora e Glaive) no save, blueprints e expositor WeaponRack.
     /// </summary>
     public void UnlockAllWeapons()
     {
@@ -1474,7 +1475,19 @@ public class CheatConsole : MonoBehaviour
         {
             SaveManager.instance.AddCraftedEquipment("eq_crystal_axe");
             SaveManager.instance.AddCraftedEquipment("eq_arma_projetil");
-                        SaveManager.instance.SavePersistentData();
+            SaveManager.instance.AddCraftedEquipment("eq_arma_boomerang");
+
+            if (SaveManager.instance.CachedData != null)
+            {
+                if (SaveManager.instance.CachedData.unlockedRobotBlueprints == null)
+                    SaveManager.instance.CachedData.unlockedRobotBlueprints = new List<string>();
+                if (!SaveManager.instance.CachedData.unlockedRobotBlueprints.Contains("eq_arma_projetil"))
+                    SaveManager.instance.CachedData.unlockedRobotBlueprints.Add("eq_arma_projetil");
+                if (!SaveManager.instance.CachedData.unlockedRobotBlueprints.Contains("eq_arma_boomerang"))
+                    SaveManager.instance.CachedData.unlockedRobotBlueprints.Add("eq_arma_boomerang");
+            }
+
+            SaveManager.instance.SavePersistentData();
         }
 
         if (WeaponRack.Instance != null)
@@ -1485,7 +1498,7 @@ public class CheatConsole : MonoBehaviour
         Debug.Log("💻 CHEAT APROVADO: Todas as armas desbloqueadas permanentemente no Expositor!");
         if (EptinhoPopupController.instancia != null)
         {
-            EptinhoPopupController.instancia.MostrarPopupAviso("⚔️ TODAS AS ARMAS DESBLOQUEADAS!\n(Adaga, Machado e Pistola Liberados)");
+            EptinhoPopupController.instancia.MostrarPopupAviso("⚔️ TODAS AS ARMAS DESBLOQUEADAS!\n(Adaga de Quartzo, Talhador, Ressonadora e Glaive)");
         }
     }
 
@@ -1505,20 +1518,25 @@ public class CheatConsole : MonoBehaviour
         GameObject prefabToEquip = null;
         string displayName = "";
 
-        if (lower.Contains("adaga") || lower.Contains("dagger") || lower.Contains("faca"))
+        if (lower.Contains("adaga") || lower.Contains("dagger") || lower.Contains("faca") || lower.Contains("quartzo"))
         {
             prefabToEquip = Resources.Load<GameObject>("dagger_low");
-            displayName = "Adaga de Plasma";
+            displayName = "Adaga de Quartzo";
         }
-        else if (lower.Contains("machado") || lower.Contains("axe") || lower.Contains("crystal_axe"))
+        else if (lower.Contains("machado") || lower.Contains("axe") || lower.Contains("crystal_axe") || lower.Contains("talhador"))
         {
             prefabToEquip = Resources.Load<GameObject>("Crystal_Axe");
-            displayName = "Machado de Cristal";
+            displayName = "Talhador";
         }
-        else if (lower.Contains("pistola") || lower.Contains("gun") || lower.Contains("arma") || lower.Contains("tiro"))
+        else if (lower.Contains("pistola") || lower.Contains("gun") || lower.Contains("tiro") || lower.Contains("ressonadora"))
         {
             prefabToEquip = Resources.Load<GameObject>("gunfake");
-            displayName = "Pistola / Arma de Projétil";
+            displayName = "Ressonadora";
+        }
+        else if (lower.Contains("glaive") || lower.Contains("boomerang") || lower.Contains("bumerangue") || lower.Contains("bumerang"))
+        {
+            prefabToEquip = Resources.Load<GameObject>("Boomerang");
+            displayName = "Glaive";
         }
 
         if (prefabToEquip != null)
@@ -1533,7 +1551,7 @@ public class CheatConsole : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning($"🔍 CHEAT: Arma '{weaponName}' não reconhecida. Use: adaga, machado ou pistola.");
+            Debug.LogWarning($"🔍 CHEAT: Arma '{weaponName}' não reconhecida. Use: adaga, talhador, ressonadora ou glaive.");
         }
     }
 

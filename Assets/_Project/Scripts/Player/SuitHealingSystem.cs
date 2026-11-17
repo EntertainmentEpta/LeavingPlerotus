@@ -6,10 +6,12 @@ using UnityEngine;
 /// Sistema de Cura do Traje do Eptinho (Mecânica Central de Sobrevivência).
 /// - Medidor contínuo de Biomassa (0% a 100%), começa em 0%.
 /// - A Biomassa NÃO recarrega por tempo. Ela só é acumulada por ações do jogador:
-///     * Acertar golpe: +2%   (DummyHealth)
-///     * Matar inimigo: +8% comum / +40% Elite (DummyHealth)
+///     * Acertar golpe: +2%   (DummyHealth / ShardSwarmHealth)
+///     * Matar inimigo: +8% comum / +40% Elite
 ///     * Esquiva Perfeita: +35% (DashM)
-/// - Com 100% de Biomassa, pressionar [Q] consome TODA a biomassa e cura:
+/// - Ao completar 100% de Biomassa, 1 carga é guardada em um Slot de Cura (base: 2 slots;
+///   com a melhoria do robozinho 'equip_reservatorio_cura': 3 slots), permitindo segurar curas e continuar acumulando.
+/// - Pressionar [Q] consome 1 Slot guardado e cura:
 ///     * Em combate: 15% da vida máxima.
 ///     * Fora de combate / descanso / anomalia: 30% da vida máxima.
 /// </summary>
@@ -18,13 +20,21 @@ public class SuitHealingSystem : MonoBehaviour
     public static SuitHealingSystem Instance { get; private set; }
 
     public const float MaxBiomass = 100f;
+    public const int BaseMaxSlots = 2;
+    public const int UpgradedMaxSlots = 3;
 
     /// <summary>Disparado sempre que a Biomassa muda. Parâmetro: valor atual (0 a 100).</summary>
     public event Action<float> OnBiomassChanged;
 
-    [Header("Biomassa (0% a 100%)")]
-    [Tooltip("Biomassa atual do traje. Começa em 0 e só aumenta por golpes, kills e Esquiva Perfeita.")]
+    /// <summary>Disparado quando mudam os slots guardados, o limite de slots ou a biomassa atual.</summary>
+    public event Action<int, int, float> OnHealingStateChanged;
+
+    [Header("Biomassa & Slots Guardados")]
+    [Tooltip("Biomassa atual em progresso para o próximo slot (0% a 100%).")]
     [SerializeField, Range(0f, MaxBiomass)] private float currentBiomass = 0f;
+
+    [Tooltip("Quantidade de cargas completas (100%) guardadas prontas para usar em [Q].")]
+    [SerializeField] private int storedSlots = 0;
 
     [Header("Eficácia de Cura (% da Vida Máxima)")]
     [Tooltip("Percentual da vida curada durante combate ativo (padrão: 0.15 = 15%)")]
@@ -64,13 +74,23 @@ public class SuitHealingSystem : MonoBehaviour
     public bool isInAnomalyRoom = false;
     private float combatCheckTimer = 0f;
 
+    public int MaxSlots =>
+        (EquipmentManager.Instance != null &&
+         (EquipmentManager.Instance.IsEquipped("equip_reservatorio_cura") || EquipmentManager.Instance.IsOwned("equip_reservatorio_cura")))
+            ? UpgradedMaxSlots
+            : BaseMaxSlots;
+
+    public int StoredSlots => Mathf.Clamp(storedSlots, 0, MaxSlots);
+    public bool HasStoredHeal => StoredSlots > 0;
+    public bool AreAllSlotsFull => StoredSlots >= MaxSlots;
+
     public float CurrentBiomass => currentBiomass;
     /// <summary>Biomassa normalizada (0 a 1) para barras de preenchimento.</summary>
-    public float BiomassNormalized => Mathf.Clamp01(currentBiomass / MaxBiomass);
+    public float BiomassNormalized => AreAllSlotsFull ? 1f : Mathf.Clamp01(currentBiomass / MaxBiomass);
     /// <summary>Biomassa em porcentagem inteira (0 a 100).</summary>
-    public int BiomassPercent => Mathf.Clamp(Mathf.FloorToInt(currentBiomass), 0, 100);
-    /// <summary>True quando a Biomassa está em 100% (cura pronta para uso).</summary>
-    public bool IsBiomassFull => currentBiomass >= MaxBiomass;
+    public int BiomassPercent => AreAllSlotsFull ? 100 : Mathf.Clamp(Mathf.FloorToInt(currentBiomass), 0, 100);
+    /// <summary>True quando existe pelo menos 1 slot de cura pronto para usar.</summary>
+    public bool IsBiomassFull => HasStoredHeal || currentBiomass >= MaxBiomass;
     public bool IsInCombat => isInCombat;
     public float SuitIntegrityPercent => suitIntegrity * 100f;
 
@@ -124,65 +144,117 @@ public class SuitHealingSystem : MonoBehaviour
     }
 
     /// <summary>
-    /// Chamado ao morrer ou ao respawnar/acordar na Base. A Biomassa volta a 0%.
+    /// Chamado ao morrer ou ao respawnar/acordar na Base. Os slots e a Biomassa voltam a 0.
     /// </summary>
     public void ResetOnDeathOrRespawn()
     {
         suitIntegrity = 1.0f;
         isInCombat = false;
         isInAnomalyRoom = false;
+        storedSlots = 0;
         SetBiomass(0f);
         playerHealth = GetComponent<PlayerHealth>() ?? GetComponentInParent<PlayerHealth>() ?? FindFirstObjectByType<PlayerHealth>();
         StopRechargeLoopAudio();
-        Debug.Log("🧪 [SuitHealing] Sistema de cura resetado pós-morte/respawn! Biomassa: 0%");
+        Debug.Log("🧪 [SuitHealing] Sistema de cura resetado pós-morte/respawn! Slots: 0 | Biomassa: 0%");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // BIOMASSA
+    // BIOMASSA & SLOTS GUARDADOS
     // ─────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Soma Biomassa ao medidor (com clamp entre 0 e 100). Valores negativos reduzem.
+    /// Soma Biomassa ao medidor. Ao completar 100%, armazena 1 slot (até o limite de MaxSlots).
     /// </summary>
     public void AddBiomass(float amount)
     {
         if (Mathf.Approximately(amount, 0f)) return;
-        SetBiomass(currentBiomass + amount);
+
+        int maxSlots = MaxSlots;
+        if (amount > 0f && storedSlots >= maxSlots)
+        {
+            if (!Mathf.Approximately(currentBiomass, 0f))
+            {
+                currentBiomass = 0f;
+                OnBiomassChanged?.Invoke(currentBiomass);
+            }
+            OnHealingStateChanged?.Invoke(storedSlots, maxSlots, currentBiomass);
+            return;
+        }
+
+        float nextBiomass = Mathf.Max(0f, currentBiomass + amount);
+        int prevSlots = storedSlots;
+
+        while (nextBiomass >= MaxBiomass && storedSlots < maxSlots)
+        {
+            nextBiomass -= MaxBiomass;
+            storedSlots++;
+        }
+
+        if (storedSlots >= maxSlots)
+        {
+            nextBiomass = 0f;
+        }
+
+        currentBiomass = Mathf.Clamp(nextBiomass, 0f, MaxBiomass);
+
+        if (storedSlots > prevSlots)
+        {
+            PlaySlotReadyAudio(storedSlots >= maxSlots);
+        }
+
+        OnBiomassChanged?.Invoke(currentBiomass);
+        OnHealingStateChanged?.Invoke(storedSlots, maxSlots, currentBiomass);
     }
 
-    /// <summary>Enche a Biomassa para 100% (testes / cheat).</summary>
-    [ContextMenu("Debug/Encher Biomassa (100%)")]
+    /// <summary>Adiciona 1 carga completa (100% de Biomassa -> +1 Slot) para testes/cheat.</summary>
+    [ContextMenu("Debug/Encher +1 Slot de Biomassa (100%)")]
     public void FillBiomass()
     {
-        SetBiomass(MaxBiomass);
-        Debug.Log("🧪 [SuitHealing] DEBUG: Biomassa preenchida para 100%.");
+        AddBiomass(MaxBiomass);
+        Debug.Log($"🧪 [SuitHealing] DEBUG: Biomassa adicionada (+100%). Slots: {StoredSlots}/{MaxSlots} | Barra: {currentBiomass:F0}%");
     }
 
-    /// <summary>Zera a Biomassa (testes).</summary>
-    [ContextMenu("Debug/Zerar Biomassa (0%)")]
+    /// <summary>Zera os slots e a Biomassa (testes).</summary>
+    [ContextMenu("Debug/Zerar Slots e Biomassa")]
     public void EmptyBiomass()
     {
+        storedSlots = 0;
         SetBiomass(0f);
     }
 
     private void SetBiomass(float value)
     {
-        float clamped = Mathf.Clamp(value, 0f, MaxBiomass);
-        if (Mathf.Approximately(clamped, currentBiomass)) return;
+        int maxSlots = MaxSlots;
+        float clamped = storedSlots >= maxSlots ? 0f : Mathf.Clamp(value, 0f, MaxBiomass);
+        int prevSlots = storedSlots;
 
-        bool wasFull = IsBiomassFull;
-        currentBiomass = clamped;
-        OnBiomassChanged?.Invoke(currentBiomass);
-
-        if (!wasFull && IsBiomassFull)
+        while (clamped >= MaxBiomass && storedSlots < maxSlots)
         {
-            PlayBiomassReadyAudio();
+            clamped -= MaxBiomass;
+            storedSlots++;
         }
+        if (storedSlots >= maxSlots)
+        {
+            clamped = 0f;
+        }
+
+        bool changed = !Mathf.Approximately(clamped, currentBiomass) || storedSlots != prevSlots;
+        currentBiomass = clamped;
+        if (!changed) return;
+
+        if (storedSlots > prevSlots)
+        {
+            PlaySlotReadyAudio(storedSlots >= maxSlots);
+        }
+
+        OnBiomassChanged?.Invoke(currentBiomass);
+        OnHealingStateChanged?.Invoke(storedSlots, maxSlots, currentBiomass);
     }
 
 #if UNITY_EDITOR
     private void OnValidate()
     {
+        storedSlots = Mathf.Clamp(storedSlots, 0, UpgradedMaxSlots);
         currentBiomass = Mathf.Clamp(currentBiomass, 0f, MaxBiomass);
     }
 #endif
@@ -230,30 +302,38 @@ public class SuitHealingSystem : MonoBehaviour
         }
         if (playerHealth == null || playerHealth.isDead) return;
 
-        // Só permite curar com a Biomassa em 100%
-        if (!IsBiomassFull)
+        // Caso a biomassa tenha chegado em 100% pelo Inspector, converte em slot antes de consumir
+        if (currentBiomass >= MaxBiomass && storedSlots < MaxSlots)
+        {
+            SetBiomass(currentBiomass);
+        }
+
+        // Só permite curar com pelo menos 1 slot guardado
+        if (storedSlots <= 0)
         {
             if (SuitHealingUI.Instance != null)
             {
                 SuitHealingUI.Instance.FlashEmptyWarning();
             }
-            Debug.LogWarning($"⚠️ [SuitHealing] Biomassa insuficiente ({currentBiomass:F0}%/100%). Acerte golpes, mate inimigos ou faça Esquivas Perfeitas!");
+            Debug.LogWarning($"⚠️ [SuitHealing] Nenhum slot pronto ({currentBiomass:F0}%/100%). Acerte golpes, mate inimigos ou faça Esquivas Perfeitas!");
             return;
         }
 
-        // Não gasta a Biomassa se a cura estiver bloqueada (ex: debuff que impede cura)
+        // Não gasta o slot se a cura estiver bloqueada (ex: debuff que impede cura)
         if (!playerHealth.canHeal)
         {
             if (SuitHealingUI.Instance != null)
             {
                 SuitHealingUI.Instance.FlashEmptyWarning();
             }
-            Debug.LogWarning("⚠️ [SuitHealing] Cura bloqueada no momento. Biomassa preservada.");
+            Debug.LogWarning("⚠️ [SuitHealing] Cura bloqueada no momento. Slot preservado.");
             return;
         }
 
-        // Consome TODA a biomassa
-        SetBiomass(0f);
+        // Consome 1 slot guardado, preservando os demais slots e o progresso parcial da barra atual
+        storedSlots = Mathf.Max(0, storedSlots - 1);
+        OnBiomassChanged?.Invoke(currentBiomass);
+        OnHealingStateChanged?.Invoke(storedSlots, MaxSlots, currentBiomass);
 
         bool inCombatHeal = isInCombat && !isInAnomalyRoom;
         int maxHp = playerHealth.maxHealth > 0 ? playerHealth.maxHealth : 100;
@@ -269,7 +349,7 @@ public class SuitHealingSystem : MonoBehaviour
             SuitHealingUI.Instance.TriggerHealFeedback();
         }
 
-        Debug.Log($"💚 [SuitHealing] Biomassa consumida! Curado: +{healAmount} HP ({(pct * 100):F0}% da vida max) [{(inCombatHeal ? "COMBATE" : "DESCANSO")}]. Biomassa: 0%");
+        Debug.Log($"💚 [SuitHealing] Slot consumido! Curado: +{healAmount} HP ({(pct * 100):F0}% da vida max) [{(inCombatHeal ? "COMBATE" : "DESCANSO")}]. Restam: {StoredSlots}/{MaxSlots} slots | Barra: {currentBiomass:F0}%");
     }
 
     private void CheckCombatState()
@@ -278,7 +358,7 @@ public class SuitHealingSystem : MonoBehaviour
         bool foundEnemy = false;
         foreach (var hit in hits)
         {
-            if (hit.CompareTag("Enemy") || hit.GetComponent<DummyHealth>() != null)
+            if (hit.CompareTag("Enemy") || hit.GetComponent<DummyHealth>() != null || hit.GetComponent<ShardSwarmHealth>() != null)
             {
                 foundEnemy = true;
                 break;
@@ -407,10 +487,10 @@ public class SuitHealingSystem : MonoBehaviour
         return clip;
     }
 
-    private void PlayBiomassReadyAudio()
+    private void PlaySlotReadyAudio(bool allFull)
     {
         EnsureAudioClipsLoaded();
-        AudioClip clip = allCapsulesReadyClip ?? firstCapsuleReadyClip;
+        AudioClip clip = allFull ? (allCapsulesReadyClip ?? firstCapsuleReadyClip) : (firstCapsuleReadyClip ?? allCapsulesReadyClip);
         PlayOneShotSfx(clip);
     }
 
@@ -434,7 +514,7 @@ public class SuitHealingSystem : MonoBehaviour
     {
         bool shouldPlay = enableRechargingLoop &&
                           rechargingClip != null &&
-                          !IsBiomassFull &&
+                          !AreAllSlotsFull &&
                           currentBiomass > 0f &&
                           (playerHealth == null || !playerHealth.isDead);
 
