@@ -294,9 +294,12 @@ public class PlayerM : MonoBehaviour
         }
         else
         {
-            // Movimento suave normal
+            // Movimento suave normal (com frenagem rápida quando fortemente desacelerado pelo charge)
+            float blendRate = (isPlasmaActionLocked && plasmaMoveSpeedMultiplier <= 0.15f)
+                ? Mathf.Max(acceleration, 40f)
+                : acceleration;
             Vector3 newVelocity = new Vector3(targetVelocity.x, currentVelocity.y, targetVelocity.z);
-            rb.linearVelocity = Vector3.Lerp(currentVelocity, newVelocity, acceleration * Time.fixedDeltaTime);
+            rb.linearVelocity = Vector3.Lerp(currentVelocity, newVelocity, blendRate * Time.fixedDeltaTime);
         }
     }
 
@@ -359,9 +362,10 @@ public class PlayerM : MonoBehaviour
             {
                 animator.speed = 1f; 
 
-                // Lógica de pernas correndo/paradas (baseada no input de movimento para parada instantânea)
+                // Lógica de pernas correndo/paradas (baseada no input de movimento, zerando quando imobilizado pelo carregamento)
+                bool isImmobilizedByCharge = isPlasmaActionLocked && plasmaMoveSpeedMultiplier <= 0.01f;
                 float moveMagnitude = moveDirection.sqrMagnitude;
-                float speedParam = (moveMagnitude > 0.01f) ? 1f : 0f;
+                float speedParam = (!isImmobilizedByCharge && moveMagnitude > 0.01f) ? 1f : 0f;
 
                 animator.SetFloat("Speed", speedParam);
             }
@@ -376,7 +380,8 @@ public class PlayerM : MonoBehaviour
     {
         if (footstepSource == null || runningFootstepClip == null) return;
 
-        bool isMoving = moveDirection.sqrMagnitude > 0.01f;
+        bool isImmobilizedByCharge = isPlasmaActionLocked && plasmaMoveSpeedMultiplier <= 0.01f;
+        bool isMoving = !isImmobilizedByCharge && moveDirection.sqrMagnitude > 0.01f;
         bool isDashing = dashScript != null && dashScript.isDashing;
         bool isAttacking = attackScript != null && attackScript.isHitboxActive;
 
