@@ -1439,6 +1439,100 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: ab85fa72aae18184ea4dcf33ea87c8ff, type: 3}
+--- !u!1 &457078213
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 457078215}
+  - component: {fileID: 457078214}
+  m_Layer: 0
+  m_Name: DamageFeedback
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &457078214
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 457078213}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6550f60a00227bd49a056995e65f348d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DamageFeedback
+  player: {fileID: 0}
+  cam: {fileID: 0}
+  is2DGame: 0
+  indicatorTexture: {fileID: 0}
+  vignetteTexture: {fileID: 0}
+  mergeAngle: 40
+  maxIndicators: 8
+  placement: 1
+  indicatorDuration: 1.1
+  indicatorSize: {x: 130, y: 65}
+  edgeInset: 70
+  ringRadius: 75
+  headOffset: {x: 0, y: 1.6, z: 0}
+  indicatorTint: {r: 1, g: 1, b: 1, a: 1}
+  baseIndicatorAlpha: 0.55
+  lowHealthStart: 0.6
+  lowHealthCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  lowHealthExtraScale: 0.6
+  vignetteTint: {r: 1, g: 1, b: 1, a: 1}
+  maxVignetteAlpha: 0.9
+  hitFlashAlpha: 0.25
+  hitFlashFade: 3
+  dropletCount: 90
+  canvasSortingOrder: 500
+  testMode: 0
+  testMaxHealth: 100
+  testDamagePerHit: 10
+--- !u!4 &457078215
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 457078213}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 10.80558, y: 0, z: 0.21524}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &487641715
 GameObject:
   m_ObjectHideFlags: 0
@@ -6504,3 +6598,4 @@ SceneRoots:
   - {fileID: 2027458181}
   - {fileID: 1674379817501229355}
   - {fileID: 1090482062}
+  - {fileID: 457078215}
