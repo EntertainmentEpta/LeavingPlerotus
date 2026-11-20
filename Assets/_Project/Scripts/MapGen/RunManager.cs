@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Text;
 
 /// <summary>
 /// Gerencia o estado global de uma Run (partida).
@@ -14,6 +15,29 @@ using UnityEngine;
 public class RunManager : MonoBehaviour
 {
     public static RunManager instance;
+
+    // ==================== SEED DA RUN ====================
+
+    [Header("Seed da Run")]
+
+    [Tooltip("Versão textual e legível da Seed utilizada na run atual. Ex: EPTA-4921.")]
+    [SerializeField] private string activeSeedText = "";
+
+    [Tooltip("Valor numérico determinístico derivado da Seed textual.")]
+    [SerializeField] private int masterSeed = 0;
+
+    /// <summary>
+    /// Seed textual atualmente utilizada pela run.
+    /// Pode ser exibida no HUD, menu de pausa ou tela de fim de run.
+    /// </summary>
+    public string ActiveSeedText => activeSeedText;
+
+    /// <summary>
+    /// Seed numérica principal da run.
+    /// Serve como origem para os geradores aleatórios determinísticos
+    /// utilizados pelo mapa e pelas salas.
+    /// </summary>
+    public int MasterSeed => masterSeed;
 
     [Header("Estado da Run")]
     [Tooltip("Número da sala atual no contexto global da run (1–32).")]
@@ -85,6 +109,131 @@ public class RunManager : MonoBehaviour
             Destroy(gameObject);
         }
     }
+
+
+    /// <summary>
+    /// Configura a Seed que será utilizada durante toda a run.
+    /// Se nenhum texto for informado, uma nova Seed textual é gerada automaticamente.
+    ///
+    /// A conversão da Seed textual para inteiro utiliza FNV-1a,
+    /// garantindo que o mesmo texto sempre produza o mesmo valor numérico.
+    /// </summary>
+    /// <param name="seedText">
+    /// Seed textual desejada, por exemplo "EPTA-4921".
+    /// Pode ser vazia ou nula para gerar uma Seed automaticamente.
+    /// </param>
+    public void ConfigureRunSeed(string seedText)
+    {
+        if (string.IsNullOrWhiteSpace(seedText))
+        {
+            seedText = GenerateRandomSeedText();
+        }
+
+        activeSeedText = seedText.Trim().ToUpperInvariant();
+        masterSeed = StableHash(activeSeedText);
+
+        Debug.Log(
+            $"[SEED] Seed ativa: {activeSeedText} | MasterSeed: {masterSeed}"
+        );
+    }
+
+    /// <summary>
+    /// Converte uma string em um inteiro determinístico utilizando
+    /// o algoritmo FNV-1a de 32 bits.
+    ///
+    /// Diferentemente de string.GetHashCode(), este resultado permanece
+    /// igual entre execuções diferentes do jogo.
+    /// </summary>
+    /// <param name="text">Texto que será convertido em Seed numérica.</param>
+    /// <returns>Hash determinístico de 32 bits.</returns>
+    private static int StableHash(string text)
+    {
+        unchecked
+        {
+            const uint offsetBasis = 2166136261;
+            const uint prime = 16777619;
+
+            uint hash = offsetBasis;
+
+            byte[] bytes = Encoding.UTF8.GetBytes(text);
+
+            foreach (byte b in bytes)
+            {
+                hash ^= b;
+                hash *= prime;
+            }
+
+            return (int)hash;
+        }
+    }
+
+    /// <summary>
+    /// Gera uma nova Seed textual legível para uma run que não recebeu
+    /// uma Seed manualmente.
+    ///
+    /// Exemplo de resultado: "EPTA-A12F84C9".
+    /// </summary>
+    /// <returns>Nova Seed textual no formato EPTA-XXXXXXXX.</returns>
+    private static string GenerateRandomSeedText()
+    {
+        string code = System.Guid.NewGuid()
+            .ToString("N")
+            .Substring(0, 8)
+            .ToUpperInvariant();
+
+        return $"EPTA-{code}";
+    }
+
+    /// <summary>
+    /// Cria um gerador de números aleatórios exclusivo para a geração do mapa.
+    ///
+    /// O gerador utiliza diretamente a masterSeed da run. Portanto,
+    /// duas runs iniciadas com a mesma Seed produzirão a mesma sequência
+    /// de números aleatórios durante a geração do mapa, desde que as
+    /// chamadas ao RNG ocorram na mesma ordem.
+    /// </summary>
+    /// <returns>
+    /// Nova instância determinística de System.Random destinada
+    /// exclusivamente à geração do mapa.
+    /// </returns>
+    public System.Random CreateMapRng()
+    {
+        return new System.Random(masterSeed);
+    }
+
+    /// <summary>
+    /// Cria um gerador de números aleatórios independente para uma sala.
+    ///
+    /// A Seed da sala é derivada da masterSeed, do round atual e do índice
+    /// da sala. Isso impede que o consumo de números aleatórios em uma sala
+    /// altere os resultados das salas seguintes.
+    ///
+    /// Exemplo:
+    /// gastar mais números aleatórios na Sala 1 não modifica a sequência
+    /// aleatória utilizada pela Sala 2.
+    /// </summary>
+    /// <param name="roomIndex">
+    /// Índice da sala dentro do round atual.
+    /// </param>
+    /// <returns>
+    /// Nova instância determinística de System.Random exclusiva da sala.
+    /// </returns>
+    public System.Random CreateRoomRng(int roomIndex)
+    {
+        unchecked
+        {
+            const int roomPrime = 73856093;
+            const int levelPrime = 83492791;
+
+            int roomSeed =
+                masterSeed ^
+                (roomIndex * roomPrime) ^
+                (currentLevel * levelPrime);
+
+            return new System.Random(roomSeed);
+        }
+    }
+
 
     // =====================================================
     // API PÚBLICA
