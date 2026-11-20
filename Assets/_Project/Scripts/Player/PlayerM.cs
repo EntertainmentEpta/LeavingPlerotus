@@ -194,9 +194,9 @@ public class PlayerM : MonoBehaviour
             Debug.LogWarning($"[PlayerM] targetSpeed: {targetSpeed}, debuffSpeedMultiplier: {debuffSpeedMultiplier}, speedMultiplier: {(playerAttributes != null ? playerAttributes.speedMultiplier : 1f)}");
         }
 
-        // Bloquear rotação e movimentação manual se o Ultimate estiver ativo
+        // Bloquear rotação e movimentação manual se o Ultimate estiver ativo e travar movimento
         PlayerUltimate ult = GetComponent<PlayerUltimate>() ?? GetComponentInChildren<PlayerUltimate>();
-        if (ult != null && ult.IsUltimateActive()) return;
+        if (ult != null && ult.IsUltimateActive() && ult.IsMovementLocked()) return;
 
         if (groundCheck != null) grounded = Physics.CheckSphere(groundCheck.position, groundRadius, whatIsGround);
 
@@ -217,7 +217,7 @@ public class PlayerM : MonoBehaviour
         }
 
         PlayerUltimate ult = GetComponent<PlayerUltimate>() ?? GetComponentInChildren<PlayerUltimate>();
-        if (ult != null && ult.IsUltimateActive())
+        if (ult != null && ult.IsUltimateActive() && ult.IsMovementLocked())
         {
             rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
             EnforceBoundsAndVoidRescue();

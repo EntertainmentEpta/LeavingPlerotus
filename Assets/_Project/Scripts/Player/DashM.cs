@@ -376,9 +376,9 @@ public class DashM : MonoBehaviour
         if (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen()) return;
         if (JournalBookUI.Instance != null && JournalBookUI.Instance.IsOpen) return;
 
-        // Trava de segurança: Proíbe Dash durante o Ultimate
+        // Trava de segurança: Proíbe Dash durante o Ultimate (se o Ultimate travar movimento)
         PlayerUltimate playerUlt = GetComponent<PlayerUltimate>() ?? GetComponentInParent<PlayerUltimate>() ?? GetComponentInChildren<PlayerUltimate>();
-        if (playerUlt != null && playerUlt.IsUltimateActive()) return;
+        if (playerUlt != null && playerUlt.IsUltimateActive() && playerUlt.IsMovementLocked()) return;
 
         bool plasmaActionLocked = playerMovement != null && playerMovement.IsPlasmaActionLocked;
         if (plasmaActionLocked)

@@ -180,7 +180,10 @@ public class PlayerUltimate : MonoBehaviour
         else if (animator == null || !animator.isActiveAndEnabled)
             animator = GetComponentInChildren<Animator>();
 
-        if (animator != null)
+        WeaponType activeType = GetEquippedWeaponType();
+        bool isGun = (activeType == WeaponType.Gun);
+
+        if (!isGun && animator != null)
         {
             Debug.Log($"[PlayerUltimate] Animator: '{animator.gameObject.name}'. Buscando parametros...");
             bool triggerFound = false;
@@ -204,7 +207,7 @@ public class PlayerUltimate : MonoBehaviour
                 animator.SetTrigger("Ult");
             }
         }
-        else
+        else if (!isGun)
         {
             Debug.LogError("[PlayerUltimate] ERRO CRITICO: Nenhum Animator encontrado no Player!");
         }
@@ -214,8 +217,12 @@ public class PlayerUltimate : MonoBehaviour
 
         StopAllCoroutines();
         ExecuteWeaponSpecificUltimate();
-        StartCoroutine(AutomaticUnlockCoroutine());
-        StartCoroutine(WatchdogSafetyCoroutine());
+
+        if (!isGun)
+        {
+            StartCoroutine(AutomaticUnlockCoroutine());
+            StartCoroutine(WatchdogSafetyCoroutine());
+        }
     }
 
     // ========================================================================
@@ -396,12 +403,24 @@ public class PlayerUltimate : MonoBehaviour
         }
     }
 
+    public bool IsMovementLocked()
+    {
+        if (!isUltimateActive) return false;
+        // Pistola (The Culling / Lucian R): Movimentação livre em qualquer direção enquanto atira
+        if (GetEquippedWeaponType() == WeaponType.Gun) return false;
+        return true;
+    }
+
     private WeaponType GetEquippedWeaponType()
     {
         if (weaponManager != null && weaponManager.currentWeapon != null)
         {
             WeaponOffset offset = weaponManager.currentWeapon.GetComponent<WeaponOffset>();
             if (offset != null) return offset.weaponType;
+
+            if (weaponManager.currentWeapon.GetComponent<GunAttack>() != null) return WeaponType.Gun;
+            if (weaponManager.currentWeapon.GetComponent<BoomerangWeapon>() != null) return WeaponType.Boomerang;
+            if (weaponManager.currentWeapon.GetComponent<Ultimate_Dagger>() != null) return WeaponType.Dagger;
         }
         Debug.LogWarning("[PlayerUltimate] Arma nao identificada. Assumindo Axe.");
         return WeaponType.Axe;
