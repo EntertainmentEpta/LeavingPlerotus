@@ -39,6 +39,15 @@ public class RunManager : MonoBehaviour
     /// </summary>
     public int MasterSeed => masterSeed;
 
+    // Seed digitada no menu, esperando a run começar. Vazia = jogador não digitou nada.
+    private string pendingSeedText = "";
+
+    // O menu vai chamar isso para guardar a seed até a run começar.
+    public void SetPendingSeed(string seedText)
+    {
+        pendingSeedText = seedText;
+    }
+
     [Header("Estado da Run")]
     [Tooltip("Número da sala atual no contexto global da run (1–32).")]
     public int currentRoomNumber = 1;
@@ -246,6 +255,11 @@ public class RunManager : MonoBehaviour
     /// </summary>
     public void StartNewRun()
     {
+        // Define a seed da run (se a caixinha estiver vazia, gera uma aleatória).
+        ConfigureRunSeed(pendingSeedText);
+        // Esvazia a caixinha: a próxima run sem seed digitada ganha uma seed nova.
+        pendingSeedText = "";
+
         currentRoomNumber = 1;
 
         // Cheat: se forceBossNextRun está ativo, pula direto pro boss
