@@ -207,7 +207,11 @@ public class RunManager : MonoBehaviour
     /// </returns>
     public System.Random CreateMapRng()
     {
-        return new System.Random(masterSeed);
+        unchecked
+        {
+            const int levelPrime = 83492791;
+            return new System.Random(masterSeed ^ (currentLevel * levelPrime));
+        }
     }
 
     /// <summary>

@@ -112,7 +112,7 @@ public class LevelGenerator : MonoBehaviour
         if (deadEndPrefabs != null && deadEndPrefabs.Count > 0)
         {
             var valid = deadEndPrefabs.Where(p => p != null).ToList();
-            if (valid.Count > 0) return valid[Random.Range(0, valid.Count)];
+            if (valid.Count > 0) return valid[mapRng.Next(0, valid.Count)];
         }
         return deadEndPrefab;
     }
@@ -184,6 +184,8 @@ public class LevelGenerator : MonoBehaviour
     private bool exitRoomSpawned = false;
     private bool anomalyRoomSpawned = false;
     private int roomSequenceCounter = 0;
+    // Sorteador exclusivo do mapa. É recriado a cada GenerateLevel() a partir da seed da run.
+    private System.Random mapRng = new System.Random();
     private NavMeshDataInstance activeNavMeshInstance;
     private NavMeshData activeNavData;
 
@@ -197,6 +199,11 @@ public class LevelGenerator : MonoBehaviour
     /// <summary>Chamado pelo GameManager para iniciar a geração.</summary>
     public void GenerateLevel()
     {
+        // Cria o sorteador do mapa a partir da seed (mesma seed + mesmo round = mesmo mapa).
+        mapRng = RunManager.instance != null
+            ? RunManager.instance.CreateMapRng()
+            : new System.Random();
+
         // Destroi salas antigas da geração anterior se existirem na cena
         RoomController[] oldRooms = Object.FindObjectsByType<RoomController>(FindObjectsSortMode.None);
         foreach (var r in oldRooms)
@@ -351,7 +358,7 @@ public class LevelGenerator : MonoBehaviour
         while (roomCount < targetCombatRooms && openOutputs.Count > 0)
         {
             // Pega uma saída aleatória da fila
-            int idx = Random.Range(0, openOutputs.Count);
+            int idx = mapRng.Next(0, openOutputs.Count);
             ConnectionPoint currentOutput = openOutputs[idx];
             openOutputs.RemoveAt(idx);
 
@@ -392,7 +399,7 @@ public class LevelGenerator : MonoBehaviour
                 if (availableSaidas.Count > 0)
                 {
                     // Se houver múltiplas saídas (como na sala 3ways / Tree Ways), sorteia uma aleatoriamente para o avanço principal
-                    transSaida = availableSaidas[Random.Range(0, availableSaidas.Count)];
+                    transSaida = availableSaidas[mapRng.Next(0, availableSaidas.Count)];
                 }
 
                 if (transEntrada == null || transSaida == null)
@@ -607,7 +614,7 @@ public class LevelGenerator : MonoBehaviour
 
         // Chance progressiva por fase (Fase 1: 10%, Fase 2: 20%, Fase 3: 30%, Fase 4 Boss: 0%)
         float currentMerchantChance = GetMerchantChanceForCurrentPhase();
-        bool rollMerchantSpawn = canSpawnMerchantInRun && !merchantRoomSpawned && (Random.value < currentMerchantChance);
+        bool rollMerchantSpawn = canSpawnMerchantInRun && !merchantRoomSpawned && (mapRng.NextDouble() < currentMerchantChance);
         Debug.Log($"[LevelGenerator] 🧙 Sorteio do Mercador: Round={RunManager.instance?.currentLevel ?? 1}, Chance={currentMerchantChance:P0}, Sorteado={rollMerchantSpawn}");
 
         for (int i = 0; i < deadEnds.Count; i++)
@@ -905,7 +912,7 @@ public class LevelGenerator : MonoBehaviour
         if (targetOutput == null || targetOutput.isOccupied) return false;
 
         // Se ainda não gerou a Sala de Anomalia e passou na chance, tenta gerar
-        if (!anomalyRoomSpawned && Random.value < anomalyRoomChance)
+        if (!anomalyRoomSpawned && mapRng.NextDouble() < anomalyRoomChance)
         {
             if (TrySpawnAnomalyRoom(targetOutput))
             {
@@ -1524,7 +1531,7 @@ public class LevelGenerator : MonoBehaviour
         }
 
         if (valid.Count == 0) return null;
-        return valid[Random.Range(0, valid.Count)];
+        return valid[mapRng.Next(0, valid.Count)];
     }
 
     // =========================================================
@@ -1807,7 +1814,7 @@ public class LevelGenerator : MonoBehaviour
         List<T> copy = new List<T>(source);
         for (int i = copy.Count - 1; i > 0; i--)
         {
-            int j = Random.Range(0, i + 1);
+            int j = mapRng.Next(0, i + 1);
             T tmp = copy[i]; copy[i] = copy[j]; copy[j] = tmp;
         }
         return copy;
@@ -1937,7 +1944,7 @@ public class LevelGenerator : MonoBehaviour
         }
 
         // 2. Sorteio balanceado por floor/run: nem todo beco tem escritura
-        if (Random.value > scriptureSpawnChance)
+        if (mapRng.NextDouble() > scriptureSpawnChance)
         {
             Debug.Log($"[LevelGenerator] 📜 Sorteio de escritura: nenhuma página gerada nesta fase (Chance={scriptureSpawnChance:P0}).");
             return;
@@ -1953,11 +1960,11 @@ public class LevelGenerator : MonoBehaviour
 
         if (specialRooms.Count > 0)
         {
-            targetRoom = specialRooms[Random.Range(0, specialRooms.Count)];
+            targetRoom = specialRooms[mapRng.Next(0, specialRooms.Count)];
         }
         else if (rooms.Length > 2)
         {
-            targetRoom = rooms[Random.Range(1, rooms.Length)];
+            targetRoom = rooms[mapRng.Next(1, rooms.Length)];
         }
 
         if (targetRoom != null)
