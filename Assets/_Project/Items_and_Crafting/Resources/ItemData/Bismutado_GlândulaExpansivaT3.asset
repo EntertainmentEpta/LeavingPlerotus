@@ -12,15 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f50c879d2315cfe4fa88c7211306d9c7, type: 3}
   m_Name: "Bismutado_Gl\xE2ndulaExpansivaT3"
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
-  itemId: "bismutado_gl\xE2ndula_t3"
+  itemId: bismutado_glandula_t3
   itemName: "Gl\xE2ndula de Expans\xE3o(T3)"
   description: 
   icon: {fileID: 21300000, guid: 742299b5893b0f64ba0aac6f25f8fa00, type: 3}
   tier: 2
-  enemySource: 
+  enemySource: Geobionte
   returnsToBase: 0
-  recycleEssenceValue: 10
-  infusionEssenceCost: 180
+  recycleEssenceValue: 120
+  infusionEssenceCost: 300
   itemAttributes:
   - attributeType: 15
     value: 1.15

@@ -415,6 +415,27 @@ public class ItemPickup : MonoBehaviour
 
         if (interactable == null || interactable.itemData == null) return;
 
+        if (!ItemIdentityValidator.IsValid(interactable.itemData.itemId))
+        {
+            Debug.LogError($"[ITEM PICKUP] Coleta bloqueada para '{gameObject.name}': ItemData com itemId inválido '{interactable.itemData.itemId}'.");
+            return;
+        }
+
+        if (ItemDatabase.Instance != null)
+        {
+            ItemData catalogItem = ItemDatabase.Instance.GetItemData(interactable.itemData.itemId);
+            if (catalogItem == null)
+            {
+                Debug.LogError($"[ITEM PICKUP] Coleta bloqueada para '{interactable.itemData.itemId}': o item não existe no catálogo canônico do ItemDatabase.");
+                return;
+            }
+
+            interactable.itemData = catalogItem;
+            interactable.objetoNome = catalogItem.itemName;
+            interactable.descricao = catalogItem.description;
+            interactable.icon = catalogItem.icon;
+        }
+
         string source = forceCategory;
         if (string.IsNullOrEmpty(source) && interactable.itemData != null)
         {
@@ -436,12 +457,21 @@ public class ItemPickup : MonoBehaviour
             {
                 interactable.itemData.returnsToBase = true;
             }
+        }
+
+        if (!string.IsNullOrEmpty(source))
+        {
             CustomizeItemVisuals(source);
         }
     }
 
     private void CustomizeItemVisuals(string source)
     {
+        if (interactable != null && interactable.itemData != null &&
+            (source == "Fauna" || source == "Flora" || source == "Minerals"))
+        {
+            interactable.itemData.persistenceMode = ItemPersistenceMode.BaseResource;
+        }
         if (source == "Fauna")
         {
             bool isFish = (interactable != null && interactable.itemData != null && interactable.itemData.itemId == "peixe_lagoa") ||
@@ -574,32 +604,41 @@ public class ItemPickup : MonoBehaviour
 
     private void EnsurePromptUI()
     {
-        bool hasValidPrompt = false;
-        if (pressFUI != null)
+        if (pressFUI != null && autoPromptTMP == null)
         {
-            // Verifica se o pressFUI configurado possui texto legível
-            TextMeshProUGUI tmp = pressFUI.GetComponentInChildren<TextMeshProUGUI>(true);
-            Text legacyTxt = pressFUI.GetComponentInChildren<Text>(true);
-            if (tmp != null || legacyTxt != null)
-            {
-                hasValidPrompt = true;
-            }
+            Destroy(pressFUI);
+            pressFUI = null;
         }
 
-        if (!hasValidPrompt)
+        if (pressFUI == null || autoPromptTMP == null)
         {
-            // Se pressFUI for nulo ou for apenas um Canvas vazio sem texto, recria limpo
-            if (pressFUI != null && autoPromptTMP == null)
-            {
-                Destroy(pressFUI);
-                pressFUI = null;
-            }
             BuildAutoPromptUI();
         }
         else
         {
+            ApplyWorldScaleCompensation();
             pressFUI.SetActive(false);
         }
+    }
+
+    private void ApplyWorldScaleCompensation()
+    {
+        if (pressFUI == null) return;
+
+        Vector3 parentScale = transform.lossyScale;
+        float sx = Mathf.Max(0.01f, Mathf.Abs(parentScale.x));
+        float sy = Mathf.Max(0.01f, Mathf.Abs(parentScale.y));
+        float sz = Mathf.Max(0.01f, Mathf.Abs(parentScale.z));
+
+        const float targetWorldScale = 0.0045f;
+        const float targetWorldHeight = 1.15f;
+
+        pressFUI.transform.localScale = new Vector3(
+            targetWorldScale / sx,
+            targetWorldScale / sy,
+            targetWorldScale / sz
+        );
+        pressFUI.transform.localPosition = new Vector3(0f, targetWorldHeight / sy, 0f);
     }
 
     private void BuildAutoPromptUI()
@@ -608,15 +647,13 @@ public class ItemPickup : MonoBehaviour
 
         GameObject promptRoot = new GameObject("ItemPickup_PromptUI");
         promptRoot.transform.SetParent(transform, false);
-        promptRoot.transform.localPosition = Vector3.up * 1.0f;
 
         Canvas canvas = promptRoot.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.WorldSpace;
         canvas.sortingOrder = 150;
 
         RectTransform rect = promptRoot.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(720f, 130f);
-        rect.localScale = Vector3.one * 0.01f;
+        rect.sizeDelta = new Vector2(420f, 70f);
 
         autoPromptCanvasGroup = promptRoot.AddComponent<CanvasGroup>();
         autoPromptCanvasGroup.alpha = 0f;
@@ -629,7 +666,7 @@ public class ItemPickup : MonoBehaviour
         bgRect.anchorMax = Vector2.one;
         bgRect.sizeDelta = Vector2.zero;
         Image bgImg = bgObj.AddComponent<Image>();
-        bgImg.color = new Color(0.04f, 0.04f, 0.06f, 0.75f);
+        bgImg.color = new Color(0.04f, 0.04f, 0.06f, 0.78f);
         bgImg.raycastTarget = false;
 
         // Texto com TMPro
@@ -638,21 +675,23 @@ public class ItemPickup : MonoBehaviour
         RectTransform textRect = textObj.AddComponent<RectTransform>();
         textRect.anchorMin = Vector2.zero;
         textRect.anchorMax = Vector2.one;
-        textRect.sizeDelta = Vector2.zero;
+        textRect.offsetMin = new Vector2(12f, 4f);
+        textRect.offsetMax = new Vector2(-12f, -4f);
         autoPromptTMP = textObj.AddComponent<TextMeshProUGUI>();
-        autoPromptTMP.fontSize = 40f;
+        autoPromptTMP.fontSize = 24f;
         autoPromptTMP.fontStyle = FontStyles.Bold;
         autoPromptTMP.alignment = TextAlignmentOptions.Center;
         autoPromptTMP.color = Color.white;
         autoPromptTMP.raycastTarget = false;
         autoPromptTMP.enableAutoSizing = true;
-        autoPromptTMP.fontSizeMin = 28f;
-        autoPromptTMP.fontSizeMax = 44f;
+        autoPromptTMP.fontSizeMin = 16f;
+        autoPromptTMP.fontSizeMax = 26f;
 
         TMP_FontAsset font = Resources.Load<TMP_FontAsset>("Fonts & Materials/Oswald Bold SDF");
         if (font != null) autoPromptTMP.font = font;
 
         pressFUI = promptRoot;
+        ApplyWorldScaleCompensation();
         pressFUI.SetActive(false);
     }
 
@@ -747,6 +786,7 @@ public class ItemPickup : MonoBehaviour
 
             if (Camera.main != null && pressFUI.activeSelf)
             {
+                ApplyWorldScaleCompensation();
                 pressFUI.transform.forward = Camera.main.transform.forward;
             }
         }
@@ -755,6 +795,7 @@ public class ItemPickup : MonoBehaviour
             pressFUI.SetActive(showPrompt);
             if (showPrompt && Camera.main != null)
             {
+                ApplyWorldScaleCompensation();
                 pressFUI.transform.forward = Camera.main.transform.forward;
             }
         }
@@ -827,61 +868,93 @@ public class ItemPickup : MonoBehaviour
 
         if (interactable.itemData == null)
         {
-            Debug.LogWarning($"[ITEM] '{gameObject.name}' não tem ItemData no Interactable!");
+            Debug.LogWarning($"[ITEM] '{gameObject.name}' não tem ItemData no Interactable! " +
+                             "Configure o campo 'Item Data' no Inspector do prefab.");
             return;
         }
 
-        // Toca som de coleta se disponível
-        PlayerInventory playerInv = player.GetComponentInParent<PlayerInventory>() ?? 
-                                    player.GetComponent<PlayerInventory>() ?? 
+        if (!ItemIdentityValidator.IsValid(interactable.itemData.itemId))
+        {
+            Debug.LogError($"[ITEM] Coleta bloqueada para '{gameObject.name}' porque itemId inválido: '{interactable.itemData.itemId}'.");
+            return;
+        }
+
+        if (ItemDatabase.Instance != null)
+        {
+            ItemData registered = ItemDatabase.Instance.GetItemData(interactable.itemData.itemId);
+            if (registered == null)
+            {
+                Debug.LogError($"[ITEM] Coleta bloqueada: '{interactable.itemData.itemId}' não está registrado no ItemDatabase.");
+                return;
+            }
+
+            interactable.itemData = registered;
+        }
+
+        PlayerInventory playerInv = player.GetComponentInParent<PlayerInventory>() ??
+                                    player.GetComponent<PlayerInventory>() ??
                                     FindFirstObjectByType<PlayerInventory>();
         if (playerInv != null)
         {
             playerInv.PlayItemPickupSound();
         }
 
-        if (interactable.itemData.returnsToBase)
+        ItemPersistenceMode destinationMode = interactable.itemData.persistenceMode;
+        if (destinationMode == ItemPersistenceMode.RunOnly && interactable.itemData.returnsToBase)
         {
-            // Recurso permanente — vai direto para a Bolsa Sintética
-            if (SaveManager.instance != null)
-            {
-                SaveManager.instance.AddResourceToBase(interactable.itemData.itemId, 1);
-                EptinhoStoryDialogs.TriggerFirstResourceMined();
-            }
-            else
-            {
-                Debug.LogWarning("[ITEM] SaveManager não encontrado! Recurso perdido: " + interactable.NomeDisplay);
-                return;
-            }
+            destinationMode = ItemPersistenceMode.BaseResource;
         }
-        else
+
+        switch (destinationMode)
         {
-            // Item de run — vai para o inventário temporário
-            if (playerInv != null)
-            {
-                bool added = playerInv.AddItem(interactable.itemData.itemId, 1);
-                if (!added)
+            case ItemPersistenceMode.BaseResource:
+                if (SaveManager.instance != null)
                 {
-                    Debug.Log("[ITEM] Inventário cheio (10/10)! Descartando: " + interactable.NomeDisplay);
-                    if (EptinhoPopupController.instancia != null)
-                    {
-                        EptinhoPopupController.instancia.MostrarPopupAviso($"Mochila cheia (10/10)! {interactable.NomeDisplay} descartado.");
-                    }
-                    Destroy(gameObject);
+                    SaveManager.instance.AddResourceToBase(interactable.itemData.itemId, 1);
+                    EptinhoStoryDialogs.TriggerFirstResourceMined();
+                }
+                else
+                {
+                    Debug.LogWarning("[ITEM] SaveManager não encontrado! Recurso perdido: " + interactable.NomeDisplay);
                     return;
                 }
-            }
-            else
-            {
-                Debug.LogWarning("[ITEM] PlayerInventory não encontrado no player!");
-            }
+                break;
+
+            case ItemPersistenceMode.PersistentInventory:
+            case ItemPersistenceMode.RunOnly:
+                PlayerInventory inventory = player.GetComponentInParent<PlayerInventory>();
+                if (inventory == null) inventory = player.GetComponent<PlayerInventory>();
+
+                if (inventory != null)
+                {
+                    bool added = inventory.AddItem(interactable.itemData.itemId, 1);
+                    if (!added)
+                    {
+                        Debug.Log("[ITEM] Inventário cheio (10/10)! Descartando: " + interactable.NomeDisplay);
+                        if (EptinhoPopupController.instancia != null)
+                        {
+                            EptinhoPopupController.instancia.MostrarPopupAviso($"Mochila cheia (10/10)! {interactable.NomeDisplay} descartado.");
+                        }
+                        Destroy(gameObject);
+                        return;
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning("[ITEM] PlayerInventory não encontrado no player!");
+                }
+                break;
+
+            case ItemPersistenceMode.SynergyTransient:
+                Debug.Log("[ITEM] Item efêmero de sinergia: só entrou em runtime, não persistiu. " + interactable.NomeDisplay);
+                break;
         }
 
         // Registra no Catálogo do Eptinho
         if (CatalogoManager.instancia != null)
             CatalogoManager.instancia.Catalogar(interactable);
 
-        Debug.Log("[ITEM] Coletado com sucesso: " + interactable.NomeDisplay);
+        Debug.Log("[ITEM] Coletado: " + interactable.NomeDisplay + " | Destino: " + destinationMode);
         Destroy(gameObject);
     }
 

@@ -584,8 +584,12 @@ public class CrystalDragon_AI : MonoBehaviour
                 Renderer r = projectileObj.GetComponent<Renderer>();
                 if (r != null)
                 {
-                    Material mat = new Material(Shader.Find("Standard"));
+                    Shader litShader = Shader.Find("Universal Render Pipeline/Lit")
+                        ?? Shader.Find("Universal Render Pipeline/Simple Lit")
+                        ?? Shader.Find("Standard");
+                    Material mat = new Material(litShader);
                     Color baseColor = new Color(0.46f, 0.29f, 0.62f); // purple
+                    if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", baseColor);
                     mat.color = baseColor;
                     mat.EnableKeyword("_EMISSION");
                     mat.SetColor("_EmissionColor", baseColor * 0.6f);
@@ -599,8 +603,12 @@ public class CrystalDragon_AI : MonoBehaviour
                 Renderer existingRend = projectileObj.GetComponentInChildren<Renderer>();
                 if (existingRend != null)
                 {
-                    Material mat2 = new Material(Shader.Find("Standard"));
+                    Shader litShader = Shader.Find("Universal Render Pipeline/Lit")
+                        ?? Shader.Find("Universal Render Pipeline/Simple Lit")
+                        ?? Shader.Find("Standard");
+                    Material mat2 = new Material(litShader);
                     Color tint = new Color(0.46f, 0.29f, 0.62f);
+                    if (mat2.HasProperty("_BaseColor")) mat2.SetColor("_BaseColor", tint);
                     mat2.color = tint;
                     mat2.EnableKeyword("_EMISSION");
                     mat2.SetColor("_EmissionColor", tint * 0.6f);

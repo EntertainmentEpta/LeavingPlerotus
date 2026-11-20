@@ -585,8 +585,9 @@ public class CraftingUI : MonoBehaviour
         string name = (r.recipeName ?? "").ToLower();
 
         return id.Contains("arma") || id.Contains("weapon") || id.Contains("axe") || id.Contains("dagger") ||
-
-               name.Contains("arma") || name.Contains("adaga") || name.Contains("machado") || name.Contains("pistola");
+               id.Contains("boomerang") || id.Contains("glaive") || id.Contains("ressonadora") || id.Contains("talhador") ||
+               name.Contains("arma") || name.Contains("adaga") || name.Contains("machado") || name.Contains("pistola") ||
+               name.Contains("talhador") || name.Contains("ressonadora") || name.Contains("glaive");
 
     }
 
@@ -717,94 +718,91 @@ public class CraftingUI : MonoBehaviour
 
 
     private void BuildWeaponSlotsTab()
-
     {
-
-        // 1. MACHADO DE CRISTAL (Principal armamento do teste - Já Forjado / Disponível no Expositor)
-
-        CraftingRecipe axeRecipe = CraftingManager.Instance != null ? CraftingManager.Instance.allRecipes.Find(r => r != null && (r.recipeId == "recipe_crystal_axe" || r.recipeId == "recipe_machado_cristal")) : null;
-
-        if (axeRecipe == null)
-
-        {
-
-            axeRecipe = ScriptableObject.CreateInstance<CraftingRecipe>();
-
-            axeRecipe.recipeId = "recipe_crystal_axe";
-
-            axeRecipe.recipeName = "MACHADO DE CRISTAL";
-
-            axeRecipe.description = "Armamento pesado de corte cristalino. Causa alto impacto, golpes em área devastadores e Ground Slam sísmico. Já forjado e pronto para empunhar no Expositor de Armas.";
-
-            axeRecipe.ingredients = new List<CraftingIngredient>
-
-            {
-
-                new CraftingIngredient { itemId = "shard_splinter_t1", quantity = 3 },
-
-                new CraftingIngredient { itemId = "po_de_cristal", quantity = 2 }
-
-            };
-
-            axeRecipe.resultType = CraftingResultType.Equipment;
-
-        }
-
-        CreateWeaponSlotUI(axeRecipe, "MACHADO DE CRISTAL", "JÁ FORJADA • NO RACK", true, false, false);
-
-
-
-        // 2. PISTOLA DE PLASMA (Inacabada / Bloqueada no Playtest)
-        CraftingRecipe gunRecipe = ScriptableObject.CreateInstance<CraftingRecipe>();
-        gunRecipe.recipeId = "recipe_arma_projetil";
-        gunRecipe.recipeName = "PISTOLA DE PLASMA";
-        gunRecipe.description = "Armamento de disparos balísticos de plasma a distância em desenvolvimento ativo pela equipe técnica. Indisponível para utilização no playtest atual.";
-        CreateWeaponSlotUI(gunRecipe, "PISTOLA DE PLASMA", "EM DESENVOLVIMENTO • INDISPONÍVEL", false, false, true);
-
-        // 3. ADAGA DE PLASMA (Inacabada / Bloqueada no Playtest)
-
+        // 1. ADAGA DE QUARTZO (Arma inicial - Já Forjada / Disponível no Expositor)
         CraftingRecipe daggerRecipe = ScriptableObject.CreateInstance<CraftingRecipe>();
-
         daggerRecipe.recipeId = "weapon_dagger";
+        daggerRecipe.recipeName = "ADAGA DE QUARTZO";
+        daggerRecipe.description = "Armamento leve de alta cadência inicial da expedição. Já forjada e pronta para empunhar no Expositor de Armas.";
+        CreateWeaponSlotUI(daggerRecipe, "ADAGA DE QUARTZO", "JÁ FORJADA • NO RACK", true, false, false);
 
-        daggerRecipe.recipeName = "ADAGA DE PLASMA";
-
-        daggerRecipe.description = "Armamento cortante leve em desenvolvimento ativo pela equipe técnica. Indisponível para utilização no playtest atual.";
-
-        CreateWeaponSlotUI(daggerRecipe, "ADAGA DE PLASMA", "EM DESENVOLVIMENTO • INDISPONÍVEL", false, false, true);
-
-
-
-        // 4, 5, 6. TRÊS ARMAS APAGADAS / CLASSIFICADAS COM TEXTO ILEGÍVEL
-
-        string[] classifiedTitles = {
-
-            "? ? ? ? ? ? ?  [PROTÓTIPO #04]",
-
-            "? ? ? ? ? ? ?  [CANHÃO CINÉTICO #05]",
-
-            "? ? ? ? ? ? ?  [LÂMINA RESSONANTE #06]"
-
-        };
-
-        for (int i = 0; i < 3; i++)
-
+        // 2. TALHADOR (Arma inicial - Já Forjada / Disponível no Expositor)
+        CraftingRecipe axeRecipe = CraftingManager.Instance != null ? CraftingManager.Instance.allRecipes.Find(r => r != null && (r.recipeId == "recipe_crystal_axe" || r.recipeId == "recipe_machado_cristal")) : null;
+        if (axeRecipe == null)
         {
-
-            int index = i + 4;
-
-            CraftingRecipe classifiedRecipe = ScriptableObject.CreateInstance<CraftingRecipe>();
-
-            classifiedRecipe.recipeId = $"weapon_classified_{index}";
-
-            classifiedRecipe.recipeName = classifiedTitles[i];
-
-            classifiedRecipe.description = "DADOS CORROMPIDOS // PROJETO CLASSIFICADO.\nOs registros de blueprints e esquemas deste armamento estão inacessíveis na bancada de dados atual.";
-
-            CreateWeaponSlotUI(classifiedRecipe, classifiedTitles[i], "DADOS ILEGÍVEIS • REQUER NÚCLEO", false, false, true);
-
+            axeRecipe = ScriptableObject.CreateInstance<CraftingRecipe>();
+            axeRecipe.recipeId = "recipe_crystal_axe";
+            axeRecipe.recipeName = "TALHADOR";
+            axeRecipe.description = "Armamento pesado de corte cristalino inicial. Causa alto impacto, golpes em área devastadores e Ground Slam sísmico.";
+            axeRecipe.resultType = CraftingResultType.Equipment;
         }
+        CreateWeaponSlotUI(axeRecipe, "TALHADOR", "JÁ FORJADA • NO RACK", true, false, false);
 
+        // 3. RESSONADORA (Desbloqueável por Blueprint aleatório no mapa + Craft)
+        CraftingRecipe gunRecipe = CraftingManager.Instance != null ? CraftingManager.Instance.allRecipes.Find(r => r != null && r.recipeId == "recipe_arma_projetil") : null;
+        if (gunRecipe == null)
+        {
+            gunRecipe = ScriptableObject.CreateInstance<CraftingRecipe>();
+            gunRecipe.recipeId = "recipe_arma_projetil";
+            gunRecipe.recipeName = "RESSONADORA";
+            gunRecipe.description = "Armamento balístico de disparos de plasma concentrados com cadência e recarga ágeis.";
+            gunRecipe.ingredients = new List<CraftingIngredient>
+            {
+                new CraftingIngredient { itemId = "po_de_cristal", quantity = 4 },
+                new CraftingIngredient { itemId = "quartzo_basico", quantity = 3 },
+                new CraftingIngredient { itemId = "prismalita", quantity = 2 }
+            };
+            gunRecipe.resultType = CraftingResultType.Equipment;
+        }
+        bool gunCrafted = IsWeaponEquipmentOwned("eq_arma_projetil");
+        bool gunBpUnlocked = gunCrafted || LoreManager.Instance == null || LoreManager.Instance.IsBlueprintUnlocked("eq_arma_projetil");
+        bool gunCanCraft = !gunCrafted && gunBpUnlocked && CraftingManager.Instance != null && CraftingManager.Instance.CanCraft(gunRecipe);
+        string gunStatus = gunCrafted ? "JÁ FORJADA • NO RACK" : (gunBpUnlocked ? (gunCanCraft ? "PRONTO PARA FORJAR" : "BLUEPRINT • FALTA RECURSO") : "ENCONTRE O BLUEPRINT NO MAPA");
+        CreateWeaponSlotUI(gunRecipe, gunBpUnlocked ? "RESSONADORA" : "? ? ?  [RESSONADORA]", gunStatus, gunCrafted, gunCanCraft, !gunBpUnlocked);
+
+        // 4. GLAIVE (Desbloqueável por Blueprint aleatório no mapa + Craft)
+        CraftingRecipe glaiveRecipe = CraftingManager.Instance != null ? CraftingManager.Instance.allRecipes.Find(r => r != null && r.recipeId == "recipe_arma_boomerang") : null;
+        if (glaiveRecipe == null)
+        {
+            glaiveRecipe = ScriptableObject.CreateInstance<CraftingRecipe>();
+            glaiveRecipe.recipeId = "recipe_arma_boomerang";
+            glaiveRecipe.recipeName = "GLAIVE";
+            glaiveRecipe.description = "Lâmina orbital de arremesso com ricochete em cadeia, escudo giratório e descarga elétrica.";
+            glaiveRecipe.ingredients = new List<CraftingIngredient>
+            {
+                new CraftingIngredient { itemId = "po_de_cristal", quantity = 4 },
+                new CraftingIngredient { itemId = "lithos", quantity = 3 },
+                new CraftingIngredient { itemId = "cristal_explosivo", quantity = 2 }
+            };
+            glaiveRecipe.resultType = CraftingResultType.Equipment;
+        }
+        bool glaiveCrafted = IsWeaponEquipmentOwned("eq_arma_boomerang");
+        bool glaiveBpUnlocked = glaiveCrafted || LoreManager.Instance == null || LoreManager.Instance.IsBlueprintUnlocked("eq_arma_boomerang");
+        bool glaiveCanCraft = !glaiveCrafted && glaiveBpUnlocked && CraftingManager.Instance != null && CraftingManager.Instance.CanCraft(glaiveRecipe);
+        string glaiveStatus = glaiveCrafted ? "JÁ FORJADA • NO RACK" : (glaiveBpUnlocked ? (glaiveCanCraft ? "PRONTO PARA FORJAR" : "BLUEPRINT • FALTA RECURSO") : "ENCONTRE O BLUEPRINT NO MAPA");
+        CreateWeaponSlotUI(glaiveRecipe, glaiveBpUnlocked ? "GLAIVE" : "? ? ?  [GLAIVE]", glaiveStatus, glaiveCrafted, glaiveCanCraft, !glaiveBpUnlocked);
+
+        // 5, 6. ARMAS CLASSIFICADAS FUTURAS
+        string[] classifiedTitles = {
+            "? ? ? ? ? ? ?  [CANHÃO CINÉTICO #05]",
+            "? ? ? ? ? ? ?  [LÂMINA RESSONANTE #06]"
+        };
+        for (int i = 0; i < classifiedTitles.Length; i++)
+        {
+            int index = i + 5;
+            CraftingRecipe classifiedRecipe = ScriptableObject.CreateInstance<CraftingRecipe>();
+            classifiedRecipe.recipeId = $"weapon_classified_{index}";
+            classifiedRecipe.recipeName = classifiedTitles[i];
+            classifiedRecipe.description = "DADOS CORROMPIDOS // PROJETO CLASSIFICADO.\nOs registros de blueprints e esquemas deste armamento estão inacessíveis na bancada de dados atual.";
+            CreateWeaponSlotUI(classifiedRecipe, classifiedTitles[i], "DADOS ILEGÍVEIS • REQUER NÚCLEO", false, false, true);
+        }
+    }
+
+    private static bool IsWeaponEquipmentOwned(string equipmentId)
+    {
+        if (SaveManager.instance == null) return false;
+        return SaveManager.instance.GetAllCraftedEquipmentIds().Contains(equipmentId) ||
+               SaveManager.instance.GetCraftedEquipmentCount(equipmentId) > 0;
     }
 
 
@@ -891,49 +889,54 @@ public class CraftingUI : MonoBehaviour
 
 
 
-        // Verifica se é arma cadastrada (Axe / Gun / Dagger)
-
+        // Verifica se é arma cadastrada (Adaga de Quartzo / Talhador / Ressonadora / Glaive)
         bool isAxe = selectedRecipe.recipeId == "recipe_crystal_axe" || selectedRecipe.recipeId == "recipe_machado_cristal";
-
-        bool isGun = selectedRecipe.recipeId == "recipe_arma_projetil";
-
         bool isDagger = selectedRecipe.recipeId == "weapon_dagger" || selectedRecipe.recipeId == "recipe_adaga";
+        bool isGun = selectedRecipe.recipeId == "recipe_arma_projetil";
+        bool isGlaive = selectedRecipe.recipeId == "recipe_arma_boomerang";
+        bool isBlueprintWeapon = isGun || isGlaive;
 
-
-
-        if (isDagger || isGun)
+        if (isDagger || isAxe)
         {
-            string weaponName = isGun ? "PISTOLA DE PLASMA" : "ADAGA DE PLASMA";
-            detailNameText.text = $"<color=#FF6666>{weaponName} [EM DESENVOLVIMENTO]</color>";
+            detailNameText.text = isDagger ? "ADAGA DE QUARTZO" : "TALHADOR";
             detailDescText.text = selectedRecipe.description;
-            ingredientsText.text = "<color=#FFAAAA><b>Status do Projeto:</b>\n  • Armamento temporariamente indisponível para este playtest.\n  Empunhe o Machado de Cristal no Expositor de Armas!</color>";
-            resultText.text = "<color=#888888><b>Status:</b> Desativada no Playtest</color>";
+            ingredientsText.text = "<color=#00FFAA><b>Status do Arsenal:</b>\n  • Armamento inicial já construído e forjado!</color>\n<color=#AADDFF>  Disponível no Expositor de Armas (Weapon Rack) do Lobby para empunhar com [ F ].</color>";
+            resultText.text = "<b>Resultado:</b> Arma Pronta no Expositor";
             craftButton.interactable = false;
             craftButton.GetComponent<Image>().color = BTN_CRAFT_DISABLED;
-            craftButtonText.text = "INDISPONÍVEL";
+            craftButtonText.text = "JÁ NO EXPOSITOR [ F ]";
             return;
         }
 
-        bool isAxeCrafted = isAxe; // Machado sempre forjado e disponível por padrão
-        if (isAxeCrafted)
+        if (isBlueprintWeapon)
         {
+            string weaponEquipId = isGun ? "eq_arma_projetil" : "eq_arma_boomerang";
+            string weaponDisplay = isGun ? "RESSONADORA" : "GLAIVE";
+            bool alreadyCrafted = IsWeaponEquipmentOwned(weaponEquipId);
+            if (alreadyCrafted)
+            {
+                detailNameText.text = weaponDisplay;
+                detailDescText.text = selectedRecipe.description;
+                ingredientsText.text = "<color=#00FFAA><b>Status do Arsenal:</b>\n  • Armamento já construído e forjado!</color>\n<color=#AADDFF>  Disponível no Expositor de Armas (Weapon Rack) do Lobby para empunhar com [ F ].</color>";
+                resultText.text = "<b>Resultado:</b> Arma Pronta no Expositor";
+                craftButton.interactable = false;
+                craftButton.GetComponent<Image>().color = BTN_CRAFT_DISABLED;
+                craftButtonText.text = "JÁ NO EXPOSITOR [ F ]";
+                return;
+            }
 
-            detailNameText.text = selectedRecipe.recipeName;
-
-            detailDescText.text = selectedRecipe.description;
-
-            ingredientsText.text = "<color=#00FFAA><b>Status do Arsenal:</b>\n  • Armamento já construído e forjado!</color>\n<color=#AADDFF>  Disponível no Expositor de Armas (Weapon Rack) do Lobby para empunhar com [ F ].</color>";
-
-            resultText.text = "<b>Resultado:</b> Arma Pronta no Expositor";
-
-            craftButton.interactable = false;
-
-            craftButton.GetComponent<Image>().color = BTN_CRAFT_DISABLED;
-
-            craftButtonText.text = "JÁ NO EXPOSITOR [ F ]";
-
-            return;
-
+            bool bpUnlocked = LoreManager.Instance == null || LoreManager.Instance.IsBlueprintUnlocked(weaponEquipId);
+            if (!bpUnlocked)
+            {
+                detailNameText.text = $"<color=#FFAA44>{weaponDisplay} [BLUEPRINT BLOQUEADO]</color>";
+                detailDescText.text = "Esquema de fabricação ainda não catalogado nos registros do Robozinho.";
+                ingredientsText.text = "<color=#FFE082><b>Como Desbloquear:</b>\n  • Explore as salas do mapa / anomalias e colete Blueprints aleatórios até descobrir o esquema desta arma.</color>";
+                resultText.text = "<color=#8899AA><b>Status:</b> Aguardando Blueprint</color>";
+                craftButton.interactable = false;
+                craftButton.GetComponent<Image>().color = BTN_CRAFT_DISABLED;
+                craftButtonText.text = "REQUER BLUEPRINT";
+                return;
+            }
         }
 
 
@@ -980,7 +983,7 @@ public class CraftingUI : MonoBehaviour
 
 
 
-        if (isAxe || isGun)
+        if (isAxe || isGun || isGlaive)
 
         {
 
@@ -1040,7 +1043,14 @@ public class CraftingUI : MonoBehaviour
 
         craftButton.GetComponent<Image>().color = canCraft ? BTN_CRAFT_ENABLED : BTN_CRAFT_NO_MATERIALS;
 
-        craftButtonText.text = canCraft ? "CRAFTAR [T]" : "MATERIAIS INSUFICIENTES [T]";
+        if (!canCraft && CraftingManager.Instance != null && !CraftingManager.Instance.HasPrerequisiteForRecipe(selectedRecipe, out string missingPrereq))
+        {
+            craftButtonText.text = $"REQUER {missingPrereq.ToUpper()} [T]";
+        }
+        else
+        {
+            craftButtonText.text = canCraft ? "CRAFTAR [T]" : "MATERIAIS INSUFICIENTES [T]";
+        }
 
     }
 
@@ -1279,11 +1289,13 @@ public class CraftingUI : MonoBehaviour
         }
 
         if (r.recipeId == "recipe_arma_projetil")
-
         {
-
             if (SaveManager.instance.GetAllCraftedEquipmentIds().Contains("eq_arma_projetil")) return true;
+        }
 
+        if (r.recipeId == "recipe_arma_boomerang")
+        {
+            if (SaveManager.instance.GetAllCraftedEquipmentIds().Contains("eq_arma_boomerang")) return true;
         }
 
 

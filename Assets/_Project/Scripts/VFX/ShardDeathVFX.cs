@@ -285,14 +285,43 @@ public class ShardDeathVFX : MonoBehaviour
         renderer.renderMode = ParticleSystemRenderMode.HorizontalBillboard;
     }
 
+    private static Texture2D _softParticleTex;
+
     Material GetParticleMaterial()
     {
-        Shader shader = Shader.Find("Particles/Standard Unlit");
-        if (shader == null) shader = Shader.Find("Legacy Shaders/Particles/Additive");
-        if (shader == null) shader = Shader.Find("Sprites/Default");
+        Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+            ?? Shader.Find("Universal Render Pipeline/Unlit")
+            ?? Shader.Find("Sprites/Default")
+            ?? Shader.Find("Particles/Standard Unlit");
 
         Material mat = new Material(shader);
-        mat.SetFloat("_Mode", 1);
+        if (_softParticleTex == null)
+        {
+            const int s = 32;
+            _softParticleTex = new Texture2D(s, s, TextureFormat.RGBA32, false);
+            _softParticleTex.wrapMode = TextureWrapMode.Clamp;
+            Color[] px = new Color[s * s];
+            float h = (s - 1) * 0.5f;
+            for (int y = 0; y < s; y++)
+                for (int x = 0; x < s; x++)
+                {
+                    float d = Mathf.Clamp01(Mathf.Sqrt((x - h) * (x - h) + (y - h) * (y - h)) / h);
+                    px[y * s + x] = new Color(1f, 1f, 1f, Mathf.Pow(1f - d, 2f));
+                }
+            _softParticleTex.SetPixels(px);
+            _softParticleTex.Apply(false, true);
+        }
+        if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", _softParticleTex);
+        if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", _softParticleTex);
+        if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1f);
+        if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 2f);
+        if (mat.HasProperty("_Mode")) mat.SetFloat("_Mode", 1f);
+        if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 0);
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+        mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        mat.renderQueue = 3000;
         mat.color = Color.white;
         return mat;
     }

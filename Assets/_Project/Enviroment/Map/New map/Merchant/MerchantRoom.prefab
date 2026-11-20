@@ -169,6 +169,7 @@ GameObject:
   - component: {fileID: 2356340114611932019}
   - component: {fileID: 1665414099749405910}
   - component: {fileID: 3528651693940895772}
+  - component: {fileID: 1596640287205949267}
   m_Layer: 0
   m_Name: Meshy_AI_Violet_Thornstone_Are_1031165517_texture
   m_TagString: Untagged
@@ -250,6 +251,28 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!64 &1596640287205949267
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3168482951881216457}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 5461320835613783329, guid: c8f17f98863824445b2386a0d1930a15, type: 3}
 --- !u!1 &4772105080490564613
 GameObject:
   m_ObjectHideFlags: 0

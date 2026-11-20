@@ -127,10 +127,7 @@ public class PlayerHealth : MonoBehaviour
         // Reseta essência da run ao renascer na base
         PlayerEssence essence = GetComponent<PlayerEssence>() ?? GetComponentInChildren<PlayerEssence>() ?? Object.FindFirstObjectByType<PlayerEssence>();
         if (essence != null)
-        {
-            essence.currentEssence = 0;
-            essence.onEssenceChanged?.Invoke(0);
-        }
+            essence.ResetRunEssence();
 
         // Fecha e esconde texto de cochicho do Mercador
         if (MerchantPopupController.Instance != null)
@@ -183,13 +180,17 @@ public class PlayerHealth : MonoBehaviour
         // Reseta e destrava sistema de cura do traje
         SuitHealingSystem.Instance?.ResetOnDeathOrRespawn();
 
+        // Garante desativação completa dos efeitos Lendários (Tier 4 / Dash Explosivo) ao voltar para a Base
+        Tier4EffectManager t4Respawn = GetComponent<Tier4EffectManager>() ?? GetComponentInChildren<Tier4EffectManager>();
+        if (t4Respawn != null) t4Respawn.DeactivateAllEffects();
+
+        ExplosiveDashEffect expDashRespawn = GetComponent<ExplosiveDashEffect>() ?? GetComponentInChildren<ExplosiveDashEffect>();
+        if (expDashRespawn != null) expDashRespawn.DeactivateEffect();
+
         // Reseta essência da run ao renascer na base
         PlayerEssence essence = GetComponent<PlayerEssence>() ?? GetComponentInChildren<PlayerEssence>() ?? Object.FindFirstObjectByType<PlayerEssence>();
         if (essence != null)
-        {
-            essence.currentEssence = 0;
-            essence.onEssenceChanged?.Invoke(0);
-        }
+            essence.ResetRunEssence();
 
         // Fecha e esconde texto de cochicho do Mercador
         if (MerchantPopupController.Instance != null)
@@ -356,10 +357,7 @@ public class PlayerHealth : MonoBehaviour
         // Reseta essência da run ao renascer na base
         PlayerEssence essence = GetComponent<PlayerEssence>() ?? GetComponentInChildren<PlayerEssence>() ?? Object.FindFirstObjectByType<PlayerEssence>();
         if (essence != null)
-        {
-            essence.currentEssence = 0;
-            essence.onEssenceChanged?.Invoke(0);
-        }
+            essence.ResetRunEssence();
 
         // Fecha e esconde texto de cochicho do Mercador
         if (MerchantPopupController.Instance != null)
@@ -464,6 +462,12 @@ public class PlayerHealth : MonoBehaviour
             if (infusion.infusedItems != null) infusion.infusedItems.Clear();
         }
 
+        Tier4EffectManager t4Manager = GetComponent<Tier4EffectManager>() ?? GetComponentInChildren<Tier4EffectManager>();
+        if (t4Manager != null) t4Manager.DeactivateAllEffects();
+
+        ExplosiveDashEffect explosiveDash = GetComponent<ExplosiveDashEffect>() ?? GetComponentInChildren<ExplosiveDashEffect>();
+        if (explosiveDash != null) explosiveDash.DeactivateEffect();
+
         if (EquipmentManager.Instance != null)
         {
             EquipmentManager.Instance.ReapplyAllEquippedEffects();
@@ -479,10 +483,7 @@ public class PlayerHealth : MonoBehaviour
         // Reseta essência da run ao renascer na base
         PlayerEssence essence = GetComponent<PlayerEssence>() ?? GetComponentInChildren<PlayerEssence>() ?? Object.FindFirstObjectByType<PlayerEssence>();
         if (essence != null)
-        {
-            essence.currentEssence = 0;
-            essence.onEssenceChanged?.Invoke(0);
-        }
+            essence.ResetRunEssence();
 
         // Fecha e esconde texto de cochicho do Mercador
         if (MerchantPopupController.Instance != null)
@@ -1149,14 +1150,17 @@ public class PlayerHealth : MonoBehaviour
         }
     }
 
-    public void Heal(int amount)
+    public void Heal(int amount, bool playHealAudio = true)
     {
         if (isDead || !canHeal) return;
         currentHealth += amount;
         if (currentHealth > maxHealth) currentHealth = maxHealth;
         UpdateHealthBar();
 
-        PlayHealSound();
+        if (playHealAudio)
+        {
+            PlayHealSound();
+        }
     }
     
     [Header("Luz de Dano (DAMAGELIGHT)")]
@@ -1443,10 +1447,15 @@ public class PlayerHealth : MonoBehaviour
         // === THORNS (Dano Refletido) ===
         if (attacker != null && playerAttributes != null && playerAttributes.thorns > 0)
         {
-            DummyHealth enemyHealth = attacker.GetComponent<DummyHealth>();
+            DummyHealth enemyHealth = attacker.GetComponent<DummyHealth>() ?? attacker.GetComponentInParent<DummyHealth>();
             if (enemyHealth != null)
             {
                 enemyHealth.TakeDamage(playerAttributes.thorns);
+                Tier4EffectManager t4 = GetComponent<Tier4EffectManager>() ?? GetComponentInChildren<Tier4EffectManager>();
+                if (t4 != null)
+                {
+                    t4.OnDamageReflected(enemyHealth.gameObject);
+                }
                 Debug.Log($"🌵 THORNS! Refletido {playerAttributes.thorns} de dano para {attacker.name}");
             }
         }

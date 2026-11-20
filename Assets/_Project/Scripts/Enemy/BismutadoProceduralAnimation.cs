@@ -161,12 +161,26 @@ public class BismutadoProceduralAnimation : MonoBehaviour
         );
         fistTrailRenderer.colorGradient = gradient;
 
-        Shader particleShader = Shader.Find("Particles/Standard Unlit") ?? Shader.Find("Sprites/Default") ?? Shader.Find("Mobile/Particles/Additive");
+        Shader particleShader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+            ?? Shader.Find("Universal Render Pipeline/Unlit")
+            ?? Shader.Find("Sprites/Default")
+            ?? Shader.Find("Particles/Standard Unlit");
         if (particleShader != null)
         {
             Material trailMat = new Material(particleShader);
-            trailMat.SetColor("_Color", trailColor);
-            if (trailMat.HasProperty("_EmissionColor")) trailMat.SetColor("_EmissionColor", trailColor * 2.5f);
+            if (trailMat.HasProperty("_Surface")) trailMat.SetFloat("_Surface", 1f);
+            if (trailMat.HasProperty("_Blend")) trailMat.SetFloat("_Blend", 2f);
+            if (trailMat.HasProperty("_SrcBlend")) trailMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            if (trailMat.HasProperty("_DstBlend")) trailMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+            if (trailMat.HasProperty("_ZWrite")) trailMat.SetInt("_ZWrite", 0);
+            if (trailMat.HasProperty("_BaseColor")) trailMat.SetColor("_BaseColor", trailColor);
+            if (trailMat.HasProperty("_Color")) trailMat.SetColor("_Color", trailColor);
+            if (trailMat.HasProperty("_EmissionColor"))
+            {
+                trailMat.EnableKeyword("_EMISSION");
+                trailMat.SetColor("_EmissionColor", trailColor * 2.5f);
+            }
+            trailMat.renderQueue = 3000;
             fistTrailRenderer.material = trailMat;
         }
     }

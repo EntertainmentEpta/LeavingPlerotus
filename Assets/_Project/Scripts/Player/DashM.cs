@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using TMPro;
@@ -107,6 +108,11 @@ public class DashM : MonoBehaviour
     private float perfectDodgePostInvulTimer = 0f;
     private bool isPerfectDodgeRoutineRunning = false;
     private bool isCurrentDashPerfectTriggered = false;
+
+    [Header("Biomassa do Traje (Esquiva Perfeita)")]
+    [Tooltip("Biomassa (0-100) concedida ao SuitHealingSystem a cada Esquiva Perfeita. No máximo 1x por esquiva.")]
+    public float perfectDodgeBiomassReward = 35f;
+    private bool perfectDodgeBiomassAwarded = false;
 
     public bool IsPerfectDodgeInvulnerable => isPerfectDodgeRoutineRunning || perfectDodgePostInvulTimer > 0f;
     private bool hasPerfectDodgeCharge = false;
@@ -473,6 +479,9 @@ public class DashM : MonoBehaviour
 
         PlayDashSound();
 
+        Tier4EffectManager tier4EffectManager = GetComponent<Tier4EffectManager>();
+        if (tier4EffectManager != null)
+            tier4EffectManager.OnDashUsed();
         if (invulEndCoroutine != null)
         {
             StopCoroutine(invulEndCoroutine);
@@ -481,6 +490,7 @@ public class DashM : MonoBehaviour
 
         // Checagem proativa de Esquiva Perfeita no instante exato da ativação
         isCurrentDashPerfectTriggered = false;
+        perfectDodgeBiomassAwarded = false; // Libera a recompensa de Biomassa para este novo dash
         if (IsAnyImminentAttackNearby(out GameObject imminentAttacker))
         {
             isCurrentDashPerfectTriggered = true;
@@ -568,6 +578,9 @@ public class DashM : MonoBehaviour
             leanCoroutine = StartCoroutine(AnimateDashLean(totalDuration));
         }
 
+        bool startedOnNavMesh = NavMesh.SamplePosition(transform.position, out _, 1.5f, NavMesh.AllAreas);
+        bool dashBlockedByBoundary = false;
+
         rb.linearVelocity = Vector3.zero; 
         rb.linearVelocity = dashDirection * dashSpeed;
         float elapsed = 0f;
@@ -579,8 +592,17 @@ public class DashM : MonoBehaviour
                 isInPerfectDodgeWindow = false;
             }
 
+            if (!dashBlockedByBoundary && ShouldStopDashForBoundary(dashDirection, startedOnNavMesh))
+            {
+                dashBlockedByBoundary = true;
+                rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            }
+            else if (dashBlockedByBoundary)
+            {
+                rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            }
             // No Dash Normal (sem Perfect Dash): aplica repulsão radial suave lateral para contornar inimigos fluidamente
-            if (!isCurrentDashPerfectTriggered)
+            else if (!isCurrentDashPerfectTriggered)
             {
                 ApplyRadialSoftRepulsion(dashDirection);
             }
@@ -644,11 +666,12 @@ public class DashM : MonoBehaviour
 
     /// <summary>
     /// Disparado pelo PlayerHealth quando o jogador esquiva com sucesso dentro da janela inicial.
-    /// Ativa hit-stop, after-image, restaura 1 dash, acelera cura do Eptinho e concede 100% crítico no próximo golpe.
+    /// Ativa hit-stop, after-image, restaura 1 dash, carrega +35% de Biomassa do traje e concede 100% crítico no próximo golpe.
     /// </summary>
     [ContextMenu("Testar Esquiva Perfeita")]
     public void DebugTriggerPerfectDodge()
     {
+        perfectDodgeBiomassAwarded = false;
         TriggerPerfectDodge(null);
     }
 
@@ -656,6 +679,22 @@ public class DashM : MonoBehaviour
     {
         isCurrentDashPerfectTriggered = true;
         isInPerfectDodgeWindow = false;
+
+        Tier4EffectManager t4 = GetComponent<Tier4EffectManager>() ?? GetComponentInChildren<Tier4EffectManager>();
+        if (t4 != null)
+        {
+            t4.OnPerfectDodge();
+        }
+
+        // Esquiva Perfeita carrega a Biomassa do traje (no máximo 1x por esquiva)
+        if (!perfectDodgeBiomassAwarded)
+        {
+            perfectDodgeBiomassAwarded = true;
+            if (SuitHealingSystem.Instance != null)
+            {
+                SuitHealingSystem.Instance.AddBiomass(perfectDodgeBiomassReward);
+            }
+        }
 
         if (enableLayerPhasing)
         {
@@ -980,7 +1019,7 @@ public class DashM : MonoBehaviour
             perfectDodgeBlurVolume.weight = 0f;
         }
 
-        // 4. Ativa a Sobrecarga do Perfect Dash (Barra Especial de 3 Escolhas: Crítico / Dash Extra / Cura Q)
+        // 4. Ativa a Sobrecarga do Perfect Dash (Barra Especial: Crítico garantido / Dash Extra)
         hasPerfectDodgeCharge = true;
         perfectDodgeChargeTimer = perfectDodgeChargeDuration;
         isNextAttackGuaranteedCrit = true;
@@ -1140,7 +1179,7 @@ public class DashM : MonoBehaviour
     /// Consome o bônus de crítico garantido ao desferir um golpe.
     /// </summary>
     /// <summary>
-    /// Consome a Sobrecarga do Perfect Dash (quando gasta em Dash Livre, Ataque Crítico ou Síntese Q).
+    /// Consome a Sobrecarga do Perfect Dash (quando gasta em Dash Livre ou Ataque Crítico).
     /// </summary>
     public bool ConsumePerfectDodgeCharge()
     {
@@ -1379,6 +1418,61 @@ public class DashM : MonoBehaviour
         }
 
         Destroy(vfxInstance, 3.5f);
+    }
+
+    /// <summary>
+    /// Impede que o dash atravesse paredes finas ou avance para fora do piso/NavMesh do mapa.
+    /// </summary>
+    private bool ShouldStopDashForBoundary(Vector3 dashDirection, bool startedOnNavMesh)
+    {
+        float lookAheadDist = Mathf.Max(0.45f, dashSpeed * Time.fixedDeltaTime * 1.5f);
+
+        Vector3 chestOrigin = transform.position + Vector3.up * 0.6f;
+        RaycastHit[] wallHits = Physics.SphereCastAll(chestOrigin, 0.25f, dashDirection, lookAheadDist, ~0, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < wallHits.Length; i++)
+        {
+            Collider col = wallHits[i].collider;
+            if (IsIgnoredDashObstacle(col)) continue;
+            if (wallHits[i].normal.y < 0.45f)
+            {
+                return true;
+            }
+        }
+
+        Vector3 aheadPos = transform.position + dashDirection * lookAheadDist;
+        bool hasSolidFloor = false;
+        RaycastHit[] floorHits = Physics.RaycastAll(aheadPos + Vector3.up * 1.5f, Vector3.down, 4.5f, ~0, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < floorHits.Length; i++)
+        {
+            if (IsIgnoredDashObstacle(floorHits[i].collider)) continue;
+            if (floorHits[i].normal.y >= 0.4f)
+            {
+                hasSolidFloor = true;
+                break;
+            }
+        }
+
+        if (!hasSolidFloor) return true;
+
+        if (startedOnNavMesh && LevelGenerator.Instance != null && LevelGenerator.Instance.useNavMesh && LevelGenerator.Instance.useNavMeshConstraint)
+        {
+            if (!NavMesh.SamplePosition(aheadPos, out _, 0.85f, NavMesh.AllAreas))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool IsIgnoredDashObstacle(Collider col)
+    {
+        if (col == null || col.isTrigger) return true;
+        if (col.gameObject.layer == 2) return true; // Ignore Raycast
+        if (col.transform == transform || col.transform.IsChildOf(transform)) return true;
+        if (col.CompareTag("Player") || col.CompareTag("Enemy")) return true;
+        if (col.GetComponentInParent<NavMeshAgent>() != null) return true;
+        return false;
     }
 
 #if UNITY_EDITOR

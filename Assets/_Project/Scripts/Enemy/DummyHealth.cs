@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
+using System.Collections.Generic;
+using UnityEngine.AI;
 
 public class DummyHealth : MonoBehaviour
 {
@@ -9,14 +11,13 @@ public class DummyHealth : MonoBehaviour
     private float slowPercent = 0f;
     private float slowTimer = 0f;
 
-    private Geobionte_AI geobionteAI;
-    private Golem_AI golemAI;
-    private Spider_AI spiderAI;
-    private GoblinAI_Transform goblinAI;
-    private ShardSwarm_AI shardSwarmAI;
-    private MagicStone_AI magicStoneAI;
-    private CrystalTuner crystalTunerAI;
-    private Cristalus_AI cristalusAI;
+    private List<Behaviour> enemyAIBehaviours = new List<Behaviour>();
+    private List<Behaviour> pausedAIBehaviours = new List<Behaviour>();
+    private Animator[] allAnimators;
+    private float[] savedAnimatorSpeeds;
+    private BossController bossController;
+    private bool isHitStopActive;
+    private bool savedNavWasStopped;
 
     [Header("Vida")]
     public int maxHealth = 100;
@@ -65,6 +66,14 @@ public class DummyHealth : MonoBehaviour
     [HideInInspector] public bool isInvulnerable = false;
     [HideInInspector] public bool isBuffed = false;
 
+    [Header("Biomassa do Traje")]
+    [Tooltip("Se falso, este alvo não concede Biomassa ao jogador (ex: mortes forçadas por script/cheat).")]
+    public bool grantsBiomass = true;
+    private const float BiomassPerHit = 2f;
+    private const float BiomassPerKill = 8f;
+    private const float BiomassPerEliteKill = 40f;
+    private bool biomassKillRewarded = false;
+
     /// <summary>
     /// Se > 0, cada hit causa exatamente este valor de dano, independente do dano da arma.
     /// Usado pelo Geobionte para que 7 hits = 7 HP (1 dano por hit).
@@ -93,6 +102,9 @@ public class DummyHealth : MonoBehaviour
     private Color originalBaseColor;
     private bool hasBaseColor = false;
     private Renderer dummyRenderer;
+    private Animator animator;
+    private NavMeshAgent navAgent;
+    private Rigidbody rb;
 
     private void Awake()
     {
@@ -130,6 +142,11 @@ public class DummyHealth : MonoBehaviour
         }
 
         dummyRenderer = GetComponentInChildren<Renderer>();
+
+        animator = GetComponentInChildren<Animator>();
+        navAgent = GetComponent<NavMeshAgent>();
+        rb = GetComponent<Rigidbody>();
+
         if (dummyRenderer != null)
         {
             originalRenderColor = dummyRenderer.material.color;
@@ -172,38 +189,39 @@ public class DummyHealth : MonoBehaviour
 
     private void DetectAIScripts()
     {
-        geobionteAI = GetComponent<Geobionte_AI>();
-        golemAI = GetComponent<Golem_AI>();
-        spiderAI = GetComponent<Spider_AI>();
-        goblinAI = GetComponent<GoblinAI_Transform>();
-        shardSwarmAI = GetComponent<ShardSwarm_AI>();
-        magicStoneAI = GetComponent<MagicStone_AI>();
-        crystalTunerAI = GetComponent<CrystalTuner>();
-        cristalusAI = GetComponent<Cristalus_AI>();
+        CollectEnemyAIBehaviours(gameObject, enemyAIBehaviours);
+        allAnimators = GetComponentsInChildren<Animator>(true);
+        bossController = GetComponent<BossController>() ?? GetComponentInParent<BossController>();
+
+        bool hasGolem = GetComponent<Golem_AI>() != null;
+        bool hasCristalus = GetComponent<Cristalus_AI>() != null;
+        bool hasGeobionte = GetComponent<Geobionte_AI>() != null;
+        bool hasPeixe = TryGetComponent<PeixeAI>(out _);
+        bool hasMagicStone = GetComponent<MagicStone_AI>() != null;
 
         // Configuração de resistências padrão por arquétipo (Pilar 4) caso não customizado no Inspector
         string lowerName = gameObject.name.ToLower();
-        if (golemAI != null || lowerName.Contains("golem"))
+        if (hasGolem || lowerName.Contains("golem"))
         {
             if (projectileResistance <= 0f) projectileResistance = 0.60f;
             if (knockbackResistance <= 0f) knockbackResistance = 0.95f;
         }
-        else if (cristalusAI != null || lowerName.Contains("cristalus"))
+        else if (hasCristalus || lowerName.Contains("cristalus"))
         {
             if (projectileResistance <= 0f) projectileResistance = 0.50f;
             if (knockbackResistance <= 0f) knockbackResistance = 0.40f;
         }
-        else if (geobionteAI != null || lowerName.Contains("geobionte"))
+        else if (hasGeobionte || lowerName.Contains("geobionte"))
         {
             if (projectileResistance <= 0f) projectileResistance = 0.50f;
             if (knockbackResistance <= 0f) knockbackResistance = 0.30f;
         }
-        else if (TryGetComponent<PeixeAI>(out _) || lowerName.Contains("peixe"))
+        else if (hasPeixe || lowerName.Contains("peixe"))
         {
             if (projectileResistance <= 0f) projectileResistance = 0.50f;
             if (knockbackResistance <= 0f) knockbackResistance = 0.35f;
         }
-        else if (magicStoneAI != null || lowerName.Contains("magicstone") || lowerName.Contains("star"))
+        else if (hasMagicStone || lowerName.Contains("magicstone") || lowerName.Contains("star"))
         {
             if (projectileResistance <= 0f) projectileResistance = 0.50f;
             if (knockbackResistance <= 0f) knockbackResistance = 0.50f;
@@ -296,10 +314,18 @@ public class DummyHealth : MonoBehaviour
             damage = Mathf.RoundToInt(damage * buffFactor);
         }
 
+        Tier4EffectManager tunerManager = FindFirstObjectByType<Tier4EffectManager>();
+        damage = tunerManager != null ? tunerManager.ModifyIncomingDamage(gameObject, damage) : damage;
         CurrentHealth -= damage;
         RunStatsManager.Instance?.RecordDamageDealt(damage);
 
         onDamageTaken?.Invoke(damage, null);
+
+        // Biomassa do traje: +2% por golpe válido (DoT de veneno não conta como golpe)
+        if (grantsBiomass && !isPoison && damage > 0 && SuitHealingSystem.Instance != null)
+        {
+            SuitHealingSystem.Instance.AddBiomass(BiomassPerHit);
+        }
 
         UpdateHealthBar();
         ShowHealthBar();
@@ -327,15 +353,29 @@ public class DummyHealth : MonoBehaviour
             }
         }
 
+        // Hit-Stop só em golpe corpo a corpo (não dispara com tiro nem veneno)
+        if (!isProjectile && !isPoison)
+            ApplyHitStop(isCritical ? 0.12f : 0.08f);
+
         if (dummyRenderer != null)
         {
-            StartCoroutine(isPoison ? FlashPoisonGreen() : FlashRed());
+            if (isPoison)
+                StartCoroutine(FlashPoisonGreen());
+            else if (!isProjectile)
+                StartCoroutine(FlashWhite());
+            else
+                StartCoroutine(FlashRed());
         }
 
         if (CurrentHealth <= 0)
         {
             CurrentHealth = 0;
+            tunerManager?.NotifyEnemyDamaged(gameObject, true);
             Die();
+        }
+        else
+        {
+            tunerManager?.NotifyEnemyDamaged(gameObject, false);
         }
     }
 
@@ -361,13 +401,64 @@ public class DummyHealth : MonoBehaviour
         }
     }
 
+    private bool isFlashing = false;
+    private Renderer[] flashRends;
+    private Color[] origBase, origTint, origEmis;
+    private bool[] hasBase, hasTint, hasEmis;
+
     IEnumerator FlashRed()
     {
-        dummyRenderer.material.color = hitColor;
-        if (hasBaseColor) dummyRenderer.material.SetColor("_BaseColor", hitColor);
-        yield return new WaitForSeconds(hitFlashTime);
-        dummyRenderer.material.color = originalRenderColor;
-        if (hasBaseColor) dummyRenderer.material.SetColor("_BaseColor", originalBaseColor);
+        yield return FlashColor(hitColor, hitFlashTime);
+    }
+
+    IEnumerator FlashWhite()
+    {
+        yield return FlashColor(Color.white, 0.08f);
+    }
+
+    IEnumerator FlashColor(Color flashColor, float duration)
+    {
+        if (!isFlashing)
+        {
+            flashRends = CollectFlashMeshRenderers(gameObject);
+            int n = flashRends.Length;
+            origBase = new Color[n]; origTint = new Color[n]; origEmis = new Color[n];
+            hasBase = new bool[n]; hasTint = new bool[n]; hasEmis = new bool[n];
+
+            for (int i = 0; i < n; i++)
+            {
+                if (flashRends[i] == null) continue;
+                Material m = flashRends[i].material;
+                hasBase[i] = m.HasProperty("_BaseColor");
+                hasTint[i] = m.HasProperty("_Color");
+                hasEmis[i] = m.HasProperty("_EmissionColor");
+                if (hasBase[i]) origBase[i] = m.GetColor("_BaseColor");
+                if (hasTint[i]) origTint[i] = m.color;
+                if (hasEmis[i]) origEmis[i] = m.GetColor("_EmissionColor");
+            }
+            isFlashing = true;
+        }
+
+        for (int i = 0; i < flashRends.Length; i++)
+        {
+            if (flashRends[i] == null) continue;
+            Material m = flashRends[i].material;
+            if (hasBase[i]) m.SetColor("_BaseColor", flashColor);
+            if (hasTint[i]) m.color = flashColor;
+            if (hasEmis[i]) { m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", flashColor * 0.8f); }
+        }
+
+        yield return new WaitForSeconds(duration);
+
+        for (int i = 0; i < flashRends.Length; i++)
+        {
+            if (flashRends[i] == null) continue;
+            Material m = flashRends[i].material;
+            if (hasBase[i]) m.SetColor("_BaseColor", origBase[i]);
+            if (hasTint[i]) m.color = origTint[i];
+            if (hasEmis[i]) m.SetColor("_EmissionColor", origEmis[i]);
+        }
+        isFlashing = false;
     }
 
     IEnumerator FlashPoisonGreen()
@@ -378,6 +469,185 @@ public class DummyHealth : MonoBehaviour
         yield return new WaitForSeconds(hitFlashTime);
         dummyRenderer.material.color = originalRenderColor;
         if (hasBaseColor) dummyRenderer.material.SetColor("_BaseColor", originalBaseColor);
+    }
+
+
+    private Coroutine hitStopCo;
+
+    public void ApplyHitStop(float duration = 0.08f)
+    {
+        if (!gameObject.activeInHierarchy || CurrentHealth <= 0) return;
+
+        // Ignora apenas se estiver realmente no alto (salto/queda forte); desníveis de rampa não bloqueiam
+        if (rb != null && Mathf.Abs(rb.linearVelocity.y) > 1.5f) return;
+
+        if (hitStopCo != null)
+        {
+            StopCoroutine(hitStopCo);
+            RestoreHitStopState();
+        }
+        hitStopCo = StartCoroutine(HitStopRoutine(duration));
+    }
+
+    private void OnDisable()
+    {
+        RestoreHitStopState();
+    }
+
+    private IEnumerator HitStopRoutine(float duration)
+    {
+        isHitStopActive = true;
+
+        if (enemyAIBehaviours.Count == 0 && bossController == null)
+        {
+            CollectEnemyAIBehaviours(gameObject, enemyAIBehaviours);
+        }
+        if (allAnimators == null || allAnimators.Length == 0)
+        {
+            allAnimators = GetComponentsInChildren<Animator>(true);
+        }
+
+        // Congela todos os Animators do inimigo preservando a velocidade original de cada um
+        savedAnimatorSpeeds = new float[allAnimators.Length];
+        for (int i = 0; i < allAnimators.Length; i++)
+        {
+            if (allAnimators[i] != null)
+            {
+                savedAnimatorSpeeds[i] = allAnimators[i].speed;
+                allAnimators[i].speed = 0f;
+            }
+        }
+
+        if (bossController != null)
+        {
+            bossController.TriggerHitstop(duration);
+        }
+
+        // Trava o movimento via NavMeshAgent
+        if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh)
+        {
+            savedNavWasStopped = navAgent.isStopped;
+            navAgent.isStopped = true;
+            navAgent.velocity = Vector3.zero;
+        }
+
+        if (rb != null && !rb.isKinematic)
+        {
+            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+        }
+
+        // Desativa temporariamente apenas os scripts de IA que estavam ativos
+        PauseActiveAIBehaviours(enemyAIBehaviours, pausedAIBehaviours);
+
+        yield return new WaitForSecondsRealtime(duration);
+
+        RestoreHitStopState();
+        hitStopCo = null;
+    }
+
+    private void RestoreHitStopState()
+    {
+        if (!isHitStopActive) return;
+        isHitStopActive = false;
+
+        if (allAnimators != null && savedAnimatorSpeeds != null)
+        {
+            int count = Mathf.Min(allAnimators.Length, savedAnimatorSpeeds.Length);
+            for (int i = 0; i < count; i++)
+            {
+                if (allAnimators[i] != null)
+                {
+                    allAnimators[i].speed = savedAnimatorSpeeds[i] > 0.001f ? savedAnimatorSpeeds[i] : 1f;
+                }
+            }
+        }
+
+        if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh)
+        {
+            navAgent.isStopped = savedNavWasStopped;
+        }
+
+        ResumePausedAIBehaviours(pausedAIBehaviours);
+    }
+
+    /// <summary>
+    /// Coleta apenas MeshRenderer e SkinnedMeshRenderer para evitar alterar materiais de partículas/trails no flash.
+    /// </summary>
+    internal static Renderer[] CollectFlashMeshRenderers(GameObject root)
+    {
+        Renderer[] all = root.GetComponentsInChildren<Renderer>(true);
+        List<Renderer> filtered = new List<Renderer>(all.Length);
+        for (int i = 0; i < all.Length; i++)
+        {
+            if (all[i] is MeshRenderer || all[i] is SkinnedMeshRenderer)
+            {
+                filtered.Add(all[i]);
+            }
+        }
+        return filtered.ToArray();
+    }
+
+    /// <summary>
+    /// Coleta todos os scripts de IA e animação procedural de inimigos presentes na hierarquia.
+    /// </summary>
+    internal static void CollectEnemyAIBehaviours(GameObject root, List<Behaviour> outList)
+    {
+        outList.Clear();
+        TryAddBehaviours<Geobionte_AI>(root, outList);
+        TryAddBehaviours<Golem_AI>(root, outList);
+        TryAddBehaviours<Spider_AI>(root, outList);
+        TryAddBehaviours<GoblinAI_Transform>(root, outList);
+        TryAddBehaviours<ShardSwarm_AI>(root, outList);
+        TryAddBehaviours<MagicStone_AI>(root, outList);
+        TryAddBehaviours<CrystalTuner>(root, outList);
+        TryAddBehaviours<Cristalus_AI>(root, outList);
+        TryAddBehaviours<CrystalWatcher_AI>(root, outList);
+        TryAddBehaviours<PeixeAI>(root, outList);
+        TryAddBehaviours<CrystalDragon_AI>(root, outList);
+        TryAddBehaviours<CrystalDragonCommon_AI>(root, outList);
+        TryAddBehaviours<SharpBlur>(root, outList);
+        TryAddBehaviours<TotemSpawner>(root, outList);
+        TryAddBehaviours<BismutadoProceduralAnimation>(root, outList);
+        TryAddBehaviours<GolemProceduralAnimation>(root, outList);
+        TryAddBehaviours<SpiderProceduralAnimation>(root, outList);
+    }
+
+    private static void TryAddBehaviours<T>(GameObject root, List<Behaviour> outList) where T : Behaviour
+    {
+        T[] found = root.GetComponentsInChildren<T>(true);
+        for (int i = 0; i < found.Length; i++)
+        {
+            if (found[i] != null && !outList.Contains(found[i]))
+            {
+                outList.Add(found[i]);
+            }
+        }
+    }
+
+    internal static void PauseActiveAIBehaviours(List<Behaviour> candidates, List<Behaviour> pausedOut)
+    {
+        pausedOut.Clear();
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            Behaviour b = candidates[i];
+            if (b != null && b.enabled)
+            {
+                b.enabled = false;
+                pausedOut.Add(b);
+            }
+        }
+    }
+
+    internal static void ResumePausedAIBehaviours(List<Behaviour> paused)
+    {
+        for (int i = 0; i < paused.Count; i++)
+        {
+            if (paused[i] != null)
+            {
+                paused[i].enabled = true;
+            }
+        }
+        paused.Clear();
     }
 
     private void Die()
@@ -398,6 +668,23 @@ public class DummyHealth : MonoBehaviour
         if (debugLogDamage)
         {
             Debug.Log("[DummyHealth] Death stack:\n" + System.Environment.StackTrace);
+        }
+
+        // --- BIOMASSA DO TRAJE: +8% (comum) / +40% (Elite), apenas 1x por inimigo ---
+        if (!biomassKillRewarded)
+        {
+            biomassKillRewarded = true;
+            try
+            {
+                if (grantsBiomass && SuitHealingSystem.Instance != null)
+                {
+                    SuitHealingSystem.Instance.AddBiomass(isElite ? BiomassPerEliteKill : BiomassPerKill);
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[DummyHealth] Erro ao conceder Biomassa por kill: {ex}");
+            }
         }
 
         // --- SISTEMA DE PACTOS DO JOGADOR ---
@@ -694,6 +981,47 @@ public class DummyHealth : MonoBehaviour
         }
     }
 
+    public void ApplyStun(float duration)
+    {
+        if (duration <= 0f || CurrentHealth <= 0) return;
+
+        BossController boss = GetComponent<BossController>() ?? GetComponentInParent<BossController>();
+        if (boss != null)
+        {
+            boss.ApplyStun(duration);
+            return;
+        }
+
+        ApplySlow(0.95f, duration);
+        StartCoroutine(StunNavAgentRoutine(duration));
+        Debug.Log($"[DEBUFF] Stun aplicado a {gameObject.name} por {duration}s.");
+    }
+
+    private IEnumerator StunNavAgentRoutine(float duration)
+    {
+        UnityEngine.AI.NavMeshAgent nav = GetComponent<UnityEngine.AI.NavMeshAgent>();
+        bool hadStopped = false;
+        if (nav != null && nav.isActiveAndEnabled && nav.isOnNavMesh)
+        {
+            hadStopped = nav.isStopped;
+            nav.isStopped = true;
+            nav.velocity = Vector3.zero;
+        }
+
+        Rigidbody rb = GetComponent<Rigidbody>();
+        if (rb != null && !rb.isKinematic)
+        {
+            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+        }
+
+        yield return new WaitForSeconds(duration);
+
+        if (nav != null && nav.isActiveAndEnabled && nav.isOnNavMesh && CurrentHealth > 0)
+        {
+            nav.isStopped = hadStopped;
+        }
+    }
+
     public void ApplySlow(float percent, float duration)
     {
         if (percent <= 0f) return;
@@ -734,28 +1062,24 @@ public class DummyHealth : MonoBehaviour
 
     private void ApplySlowToAI(float percent)
     {
-        float factor = 1f - percent;
-        if (geobionteAI != null) { geobionteAI.chaseSpeed *= factor; geobionteAI.seekSpeed *= factor; geobionteAI.wanderSpeed *= factor; }
-        if (golemAI != null) { golemAI.moveSpeed *= factor; }
-        if (spiderAI != null) { spiderAI.moveSpeed *= factor; }
-        if (goblinAI != null) { goblinAI.chaseSpeed *= factor; goblinAI.fleeSpeed *= factor; goblinAI.strafeSpeed *= factor; }
-        if (shardSwarmAI != null) { shardSwarmAI.moveSpeed *= factor; }
-        if (magicStoneAI != null) { magicStoneAI.moveSpeed *= factor; }
-        if (crystalTunerAI != null) { crystalTunerAI.moveSpeed *= factor; }
-        if (cristalusAI != null) { cristalusAI.moveSpeed *= factor; }
+        ScaleAISpeeds(1f - percent);
     }
 
     private void RemoveSlowFromAI()
     {
         if (slowPercent >= 1f) return; // Evita divisão por zero
-        float factor = 1f / (1f - slowPercent);
-        if (geobionteAI != null) { geobionteAI.chaseSpeed *= factor; geobionteAI.seekSpeed *= factor; geobionteAI.wanderSpeed *= factor; }
-        if (golemAI != null) { golemAI.moveSpeed *= factor; }
-        if (spiderAI != null) { spiderAI.moveSpeed *= factor; }
-        if (goblinAI != null) { goblinAI.chaseSpeed *= factor; goblinAI.fleeSpeed *= factor; goblinAI.strafeSpeed *= factor; }
-        if (shardSwarmAI != null) { shardSwarmAI.moveSpeed *= factor; }
-        if (magicStoneAI != null) { magicStoneAI.moveSpeed *= factor; }
-        if (crystalTunerAI != null) { crystalTunerAI.moveSpeed *= factor; }
-        if (cristalusAI != null) { cristalusAI.moveSpeed *= factor; }
+        ScaleAISpeeds(1f / (1f - slowPercent));
+    }
+
+    private void ScaleAISpeeds(float factor)
+    {
+        if (TryGetComponent<Geobionte_AI>(out var geo)) { geo.chaseSpeed *= factor; geo.seekSpeed *= factor; geo.wanderSpeed *= factor; }
+        if (TryGetComponent<Golem_AI>(out var golem)) { golem.moveSpeed *= factor; }
+        if (TryGetComponent<Spider_AI>(out var spider)) { spider.moveSpeed *= factor; }
+        if (TryGetComponent<GoblinAI_Transform>(out var goblin)) { goblin.chaseSpeed *= factor; goblin.fleeSpeed *= factor; goblin.strafeSpeed *= factor; }
+        if (TryGetComponent<ShardSwarm_AI>(out var swarm)) { swarm.moveSpeed *= factor; }
+        if (TryGetComponent<MagicStone_AI>(out var stone)) { stone.moveSpeed *= factor; }
+        if (TryGetComponent<CrystalTuner>(out var tuner)) { tuner.moveSpeed *= factor; }
+        if (TryGetComponent<Cristalus_AI>(out var cristalus)) { cristalus.moveSpeed *= factor; }
     }
 }

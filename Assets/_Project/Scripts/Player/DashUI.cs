@@ -464,7 +464,7 @@ public class DashUI : MonoBehaviour
         perfectDodgeBannerSub.fontStyle = FontStyles.Bold;
         perfectDodgeBannerSub.alignment = TextAlignmentOptions.Center;
         perfectDodgeBannerSub.color = Color.white;
-        perfectDodgeBannerSub.text = "<color=#FFD700>[GOLPE]</color> 100% Crítico  |  <color=#FFFFFF>[ESPAÇO]</color> Dash Livre  |  <color=#00FF88>[Q]</color> +30s Cura";
+        perfectDodgeBannerSub.text = "<color=#FFD700>[GOLPE]</color> 100% Crítico  |  <color=#FFFFFF>[ESPAÇO]</color> Dash Livre  |  <color=#00FF88>[Q]</color> +35% Biomassa";
 
         // Painel Principal
         GameObject panelObj = new GameObject("DashModularPanel");

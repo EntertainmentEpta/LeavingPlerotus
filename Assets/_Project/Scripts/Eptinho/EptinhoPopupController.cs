@@ -245,6 +245,12 @@ public class EptinhoPopupController : MonoBehaviour
     {
         if (popupUI == null) return;
 
+        // Trava de segurança contra valores antigos gigantes serializados em prefabs/cenas
+        portraitSize = Mathf.Clamp(portraitSize, 48f, 80f);
+        portraitMarginLeft = Mathf.Clamp(portraitMarginLeft, 14f, 24f);
+        portraitMarginRight = Mathf.Clamp(portraitMarginRight, 14f, 24f);
+        textFontSize = Mathf.Clamp(textFontSize, 18f, 26f);
+
         // 0. Garante que o Canvas do Eptinho fique na frente de tudo (inclusive Inventário, que tem sortingOrder 100)
         Canvas canvas = popupUI.GetComponent<Canvas>();
         if (canvas != null)
@@ -414,6 +420,11 @@ public class EptinhoPopupController : MonoBehaviour
     private void AjustarTamanhoDoPainelDinamico(string mensagem)
     {
         if (!autoResizePanel || popupUI == null || textoDoItem == null) return;
+
+        portraitSize = Mathf.Clamp(portraitSize, 48f, 80f);
+        portraitMarginLeft = Mathf.Clamp(portraitMarginLeft, 14f, 24f);
+        portraitMarginRight = Mathf.Clamp(portraitMarginRight, 14f, 24f);
+        textFontSize = Mathf.Clamp(textFontSize, 18f, 26f);
 
         mensagem = SanitizeEmojis(mensagem);
 

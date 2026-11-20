@@ -125,27 +125,28 @@ public class UltimateUI : MonoBehaviour
         {
             targetFill.fillAmount = progress;
 
-            if (isActive) targetFill.color = activeColor;
-            else if (isReady) targetFill.color = readyColor;
-            else targetFill.color = cooldownColor;
+            // Cores de preenchimento mais escuras e saturadas para garantir contraste máximo com o texto claro
+            if (isActive) targetFill.color = new Color(0.68f, 0.48f, 0.08f, 0.95f);
+            else if (isReady) targetFill.color = new Color(0.08f, 0.52f, 0.24f, 0.95f);
+            else targetFill.color = new Color(0.55f, 0.14f, 0.12f, 0.92f);
         }
 
-        // 2. Atualizar Texto do Countdown
+        // 2. Atualizar Texto do Countdown (Alto Contraste + Legibilidade Cristalina)
         TextMeshProUGUI targetText = countdownText != null ? countdownText : autoText;
         if (targetText != null)
         {
             if (isActive)
             {
-                targetText.text = "<color=#FFD700>[ ULT ATIVA ]</color>";
+                targetText.text = "<color=#FFF3A0><b>⚡ ULTIMATE ATIVA ⚡</b></color>";
             }
             else if (isReady)
             {
-                targetText.text = "<color=#00FF66>[ ULT PRONTA ]\n<size=80%>[ Pressione U ]</size></color>";
+                targetText.text = "<color=#FFFFFF><b>ULTIMATE PRONTA</b></color>\n<size=82%><color=#FFE500><b>[ Pressione U ]</b></color></size>";
             }
             else
             {
-                int secInt = Mathf.CeilToInt(remainingSec);
-                targetText.text = $"<color=#FF5555><b>RECUPERANDO\n{remainingSec:F1}s</b></color>";
+                int pct = Mathf.Clamp(Mathf.RoundToInt(progress * 100f), 0, 99);
+                targetText.text = $"<color=#FFD6D6><size=78%>CARREGANDO ULT ({pct}%)</size></color>\n<color=#FFFFFF><b>{remainingSec:F1}s</b></color>";
             }
         }
 
@@ -155,9 +156,9 @@ public class UltimateUI : MonoBehaviour
         {
             if (isReady)
             {
-                // Leve efeito de pulso de luz quando pronto
-                float pulse = 0.8f + Mathf.PingPong(Time.time * 2.5f, 0.2f);
-                targetBorder.color = readyColor * pulse;
+                // Pulso de luz vibrante na borda quando pronta para chamar atenção do jogador
+                float pulse = 0.75f + Mathf.PingPong(Time.time * 3.0f, 0.25f);
+                targetBorder.color = new Color(0.2f * pulse, 1.0f * pulse, 0.45f * pulse, 1.0f);
             }
             else if (isActive)
             {
@@ -165,7 +166,7 @@ public class UltimateUI : MonoBehaviour
             }
             else
             {
-                targetBorder.color = new Color(0.2f, 0.2f, 0.2f, 0.8f);
+                targetBorder.color = new Color(0.32f, 0.16f, 0.16f, 0.92f);
             }
         }
     }
@@ -198,11 +199,26 @@ public class UltimateUI : MonoBehaviour
         panelRect.anchorMax = new Vector2(1, 0);
         panelRect.pivot = new Vector2(1, 0);
         panelRect.anchoredPosition = screenPosition;
-        panelRect.sizeDelta = panelSize;
+        panelRect.sizeDelta = new Vector2(Mathf.Max(236f, panelSize.x), Mathf.Max(68f, panelSize.y));
 
-        // Fundo do Painel
+        // Borda Externa do Painel
         autoBorderImage = panelObj.AddComponent<Image>();
-        autoBorderImage.color = new Color(0.1f, 0.1f, 0.1f, 0.85f);
+        autoBorderImage.color = new Color(0.15f, 0.15f, 0.18f, 0.95f);
+
+        Shadow panelShadow = panelObj.AddComponent<Shadow>();
+        panelShadow.effectColor = new Color(0f, 0f, 0f, 0.7f);
+        panelShadow.effectDistance = new Vector2(3f, -3f);
+
+        // 2.5. Fundo Interno Escuro da Trilha (garante contraste na parte vazia da barra durante a recarga)
+        GameObject trackBgObj = new GameObject("CooldownTrackBg");
+        trackBgObj.transform.SetParent(panelObj.transform, false);
+        RectTransform trackBgRect = trackBgObj.AddComponent<RectTransform>();
+        trackBgRect.anchorMin = Vector2.zero;
+        trackBgRect.anchorMax = Vector2.one;
+        trackBgRect.offsetMin = new Vector2(3, 3);
+        trackBgRect.offsetMax = new Vector2(-3, -3);
+        Image trackBgImg = trackBgObj.AddComponent<Image>();
+        trackBgImg.color = new Color(0.06f, 0.07f, 0.10f, 0.94f);
 
         // 3. Criar Barra de Progresso / Fill Image
         GameObject fillObj = new GameObject("CooldownBarFill");
@@ -211,15 +227,15 @@ public class UltimateUI : MonoBehaviour
         RectTransform fillRect = fillObj.AddComponent<RectTransform>();
         fillRect.anchorMin = Vector2.zero;
         fillRect.anchorMax = Vector2.one;
-        fillRect.offsetMin = new Vector2(4, 4);
-        fillRect.offsetMax = new Vector2(-4, -4);
+        fillRect.offsetMin = new Vector2(3, 3);
+        fillRect.offsetMax = new Vector2(-3, -3);
 
         autoFillImage = fillObj.AddComponent<Image>();
         autoFillImage.sprite = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 1, 1), Vector2.zero);
         autoFillImage.type = Image.Type.Filled;
         autoFillImage.fillMethod = Image.FillMethod.Horizontal;
         autoFillImage.fillOrigin = (int)Image.OriginHorizontal.Left;
-        autoFillImage.color = readyColor;
+        autoFillImage.color = new Color(0.08f, 0.52f, 0.24f, 0.95f);
 
         // 4. Criar Texto Numérico do Countdown (TMPro)
         GameObject textObj = new GameObject("CountdownText");
@@ -228,19 +244,29 @@ public class UltimateUI : MonoBehaviour
         RectTransform textRect = textObj.AddComponent<RectTransform>();
         textRect.anchorMin = Vector2.zero;
         textRect.anchorMax = Vector2.one;
-        textRect.offsetMin = Vector2.zero;
-        textRect.offsetMax = Vector2.zero;
+        textRect.offsetMin = new Vector2(6, 2);
+        textRect.offsetMax = new Vector2(-6, -2);
 
         autoText = textObj.AddComponent<TextMeshProUGUI>();
-        autoText.fontSize = 20f;
+        autoText.fontSize = 19f;
         autoText.alignment = TextAlignmentOptions.Center;
         autoText.fontStyle = FontStyles.Bold;
         autoText.color = Color.white;
         autoText.enableWordWrapping = false;
         autoText.overflowMode = TextOverflowModes.Overflow;
-        
+
+        // Contorno e sombra no texto para leitura perfeita sobre qualquer cor de barra
+        Outline textOutline = textObj.AddComponent<Outline>();
+        textOutline.effectColor = new Color(0f, 0f, 0f, 0.92f);
+        textOutline.effectDistance = new Vector2(1.5f, -1.5f);
+
+        Shadow textShadow = textObj.AddComponent<Shadow>();
+        textShadow.effectColor = new Color(0f, 0f, 0f, 0.85f);
+        textShadow.effectDistance = new Vector2(2f, -2f);
+
         // Tentar carregar fonte padrão do projeto
-        TMP_FontAsset font = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF")
+        TMP_FontAsset font = Resources.Load<TMP_FontAsset>("Fonts & Materials/Oswald Bold SDF")
+                          ?? Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF")
                           ?? TMP_Settings.defaultFontAsset;
         if (font != null) autoText.font = font;
     }

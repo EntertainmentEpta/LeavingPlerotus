@@ -12,6 +12,7 @@ public class ElectricTrailVFX : MonoBehaviour
     public int damagePerTick = 5;
     public float lifetime = 2.5f;     // Permanece ativa por ~2-3s
     public Color trailColor = new Color(0.2f, 0.9f, 1.0f, 0.9f); // Ciano Elétrico Neon
+    public bool isHostileToPlayer = true; // Se false, a trail não causa dano ao Player (ex: arma do próprio player)
 
     private LineRenderer lineRenderer;
     private Vector3[] basePositions;
@@ -20,7 +21,7 @@ public class ElectricTrailVFX : MonoBehaviour
 
     public AudioClip zapSoundClip;
 
-    public static void CreateTrailSegment(Vector3 startPos, Vector3 endPos, int damage, float trailLifetime, AudioClip zapClip = null)
+    public static void CreateTrailSegment(Vector3 startPos, Vector3 endPos, int damage, float trailLifetime, AudioClip zapClip = null, bool hostileToPlayer = true)
     {
         GameObject trailObj = new GameObject("ElectricAirTrail");
         Vector3 midPoint = (startPos + endPos) * 0.5f;
@@ -30,6 +31,7 @@ public class ElectricTrailVFX : MonoBehaviour
         trail.damagePerTick = (damage > 0) ? damage : 5;
         trail.lifetime = (trailLifetime > 0f) ? trailLifetime : 2.5f;
         trail.zapSoundClip = zapClip;
+        trail.isHostileToPlayer = hostileToPlayer;
         trail.SetupAirLine(startPos, endPos);
     }
 
@@ -72,12 +74,20 @@ public class ElectricTrailVFX : MonoBehaviour
             lineRenderer.SetPosition(i, basePoint);
         }
 
-        // Shader Additive para brilho elétrico neon
-        Shader addShader = Shader.Find("Mobile/Particles/Additive");
-        if (addShader == null) addShader = Shader.Find("Particles/Additive");
-        if (addShader == null) addShader = Shader.Find("Sprites/Default");
+        // Shader Additive URP para brilho elétrico neon
+        Shader addShader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+            ?? Shader.Find("Universal Render Pipeline/Unlit")
+            ?? Shader.Find("Sprites/Default");
 
         Material mat = new Material(addShader);
+        if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1f);
+        if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 2f);
+        if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 0);
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", trailColor);
+        mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        mat.renderQueue = 3000;
         mat.color = trailColor;
         lineRenderer.material = mat;
 
@@ -146,6 +156,8 @@ public class ElectricTrailVFX : MonoBehaviour
 
     private void TriggerStatusOnPlayer(Collider other)
     {
+        if (!isHostileToPlayer) return;
+
         if (other.CompareTag("Player") || (other.transform.root != null && other.transform.root.CompareTag("Player")))
         {
             int actualDamage = (damagePerTick > 0) ? damagePerTick : 5;

@@ -632,10 +632,17 @@ public class CrystalWatcher_AI : MonoBehaviour
         laserGlow.numCapVertices = 8;
         laserGlow.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
-        Shader glowShader = Shader.Find("Legacy Shaders/Particles/Additive");
-        if (glowShader == null) glowShader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
-        if (glowShader == null) glowShader = Shader.Find("Sprites/Default");
+        Shader glowShader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+            ?? Shader.Find("Universal Render Pipeline/Unlit")
+            ?? Shader.Find("Sprites/Default");
         Material glowMat = new Material(glowShader);
+        if (glowMat.HasProperty("_Surface")) glowMat.SetFloat("_Surface", 1f);
+        if (glowMat.HasProperty("_Blend")) glowMat.SetFloat("_Blend", 2f);
+        if (glowMat.HasProperty("_SrcBlend")) glowMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        if (glowMat.HasProperty("_DstBlend")) glowMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        if (glowMat.HasProperty("_ZWrite")) glowMat.SetInt("_ZWrite", 0);
+        glowMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        glowMat.renderQueue = 3000;
         laserGlow.material = glowMat;
 
         // Gradiente roxo suave e transparente
@@ -670,10 +677,17 @@ public class CrystalWatcher_AI : MonoBehaviour
         laserLine.numCapVertices = 8;
         laserLine.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
-        Shader coreShader = Shader.Find("Legacy Shaders/Particles/Additive");
-        if (coreShader == null) coreShader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
-        if (coreShader == null) coreShader = Shader.Find("Sprites/Default");
+        Shader coreShader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+            ?? Shader.Find("Universal Render Pipeline/Unlit")
+            ?? Shader.Find("Sprites/Default");
         Material coreMat = new Material(coreShader);
+        if (coreMat.HasProperty("_Surface")) coreMat.SetFloat("_Surface", 1f);
+        if (coreMat.HasProperty("_Blend")) coreMat.SetFloat("_Blend", 2f);
+        if (coreMat.HasProperty("_SrcBlend")) coreMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        if (coreMat.HasProperty("_DstBlend")) coreMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        if (coreMat.HasProperty("_ZWrite")) coreMat.SetInt("_ZWrite", 0);
+        coreMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        coreMat.renderQueue = 3000;
         laserLine.material = coreMat;
 
         // Gradiente do núcleo: branco → roxo claro → roxo

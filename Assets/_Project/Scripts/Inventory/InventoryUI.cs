@@ -527,9 +527,6 @@ public class InventoryUI : MonoBehaviour
     /// </summary>
     public bool IsOpen()
     {
-        if (panelObject != null && panelObject.activeSelf) return true;
-        if (customPanel != null && customPanel.activeSelf) return true;
-        if (infusionHistoryPanelObj != null && infusionHistoryPanelObj.activeSelf) return true;
         if (!gameObject.activeInHierarchy) return false;
         return isOpen;
     }
@@ -696,7 +693,7 @@ public class InventoryUI : MonoBehaviour
         canvasObject = new GameObject("InventoryUI_Canvas");
         inventoryCanvas = canvasObject.AddComponent<Canvas>();
         inventoryCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        inventoryCanvas.sortingOrder = 500;
+        inventoryCanvas.sortingOrder = 100;
         CanvasInstance = inventoryCanvas;
         
         CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
@@ -1168,7 +1165,7 @@ public class InventoryUI : MonoBehaviour
         panelRt.anchorMax = new Vector2(1f, 1f);
         panelRt.pivot = new Vector2(0f, 0.5f); // Pivot na esquerda → cresce para a direita
         panelRt.anchoredPosition = new Vector2(8f, 0f); // 8px de gap do painel principal
-        panelRt.sizeDelta = new Vector2(80f, 0f); // Largura fixa de 80px, altura preenche o pai
+        panelRt.sizeDelta = new Vector2(124f, 0f); // Largura de 124px para suportar 2 colunas confortavelmente (até 12 infusões sem cortar)
 
         // Fundo escuro e legível
         infusionHistoryPanelObj.AddComponent<CanvasRenderer>();
@@ -1210,7 +1207,7 @@ public class InventoryUI : MonoBehaviour
         infusionHistoryHeader.enableAutoSizing = false;
         infusionHistoryHeader.overflowMode = TextOverflowModes.Ellipsis;
 
-        // === Área de Conteúdo com VerticalLayoutGroup ===
+        // === Área de Conteúdo com GridLayoutGroup de 2 Colunas (acomoda até 12 infusões sem cortar) ===
         GameObject contentObj = new GameObject("HistoryContent");
         contentObj.transform.SetParent(infusionHistoryPanelObj.transform, false);
         contentObj.layer = uiLayer;
@@ -1222,14 +1219,15 @@ public class InventoryUI : MonoBehaviour
         infusionHistoryContent.anchoredPosition = new Vector2(0f, -26f); // Abaixo do header
         infusionHistoryContent.sizeDelta = new Vector2(-8f, -30f); // Padding interno de 4px laterais, 26px topo + 4px base
 
-        VerticalLayoutGroup vlg = contentObj.AddComponent<VerticalLayoutGroup>();
-        vlg.spacing = 10f;
-        vlg.padding = new RectOffset(4, 4, 4, 4);
-        vlg.childAlignment = TextAnchor.UpperCenter;
-        vlg.childControlWidth = false;
-        vlg.childControlHeight = false;
-        vlg.childForceExpandWidth = false;
-        vlg.childForceExpandHeight = false;
+        GridLayoutGroup glg = contentObj.AddComponent<GridLayoutGroup>();
+        glg.cellSize = new Vector2(46f, 46f);
+        glg.spacing = new Vector2(8f, 8f);
+        glg.padding = new RectOffset(6, 6, 4, 4);
+        glg.startCorner = GridLayoutGroup.Corner.UpperLeft;
+        glg.startAxis = GridLayoutGroup.Axis.Horizontal;
+        glg.childAlignment = TextAnchor.UpperCenter;
+        glg.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+        glg.constraintCount = 2;
 
         // Inicia oculto (ativado junto com o inventário)
         infusionHistoryPanelObj.SetActive(false);
@@ -1254,17 +1252,18 @@ public class InventoryUI : MonoBehaviour
 
         if (infusions == null || infusions.Count == 0) return;
 
-        foreach (var infusion in infusions)
+        for (int idx = 0; idx < infusions.Count; idx++)
         {
+            var infusion = infusions[idx];
             if (infusion.data == null) continue;
 
-            // === Container do ícone (50x50) ===
+            // === Container do ícone (46x46) ===
             GameObject iconContainer = new GameObject("InfusionIcon_" + infusion.data.itemId);
             iconContainer.transform.SetParent(infusionHistoryContent, false);
             iconContainer.layer = uiLayer;
 
             RectTransform containerRt = iconContainer.AddComponent<RectTransform>();
-            containerRt.sizeDelta = new Vector2(50f, 50f);
+            containerRt.sizeDelta = new Vector2(46f, 46f);
 
             // Fundo escuro do slot com cor do tier
             iconContainer.AddComponent<CanvasRenderer>();
@@ -1273,12 +1272,14 @@ public class InventoryUI : MonoBehaviour
             slotBg.color = new Color(tierColor.r * 0.25f + 0.04f, tierColor.g * 0.25f + 0.04f, tierColor.b * 0.25f + 0.06f, 0.9f);
             slotBg.raycastTarget = true; // Permite hover com mouse para ver características
 
-            // Adiciona listener de hover para exibir características e buffs do item no tooltip
+            // Adiciona listener de hover e clique direito para extrair infusão
             InfusionHistorySlotHover hover = iconContainer.AddComponent<InfusionHistorySlotHover>();
             hover.itemData = infusion.data;
             hover.tooltip = tooltip;
             hover.isSynergy = infusion.isSynergy;
             hover.synergyName = infusion.synergyName;
+            hover.infusionIndex = idx;
+            hover.inventoryUI = this;
 
             // Outline colorido pelo tier ou dourado se for sinergia
             Outline slotOutline = iconContainer.AddComponent<Outline>();
@@ -1340,7 +1341,7 @@ public class InventoryUI : MonoBehaviour
     /// Busca os dados do InfusionManager e atualiza o painel visual.
     /// Seguro para chamar mesmo sem InfusionManager na cena.
     /// </summary>
-    void RefreshInfusionHistory()
+    public void RefreshInfusionHistory()
     {
         InfusionManager infMgr = Object.FindFirstObjectByType<InfusionManager>();
         if (infMgr != null)
@@ -1802,12 +1803,37 @@ public class InventoryUI : MonoBehaviour
 /// <summary>
 /// Componente de hover nos itens do histórico de infusão para exibir características e buffs do item.
 /// </summary>
-public class InfusionHistorySlotHover : MonoBehaviour, UnityEngine.EventSystems.IPointerEnterHandler, UnityEngine.EventSystems.IPointerExitHandler
+public class InfusionHistorySlotHover : MonoBehaviour, UnityEngine.EventSystems.IPointerEnterHandler, UnityEngine.EventSystems.IPointerExitHandler, UnityEngine.EventSystems.IPointerClickHandler
 {
     public ItemData itemData;
     public InventoryTooltip tooltip;
     public bool isSynergy = false;
     public string synergyName = "";
+    public int infusionIndex = -1;
+    public InventoryUI inventoryUI;
+
+    public void OnPointerClick(UnityEngine.EventSystems.PointerEventData eventData)
+    {
+        if (eventData == null || eventData.button != UnityEngine.EventSystems.PointerEventData.InputButton.Right)
+            return;
+
+        if (infusionIndex < 0) return;
+
+        InfusionManager infMgr = Object.FindFirstObjectByType<InfusionManager>();
+        if (infMgr != null && infMgr.RemoveInfusionAtIndex(infusionIndex))
+        {
+            if (tooltip != null) tooltip.Hide();
+            if (inventoryUI != null)
+            {
+                inventoryUI.RefreshInfusionHistory();
+                inventoryUI.RefreshUI();
+            }
+            if (EptinhoPopupController.instancia != null && itemData != null)
+            {
+                EptinhoPopupController.instancia.MostrarPopupAviso($"Infusão de {itemData.itemName} descartada do traje.");
+            }
+        }
+    }
 
     public void OnPointerEnter(UnityEngine.EventSystems.PointerEventData eventData)
     {
@@ -1829,18 +1855,20 @@ public class InfusionHistorySlotHover : MonoBehaviour, UnityEngine.EventSystems.
         }
         else
         {
-            extra.AppendLine("<color=#AAAAAA><i>Composto catalisador padr\u00E3o sem atributos base.</i></color>");
+            extra.AppendLine("<color=#AAAAAA><i>Composto catalisador padrão sem atributos base.</i></color>");
         }
 
         if (itemData.tier == ItemTier.Legendary && itemData.tier4Effect != Tier4EffectType.None)
         {
-            extra.AppendLine($"\n<color=#FFD700><b>★ EFEITO LEND\u00C1RIO:</b> {itemData.tier4Effect}</color>");
+            string effectName = Tier4EffectDisplayNames.GetName(itemData.tier4Effect);
+            extra.AppendLine($"\n<color=#FFD700><b>★ EFEITO LEND\u00C1RIO:</b> {effectName}</color>");
         }
-
         if (isSynergy && !string.IsNullOrEmpty(synergyName))
         {
             extra.AppendLine($"\n<color=#FFD700><b>★ SINERGIA ATIVADA:</b> {synergyName.ToUpper()}</color>");
         }
+
+        extra.AppendLine("\n<color=#FF8888><size=86%>[Bot\u00E3o Direito] Descartar Infus\u00E3o</size></color>");
 
         tooltip.Show(itemData, 1, extra.ToString().TrimEnd());
     }
@@ -1858,16 +1886,16 @@ public class InfusionHistorySlotHover : MonoBehaviour, UnityEngine.EventSystems.
         string s = stat.ToLower();
         if (s.Contains("damage")) return "Poder de Dano";
         if (s.Contains("attackspeed")) return "Velocidade de Ataque";
-        if (s.Contains("critchance")) return "Chance de Cr\u00EDtico";
-        if (s.Contains("critmultiplier")) return "Dano Cr\u00EDtico";
+        if (s.Contains("critchance")) return "Chance de Crítico";
+        if (s.Contains("critmultiplier")) return "Dano Crítico";
         if (s.Contains("weaponrange")) return "Alcance da Arma";
-        if (s.Contains("knockback")) return "For\u00E7a de Impacto";
-        if (s.Contains("piercing")) return "Perfura\u00E7\u00E3o";
-        if (s.Contains("health")) return "Vida M\u00E1xima";
+        if (s.Contains("knockback")) return "Força de Impacto";
+        if (s.Contains("piercing")) return "Perfuração";
+        if (s.Contains("health")) return "Vida Máxima";
         if (s.Contains("armorregen")) return "Regen. de Armadura";
-        if (s.Contains("armor")) return "Armadura M\u00E1xima";
+        if (s.Contains("armor")) return "Armadura Máxima";
         if (s.Contains("dodge")) return "Esquiva";
-        if (s.Contains("damagenegation")) return "Nega\u00E7\u00E3o de Dano";
+        if (s.Contains("damagenegation")) return "Negação de Dano";
         if (s.Contains("thorns")) return "Espinhos";
         if (s.Contains("speed")) return "Velocidade de Movimento";
         if (s.Contains("dashcooldown")) return "Recarga do Dash";

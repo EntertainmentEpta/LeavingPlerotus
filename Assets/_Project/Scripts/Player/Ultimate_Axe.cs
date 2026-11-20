@@ -296,6 +296,7 @@ public class Ultimate_Axe : MonoBehaviour
 
         float runSpeed = runVelocity.magnitude;
         Vector3 runDir = isRunning ? runVelocity.normalized : transform.forward;
+        int wallMask = ~LayerMask.GetMask("Player", "Enemy", "Item", "Weapon", "DeadBody", "Ignore Raycast");
 
         if (windupDelay > 0f)
         {
@@ -310,9 +311,17 @@ public class Ultimate_Axe : MonoBehaviour
 
                 if (isRunning && currentGlideSpeed > 0.05f)
                 {
-                    Vector3 glidePos = playerRb.position + (runDir * currentGlideSpeed * delta);
-                    playerRb.position = glidePos;
-                    transform.position = glidePos;
+                    float stepDist = currentGlideSpeed * delta;
+                    Vector3 flatRunDir = new Vector3(runDir.x, 0f, runDir.z).normalized;
+                    bool blocked = Physics.SphereCast(playerRb.position + Vector3.up * 0.9f, 0.45f, flatRunDir, out RaycastHit glideHit, stepDist + 0.5f, wallMask, QueryTriggerInteraction.Ignore)
+                                   && !glideHit.collider.transform.IsChildOf(transform.root);
+
+                    if (!blocked)
+                    {
+                        Vector3 glidePos = playerRb.position + (runDir * stepDist);
+                        playerRb.position = glidePos;
+                        transform.position = glidePos;
+                    }
                     currentGlideSpeed = Mathf.Lerp(currentGlideSpeed, 0f, delta * 12f);
                 }
 
@@ -323,25 +332,51 @@ public class Ultimate_Axe : MonoBehaviour
         float elapsed = 0f;
         Vector3 startPos = playerRb.position;
         Vector3 leapDir = isRunning ? runDir : transform.forward;
-        Vector3 targetXZPos = startPos + (leapDir * parabolaForwardDistance);
-
-        // 3. RAYCAST ROBUSTO (Ignora triggers, o próprio player, inimigos e itens, focando apenas em paredes)
-        int wallMask = LayerMask.GetMask("Default", "Ground");
-        if (wallMask == 0) wallMask = ~LayerMask.GetMask("Player", "Enemy", "Item", "Weapon", "DeadBody", "Ignore Raycast");
-
-        Vector3 rayOrigin = startPos + Vector3.up * 0.8f;
         Vector3 flatLeapDir = new Vector3(leapDir.x, 0f, leapDir.z).normalized;
         if (flatLeapDir.sqrMagnitude < 0.001f) flatLeapDir = transform.forward;
 
-        RaycastHit[] hits = Physics.RaycastAll(rayOrigin, flatLeapDir, parabolaForwardDistance, wallMask, QueryTriggerInteraction.Ignore);
-        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
-        foreach (var hit in hits)
-        {
-            if (hit.collider.gameObject == gameObject || hit.collider.transform.IsChildOf(transform.root)) continue;
-            if (hit.collider.isTrigger) continue;
+        float maxSafeDistance = parabolaForwardDistance;
 
-            targetXZPos = startPos + (flatLeapDir * Mathf.Max(0.5f, hit.distance - 0.5f));
-            break;
+        // 3. RAYCAST E SPHERECAST ROBUSTOS (Ignora triggers, o próprio player, inimigos e itens, bloqueando em qualquer parede ou barreira sólida)
+        float[] checkHeights = new float[] { 0.8f, 1.8f };
+        foreach (float h in checkHeights)
+        {
+            Vector3 rayOrigin = startPos + Vector3.up * h;
+            RaycastHit[] hits = Physics.SphereCastAll(rayOrigin, 0.4f, flatLeapDir, parabolaForwardDistance + 0.6f, wallMask, QueryTriggerInteraction.Ignore);
+            System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+            foreach (var hit in hits)
+            {
+                if (hit.collider == null) continue;
+                if (hit.collider.gameObject == gameObject || hit.collider.transform.IsChildOf(transform.root)) continue;
+                if (hit.collider.isTrigger) continue;
+                // Ignora piso plano abaixo dos pés
+                if (hit.normal.y > 0.65f) continue;
+
+                float clampedDist = Mathf.Max(0f, hit.distance - 0.65f);
+                if (clampedDist < maxSafeDistance)
+                {
+                    maxSafeDistance = clampedDist;
+                }
+                break;
+            }
+        }
+
+        Vector3 targetXZPos = startPos + (flatLeapDir * maxSafeDistance);
+
+        // 3.1 CONTENÇÃO NO NAVMESH: Impede saltar por cima de barreiras da sala do Boss ou cair no limbo fora do mapa
+        if (UnityEngine.AI.NavMesh.SamplePosition(startPos, out UnityEngine.AI.NavMeshHit startNavHit, 3.0f, UnityEngine.AI.NavMesh.AllAreas))
+        {
+            Vector3 desiredTargetOnPlane = new Vector3(targetXZPos.x, startNavHit.position.y, targetXZPos.z);
+            if (UnityEngine.AI.NavMesh.Raycast(startNavHit.position, desiredTargetOnPlane, out UnityEngine.AI.NavMeshHit navEdgeHit, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                // Bateu na borda do NavMesh (parede ou abismo): recua 0.5m antes da borda
+                Vector3 safeNavPos = navEdgeHit.position - flatLeapDir * 0.5f;
+                targetXZPos = new Vector3(safeNavPos.x, startPos.y, safeNavPos.z);
+            }
+            else if (UnityEngine.AI.NavMesh.SamplePosition(desiredTargetOnPlane, out UnityEngine.AI.NavMeshHit targetNavHit, 2.0f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                targetXZPos = new Vector3(targetNavHit.position.x, startPos.y, targetNavHit.position.z);
+            }
         }
 
         while (elapsed < parabolaAirTime && !slamImpactExecuted)
@@ -680,18 +715,9 @@ public class Ultimate_Axe : MonoBehaviour
 
         MeshRenderer mr = quadObj.GetComponent<MeshRenderer>();
 
-        Material ringMat = null;
-#if UNITY_EDITOR
-        ringMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/_Project/Art/Materials/Shockwave.mat");
-        if (ringMat == null) ringMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/_Project/Art/Materials/Glow_01.mat");
-#endif
-        if (ringMat == null)
-        {
-            ringMat = new Material(Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default"));
-            ringMat.color = shockwaveColor;
-        }
+        Material ringMat = CreateShockwaveRingMaterial(shockwaveColor, disableAlphaClipForSmoothFade: true);
 
-        mr.material = new Material(ringMat);
+        mr.material = ringMat;
         if (mr.material.HasProperty("_Cull")) mr.material.SetInt("_Cull", 0);
 
         float elapsed = 0f;
@@ -755,18 +781,7 @@ public class Ultimate_Axe : MonoBehaviour
         impactLight.range = shockwaveRadius * 1.5f;
         StartCoroutine(FadeLightCoroutine(impactLight));
 
-        Material shockwaveMat = null;
-#if UNITY_EDITOR
-        shockwaveMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/_Project/Art/Materials/Shockwave.mat");
-        if (shockwaveMat == null) shockwaveMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/_Project/Art/Materials/Glow_01.mat");
-#endif
-
-        if (shockwaveMat == null)
-        {
-            shockwaveMat = new Material(Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default"));
-            shockwaveMat.color = shockwaveColor;
-        }
-
+        Material shockwaveMat = CreateShockwaveRingMaterial(shockwaveColor, disableAlphaClipForSmoothFade: true);
         if (shockwaveMat.HasProperty("_Cull")) shockwaveMat.SetInt("_Cull", 0);
 
         for (int i = 0; i < shockwaveRingCount; i++)
@@ -776,6 +791,7 @@ public class Ultimate_Axe : MonoBehaviour
         }
 
         Destroy(parentVFX, ringExpansionDuration + 0.5f);
+        Destroy(shockwaveMat, ringExpansionDuration + 0.6f);
     }
 
     private IEnumerator AnimateSingleRingCoroutine(Transform parent, Vector3 centerPos, Material mat, float duration, int ringIndex)
@@ -791,7 +807,8 @@ public class Ultimate_Axe : MonoBehaviour
         quadFlat.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
         Destroy(quadFlat.GetComponent<Collider>());
         MeshRenderer mrTop = quadFlat.GetComponent<MeshRenderer>();
-        mrTop.material = mat;
+        Material ringInstance = new Material(mat);
+        mrTop.material = ringInstance;
 
         float elapsed = 0f;
         float maxScale = (shockwaveRadius * 4.5f) + (ringIndex * 1.5f);
@@ -813,16 +830,89 @@ public class Ultimate_Axe : MonoBehaviour
             Color currentC = Color.Lerp(ringColor, shockwaveColor, t);
             currentC.a = alpha;
 
-            if (mat.HasProperty("_Color")) mat.SetColor("_Color", currentC);
-            else if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", currentC);
+            if (ringInstance.HasProperty("_BaseColor")) ringInstance.SetColor("_BaseColor", currentC);
+            if (ringInstance.HasProperty("_Color")) ringInstance.SetColor("_Color", currentC);
 
             yield return null;
         }
 
+        Destroy(ringInstance);
         if (ringObj != null)
         {
             Destroy(ringObj);
         }
+    }
+
+    private static Texture2D _fallbackRingTex;
+
+    private static Texture2D GetFallbackRingTexture()
+    {
+        if (_fallbackRingTex != null) return _fallbackRingTex;
+
+        const int size = 64;
+        _fallbackRingTex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        _fallbackRingTex.wrapMode = TextureWrapMode.Clamp;
+        _fallbackRingTex.filterMode = FilterMode.Bilinear;
+
+        Color[] pixels = new Color[size * size];
+        float half = (size - 1) * 0.5f;
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dx = (x - half) / half;
+                float dy = (y - half) / half;
+                float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                float ringBand = 1f - Mathf.Clamp01(Mathf.Abs(dist - 0.72f) / 0.22f);
+                float edgeMask = 1f - Mathf.SmoothStep(0.85f, 1.0f, dist);
+                float alpha = Mathf.Pow(ringBand, 1.6f) * edgeMask;
+                pixels[y * size + x] = new Color(1f, 1f, 1f, alpha);
+            }
+        }
+        _fallbackRingTex.SetPixels(pixels);
+        _fallbackRingTex.Apply(false, true);
+        return _fallbackRingTex;
+    }
+
+    private static Material CreateShockwaveRingMaterial(Color initialColor, bool disableAlphaClipForSmoothFade)
+    {
+        Material sourceMat = null;
+#if UNITY_EDITOR
+        sourceMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/_Project/Art/Materials/Shockwave.mat");
+        if (sourceMat == null) sourceMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/_Project/Art/Materials/Glow_01.mat");
+#endif
+        Material ringMat;
+        if (sourceMat != null)
+        {
+            ringMat = new Material(sourceMat);
+        }
+        else
+        {
+            Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                ?? Shader.Find("Universal Render Pipeline/Unlit")
+                ?? Shader.Find("Sprites/Default");
+            ringMat = new Material(shader);
+            Texture2D ringTex = GetFallbackRingTexture();
+            if (ringMat.HasProperty("_BaseMap")) ringMat.SetTexture("_BaseMap", ringTex);
+            if (ringMat.HasProperty("_MainTex")) ringMat.SetTexture("_MainTex", ringTex);
+            if (ringMat.HasProperty("_Surface")) ringMat.SetFloat("_Surface", 1f);
+            if (ringMat.HasProperty("_Blend")) ringMat.SetFloat("_Blend", 2f);
+            if (ringMat.HasProperty("_SrcBlend")) ringMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            if (ringMat.HasProperty("_DstBlend")) ringMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+            if (ringMat.HasProperty("_ZWrite")) ringMat.SetInt("_ZWrite", 0);
+            ringMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            ringMat.renderQueue = 3000;
+        }
+
+        if (disableAlphaClipForSmoothFade)
+        {
+            if (ringMat.HasProperty("_AlphaClip")) ringMat.SetFloat("_AlphaClip", 0f);
+            ringMat.DisableKeyword("_ALPHATEST_ON");
+        }
+
+        if (ringMat.HasProperty("_BaseColor")) ringMat.SetColor("_BaseColor", initialColor);
+        if (ringMat.HasProperty("_Color")) ringMat.SetColor("_Color", initialColor);
+        return ringMat;
     }
 
     private IEnumerator FadeLightCoroutine(Light pointLight)

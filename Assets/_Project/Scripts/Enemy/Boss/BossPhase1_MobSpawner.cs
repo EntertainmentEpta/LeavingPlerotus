@@ -579,6 +579,7 @@ public class BossPhase1_MobSpawner : MonoBehaviour
                 if (mobHealth != null)
                 {
                     mobHealth.isInvulnerable = false;
+                    mobHealth.grantsBiomass = false; // Limpeza forçada não concede Biomassa
                     mobHealth.TakeDamage(999999);
                 }
                 else

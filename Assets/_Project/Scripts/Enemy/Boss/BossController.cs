@@ -238,6 +238,60 @@ public class BossController : MonoBehaviour
     [Tooltip("Ativa a aplicação orgânica de Root Motion durante animações para que passos, socos e a pisada (Stomp) movimentem o Boss sem patinar no lugar.")]
     public bool useRootMotion = false;
 
+    [Header("🔊 SONS DO BOSS CROMÁTICO")]
+    [Tooltip("AudioSource responsável por emitir os sons 3D do Boss. Se deixado vazio, será criado/encontrado automaticamente no GameObject.")]
+    public AudioSource bossAudioSource;
+
+    [Range(0f, 1f)]
+    [Tooltip("Volume mestre dos efeitos sonoros do Boss.")]
+    public float bossAudioMasterVolume = 1.0f;
+
+    [Space(6)]
+    [Tooltip("Som do impacto da pisada (Stomp).")]
+    public AudioClip stompSound;
+
+    [Tooltip("Som do salto e impacto esmagador (Jump Attack).")]
+    public AudioClip jumpSound;
+
+    [Tooltip("Som principal de passos / caminhada do Boss.")]
+    public AudioClip walkSound;
+
+    [Tooltip("Variações opcionais de passos (se preenchido, sorteia entre eles a cada passo).")]
+    public AudioClip[] walkSounds;
+
+    [Tooltip("Som da invocação de pilares de cristal do chão.")]
+    public AudioClip pillarSummonSound;
+
+    [Tooltip("Som do super ataque de espinhos 360° (BossSpellWide).")]
+    public AudioClip superAttack360Sound;
+
+    [Tooltip("Som de ativação do Power Up (energização/invulnerabilidade).")]
+    public AudioClip powerUpSound;
+
+    [Tooltip("Som de ativação da Refração (invisibilidade/camuflagem).")]
+    public AudioClip refractionSound;
+
+    [Tooltip("Som da transição de Fase (Fase 1 para Fase 2).")]
+    public AudioClip phaseTransition1To2Sound;
+
+    [Tooltip("Som da transição de Fase (Fase 2 para Fase 3).")]
+    public AudioClip phaseTransition2To3Sound;
+
+    [Tooltip("Som ao receber dano (Hit / Hurt).")]
+    public AudioClip hitSound;
+
+    [Tooltip("Variações opcionais de som de dano (se preenchido, sorteia entre eles ao ser atingido).")]
+    public AudioClip[] hitSounds;
+
+    [Tooltip("Som de morte cinematográfica e absorção pela terra.")]
+    public AudioClip deathSound;
+
+    [Tooltip("Som do disparo de Cuspe Ácido (Fase 3 - Serralha).")]
+    public AudioClip acidSpitSound;
+
+    private float footstepTimer = 0f;
+    private float lastHitSoundTime = -1f;
+
     [Header("Debug & Sandbox")]
     public bool showDebugLog = true;
     [Tooltip("Se ativado, o Boss continua virando em direção ao player mesmo no modo Sandbox de testes.")]
@@ -412,10 +466,28 @@ public class BossController : MonoBehaviour
             }
         }
 
+    private void OnValidate()
+    {
+        if (bossAudioSource == null) bossAudioSource = GetComponent<AudioSource>();
+    }
+
     void Awake()
     {
         health = GetComponent<DummyHealth>();
         agent = GetComponent<NavMeshAgent>();
+
+        if (bossAudioSource == null)
+        {
+            bossAudioSource = GetComponent<AudioSource>();
+            if (bossAudioSource == null)
+            {
+                bossAudioSource = gameObject.AddComponent<AudioSource>();
+                bossAudioSource.spatialBlend = 1f;
+                bossAudioSource.minDistance = 5f;
+                bossAudioSource.maxDistance = 35f;
+                bossAudioSource.rolloffMode = AudioRolloffMode.Linear;
+            }
+        }
 
         // Rigidbody do Boss: Cinemático e com todas as posições travadas para o player NUNCA conseguir empurrá-lo
         Rigidbody rbBoss = GetComponent<Rigidbody>();
@@ -685,6 +757,7 @@ public class BossController : MonoBehaviour
             return;
         }
         lastStompImpactTime = Time.time;
+        PlayStompSound();
 
         // 1. Busca AUTOMATICAMENTE o objeto de VFX que é exclusivamente o Stomp (Pisada frontal no pé)
         if (stompVFXChildObject == null || stompVFXChildObject == jumpAttackVFXChildObject || stompVFXChildObject.name.ToLower().Contains("centro") || stompVFXChildObject.name.ToLower().Contains("radial"))
@@ -769,6 +842,7 @@ public class BossController : MonoBehaviour
             return;
         }
         lastJumpImpactTime = Time.time;
+        PlayJumpSound();
 
         // 1. Busca AUTOMATICAMENTE o objeto de VFX de salto (Prioriza Stomp_Radial_360)
         if (jumpAttackVFXChildObject == null)
@@ -959,6 +1033,7 @@ public class BossController : MonoBehaviour
 
         // Configura o override de morte do DummyHealth para redirecionar para nossa lógica
         health.onDeathOverride = OnBossDeath;
+        health.onDamageTaken += OnDamageTaken;
 
         // Encontra o player com múltiplos fallbacks
         playerTransform = FindPlayerTransform();
@@ -1106,6 +1181,21 @@ public class BossController : MonoBehaviour
             isMoving = currentMoveSpeed > 0.15f;
         }
 
+        if (isMoving)
+        {
+            footstepTimer += Time.deltaTime;
+            float stepInterval = isSprinting ? 0.35f : 0.55f;
+            if (footstepTimer >= stepInterval)
+            {
+                footstepTimer = 0f;
+                PlayFootstepSound();
+            }
+        }
+        else
+        {
+            footstepTimer = 0.45f;
+        }
+
         // Na Fase 3 não há clipe de sprint separado (apenas Walk), então locomover-se ativa IsWalking
         bool walkCondition = isMoving && (!isSprinting || CurrentPhase == 3);
         animator.SetBool("IsWalking", walkCondition);
@@ -1177,8 +1267,88 @@ public class BossController : MonoBehaviour
 
     void OnDestroy()
     {
+        if (health != null)
+        {
+            health.onDamageTaken -= OnDamageTaken;
+        }
         // Limpa todos os eventos para evitar referências fantasmas
         BossEvents.ClearAll();
+    }
+
+    private void OnDamageTaken(int damage, GameObject attacker)
+    {
+        if (IsDead) return;
+        PlayHitSound();
+    }
+
+    // =====================================================
+    // SISTEMA DE ÁUDIO & SONS DO BOSS
+    // =====================================================
+
+    public void PlaySound(AudioClip clip, float volumeMultiplier = 1.0f, float pitchMin = 0.95f, float pitchMax = 1.05f)
+    {
+        if (clip == null) return;
+
+        if (bossAudioSource == null)
+        {
+            bossAudioSource = GetComponent<AudioSource>();
+            if (bossAudioSource == null)
+            {
+                bossAudioSource = gameObject.AddComponent<AudioSource>();
+                bossAudioSource.spatialBlend = 1f;
+                bossAudioSource.minDistance = 5f;
+                bossAudioSource.maxDistance = 35f;
+                bossAudioSource.rolloffMode = AudioRolloffMode.Linear;
+            }
+        }
+
+        if (GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null && bossAudioSource.outputAudioMixerGroup == null)
+        {
+            bossAudioSource.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
+        }
+
+        bossAudioSource.pitch = UnityEngine.Random.Range(pitchMin, pitchMax);
+        bossAudioSource.PlayOneShot(clip, Mathf.Clamp01(bossAudioMasterVolume * volumeMultiplier));
+    }
+
+    public void PlayStompSound() => PlaySound(stompSound, 1f, 0.92f, 1.04f);
+    public void PlayJumpSound() => PlaySound(jumpSound, 1f, 0.90f, 1.05f);
+    public void PlayPillarSummonSound() => PlaySound(pillarSummonSound, 1f, 0.95f, 1.05f);
+    public void PlaySuperAttack360Sound() => PlaySound(superAttack360Sound, 1.1f, 0.92f, 1.04f);
+    public void PlayPowerUpSound() => PlaySound(powerUpSound, 1f, 0.95f, 1.05f);
+    public void PlayRefractionSound() => PlaySound(refractionSound, 1f, 0.95f, 1.05f);
+    public void PlayPhase1To2Sound() => PlaySound(phaseTransition1To2Sound, 1.1f, 0.95f, 1.05f);
+    public void PlayPhase2To3Sound() => PlaySound(phaseTransition2To3Sound, 1.1f, 0.95f, 1.05f);
+    public void PlayAcidSpitSound() => PlaySound(acidSpitSound, 1f, 0.95f, 1.08f);
+    public void PlayDeathSound() => PlaySound(deathSound, 1.1f, 0.95f, 1.02f);
+
+    public void PlayHitSound()
+    {
+        if (Time.time - lastHitSoundTime < 0.1f) return;
+        lastHitSoundTime = Time.time;
+
+        if (hitSounds != null && hitSounds.Length > 0)
+        {
+            AudioClip clip = hitSounds[UnityEngine.Random.Range(0, hitSounds.Length)];
+            if (clip != null) { PlaySound(clip, 1f, 0.92f, 1.08f); return; }
+        }
+        if (hitSound != null)
+        {
+            PlaySound(hitSound, 1f, 0.92f, 1.08f);
+        }
+    }
+
+    public void PlayFootstepSound()
+    {
+        if (walkSounds != null && walkSounds.Length > 0)
+        {
+            AudioClip clip = walkSounds[UnityEngine.Random.Range(0, walkSounds.Length)];
+            if (clip != null) { PlaySound(clip, 0.65f, 0.90f, 1.10f); return; }
+        }
+        if (walkSound != null)
+        {
+            PlaySound(walkSound, 0.65f, 0.90f, 1.10f);
+        }
     }
 
     // =====================================================
@@ -1250,6 +1420,7 @@ public class BossController : MonoBehaviour
     public void TriggerPillarSummon()
     {
         TriggerSpellAnimation();
+        PlayPillarSummonSound();
 
         BossPhase1_MestreDoSolo mestre = GetComponent<BossPhase1_MestreDoSolo>();
         if (mestre != null)
@@ -1296,7 +1467,8 @@ public class BossController : MonoBehaviour
     /// </summary>
     public void TriggerPowerUP(float invulnerabilityDuration = 2.5f)
     {
-        if (bossAudio != null) bossAudio.PlayRoarOrPhaseTransition();
+        if (powerUpSound != null) PlayPowerUpSound();
+        else if (bossAudio != null) bossAudio.PlayRoarOrPhaseTransition();
         DesativarTodosOsTrails();
         isCastingSpell = true;
         isSprinting = false;
@@ -1512,6 +1684,7 @@ public class BossController : MonoBehaviour
             FreezeMovementForSpell(3.4f);
 
             if (animator != null) animator.SetTrigger("BossSpellWide");
+            PlaySuperAttack360Sound();
 
             if (showDebugLog) Debug.Log("[BossController] 🌊 BossSpellWide ativado! Carregando super ataque de espinhos 360°...");
 
@@ -1819,8 +1992,13 @@ public class BossController : MonoBehaviour
                 Renderer rend = spitObj.GetComponent<Renderer>();
                 if (rend != null)
                 {
-                    Material mat = new Material(Shader.Find("Standard"));
-                    mat.color = new Color(0.1f, 0.9f, 0.1f);
+                    Shader litShader = Shader.Find("Universal Render Pipeline/Lit")
+                        ?? Shader.Find("Universal Render Pipeline/Simple Lit")
+                        ?? Shader.Find("Standard");
+                    Material mat = new Material(litShader);
+                    Color spitColor = new Color(0.1f, 0.9f, 0.1f);
+                    if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", spitColor);
+                    mat.color = spitColor;
                     mat.EnableKeyword("_EMISSION");
                     mat.SetColor("_EmissionColor", new Color(0f, 0.6f, 0f));
                     rend.material = mat;
@@ -2155,6 +2333,7 @@ public class BossController : MonoBehaviour
     {
         if (IsInvisible == invisible) return;
         IsInvisible = invisible;
+        PlayRefractionSound();
 
         if (invisible)
         {
@@ -2194,6 +2373,7 @@ public class BossController : MonoBehaviour
         // Dispara evento de dano e reduz a barra de Poise/Postura do Boss
         if (health.CurrentHealth < previousHP)
         {
+            PlayHitSound();
             int damageTaken = previousHP - health.CurrentHealth;
             ApplyPoiseDamage(damageTaken * 0.85f);
             OnTookDamage?.Invoke();
@@ -2282,6 +2462,7 @@ public class BossController : MonoBehaviour
                 break;
             case 2:
                 CurrentState = BossState.Phase2;
+                PlayPhase1To2Sound();
                 if (visualPhase2 != null) visualPhase2.SetActive(true);
                 if (visualPhase3 != null) visualPhase3.SetActive(false);
                 TriggerCameraShake(0.5f, 0.20f);
@@ -2290,6 +2471,7 @@ public class BossController : MonoBehaviour
                 break;
             case 3:
                 CurrentState = BossState.Phase3;
+                PlayPhase2To3Sound();
                 StartCoroutine(Phase3EclosionRoutine());
                 break;
         }
@@ -3127,7 +3309,8 @@ public class BossController : MonoBehaviour
     /// </summary>
     public virtual void TriggerAcidSpit()
     {
-        if (bossAudio != null) bossAudio.PlayAcidSpit();
+        if (acidSpitSound != null) PlayAcidSpitSound();
+        else if (bossAudio != null) bossAudio.PlayAcidSpit();
         if (animator != null)
         {
             animator.ResetTrigger("AcidSpit");
@@ -3270,6 +3453,7 @@ public class BossController : MonoBehaviour
 
         CurrentState = BossState.Dead;
         CurrentPhase = 0;
+        PlayDeathSound();
 
         if (bossAudio != null) bossAudio.PlayDeathSound();
 

@@ -3,6 +3,7 @@ using UnityEngine;
 public class PlayerAnimationEvents : MonoBehaviour
 {
     private PrimaryAttackKnife attackScript;
+    private Player_WeaponManager weaponManager;
     private Animator anim;
     private Rigidbody playerRb;
     private Ultimate_Axe cachedAxeUlt;
@@ -16,9 +17,10 @@ public class PlayerAnimationEvents : MonoBehaviour
 
     private void OnAnimatorMove()
     {
-        // Durante a Ultimate, não interfere com o salto da habilidade
+        // Durante a Ultimate ou uso da Glaive/Bumerangue, não aplica root motion (evita impulso indesejado no início do charge)
         PlayerUltimate ult = GetComponentInParent<PlayerUltimate>() ?? GetComponent<PlayerUltimate>();
         if (ult != null && ult.IsUltimateActive()) return;
+        if (GetActiveBoomerang() != null) return;
 
         if (anim == null) anim = GetComponent<Animator>();
         if (playerRb == null) playerRb = GetComponentInParent<Rigidbody>() ?? GetComponent<Rigidbody>();
@@ -39,6 +41,19 @@ public class PlayerAnimationEvents : MonoBehaviour
 
     private void FindAttackScript()
     {
+        if (weaponManager == null)
+        {
+            weaponManager = GetComponentInParent<Player_WeaponManager>() ?? GetComponent<Player_WeaponManager>();
+            if (weaponManager == null)
+            {
+                GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+                if (playerObj != null)
+                {
+                    weaponManager = playerObj.GetComponent<Player_WeaponManager>() ?? playerObj.GetComponentInChildren<Player_WeaponManager>();
+                }
+            }
+        }
+
         if (attackScript == null)
         {
             attackScript = GetComponentInParent<PrimaryAttackKnife>();
@@ -51,6 +66,30 @@ public class PlayerAnimationEvents : MonoBehaviour
                 }
             }
         }
+    }
+
+    private BoomerangWeapon GetActiveBoomerang()
+    {
+        FindAttackScript();
+        if (weaponManager == null || weaponManager.currentWeapon == null)
+            return null;
+
+        return weaponManager.currentWeapon.GetComponent<BoomerangWeapon>();
+    }
+
+    private bool IsMeleeWeaponActive()
+    {
+        FindAttackScript();
+        if (weaponManager != null && weaponManager.currentWeapon != null)
+        {
+            if (weaponManager.currentWeapon.GetComponent<BoomerangWeapon>() != null)
+                return false;
+
+            if (weaponManager.currentWeapon.GetComponent<GunAttack>() != null)
+                return false;
+        }
+
+        return attackScript != null && attackScript.hasWeapon;
     }
 
     /// <summary>
@@ -73,30 +112,50 @@ public class PlayerAnimationEvents : MonoBehaviour
 
     public void EnableHitbox()
     {
-        FindAttackScript();
-        if (attackScript != null)
-        {
-            attackScript.EnableHitbox();
-        }
+        // Se estiver com a Glaive/Bumerangue (reutilizando o clipe Side da adaga) ou arma à distância, ignora eventos de hitbox melee
+        if (!IsMeleeWeaponActive()) return;
+        attackScript.EnableHitbox();
     }
 
     public void DisableHitbox()
     {
-        FindAttackScript();
-        if (attackScript != null)
-        {
-            attackScript.DisableHitbox();
-        }
+        if (!IsMeleeWeaponActive()) return;
+        attackScript.DisableHitbox();
     }
 
     public void OpenAttackWindow()
     {
-        FindAttackScript();
-        if (attackScript != null)
+        if (!IsMeleeWeaponActive()) return;
+        attackScript.OpenAttackWindow();
+    }
+
+    /// <summary>
+    /// Animation Event inicial no clipe SideBoomerang que confirma que o jogador segurou tempo mínimo para armar o ataque.
+    /// Soltar antes deste evento cancela o arremesso (comportamento estilo arco).
+    /// </summary>
+    public void BoomerangDrawReady()
+    {
+        BoomerangWeapon boomerang = GetActiveBoomerang();
+        if (boomerang != null)
         {
-            attackScript.OpenAttackWindow();
+            boomerang.AnimEvent_BoomerangDrawReady();
         }
     }
+
+    /// <summary>
+    /// Animation Event no ponto exato do arremesso (SideBoomerang) para soltar a Glaive da mão.
+    /// Se o jogador estiver usando a Adaga, ignora silenciosamente.
+    /// </summary>
+    public void ThrowBoomerang()
+    {
+        BoomerangWeapon boomerang = GetActiveBoomerang();
+        if (boomerang != null)
+        {
+            boomerang.AnimEvent_BoomerangReleasePoint();
+        }
+    }
+
+    public void AnimEvent_BoomerangReleasePoint() => ThrowBoomerang();
 
     // Esta função vai estar no objeto FILHO (astronauta), junto com o Animator
     public void HandleReviveCompletion()

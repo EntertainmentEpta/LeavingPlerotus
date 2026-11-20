@@ -303,7 +303,7 @@ public static class SynergyDatabase
             requirementSlots = new List<string[]>
             {
                 new[] { "totem_carved_t2", "totem_t2" },
-                new[] { "02cw", "watcher_eye_t2", "watcher_carcaça_t2", "watcher_t2" }
+                new[] { "02cw", "watcher_carcaca_t2", "watcher_eye_t2", "watcher_carcaça_t2", "watcher_t2" }
             },
             modifiers = new List<StatModifier>
             {
@@ -373,7 +373,7 @@ public static class SynergyDatabase
             requirementSlots = new List<string[]>
             {
                 new[] { "totem_stone_t1", "totem_t1" },
-                new[] { "goblin_braço_t2", "goblin_trinket_t2", "goblin_t2", "goblin_pouch_t2" }
+                new[] { "goblin_braco_t2", "goblin_braço_t2", "goblin_trinket_t2", "goblin_t2", "goblin_pouch_t2" }
             },
             modifiers = new List<StatModifier>
             {
@@ -396,7 +396,7 @@ public static class SynergyDatabase
             requirementSlots = new List<string[]>
             {
                 new[] { "golem_heart_t4", "04go", "golem_t4" },
-                new[] { "bismutado_glândula_t3", "bismutado_t3" },
+                new[] { "bismutado_glandula_t3", "bismutado_glândula_t3", "bismutado_t3" },
                 new[] { "shard_splinter_t1", "swarm_t1", "star_t1" },
                 new[] { "spider_leg_t1", "aranha_t1" }
             },
