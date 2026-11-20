@@ -592,7 +592,7 @@ public class LevelGenerator : MonoBehaviour
         // Varre a cena para coletar qualquer ponto de saída (Saida) que tenha ficado desocupado
         // (por exemplo em salas 3-Way, 4-Way ou ramificações não expandidas).
         // A Safe Room / Start Room é EXCLUÍDA: suas outras saídas não devem receber becos.
-        ConnectionPoint[] allSceneCPs = FindObjectsByType<ConnectionPoint>(FindObjectsSortMode.None);
+        ConnectionPoint[] allSceneCPs = SortByPosition(FindObjectsByType<ConnectionPoint>(FindObjectsSortMode.None));
         foreach (var cp in allSceneCPs)
         {
             if (cp != null && cp.pointType == ConnectionPoint.PointType.Saida && !cp.isOccupied)
@@ -690,7 +690,7 @@ public class LevelGenerator : MonoBehaviour
         }
 
         // 4. Varredura final de segurança: NENHUMA saída pode ficar aberta para o vazio
-        ConnectionPoint[] finalSweepCPs = FindObjectsByType<ConnectionPoint>(FindObjectsSortMode.None);
+        ConnectionPoint[] finalSweepCPs = SortByPosition(FindObjectsByType<ConnectionPoint>(FindObjectsSortMode.None)); 
         foreach (var cp in finalSweepCPs)
         {
             if (cp != null && cp.pointType == ConnectionPoint.PointType.Saida && !cp.isOccupied)
@@ -1805,6 +1805,17 @@ public class LevelGenerator : MonoBehaviour
         return false;
     }
 
+    // Ordena objetos da cena pela posição: primeiro pela distância até o centro do mapa,
+    // depois por x e por z (para desempatar). Assim a ordem não depende da memória.
+    private static T[] SortByPosition<T>(T[] items) where T : Component
+    {
+        return items
+            .OrderBy(i => i.transform.position.magnitude)
+            .ThenBy(i => i.transform.position.x)
+            .ThenBy(i => i.transform.position.z)
+            .ToArray();
+    }
+
     /// <summary>
     /// Retorna uma cópia embaralhada da lista sem modificar a original.
     /// Usada para tentar todas as transições em ordem aleatória antes de desistir.
@@ -1955,9 +1966,9 @@ public class LevelGenerator : MonoBehaviour
         bool foundSpot = false;
         RoomController targetRoom = null;
 
-        RoomController[] rooms = FindObjectsByType<RoomController>(FindObjectsSortMode.None);
+        RoomController[] rooms = SortByPosition(FindObjectsByType<RoomController>(FindObjectsSortMode.None));
         var specialRooms = rooms.Where(r => r != null && (r.gameObject.name.Contains("Anomaly") || r.gameObject.name.Contains("DeadEnd") || r.gameObject.name.Contains("semsaida") || r.gameObject.name.Contains("Z Room"))).ToList();
-
+        
         if (specialRooms.Count > 0)
         {
             targetRoom = specialRooms[mapRng.Next(0, specialRooms.Count)];
