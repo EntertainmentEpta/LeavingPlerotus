@@ -40,7 +40,7 @@ public class RunManager : MonoBehaviour
     public int MasterSeed => masterSeed;
 
     // Seed digitada no menu, esperando a run começar. Vazia = jogador não digitou nada.
-    [SerializeField] private string pendingSeedText = "";
+    private string pendingSeedText = "";
 
     // O menu vai chamar isso para guardar a seed até a run começar.
     public void SetPendingSeed(string seedText)
