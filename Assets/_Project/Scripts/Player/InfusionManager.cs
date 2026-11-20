@@ -98,6 +98,16 @@ public class InfusionManager : MonoBehaviour
     // Registra o nome da sinergia ativada para cada item (se fez parte de uma sinergia)
     private readonly List<string> infusedSynergyNames = new List<string>();
 
+    // IDs de todas as receitas de sinergia ativas nesta run (consultadas pelas armas para efeitos passivos exclusivos)
+    private readonly HashSet<string> activeSynergyRecipeIDs = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+
+    public bool HasActiveSynergy(string recipeId)
+    {
+        return !string.IsNullOrEmpty(recipeId) && activeSynergyRecipeIDs.Contains(recipeId);
+    }
+
+    public IReadOnlyCollection<string> ActiveSynergyRecipeIDs => activeSynergyRecipeIDs;
+
     void Start()
     {
         inventory = GetComponent<PlayerInventory>();
@@ -194,6 +204,7 @@ public class InfusionManager : MonoBehaviour
         if (infusedItems != null) infusedItems.Clear();
         infusedStackMultipliers.Clear();
         infusedSynergyNames.Clear();
+        activeSynergyRecipeIDs.Clear();
 
         Tier4EffectManager t4Manager = GetComponent<Tier4EffectManager>() ?? GetComponentInChildren<Tier4EffectManager>();
         if (t4Manager != null)
@@ -511,6 +522,10 @@ public class InfusionManager : MonoBehaviour
         {
             foreach (var recId in result.triggeredRecipeIDs)
             {
+                if (!string.IsNullOrEmpty(recId))
+                {
+                    activeSynergyRecipeIDs.Add(recId);
+                }
                 if (SynergyCatalogManager.Instance != null)
                 {
                     SynergyCatalogManager.Instance.DiscoverNode(recId);

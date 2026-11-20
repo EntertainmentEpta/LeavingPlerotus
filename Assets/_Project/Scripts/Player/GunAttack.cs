@@ -59,6 +59,7 @@ public class GunAttack : MonoBehaviour
     private float lastFireTime = -999f;
     private float batteryRechargeElapsed;
     private float passiveChargeRegenElapsed;
+    private float infiniteBatteryDuration = 0f;
     private int batteryCharge;
     private Transform ownerRoot;
     private Transform cachedLookupRoot;
@@ -172,6 +173,7 @@ public class GunAttack : MonoBehaviour
         }
 
         EnsureBatteryHUD();
+        if (infiniteBatteryDuration > 0f) infiniteBatteryDuration -= Time.deltaTime;
         if (batteryCharge < batteryCapacity && !IsRecharging && Input.GetKeyDown(GetReloadKey()))
             BeginManualReload();
         UpdateBattery();
@@ -816,7 +818,7 @@ public class GunAttack : MonoBehaviour
 
     public bool TryConsumeCharge(int amount = 1)
     {
-        if (amount <= 0) return true;
+        if (amount <= 0 || infiniteBatteryDuration > 0f) return true;
         if (IsRecharging || batteryCharge <= 0 || batteryCharge < amount) return false;
 
         batteryCharge -= amount;
@@ -840,6 +842,23 @@ public class GunAttack : MonoBehaviour
 
         if (batteryCharge != previousCharge)
             BatteryChanged?.Invoke(batteryCharge, Mathf.Max(1, batteryCapacity));
+    }
+
+    public void RestoreFullBattery()
+    {
+        int capacity = Mathf.Max(1, batteryCapacity);
+        batteryCharge = capacity;
+        IsRecharging = false;
+        batteryRechargeElapsed = 0f;
+        passiveChargeRegenElapsed = 0f;
+        BatteryChanged?.Invoke(batteryCharge, capacity);
+        RefreshBatteryHUD();
+    }
+
+    public void ActivateInfiniteBattery(float duration)
+    {
+        infiniteBatteryDuration = Mathf.Max(infiniteBatteryDuration, duration);
+        RestoreFullBattery();
     }
 
     public bool Fire()

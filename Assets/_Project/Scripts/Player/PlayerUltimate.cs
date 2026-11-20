@@ -89,6 +89,12 @@ public class PlayerUltimate : MonoBehaviour
         Ultimate_Axe axeUlt = GetComponent<Ultimate_Axe>() ?? GetComponentInChildren<Ultimate_Axe>();
         if (axeUlt == null) gameObject.AddComponent<Ultimate_Axe>();
 
+        Ultimate_Dagger daggerUlt = GetComponent<Ultimate_Dagger>() ?? GetComponentInChildren<Ultimate_Dagger>();
+        if (daggerUlt == null) gameObject.AddComponent<Ultimate_Dagger>();
+
+        Ultimate_Gun gunUlt = GetComponent<Ultimate_Gun>() ?? GetComponentInChildren<Ultimate_Gun>();
+        if (gunUlt == null) gameObject.AddComponent<Ultimate_Gun>();
+
         UltimateUI ui = GetComponent<UltimateUI>() ?? GetComponentInChildren<UltimateUI>();
         if (ui == null) gameObject.AddComponent<UltimateUI>();
     }
@@ -377,6 +383,16 @@ public class PlayerUltimate : MonoBehaviour
                 daggerUlt.ExecuteUltimate();
             }
             else Debug.LogError("[PlayerUltimate] Componente Ultimate_Dagger NAO ENCONTRADO!");
+        }
+        else if (activeType == WeaponType.Gun)
+        {
+            Ultimate_Gun gunUlt = GetComponent<Ultimate_Gun>() ?? GetComponentInChildren<Ultimate_Gun>() ?? GetComponentInParent<Ultimate_Gun>();
+            if (gunUlt != null)
+            {
+                Debug.Log("[PlayerUltimate] Pistola equipada! Chamando Ultimate_Gun...");
+                gunUlt.ExecuteUltimate();
+            }
+            else Debug.LogError("[PlayerUltimate] Componente Ultimate_Gun NAO ENCONTRADO!");
         }
     }
 

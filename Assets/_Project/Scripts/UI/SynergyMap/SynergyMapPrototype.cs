@@ -9,7 +9,7 @@ using System.Collections.Generic;
 /// Mapa Cósmico de Sinergias Alquímicas.
 /// Totalmente autossuficiente e gerado por código.
 /// Abre ao pressionar a tecla [M], pelo menu do Eptinho ou por chamada externa.
-/// Exibe a constelação sagrada das 10 sinergias oficiais de Plerotus.
+/// Exibe a constelação sagrada de todas as sinergias oficiais de Plerotus.
 /// </summary>
 public class SynergyMapPrototype : MonoBehaviour
 {
@@ -168,8 +168,9 @@ public class SynergyMapPrototype : MonoBehaviour
         {
             SynergyCatalogManager.Instance.DiscoverAllSynergies();
             RefreshConstellation();
+            int total = SynergyDatabase.AllRecipes.Count;
             if (EptinhoPopupController.instancia != null)
-                EptinhoPopupController.instancia.MostrarPopupAviso("✨ Todas as 10 Sinergias Alquímicas Reveladas no Mapa!");
+                EptinhoPopupController.instancia.MostrarPopupAviso($"✨ Todas as {total} Sinergias Alquímicas Reveladas no Mapa!");
         }
     }
 
@@ -467,7 +468,7 @@ public class SynergyMapPrototype : MonoBehaviour
 
     private void CreateRecipeNode(SynergyRecipe recipe, int displayIndex, bool isDiscovered)
     {
-        bool isCentral = (displayIndex >= 9);
+        bool isCentral = recipe != null && recipe.mapPosition.magnitude <= 160f;
         float currentSize = isCentral ? centralNodeSize : nodeSize;
 
         GameObject nodeObj = CreateUIObject($"Node_{recipe.id}", _nodesContainer);
@@ -757,19 +758,17 @@ public class SynergyMapPrototype : MonoBehaviour
 
     private string ToRoman(int number)
     {
-        switch (number)
-        {
-            case 1: return "I";
-            case 2: return "II";
-            case 3: return "III";
-            case 4: return "IV";
-            case 5: return "V";
-            case 6: return "VI";
-            case 7: return "VII";
-            case 8: return "VIII";
-            case 9: return "IX";
-            case 10: return "X";
-            default: return number.ToString();
-        }
+        if (number <= 0) return number.ToString();
+        string[] thousands = { "", "M", "MM", "MMM" };
+        string[] hundreds = { "", "C", "CC", "CCC", "CD", "D", "DC", "DCC", "DCCC", "CM" };
+        string[] tens = { "", "X", "XX", "XXX", "XL", "L", "LX", "LXX", "LXXX", "XC" };
+        string[] ones = { "", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX" };
+
+        if (number >= 4000) return number.ToString();
+
+        return thousands[number / 1000] +
+               hundreds[(number % 1000) / 100] +
+               tens[(number % 100) / 10] +
+               ones[number % 10];
     }
 }

@@ -65,6 +65,15 @@ public class PlayerM : MonoBehaviour
     [HideInInspector]
     public float debuffSpeedMultiplier = 1.0f;
 
+    private float temporarySpeedBoostMultiplier = 1.0f;
+    private float temporarySpeedBoostDuration = 0f;
+
+    public void ApplyTemporarySpeedBoost(float multiplier, float duration)
+    {
+        temporarySpeedBoostMultiplier = Mathf.Max(temporarySpeedBoostMultiplier, multiplier);
+        temporarySpeedBoostDuration = Mathf.Max(temporarySpeedBoostDuration, duration);
+    }
+
     [Header("Running Footstep SFX")]
     [Tooltip("Som de passos ao correr. Arraste o AudioClip Running aqui.")]
     public AudioClip runningFootstepClip;
@@ -145,6 +154,15 @@ public class PlayerM : MonoBehaviour
 
     private void Update()
     {
+        if (temporarySpeedBoostDuration > 0f)
+        {
+            temporarySpeedBoostDuration -= Time.deltaTime;
+            if (temporarySpeedBoostDuration <= 0f)
+            {
+                temporarySpeedBoostMultiplier = 1.0f;
+            }
+        }
+
         bool isUIBlocking = DialogManager.BlocksGameplayInput || 
                             GamePause.IsPaused || 
                             (CraftingUI.Instance != null && CraftingUI.Instance.IsOpen()) || 
@@ -246,7 +264,8 @@ public class PlayerM : MonoBehaviour
         bool inDamageWindow = attackScript != null && attackScript.isHitboxActive;
 
         float attrMult = (playerAttributes != null) ? playerAttributes.speedMultiplier : 1f;
-        float totalSpeedMult = attrMult * debuffSpeedMultiplier;
+        float boostMult = (temporarySpeedBoostDuration > 0f) ? temporarySpeedBoostMultiplier : 1.0f;
+        float totalSpeedMult = attrMult * debuffSpeedMultiplier * boostMult;
 
         if (inDamageWindow)
         {

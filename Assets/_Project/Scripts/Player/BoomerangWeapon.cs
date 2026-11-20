@@ -68,6 +68,16 @@ public class BoomerangWeapon : MonoBehaviour
     [Tooltip("Tier 4 (Evasion): Escudo giratório aplica paralisia elétrica ao contato.")]
     public bool enableShieldMeleeParalysis = false;
 
+    [Header("Sinergias Especiais da Glaive (Ativadas por Infusão ou Teste no Inspector)")]
+    [Tooltip("Sinergia 1: Flying Kite (Alvo Único, Arremesso Instantâneo sem Carga, Super Velocidade na ida e volta, Kiting ADC +50% MoveSpeed e AtkSpeed ao recuperar).")]
+    public bool forceFlyingKiteSynergy = false;
+
+    [Tooltip("Sinergia 2: Lazy Farmer (Ceifador de Hordas: 15 Ricochetes, dano escala de 25% no 1º alvo até 350% a partir do 8º alvo).")]
+    public bool forceLazyFarmerSynergy = false;
+
+    [Tooltip("Sinergia 3: Yoyo Glaive (Lâmina Centrífuga Anti-Boss: 8 Ricochetes, 150% de dano no primeiro alvo decaindo a cada quique até 10%).")]
+    public bool forceYoyoGlaiveSynergy = false;
+
     [Header("Parâmetros de Física / Máquina de Estados")]
     [Tooltip("Se verdadeiro, ativa os controles e física base para testar todas as animações e VFX imediatamente.")]
     public bool useBuiltInStateAndPhysics = true;
@@ -230,6 +240,23 @@ public class BoomerangWeapon : MonoBehaviour
     private bool IsTranslucentClonesActive => enableTranslucentClonesOnReturn || (tier4EffectManager != null && tier4EffectManager.HasEffect(Tier4EffectType.Boomerang_TranslucentClones));
     private bool IsBounceEchoActive => enableBounceEchoSpawning || (tier4EffectManager != null && tier4EffectManager.HasEffect(Tier4EffectType.Boomerang_BounceEcho));
     private bool IsShieldParalysisActive => enableShieldMeleeParalysis || (tier4EffectManager != null && tier4EffectManager.HasEffect(Tier4EffectType.Boomerang_ShieldParalysis));
+
+    public bool IsFlyingKiteActive => forceFlyingKiteSynergy || HasSynergyEquipped("combo_flying_kite");
+    public bool IsLazyFarmerActive => forceLazyFarmerSynergy || HasSynergyEquipped("combo_lazy_farmer");
+    public bool IsYoyoGlaiveActive => forceYoyoGlaiveSynergy || HasSynergyEquipped("combo_yoyo_glaive");
+
+    private int currentThrowBounceIndex = 0;
+    private float kiteAttackSpeedBoostTimer = 0f;
+
+    public bool HasSynergyEquipped(string recipeId)
+    {
+        if (string.IsNullOrEmpty(recipeId)) return false;
+        InfusionManager im = GetComponentInParent<InfusionManager>() ?? GetComponentInChildren<InfusionManager>();
+        if (im == null && weaponManager != null) im = weaponManager.GetComponentInParent<InfusionManager>();
+        if (im == null) im = FindFirstObjectByType<InfusionManager>();
+        return im != null && im.HasActiveSynergy(recipeId);
+    }
+
     private readonly HashSet<int> hitTargetsThisPhase = new HashSet<int>();
     private readonly Dictionary<int, float> hitCooldowns = new Dictionary<int, float>();
 
@@ -488,6 +515,11 @@ public class BoomerangWeapon : MonoBehaviour
 
         float dt = Time.deltaTime;
         stateElapsedTime += dt;
+
+        if (kiteAttackSpeedBoostTimer > 0f)
+        {
+            kiteAttackSpeedBoostTimer -= dt;
+        }
 
         // Sincroniza flag de upgrade Tier 4 no módulo de escudo
         if (shieldVFX != null)
@@ -1058,6 +1090,32 @@ public class BoomerangWeapon : MonoBehaviour
 
     private void BeginAttackAnticipation()
     {
+        if (IsFlyingKiteActive)
+        {
+            // Flying Kite: Clicou sai instantâneo sem necessidade de segurar para carregar (estilo ADC kiting)
+            currentCharge01 = 1f;
+            currentChargeTime = maxChargeTime;
+            hasCommittedDraw = true;
+            drawCommitTime = 0f;
+            isPerfectChargeThrow = true;
+            isWindupThrowPending = false;
+
+            if (currentState != BoomerangState.Charging)
+            {
+                SetState(BoomerangState.Charging);
+            }
+            else
+            {
+                SnapToHandPose();
+            }
+
+            float atkSpeed = GetAttackSpeedMultiplier();
+            SetAnimatorFloatSafe(AnimFloatAttackSpeed, throwFollowThroughSpeed * atkSpeed);
+            TriggerPlayerAnimation(AnimTriggerAttack);
+            LaunchThrow(1.0f);
+            return;
+        }
+
         currentChargeTime = 0f;
         currentCharge01 = 0f;
         isWindupThrowPending = true;
@@ -1390,6 +1448,7 @@ public class BoomerangWeapon : MonoBehaviour
         if (playerMovement != null && !isThrowFollowThroughMoveLock)
             playerMovement.SetPlasmaFiring(false);
 
+        currentThrowBounceIndex = 0;
         chargeSpinAngle = 0f;
         currentCharge01 = Mathf.Clamp01(charge01);
         Vector3 aimDir = GetMouseAimDirection();
@@ -1402,6 +1461,22 @@ public class BoomerangWeapon : MonoBehaviour
         int bonusBounces = offensiveStats != null ? Mathf.Max(0, offensiveStats.bounceCount) : 0;
         bouncesRemaining = Mathf.RoundToInt(Mathf.Lerp(minBounces, maxBounces, currentCharge01)) + bonusBounces;
         piercingRemaining = offensiveStats != null ? Mathf.Max(0, offensiveStats.piercing) : 0;
+
+        // Modificadores das Sinergias Especiais da Glaive
+        if (IsFlyingKiteActive)
+        {
+            bouncesRemaining = 0;
+            launchSpeed *= 2.0f;
+            targetFlightDistance = Mathf.Max(targetFlightDistance, 14f);
+        }
+        else if (IsLazyFarmerActive)
+        {
+            bouncesRemaining = 15;
+        }
+        else if (IsYoyoGlaiveActive)
+        {
+            bouncesRemaining = 8;
+        }
 
         Transform originTr = weaponManager != null ? weaponManager.transform : transform;
         throwOriginPos = originTr.position + Vector3.up * 1.1f;
@@ -1538,6 +1613,9 @@ public class BoomerangWeapon : MonoBehaviour
 
     private bool TryConsumeOrRollBounce()
     {
+        // Flying Kite: Projétil de alvo único, zero ricochetes
+        if (IsFlyingKiteActive) return false;
+
         if (bouncesRemaining > 0)
         {
             bouncesRemaining--;
@@ -1589,12 +1667,14 @@ public class BoomerangWeapon : MonoBehaviour
             return;
         }
 
-        // Limita a velocidade de retorno máxima para 26m/s para NÃO abrir a curva orbital
-        float maxReturnSpeed = Mathf.Max(returnHomingSpeed, 26f);
-        currentReturnSpeed = Mathf.Min(currentReturnSpeed + returnHomingAcceleration * dt, maxReturnSpeed);
+        // Limita a velocidade de retorno máxima para 26m/s para NÃO abrir a curva orbital (45m/s no Flying Kite)
+        float maxReturnSpeed = IsFlyingKiteActive ? 45f : Mathf.Max(returnHomingSpeed, 26f);
+        float accel = IsFlyingKiteActive ? (returnHomingAcceleration * 2.8f) : returnHomingAcceleration;
+        currentReturnSpeed = Mathf.Min(currentReturnSpeed + accel * dt, maxReturnSpeed);
 
         // Curva firme via RotateTowards (nunca colapsa nem avança para frente quando oposto)
         float turnRate = Mathf.Lerp(38f, 16f, Mathf.Clamp01(distToPlayer / 10f));
+        if (IsFlyingKiteActive) turnRate *= 2.2f;
         Vector3 desiredDir = toPlayer.normalized;
         Vector3 curDir = flightVelocity.sqrMagnitude > 0.001f ? flightVelocity.normalized : desiredDir;
         flightVelocity = Vector3.RotateTowards(curDir, desiredDir, turnRate * dt, 0f).normalized * currentReturnSpeed;
@@ -1631,6 +1711,18 @@ public class BoomerangWeapon : MonoBehaviour
         currentCharge01 = 0f;
         chargeSpinAngle = 0f;
         isPerfectChargeThrow = false;
+        currentThrowBounceIndex = 0;
+
+        // Flying Kite: Ao recuperar a Glaive, ganha +50% MoveSpeed e +50% AttackSpeed por 0.5s para kiting fluído
+        if (IsFlyingKiteActive)
+        {
+            kiteAttackSpeedBoostTimer = 0.50f;
+            if (playerMovement != null)
+            {
+                playerMovement.ApplyTemporarySpeedBoost(1.50f, 0.50f);
+            }
+        }
+
         SetState(BoomerangState.Charging);
     }
 
@@ -1683,6 +1775,7 @@ public class BoomerangWeapon : MonoBehaviour
     /// </summary>
     public virtual void RegisterBounce(Vector3 surfaceNormal, Vector3 bouncePoint, DummyHealth hitEnemy = null)
     {
+        currentThrowBounceIndex++;
         float speed = Mathf.Max(flightVelocity.magnitude, minThrowSpeed);
 
         // 1. Procura o próximo inimigo para ricochete encadeado inteligente (Smart Chain Bounce)
@@ -1850,7 +1943,37 @@ public class BoomerangWeapon : MonoBehaviour
         bool isCritical = UnityEngine.Random.value < critChance01;
         float critMult = isCritical && offensiveStats != null ? Mathf.Max(1f, offensiveStats.critMultiplier) : (isCritical ? 1.5f : 1f);
 
-        int finalDamage = Mathf.Max(1, Mathf.RoundToInt(baseDmg * chargeMult * critMult * damageScale));
+        // Multiplicador de dano conforme a Sinergia da Glaive ativa
+        float synergyDamageScale = 1.0f;
+        if (IsFlyingKiteActive)
+        {
+            // Flying Kite: Alvo único e sem ricochete -> +40% de dano base
+            synergyDamageScale *= 1.40f;
+        }
+        else if (IsLazyFarmerActive)
+        {
+            // Lazy Farmer: 1º alvo 25% (1/4 do dano), a partir do 8º 350% de dano (interpolação linear do 1º ao 8º)
+            float farmerProgress = Mathf.Clamp01((float)currentThrowBounceIndex / 7f);
+            synergyDamageScale *= Mathf.Lerp(0.25f, 3.50f, farmerProgress);
+        }
+        else if (IsYoyoGlaiveActive)
+        {
+            // Yoyo Glaive: 1º alvo 150%, decaindo a cada quique (125%, 100%, 80%, 60%, 40%, 20%, 10%)
+            float yoyoMult = currentThrowBounceIndex switch
+            {
+                0 => 1.50f,
+                1 => 1.25f,
+                2 => 1.00f,
+                3 => 0.80f,
+                4 => 0.60f,
+                5 => 0.40f,
+                6 => 0.20f,
+                _ => 0.10f
+            };
+            synergyDamageScale *= yoyoMult;
+        }
+
+        int finalDamage = Mathf.Max(1, Mathf.RoundToInt(baseDmg * chargeMult * critMult * damageScale * synergyDamageScale));
         enemy.TakeDamage(finalDamage, isCritical, false, true);
 
         // Slow on Hit e Knockback dos atributos do jogador
@@ -1910,9 +2033,14 @@ public class BoomerangWeapon : MonoBehaviour
 
     private float GetAttackSpeedMultiplier()
     {
+        float speed = 1f;
         if (offensiveStats != null && offensiveStats.attackSpeedMelee > 0.05f)
-            return Mathf.Clamp(offensiveStats.attackSpeedMelee, 0.5f, 2.0f);
-        return 1f;
+            speed = Mathf.Clamp(offensiveStats.attackSpeedMelee, 0.5f, 2.0f);
+
+        if (kiteAttackSpeedBoostTimer > 0f)
+            speed *= 1.50f;
+
+        return speed;
     }
 
     private float GetProjectileRangeMultiplier()

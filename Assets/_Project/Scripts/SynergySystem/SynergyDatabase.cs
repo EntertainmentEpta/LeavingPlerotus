@@ -113,7 +113,7 @@ public class SynergyRecipe
 }
 
 /// <summary>
-/// Repositório Mestre e Central de todas as 10 Sinergias Oficiais de Plerotus.
+/// Repositório Mestre e Central de todas as Sinergias Oficiais de Plerotus.
 /// Fonte única da verdade para Combos, Teia de Sinergias, Mapa Cósmico e Inventário.
 /// </summary>
 public static class SynergyDatabase
@@ -662,6 +662,77 @@ public static class SynergyDatabase
                 new StatModifier { statName = "BaseDamageMultiplier", baseValue = 0f, multiplierValue = 0.20f }
             }
         });
+        // 22. Flying Kite (Glaive: Alvo Único, Super-Velocidade & Kiting ADC)
+        _allRecipes.Add(new SynergyRecipe
+        {
+            id = "combo_flying_kite",
+            name = "Flying Kite",
+            description = "A Glaive torna-se uma arma veloz de alvo único: arremesso instantâneo sem carga, projétil ultrarrápido na ida e volta, dano amplificado e bônus de velocidade de movimento e ataque ao pegá-la de volta.",
+            discoveryHint = "Funda a agilidade acrobática da Aranha com o prisma cortante de precisão do SharpBlur!",
+            recipeIngredientsText = "• Aranha T2 (Glândula de Seda / Agilidade)\n• SharpBlur T2 (Prisma Refletor / Dano Concentrado)",
+            essenceDiscount = 0.25f,
+            themeColor = new Color(0.15f, 0.85f, 1.0f), // Ciano Aerodinâmico
+            mapPosition = new Vector2(330f, 130f),
+            requirementSlots = new List<string[]>
+            {
+                new[] { "spider_silk_t2", "aranha_t2", "02sp" },
+                new[] { "sharp_shard_t2", "02sb", "sharpblur_t2", "sharpdrop2" }
+            },
+            modifiers = new List<StatModifier>
+            {
+                new StatModifier { statName = "BaseDamageMultiplier", baseValue = 0f, multiplierValue = 0.30f },
+                new StatModifier { statName = "AttackSpeedMelee", baseValue = 0f, multiplierValue = 0.50f },
+                new StatModifier { statName = "SpeedMultiplier", baseValue = 0f, multiplierValue = 0.30f }
+            }
+        });
+
+        // 23. Lazy Farmer (Glaive: Ceifador de Hordas & 15 Ricochetes Crescentes)
+        _allRecipes.Add(new SynergyRecipe
+        {
+            id = "combo_lazy_farmer",
+            name = "Lazy Farmer",
+            description = "Ceifador de Hordas: a Glaive ricocheteia até 15 vezes entre alvos. Causa dano reduzido no primeiro impacto (25%), mas acumula força a cada ricochete até atingir devastadores 350% de dano.",
+            discoveryHint = "Conecte os estilhaços carambola da Istar à condutividade orgânica do Peixe para ricochetear infinitamente!",
+            recipeIngredientsText = "• Shard Swarm T2 (Carambola / Ricochetes Múltiplos)\n• Peixe T2 (Guelra Bioluminescente / Condutividade)",
+            essenceDiscount = 0.25f,
+            themeColor = new Color(0.35f, 0.90f, 0.25f), // Verde Colheita Fértil
+            mapPosition = new Vector2(-340f, 0f),
+            requirementSlots = new List<string[]>
+            {
+                new[] { "shard_resonant_t2", "swarm_t2", "star_t2" },
+                new[] { "Peixe_guelra_t2", "peixe_t2", "02px" }
+            },
+            modifiers = new List<StatModifier>
+            {
+                new StatModifier { statName = "BounceCount", baseValue = 15f, multiplierValue = 0f },
+                new StatModifier { statName = "CritMultiplier", baseValue = 0f, multiplierValue = 0.35f }
+            }
+        });
+
+        // 24. Yoyo Glaive (Glaive: Lâmina Centrífuga Anti-Boss)
+        _allRecipes.Add(new SynergyRecipe
+        {
+            id = "combo_yoyo_glaive",
+            name = "Yoyo Glaive",
+            description = "Lâmina Centrífuga: a Glaive causa 150% de dano maciço no primeiro alvo, decaindo a cada ricochete sucessivo (até 8 ricochetes). Incrível para eliminar chefes e alvos isolados.",
+            discoveryHint = "Combine a ressonância harmônica do Sintonizador com o núcleo de desaceleração do Cristalus!",
+            recipeIngredientsText = "• Tuner T2 (Diapasão Ressonante / Frequência)\n• Cristalus T2 (Pó Entorpecente / Cristal de Impacto)",
+            essenceDiscount = 0.25f,
+            themeColor = new Color(1.0f, 0.50f, 0.15f), // Laranja Centrífugo
+            mapPosition = new Vector2(0f, 340f),
+            requirementSlots = new List<string[]>
+            {
+                new[] { "tuner_lens_t2", "tuner_t2" },
+                new[] { "02cl", "cristalus_t2" }
+            },
+            modifiers = new List<StatModifier>
+            {
+                new StatModifier { statName = "BaseDamageMultiplier", baseValue = 0f, multiplierValue = 0.25f },
+                new StatModifier { statName = "CritChance", baseValue = 0.15f, multiplierValue = 0f },
+                new StatModifier { statName = "BounceCount", baseValue = 8f, multiplierValue = 0f }
+            }
+        });
+
         // 10. A ASCENSÃO: MODO DEUS (Combo dos Lendários T4)
         _allRecipes.Add(new SynergyRecipe
         {

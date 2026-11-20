@@ -66,18 +66,56 @@ public class SynergyMapBuilder : MonoBehaviour
             discMap[r.id] = SynergyCatalogManager.Instance != null && SynergyCatalogManager.Instance.IsNodeDiscovered(r.id);
         }
 
-        // 1. Linhas entre os nós
-        for (int i = 0; i < 8 && i < recipes.Count; i++)
+        // 1. Linhas entre os nós (Constelação Dinâmica)
+        List<SynergyRecipe> outerRecipes = new List<SynergyRecipe>();
+        List<SynergyRecipe> innerRecipes = new List<SynergyRecipe>();
+        List<SynergyRecipe> centerRecipes = new List<SynergyRecipe>();
+
+        foreach (var r in recipes)
         {
-            int nextIdx = (i + 1) % 8;
-            DrawLine(mapContainer.transform, recipes[i].mapPosition, recipes[nextIdx].mapPosition,
-                     discMap[recipes[i].id] && discMap[recipes[nextIdx].id]);
+            float dist = r.mapPosition.magnitude;
+            if (dist > 380f) outerRecipes.Add(r);
+            else if (dist > 150f) innerRecipes.Add(r);
+            else centerRecipes.Add(r);
         }
 
-        if (recipes.Count >= 10)
+        outerRecipes.Sort((a, b) => Mathf.Atan2(a.mapPosition.y, a.mapPosition.x).CompareTo(Mathf.Atan2(b.mapPosition.y, b.mapPosition.x)));
+        innerRecipes.Sort((a, b) => Mathf.Atan2(a.mapPosition.y, a.mapPosition.x).CompareTo(Mathf.Atan2(b.mapPosition.y, b.mapPosition.x)));
+
+        for (int i = 0; i < outerRecipes.Count; i++)
         {
-            DrawLine(mapContainer.transform, recipes[8].mapPosition, recipes[9].mapPosition,
-                     discMap[recipes[8].id] && discMap[recipes[9].id]);
+            int nextIdx = (i + 1) % outerRecipes.Count;
+            DrawLine(mapContainer.transform, outerRecipes[i].mapPosition, outerRecipes[nextIdx].mapPosition,
+                     discMap[outerRecipes[i].id] && discMap[outerRecipes[nextIdx].id]);
+        }
+
+        for (int i = 0; i < innerRecipes.Count; i++)
+        {
+            int nextIdx = (i + 1) % innerRecipes.Count;
+            DrawLine(mapContainer.transform, innerRecipes[i].mapPosition, innerRecipes[nextIdx].mapPosition,
+                     discMap[innerRecipes[i].id] && discMap[innerRecipes[nextIdx].id]);
+        }
+
+        foreach (var inn in innerRecipes)
+        {
+            SynergyRecipe closestOuter = null;
+            float minDist = float.MaxValue;
+            foreach (var outNode in outerRecipes)
+            {
+                float d = Vector2.Distance(inn.mapPosition, outNode.mapPosition);
+                if (d < minDist) { minDist = d; closestOuter = outNode; }
+            }
+            if (closestOuter != null)
+            {
+                DrawLine(mapContainer.transform, inn.mapPosition, closestOuter.mapPosition,
+                         discMap[inn.id] && discMap[closestOuter.id]);
+            }
+        }
+
+        if (centerRecipes.Count >= 2)
+        {
+            DrawLine(mapContainer.transform, centerRecipes[0].mapPosition, centerRecipes[1].mapPosition,
+                     discMap[centerRecipes[0].id] && discMap[centerRecipes[1].id]);
         }
 
         // 2. Nós
