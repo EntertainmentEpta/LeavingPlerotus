@@ -265,6 +265,7 @@ MonoBehaviour:
   hitFlashTime: 0.2
   isInvulnerable: 0
   isBuffed: 0
+  grantsBiomass: 1
   fixedDamageOverride: 0
 --- !u!114 &4966253884742131004
 MonoBehaviour:
@@ -343,6 +344,22 @@ MonoBehaviour:
   teleportHologramAlpha: 0.6
   bossHealthBarPrefab: {fileID: 1715828090872878114, guid: 8573b314ece098040b44500ed0e678f9, type: 3}
   useRootMotion: 1
+  bossAudioSource: {fileID: 0}
+  bossAudioMasterVolume: 1
+  stompSound: {fileID: 8300000, guid: 7d5bba17551a07f418a9f30267d45a5c, type: 3}
+  jumpSound: {fileID: 8300000, guid: 7d5bba17551a07f418a9f30267d45a5c, type: 3}
+  walkSound: {fileID: 8300000, guid: 8d9ed58f59db5f944afe54ce30ebd629, type: 3}
+  walkSounds: []
+  pillarSummonSound: {fileID: 8300000, guid: 0ff95743955f3c345ad48b0795e6f58a, type: 3}
+  superAttack360Sound: {fileID: 8300000, guid: 6699071e1d78c044d8338c77287a1f1d, type: 3}
+  powerUpSound: {fileID: 8300000, guid: b3ab5de00b14b7f49b8e21808d36d259, type: 3}
+  refractionSound: {fileID: 8300000, guid: 243460148d7507640b456ec69b7b58d4, type: 3}
+  phaseTransition1To2Sound: {fileID: 8300000, guid: 62aaeec2da24b9b48afab28d99ca13f0, type: 3}
+  phaseTransition2To3Sound: {fileID: 8300000, guid: 62aaeec2da24b9b48afab28d99ca13f0, type: 3}
+  hitSound: {fileID: 8300000, guid: 10f5f4af36399024d9073c59f3d73b1b, type: 3}
+  hitSounds: []
+  deathSound: {fileID: 8300000, guid: db4b08cdf2ba3c0469eb68044f8c04d6, type: 3}
+  acidSpitSound: {fileID: 8300000, guid: 215f4bfa3411382418419ad7a277f245, type: 3}
   showDebugLog: 1
   alwaysFacePlayerInSandbox: 1
   agent: {fileID: 0}
