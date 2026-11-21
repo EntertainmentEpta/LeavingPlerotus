@@ -170,7 +170,7 @@ MonoBehaviour:
   originalPrefab: {fileID: 0}
   owningRoom: {fileID: 0}
   healthBarSlider: {fileID: 0}
-  normalColor: {r: 0.47589064, g: 1, b: 0, a: 1}
+  normalColor: {r: 0.6392157, g: 0.9137255, b: 0.25490198, a: 1}
   buffedColor: {r: 0, g: 1, b: 1, a: 1}
   projectileResistance: 0
   knockbackResistance: 0

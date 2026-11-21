@@ -42,9 +42,10 @@ public class DummyHealth : MonoBehaviour
     public Slider healthBarSlider;
     // A imagem que realmente tem a cor (dentro do Slider)
     private Image healthBarFill;
+    private EnemyHealthBarVisual healthBarVisual;
 
     [Header("Cores da Barra")]
-    public Color normalColor = Color.red;
+    public Color normalColor = new Color(163f / 255f, 233f / 255f, 65f / 255f, 1f);
     [Tooltip("Cor da barra quando está sendo protegido pelo Sintonizador.")]
     public Color buffedColor = Color.cyan;
 
@@ -169,15 +170,12 @@ public class DummyHealth : MonoBehaviour
                 Debug.Log("[" + gameObject.name + "] Slider encontrado automaticamente: " + healthBarSlider.gameObject.name);
         }
 
-        // Busca a imagem Fill dentro do Slider para controlar a cor
+        // Aprimora o Slider para o visual encorpado estilo LoL (com barra amarela de dano atrasado)
         if (healthBarSlider != null)
         {
-            if (healthBarSlider.fillRect != null)
-            {
-                healthBarFill = healthBarSlider.fillRect.GetComponent<Image>();
-            }
-            // Garante a cor inicial
-            if (healthBarFill != null) healthBarFill.color = normalColor;
+            EnsureHealthBarVisual();
+            if (healthBarVisual != null)
+                healthBarVisual.SetHealthInstant(CurrentHealth, maxHealth);
 
             // Começa escondida — só aparece após o primeiro hit
             healthBarSlider.gameObject.SetActive(false);
@@ -251,9 +249,14 @@ public class DummyHealth : MonoBehaviour
         isBuffed = buffed;
 
         // Muda a cor da barra
-        if (healthBarFill != null)
+        Color targetCol = buffed ? buffedColor : normalColor;
+        if (healthBarVisual != null)
         {
-            healthBarFill.color = buffed ? buffedColor : normalColor;
+            healthBarVisual.SetHealthColor(targetCol);
+        }
+        else if (healthBarFill != null)
+        {
+            healthBarFill.color = targetCol;
         }
     }
 
@@ -263,7 +266,11 @@ public class DummyHealth : MonoBehaviour
     public void ResetHealth()
     {
         CurrentHealth = maxHealth;
-        UpdateHealthBar();
+        EnsureHealthBarVisual();
+        if (healthBarVisual != null)
+            healthBarVisual.SetHealthInstant(CurrentHealth, maxHealth);
+        else
+            UpdateHealthBar();
     }
 
     public void TakeDamage(int damage, bool isCritical = false, bool isPoison = false, bool isProjectile = false)
@@ -385,9 +392,21 @@ public class DummyHealth : MonoBehaviour
         UpdateHealthBar();
     }
 
+    private void EnsureHealthBarVisual()
+    {
+        if (healthBarSlider == null) return;
+        if (healthBarVisual == null || healthBarVisual.gameObject != healthBarSlider.gameObject)
+        {
+            healthBarVisual = EnemyHealthBarVisual.AttachOrGet(healthBarSlider, maxHealth, isBuffed ? buffedColor : normalColor);
+            if (healthBarSlider.fillRect != null)
+                healthBarFill = healthBarSlider.fillRect.GetComponent<Image>();
+        }
+    }
+
     public void ShowHealthBar()
     {
         if (healthBarSlider == null) return;
+        EnsureHealthBarVisual();
         healthBarSlider.gameObject.SetActive(true);
     }
 
@@ -395,9 +414,17 @@ public class DummyHealth : MonoBehaviour
     {
         if (healthBarSlider != null)
         {
-            float healthPercent = (float)CurrentHealth / maxHealth;
-            healthBarSlider.value = healthPercent;
-            if (CurrentHealth <= 0) healthBarSlider.gameObject.SetActive(false);
+            EnsureHealthBarVisual();
+            if (healthBarVisual != null)
+            {
+                healthBarVisual.SetHealth(CurrentHealth, maxHealth);
+            }
+            else
+            {
+                float healthPercent = (float)CurrentHealth / maxHealth;
+                healthBarSlider.value = healthPercent;
+                if (CurrentHealth <= 0) healthBarSlider.gameObject.SetActive(false);
+            }
         }
     }
 

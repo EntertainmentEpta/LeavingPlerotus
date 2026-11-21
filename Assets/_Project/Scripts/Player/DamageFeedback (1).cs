@@ -47,17 +47,17 @@ public class DamageFeedback : MonoBehaviour
 
     [Header("Indicador de direção")]
     public IndicatorPlacement placement = IndicatorPlacement.AroundPlayer;
-    public float indicatorDuration = 1.1f;
+    public float indicatorDuration = 1.35f;
     [Tooltip("Tamanho do ponteiro (em pixels de uma tela 1920x1080).")]
-    public Vector2 indicatorSize = new Vector2(130f, 65f);
+    public Vector2 indicatorSize = new Vector2(160f, 82f);
     [Tooltip("Distância da borda da tela (modo ScreenEdge).")]
     public float edgeInset = 70f;
     [Tooltip("Raio do círculo em volta da cabeça (modo AroundPlayer).")]
-    public float ringRadius = 75f;
+    public float ringRadius = 85f;
     [Tooltip("Altura da cabeça em relação ao pivô do personagem (unidades do mundo).")]
     public Vector3 headOffset = new Vector3(0f, 1.6f, 0f);
     public Color indicatorTint = Color.white;
-    [Range(0f, 1f)] public float baseIndicatorAlpha = 0.55f;
+    [Range(0f, 1f)] public float baseIndicatorAlpha = 1.0f;
 
     [Header("Perto da morte")]
     [Tooltip("Abaixo desta fração de vida os efeitos começam a crescer.")]
@@ -70,10 +70,10 @@ public class DamageFeedback : MonoBehaviour
     public Color vignetteTint = Color.white;
     [Range(0f, 1f)] public float maxVignetteAlpha = 0.9f;
     [Tooltip("Gotas aparecem rápido a cada golpe, mesmo com vida cheia.")]
-    [Range(0f, 1f)] public float hitFlashAlpha = 0.25f;
-    public float hitFlashFade = 3f;
+    [Range(0f, 1f)] public float hitFlashAlpha = 0.40f;
+    public float hitFlashFade = 2.2f;
     [Tooltip("Quantidade de gotas (só vale para a textura gerada por código).")]
-    [Range(10, 300)] public int dropletCount = 90;
+    [Range(10, 300)] public int dropletCount = 75;
     [Tooltip("Sorting order do Canvas criado (maior = por cima do HUD).")]
     public int canvasSortingOrder = 500;
 
@@ -254,7 +254,7 @@ public class DamageFeedback : MonoBehaviour
             i.rt.localRotation = Quaternion.Euler(0f, 0f, i.angle - 90f);
 
             float k = i.age / indicatorDuration;
-            float fade = Mathf.Clamp01(i.age / 0.06f) * (1f - Smooth(0.35f, 1f, k));
+            float fade = Mathf.Clamp01(i.age / 0.06f) * (1f - Smooth(0.50f, 1f, k));
             float intensity = Mathf.Clamp01(baseIndicatorAlpha + 0.15f * (i.stack - 1f) + 0.45f * LowHealth01);
             float scale = (1f + lowHealthExtraScale * LowHealth01 + 0.08f * (i.stack - 1f))
                         * (1f + 0.2f * i.punch * i.punch);
@@ -386,8 +386,8 @@ public class DamageFeedback : MonoBehaviour
 
     // ========================================================= Texturas (sem PNG)
 
-    static readonly Color DarkBlood   = new Color(0.20f, 0.00f, 0.01f);
-    static readonly Color BrightBlood = new Color(0.70f, 0.03f, 0.04f);
+    static readonly Color DarkBlood   = new Color(0.45f, 0.01f, 0.02f);
+    static readonly Color BrightBlood = new Color(0.95f, 0.08f, 0.08f);
 
     // Gotinhas de sangue espalhadas perto das bordas (centro da tela fica limpo).
     // Proporção 16:9 para as gotas não ficarem esticadas na tela.
@@ -403,7 +403,7 @@ public class DamageFeedback : MonoBehaviour
         {
             // Quanto mais perto da borda, mais gotas.
             float edge01 = Mathf.Pow(Rand(), 2.2f);
-            float m = edge01 * 0.16f * h;
+            float m = edge01 * 0.20f * h;
             float along = Rand();
             int side = rng.Next(4);
 
@@ -416,8 +416,8 @@ public class DamageFeedback : MonoBehaviour
                 default: x = w - 1 - m;     y = along * h; inward = Vector2.left;  break; // direita
             }
 
-            // Gotas pequenas; as maiores ficam coladas na borda.
-            float r = Mathf.Lerp(1.5f, 6f, Mathf.Pow(Rand(), 2.5f)) * Mathf.Lerp(1.3f, 0.7f, edge01);
+            // Gotas mais encorpadas nas bordas (tamanho reduzido em 20%).
+            float r = Mathf.Lerp(3.6f, 11.2f, Mathf.Pow(Rand(), 2.0f)) * Mathf.Lerp(1.3f, 0.75f, edge01);
             StampDrop(alpha, shine, w, h, x, y, r);
 
             // Respingos menores em volta.
@@ -479,6 +479,9 @@ public class DamageFeedback : MonoBehaviour
 
         Vector2 center = new Vector2(0f, -1.05f);
         const float R = 2.0f;
+        Color arcDeep = new Color(0.85f, 0.06f, 0.06f);
+        Color arcBright = new Color(1.00f, 0.28f, 0.20f);
+        Color arcRim = new Color(1.00f, 0.78f, 0.70f);
 
         for (int y = 0; y < height; y++)
         for (int x = 0; x < width; x++)
@@ -490,23 +493,29 @@ public class DamageFeedback : MonoBehaviour
             float dist  = Vector2.Distance(p, center) - R; // < 0 = lado de dentro do arco
             float taper = Mathf.Clamp01(1f - u * u);       // afina nas pontas
             float noise = Fbm(u * 4f + o, v * 4f, 3);
-            float thick = (0.08f + 0.16f * noise) * taper;
+            float thick = (0.26f + 0.14f * noise) * taper;
 
             float band = dist <= 0f
                 ? 1f - Smooth(0f, thick + 1e-4f, -dist)
-                : 1f - Smooth(0f, 0.02f, dist);
-            float a = band * Mathf.Pow(taper, 0.6f);
+                : 1f - Smooth(0f, 0.03f, dist);
+            float radialFade = Mathf.Pow(band, 1.35f);
+            float tipFade = Mathf.Pow(taper, 1.6f); // pontas e extremidades em degradê transparente
+            float a = radialFade * tipFade;
 
             // Riscos de sangue apontando para dentro.
             float streak = Smooth(0.6f, 0.8f, Mathf.PerlinNoise(u * 22f + o, 1.7f));
             if (dist <= 0f)
             {
-                float sLen = thick + streak * 0.25f * taper;
-                a = Mathf.Max(a, (1f - Smooth(sLen * 0.6f, sLen + 1e-4f, -dist)) * streak * taper * 0.8f);
+                float sLen = thick + streak * 0.22f * taper;
+                a = Mathf.Max(a, (1f - Smooth(sLen * 0.5f, sLen + 1e-4f, -dist)) * streak * tipFade * 0.60f);
             }
 
             float core = 1f - Mathf.Clamp01(-dist / (thick + 0.001f));
-            Color c = Color.Lerp(DarkBlood, BrightBlood, Mathf.Clamp01(core * 0.8f + noise * 0.4f));
+            Color c = Color.Lerp(arcDeep, arcBright, Mathf.Clamp01(core * 0.85f + noise * 0.25f));
+            if (core > 0.70f)
+            {
+                c = Color.Lerp(c, arcRim, ((core - 0.70f) / 0.30f) * 0.75f);
+            }
             c.a = Mathf.Clamp01(a);
             px[y * width + x] = c;
         }
