@@ -100,6 +100,7 @@ InitTestScene*.unity*
 
 # Configurações locais
 .vsconfig
+<<<<<<< HEAD
 
 # Plastic SCM
 .plastic/
@@ -108,7 +109,10 @@ ignore.conf
 
 # Recovery files
 /[Aa]ssets/_Recovery/
+
 # GDD and documentation temporary exports
 /GDD/*.zip
 /GDD/images_*/
 /GDD/images/
+
+/Assets/Scenes
