@@ -1,8 +1,8 @@
-using UnityEngine;
-using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.UI;
 
 public class DummyHealth : MonoBehaviour
 {
@@ -1171,7 +1171,7 @@ public class DummyHealth : MonoBehaviour
         {
             // Atualiza tempo de duração (pega o maior)
             slowTimer = Mathf.Max(slowTimer, duration);
-            
+
             // Se o novo slow for mais forte, aplica a diferença
             if (percent > slowPercent)
             {

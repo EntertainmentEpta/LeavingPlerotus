@@ -180,6 +180,7 @@ public class LevelGenerator : MonoBehaviour
     private List<ConnectionPoint> openOutputs = new List<ConnectionPoint>();
 
     private Transform playerSpawnPoint;
+    public Transform PlayerSpawnPoint => playerSpawnPoint;
     private bool merchantRoomSpawned = false;
     private bool exitRoomSpawned = false;
     private bool anomalyRoomSpawned = false;

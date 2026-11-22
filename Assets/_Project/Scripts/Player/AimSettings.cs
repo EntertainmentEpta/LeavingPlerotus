@@ -58,6 +58,7 @@ public static class AimSettings
         if (MerchantUIController.HasInstance && MerchantUIController.Instance.IsUiOpen()) return true;
         if (DeathScreenUI.Instance != null && DeathScreenUI.Instance.deathPanel != null && DeathScreenUI.Instance.deathPanel.activeSelf) return true;
         if (VictoryScreenUI.Instance != null && VictoryScreenUI.Instance.victoryPanel != null && VictoryScreenUI.Instance.victoryPanel.activeSelf) return true;
+        if (EndlessRiftPortal.IsAnyModalOpen) return true;
         return false;
     }
 

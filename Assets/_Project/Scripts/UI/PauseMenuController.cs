@@ -131,6 +131,12 @@ public class PauseMenuController : MonoBehaviour
             return true;
         }
 
+        // Checa se o modal da Fenda Pós-Boss está aberto (ESC fecha apenas o modal)
+        if (EndlessRiftPortal.IsAnyModalOpen)
+        {
+            return true;
+        }
+
         return false;
     }
 

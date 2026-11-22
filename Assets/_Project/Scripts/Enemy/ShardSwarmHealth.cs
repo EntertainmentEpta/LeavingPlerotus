@@ -1,8 +1,8 @@
-using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.AI;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.AI;
+using UnityEngine.UI;
 
 /// <summary>
 /// Sistema de vida exclusivo do Shard Swarm.
@@ -681,7 +681,7 @@ public class ShardSwarmHealth : MonoBehaviour
         {
             // Atualiza tempo de duração (pega o maior)
             slowTimer = Mathf.Max(slowTimer, duration);
-            
+
             // Se o novo slow for mais forte, aplica a diferença
             if (percent > slowPercent)
             {

@@ -103,7 +103,7 @@ public class EndlessTimerHUD : MonoBehaviour
             isRunActive = true;
         }
 
-        bool showEndlessHud = isEndless && isRunActive && isGameplayScene;
+        bool showEndlessHud = isEndless && isRunActive && isGameplayScene && !isBaseScene;
         bool shouldShow = showEndlessHud || (speedrunOption && isGameplayScene);
 
         if (shouldShow)
@@ -135,7 +135,7 @@ public class EndlessTimerHUD : MonoBehaviour
                 string recordLine;
                 if (beatingRecord)
                 {
-                    recordLine = $"<size=15><color=#5CE68A><b>★ NOVO RECORDE!</b></color> <color=#D8FFE6>NV {displayBestLvl} | {displayBestTimeStr}</color></size>";
+                    recordLine = $"<size=15><color=#5CE68A><b>* NOVO RECORDE!</b></color> <color=#D8FFE6>NV {displayBestLvl} | {displayBestTimeStr}</color></size>";
                 }
                 else if (displayBestLvl > 0 || displayBestTime > 0f)
                 {
@@ -155,7 +155,7 @@ public class EndlessTimerHUD : MonoBehaviour
                 for (int i = 0; i < mutationCount; i++)
                 {
                     AbyssMutationDefinition def = activeMutations[i];
-                    mutationBlock += $"\n<size=14><color={def.accentHexColor}><b>⚡ {def.displayName}:</b></color> <color=#E8E8EE>{def.shortDescription}</color></size>";
+                    mutationBlock += $"\n<size=14><color={def.accentHexColor}><b>» {def.displayName}:</b></color> <color=#E8E8EE>{def.shortDescription}</color></size>";
                 }
 
                 UpdateDefaultPanelSize(isEndlessLayout: true, mutationCount: mutationCount);

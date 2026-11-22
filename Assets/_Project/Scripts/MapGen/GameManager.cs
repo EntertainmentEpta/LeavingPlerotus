@@ -468,6 +468,12 @@ public class GameManager : MonoBehaviour
             currentPlayer.transform.position = baseSpawn.transform.position;
             currentPlayer.transform.rotation = baseSpawn.transform.rotation;
 
+            PlayerM baseMove = currentPlayer.GetComponent<PlayerM>();
+            if (baseMove != null)
+            {
+                baseMove.ResetSafePositionForTeleport(baseSpawn.transform.position);
+            }
+
             // Reativa o agente na Base (que tem NavMesh assado) mantendo updatePosition=false
             if (agent != null)
             {
@@ -539,11 +545,21 @@ public class GameManager : MonoBehaviour
     {
         if (isAsyncLoading) return;
 
-        // Salva recorde do Modo Endless ao extrair / retornar para a Base
-        if (RunManager.instance != null && RunManager.instance.isEndlessMode && RunStatsManager.Instance != null)
+        // Salva recorde do Modo Endless ao extrair / retornar para a Base e limpa o estado Endless
+        if (RunManager.instance != null)
         {
-            RunStatsManager.Instance.CommitEndlessRecord(RunManager.instance.currentLevel);
+            if (RunManager.instance.isEndlessMode && RunStatsManager.Instance != null)
+            {
+                RunStatsManager.Instance.CommitEndlessRecord(RunManager.instance.currentLevel);
+                RunStatsManager.Instance.StopRunTracking();
+            }
+
+            RunManager.instance.OnReturnedToBase();
+        }
+        else if (RunStatsManager.Instance != null && RunStatsManager.Instance.isEndlessMode)
+        {
             RunStatsManager.Instance.StopRunTracking();
+            RunStatsManager.Instance.isEndlessMode = false;
         }
 
         PlayerHealth.shouldPlayWakeUpAnimation = true;
@@ -584,6 +600,7 @@ public class GameManager : MonoBehaviour
         {
             PlayerM playerMovement = currentPlayer.GetComponent<PlayerM>();
             if (playerMovement != null) playerMovement.enabled = false;
+            FreezePlayerPhysicsForLoading(currentPlayer, true);
         }
 
         isLevelReady = false;
@@ -611,6 +628,7 @@ public class GameManager : MonoBehaviour
 
         if (currentPlayer != null)
         {
+            FreezePlayerPhysicsForLoading(currentPlayer, false);
             PlayerM playerMovement = currentPlayer.GetComponent<PlayerM>();
             if (playerMovement != null) playerMovement.enabled = true;
         }
@@ -659,6 +677,7 @@ public class GameManager : MonoBehaviour
 
             PlayerM playerMovement = currentPlayer.GetComponent<PlayerM>();
             if (playerMovement != null) playerMovement.enabled = false;
+            FreezePlayerPhysicsForLoading(currentPlayer, true);
         }
 
         // Ativa o LoadingScreen dentro do Player Canvas Real da cena atual e faz fade-in suave
@@ -763,6 +782,7 @@ public class GameManager : MonoBehaviour
         }
         else if (currentPlayer != null)
         {
+            FreezePlayerPhysicsForLoading(currentPlayer, false);
             PlayerM playerMovement = currentPlayer.GetComponent<PlayerM>();
             if (playerMovement != null) playerMovement.enabled = true;
         }
@@ -784,6 +804,30 @@ public class GameManager : MonoBehaviour
         isAsyncLoading = false;
     }
 
+    private static void FreezePlayerPhysicsForLoading(GameObject player, bool freeze)
+    {
+        if (player == null) return;
+        Rigidbody rb = player.GetComponent<Rigidbody>();
+        if (rb == null) return;
+
+        if (freeze)
+        {
+            if (!rb.isKinematic)
+            {
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
+            rb.isKinematic = true;
+        }
+        else
+        {
+            rb.isKinematic = false;
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.WakeUp();
+        }
+    }
+
     public void OnLevelReady(Transform spawnPoint)
     {
         EnsurePlayerReference();
@@ -795,8 +839,35 @@ public class GameManager : MonoBehaviour
             NavMeshAgent agent = currentPlayer.GetComponent<NavMeshAgent>();
             if (agent != null) agent.enabled = false;
 
-            currentPlayer.transform.position = spawnPoint.position;
+            Vector3 safeSpawnPos = spawnPoint.position + Vector3.up * 0.1f;
+            currentPlayer.transform.position = safeSpawnPos;
             currentPlayer.transform.rotation = spawnPoint.rotation;
+
+            // Sincroniza Rigidbody e reseta lastSafeGroundedPos para o novo andar
+            // (impede PlayerM de puxar o jogador de volta à coordenada da ExitRoom do andar anterior)
+            PlayerM playerMovement = currentPlayer.GetComponent<PlayerM>();
+            if (playerMovement != null)
+            {
+                playerMovement.ResetSafePositionForTeleport(safeSpawnPos);
+                playerMovement.enabled = !isAsyncLoading;
+            }
+            else
+            {
+                Rigidbody rb = currentPlayer.GetComponent<Rigidbody>();
+                if (rb != null)
+                {
+                    if (!rb.isKinematic)
+                    {
+                        rb.linearVelocity = Vector3.zero;
+                        rb.angularVelocity = Vector3.zero;
+                    }
+                    rb.position = safeSpawnPos;
+                }
+                Physics.SyncTransforms();
+            }
+
+            // Mantém física congelada enquanto a tela de loading ainda estiver cobrindo o tempo mínimo
+            FreezePlayerPhysicsForLoading(currentPlayer, isAsyncLoading);
 
             // Reativa o agente — o NavMesh já foi assado em runtime pelo LevelGenerator (mantendo updatePosition=false para evitar barreiras invisíveis)
             if (agent != null)
@@ -805,10 +876,6 @@ public class GameManager : MonoBehaviour
                 agent.updatePosition = false;
                 agent.updateRotation = false;
             }
-            
-            // Mantém o movimento travado enquanto a tela de loading ainda estiver ativa
-            PlayerM playerMovement = currentPlayer.GetComponent<PlayerM>();
-            if (playerMovement != null) playerMovement.enabled = !isAsyncLoading;
             
             // Conecta Mercador e UI da fase
             PlayerHealth pHealth = currentPlayer.GetComponent<PlayerHealth>();

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Gerencia o estado global de uma Run (partida).
@@ -120,6 +121,8 @@ public class RunManager : MonoBehaviour
     {
         EnsureMutationCatalog();
         currentRoomNumber = 1;
+        skipNextAdvanceLevel = false;
+        enteredEndlessFromBossRift = false;
 
         // Cheat: se forceBossNextRun está ativo, pula direto pro boss
         if (forceBossNextRun)
@@ -205,7 +208,34 @@ public class RunManager : MonoBehaviour
     [HideInInspector] public List<AbyssMutationType> activeMutations = new List<AbyssMutationType>();
 
     private AbyssMutationType lastPrimaryMutation = AbyssMutationType.None;
+    private bool skipNextAdvanceLevel = false;
+    private bool enteredEndlessFromBossRift = false;
     private GameObject endlessCanvasInstance;
+
+    void OnEnable()
+    {
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    void OnDisable()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        UpdateEndlessUI();
+    }
+
+    private static bool IsNonDungeonScene(string sceneName)
+    {
+        return string.IsNullOrEmpty(sceneName) ||
+               sceneName == "Base" ||
+               sceneName == "BaseLab" ||
+               sceneName == "MainMenu" ||
+               sceneName == "Menu" ||
+               sceneName.Contains("Loading");
+    }
 
     void Start()
     {
@@ -225,9 +255,11 @@ public class RunManager : MonoBehaviour
     {
         EnsureMutationCatalog();
         isEndlessMode = enabled;
+        skipNextAdvanceLevel = false;
 
         if (isEndlessMode)
         {
+            enteredEndlessFromBossRift = false;
             if (endlessFloorCount <= 0) endlessFloorCount = 1;
             if (activeMutations.Count == 0) RollAbyssMutationsForCurrentFloor();
             if (RunStatsManager.Instance != null && RunStatsManager.Instance.isRunActive)
@@ -237,6 +269,7 @@ public class RunManager : MonoBehaviour
         }
         else
         {
+            enteredEndlessFromBossRift = false;
             endlessFloorCount = 0;
             ClearAbyssMutations();
             if (RunStatsManager.Instance != null)
@@ -253,13 +286,17 @@ public class RunManager : MonoBehaviour
     /// Ativa o loop do Modo Endless a partir da Fenda Pós-Boss:
     /// mantém a build do player, ativa isEndlessMode, inicia endlessFloorCount em 1,
     /// avança currentLevel para manter o escalonamento ativo, sorteia Mutação do Abismo e atualiza HUD/Stats.
+    /// Marca skipNextAdvanceLevel para que o GameManager.LoadNextLevel() imediato não pule o 1º andar do Endless.
     /// </summary>
     public void EnterEndlessLoopFromBoss()
     {
         EnsureMutationCatalog();
         isEndlessMode = true;
+        enteredEndlessFromBossRift = true;
+        forceBossNextRun = false;
         endlessFloorCount = 1;
         currentLevel = Mathf.Max(currentLevel + 1, totalLevels);
+        skipNextAdvanceLevel = true;
         geobionteAbsorbedThisLevel = false;
 
         lastPrimaryMutation = AbyssMutationType.None;
@@ -269,6 +306,24 @@ public class RunManager : MonoBehaviour
         UpdateEndlessUI();
 
         Debug.Log($"[RunManager] 🌀 Fenda Pós-Boss → Loop Endless iniciado! Level {currentLevel} | Andar Endless {endlessFloorCount} | Mutação: {GetActiveMutationsShortNames()}");
+    }
+
+    /// <summary>
+    /// Chamado pelo GameManager.ReturnToBase() para garantir que o estado e o HUD do Modo Endless
+    /// não vazem para a Base após morte, vitória ou extração pela Fenda.
+    /// </summary>
+    public void OnReturnedToBase()
+    {
+        if (isEndlessMode || enteredEndlessFromBossRift || endlessFloorCount > 0)
+        {
+            SetEndlessMode(false);
+        }
+        else
+        {
+            skipNextAdvanceLevel = false;
+            enteredEndlessFromBossRift = false;
+            UpdateEndlessUI();
+        }
     }
 
     /// <summary>
@@ -282,10 +337,19 @@ public class RunManager : MonoBehaviour
 
     /// <summary>
     /// Avança para o próximo round da run.
-    /// Chamado pelo GameManager quando o jogador usa a Exit Room.
+    /// Chamado pelo GameManager quando o jogador usa a Exit Room ou a Fenda Pós-Boss.
     /// </summary>
     public void AdvanceLevel()
     {
+        if (skipNextAdvanceLevel)
+        {
+            skipNextAdvanceLevel = false;
+            geobionteAbsorbedThisLevel = false;
+            UpdateEndlessUI();
+            Debug.Log($"[RunManager] 🌀 Mantendo 1º Andar Endless preparado pela Fenda (Level {currentLevel} | Andar {endlessFloorCount}).");
+            return;
+        }
+
         if (isEndlessMode)
         {
             currentLevel++;
@@ -620,8 +684,8 @@ public class RunManager : MonoBehaviour
 
     private string BuildEndlessBannerText()
     {
-        string bossTag = isBossRound ? "  <color=#FFD166>★ BOSS DO CICLO</color>" : "";
-        string header = $"♾️ MODO ENDLESS — NÍVEL {currentLevel}  <size=20><color=#FFD5D5>(ANDAR {Mathf.Max(1, endlessFloorCount)})</color></size>{bossTag}";
+        string bossTag = isBossRound ? "  <color=#FFD166>[BOSS DO CICLO]</color>" : "";
+        string header = $"MODO ENDLESS — NÍVEL {currentLevel}  <size=20><color=#FFD5D5>(ANDAR {Mathf.Max(1, endlessFloorCount)})</color></size>{bossTag}";
 
         var defs = GetActiveMutationDefinitions();
         if (defs.Count == 0) return header;
@@ -630,7 +694,7 @@ public class RunManager : MonoBehaviour
         for (int i = 0; i < defs.Count; i++)
         {
             if (i > 0) mutLine += "  <color=#AAAAAA>|</color>  ";
-            mutLine += $"<color={defs[i].accentHexColor}>⚡ {defs[i].displayName.ToUpper()}</color>";
+            mutLine += $"<color={defs[i].accentHexColor}>» {defs[i].displayName.ToUpper()}</color>";
         }
 
         return $"{header}\n<size=17>{mutLine}</size>";
@@ -638,7 +702,10 @@ public class RunManager : MonoBehaviour
 
     public void UpdateEndlessUI()
     {
-        if (isEndlessMode)
+        string activeScene = SceneManager.GetActiveScene().name;
+        bool shouldShowBanner = isEndlessMode && !IsNonDungeonScene(activeScene);
+
+        if (shouldShowBanner)
         {
             if (endlessCanvasInstance == null)
             {
@@ -646,7 +713,12 @@ public class RunManager : MonoBehaviour
             }
             else
             {
-                var textComp = endlessCanvasInstance.GetComponentInChildren<TMPro.TextMeshProUGUI>();
+                if (!endlessCanvasInstance.activeSelf)
+                {
+                    endlessCanvasInstance.SetActive(true);
+                }
+
+                var textComp = endlessCanvasInstance.GetComponentInChildren<TMPro.TextMeshProUGUI>(true);
                 if (textComp != null)
                 {
                     textComp.text = BuildEndlessBannerText();
@@ -657,8 +729,15 @@ public class RunManager : MonoBehaviour
         {
             if (endlessCanvasInstance != null)
             {
-                Destroy(endlessCanvasInstance);
-                endlessCanvasInstance = null;
+                if (!isEndlessMode)
+                {
+                    Destroy(endlessCanvasInstance);
+                    endlessCanvasInstance = null;
+                }
+                else if (endlessCanvasInstance.activeSelf)
+                {
+                    endlessCanvasInstance.SetActive(false);
+                }
             }
         }
     }

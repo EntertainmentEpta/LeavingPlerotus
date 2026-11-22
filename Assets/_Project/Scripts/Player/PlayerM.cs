@@ -457,6 +457,31 @@ public class PlayerM : MonoBehaviour
     }
 
     /// <summary>
+    /// Reseta a posição segura de resgate e sincroniza o Rigidbody após teleporte/troca de andar.
+    /// Impede que o jogador seja puxado de volta para a coordenada da ExitRoom do andar anterior.
+    /// </summary>
+    public void ResetSafePositionForTeleport(Vector3 newPosition)
+    {
+        if (rb == null) rb = GetComponent<Rigidbody>();
+
+        lastSafeGroundedPos = newPosition;
+        hasLastSafeGroundedPos = true;
+        hasSeenNavMesh = false;
+
+        transform.position = newPosition;
+        if (rb != null)
+        {
+            if (!rb.isKinematic)
+            {
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
+            rb.position = newPosition;
+        }
+        Physics.SyncTransforms();
+    }
+
+    /// <summary>
     /// Mantém o jogador dentro dos limites do NavMesh/piso em salas procedurais (ex.: salas de transição sem paredes)
     /// e resgata para a última posição segura caso caia no vazio.
     /// </summary>
@@ -519,8 +544,29 @@ public class PlayerM : MonoBehaviour
 
         if (hasLastSafeGroundedPos && !TryGetWalkableFloorBelow(transform.position, 8.0f, floorMask, out _) && transform.position.y < lastSafeGroundedPos.y - 2.5f)
         {
-            rb.position = lastSafeGroundedPos + Vector3.up * 0.1f;
+            Vector3 rescuePos = lastSafeGroundedPos + Vector3.up * 0.1f;
+
+            // Garante que a posição de resgate realmente possui chão/NavMesh no andar atual (nunca prende no vácuo)
+            bool rescueHasFloor = TryGetWalkableFloorBelow(rescuePos, 4.0f, floorMask, out _);
+            if (!rescueHasFloor)
+            {
+                Transform safeStart = LevelGenerator.Instance != null ? LevelGenerator.Instance.PlayerSpawnPoint : null;
+                if (safeStart != null)
+                {
+                    rescuePos = safeStart.position + Vector3.up * 0.15f;
+                    lastSafeGroundedPos = safeStart.position;
+                }
+                else if (NavMesh.SamplePosition(Vector3.zero, out NavMeshHit originNav, 25f, NavMesh.AllAreas))
+                {
+                    rescuePos = originNav.position + Vector3.up * 0.15f;
+                    lastSafeGroundedPos = originNav.position;
+                }
+            }
+
+            transform.position = rescuePos;
+            rb.position = rescuePos;
             rb.linearVelocity = Vector3.zero;
+            Physics.SyncTransforms();
         }
     }
 

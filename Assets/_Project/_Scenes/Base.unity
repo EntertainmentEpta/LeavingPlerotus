@@ -11103,6 +11103,22 @@ PrefabInstance:
       propertyPath: m_Intensity
       value: 3
       objectReference: {fileID: 0}
+    - target: {fileID: 399265535294509767, guid: 217bae9f660890143a86775e613ef9a4, type: 3}
+      propertyPath: 'axeDamages.Array.data[0]'
+      value: 400
+      objectReference: {fileID: 0}
+    - target: {fileID: 399265535294509767, guid: 217bae9f660890143a86775e613ef9a4, type: 3}
+      propertyPath: 'axeDamages.Array.data[1]'
+      value: 200
+      objectReference: {fileID: 0}
+    - target: {fileID: 399265535294509767, guid: 217bae9f660890143a86775e613ef9a4, type: 3}
+      propertyPath: 'axeDamages.Array.data[2]'
+      value: 200
+      objectReference: {fileID: 0}
+    - target: {fileID: 399265535294509767, guid: 217bae9f660890143a86775e613ef9a4, type: 3}
+      propertyPath: 'axeDamages.Array.data[3]'
+      value: 200
+      objectReference: {fileID: 0}
     - target: {fileID: 1830613685876521810, guid: 217bae9f660890143a86775e613ef9a4, type: 3}
       propertyPath: m_LocalPosition.x
       value: -0
@@ -11162,6 +11178,14 @@ PrefabInstance:
     - target: {fileID: 6793213990562782912, guid: 217bae9f660890143a86775e613ef9a4, type: 3}
       propertyPath: maxHealth
       value: 1000
+      objectReference: {fileID: 0}
+    - target: {fileID: 8232472868694630810, guid: 217bae9f660890143a86775e613ef9a4, type: 3}
+      propertyPath: walkSpeed
+      value: 7
+      objectReference: {fileID: 0}
+    - target: {fileID: 8232472868694630810, guid: 217bae9f660890143a86775e613ef9a4, type: 3}
+      propertyPath: sprintSpeed
+      value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 9188255382873321215, guid: 217bae9f660890143a86775e613ef9a4, type: 3}
       propertyPath: dashSound
@@ -16363,7 +16387,7 @@ MonoBehaviour:
   hasSpawnedMerchantThisRun: 0
   hasCompletedPactThisRun: 0
   isEndlessMode: 0
-  maxEndlessRoomsPerFloor: 12
+  maxEndlessRoomsPerFloor: 5
   bossCycleInterval: 3
   dualMutationStartFloor: 7
   endlessSpeedPerFloor: 0.04
