@@ -11,7 +11,10 @@ public enum AbyssMutationType
     HordaDeElites = 1,
     FrenesiAbissal = 2,
     SinfoniaDoCaos = 3,
-    FortunaDoAbismo = 4
+    FortunaDoAbismo = 4,
+    GigantismoAbissal = 5,
+    FissuraLetal = 6,
+    EsporosInstaveis = 7
 }
 
 /// <summary>
@@ -76,6 +79,39 @@ public class AbyssMutationDefinition
 
     [Tooltip("Bônus aditivo nas rolagens de Tier de drops Elite (T2/T3/T4).")]
     [Range(0f, 0.5f)] public float eliteTierChanceBonus = 0f;
+
+    [Header("Gigantismo Abissal")]
+    [Tooltip("Multiplicador de escala visual dos inimigos não-Boss (ex: 1.5 = +50% maiores).")]
+    [Range(1f, 2f)] public float enemyScaleMultiplier = 1f;
+
+    [Tooltip("Teto seguro de escala acumulada (ex: 1.75x mesmo combinado com renascimento Elite).")]
+    [Range(1f, 2.5f)] public float enemyMaxScaleCap = 1.75f;
+
+    [Tooltip("Multiplicador extra de HP máximo dos inimigos (ex: 1.20 = +20% HP).")]
+    [Range(1f, 2f)] public float enemyHpBonusMultiplier = 1f;
+
+    [Tooltip("Bônus aditivo de resistência a knockback dos inimigos (ex: 0.25 = +25%).")]
+    [Range(0f, 0.8f)] public float enemyKnockbackResistanceBonus = 0f;
+
+    [Header("Fissura Letal")]
+    [Tooltip("Multiplicador global de dano causado por TODOS (Player e Inimigos). Ex: 1.5 = +50% dano.")]
+    [Range(1f, 3f)] public float allDamageMultiplier = 1f;
+
+    [Header("Esporos Instáveis")]
+    [Tooltip("Quando ativo, inimigos comuns/Elites explodem em área após morrer.")]
+    public bool enableDeathSporeExplosion = false;
+
+    [Tooltip("Atraso do aviso visual antes da detonação (em segundos).")]
+    public float sporeExplosionDelay = 0.8f;
+
+    [Tooltip("Raio da explosão em área (em metros).")]
+    public float sporeExplosionRadius = 3.5f;
+
+    [Tooltip("Percentual do HP máximo do inimigo que explodiu aplicado como dano em outros inimigos na área.")]
+    [Range(0.05f, 1f)] public float sporeEnemyDamagePercent = 0.35f;
+
+    [Tooltip("Dano base aplicado ao Player caso esteja dentro do raio da explosão.")]
+    public int sporePlayerBaseDamage = 18;
 }
 
 /// <summary>
@@ -137,6 +173,37 @@ public static class AbyssMutationCatalog
                 itemDropChanceBonus = 0.25f,
                 extraItemDropChance = 0.35f,
                 eliteTierChanceBonus = 0.15f
+            },
+            new AbyssMutationDefinition
+            {
+                type = AbyssMutationType.GigantismoAbissal,
+                displayName = "Gigantismo Abissal",
+                shortDescription = "Inimigos 50% maiores e mais resistentes (+20% HP)",
+                accentHexColor = "#7CE868",
+                enemyScaleMultiplier = 1.5f,
+                enemyMaxScaleCap = 1.75f,
+                enemyHpBonusMultiplier = 1.20f,
+                enemyKnockbackResistanceBonus = 0.25f
+            },
+            new AbyssMutationDefinition
+            {
+                type = AbyssMutationType.FissuraLetal,
+                displayName = "Fissura Letal",
+                shortDescription = "Todos causam +50% de dano (Player e Inimigos)",
+                accentHexColor = "#FF2E63",
+                allDamageMultiplier = 1.5f
+            },
+            new AbyssMutationDefinition
+            {
+                type = AbyssMutationType.EsporosInstaveis,
+                displayName = "Esporos Instáveis",
+                shortDescription = "Inimigos explodem após morrer (dano em área em todos)",
+                accentHexColor = "#FF7F32",
+                enableDeathSporeExplosion = true,
+                sporeExplosionDelay = 0.8f,
+                sporeExplosionRadius = 3.5f,
+                sporeEnemyDamagePercent = 0.35f,
+                sporePlayerBaseDamage = 18
             }
         };
     }

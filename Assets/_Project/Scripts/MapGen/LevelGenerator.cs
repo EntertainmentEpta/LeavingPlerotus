@@ -191,6 +191,9 @@ public class LevelGenerator : MonoBehaviour
     /// <summary>Bounds de todas as salas já confirmadas no mapa — (referência + bounds) para exclusão de vizinhos diretos.</summary>
     private List<(GameObject room, Bounds bounds)> placedRoomBounds = new List<(GameObject, Bounds)>();
 
+    private int currentGenerationAttempt = 0;
+    private const int MaxGenerationAttempts = 6;
+
     // =========================================================
     // API PÚBLICA
     // =========================================================
@@ -198,14 +201,49 @@ public class LevelGenerator : MonoBehaviour
     /// <summary>Chamado pelo GameManager para iniciar a geração.</summary>
     public void GenerateLevel()
     {
-        // Destroi salas antigas da geração anterior se existirem na cena
+        currentGenerationAttempt = 0;
+        GenerateLevelInternal();
+    }
+
+    private void CleanupGeneratedGeometry()
+    {
+        // Destroi todas as salas/transições/becos registrados em placedRoomBounds
+        for (int i = 0; i < placedRoomBounds.Count; i++)
+        {
+            if (placedRoomBounds[i].room != null)
+            {
+                Destroy(placedRoomBounds[i].room);
+            }
+        }
+
+        if (startRoomInstance != null)
+        {
+            Destroy(startRoomInstance);
+            startRoomInstance = null;
+        }
+
         RoomController[] oldRooms = Object.FindObjectsByType<RoomController>(FindObjectsSortMode.None);
         foreach (var r in oldRooms)
         {
             if (r != null && r.gameObject != null)
             {
-                Destroy(r.gameObject);
+                Destroy(r.transform.root != null ? r.transform.root.gameObject : r.gameObject);
             }
+        }
+
+        NextLevelTrigger[] oldExits = Object.FindObjectsByType<NextLevelTrigger>(FindObjectsSortMode.None);
+        foreach (var ex in oldExits)
+        {
+            if (ex != null && ex.transform.root != null)
+            {
+                Destroy(ex.transform.root.gameObject);
+            }
+        }
+
+        RoomBarrier[] lingering = FindObjectsByType<RoomBarrier>(FindObjectsSortMode.None);
+        foreach (var lb in lingering)
+        {
+            if (lb != null) Destroy(lb.gameObject);
         }
 
         roomCounts.Clear();
@@ -215,12 +253,21 @@ public class LevelGenerator : MonoBehaviour
         exitRoomSpawned = false;
         anomalyRoomSpawned = false;
         roomSequenceCounter = 0;
+    }
 
-        RoomBarrier[] lingering = FindObjectsByType<RoomBarrier>(FindObjectsSortMode.None);
-        foreach (var lb in lingering)
-        {
-            if (lb != null) Destroy(lb.gameObject);
-        }
+    private IEnumerator RetryGenerationNextFrame(string reason)
+    {
+        currentGenerationAttempt++;
+        Debug.LogWarning($"[LevelGenerator] 🔄 {reason} — Refazendo geração do andar (tentativa {currentGenerationAttempt}/{MaxGenerationAttempts})...");
+        CleanupGeneratedGeometry();
+        // Aguarda 1 frame para a Unity concluir Destroy() e remover todos os colliders/ConnectionPoints antigos
+        yield return null;
+        GenerateLevelInternal();
+    }
+
+    private void GenerateLevelInternal()
+    {
+        CleanupGeneratedGeometry();
 
         // --- Progressão de Rounds: ajusta maxMainRooms dinamicamente ---
         bool isBossRound = false;
@@ -523,6 +570,15 @@ public class LevelGenerator : MonoBehaviour
             yield return null;
         }
 
+        // Se o gerador caiu num beco sem saída prematuro (ex.: só SafeRoom + 1 sala travada por sobreposição),
+        // descarta o layout quebrado e gera o andar novamente de forma limpa!
+        int minAcceptableRooms = Mathf.Min(targetCombatRooms, Mathf.Max(3, Mathf.CeilToInt(targetCombatRooms * 0.6f)));
+        if (roomCount < minAcceptableRooms && currentGenerationAttempt < MaxGenerationAttempts)
+        {
+            StartCoroutine(RetryGenerationNextFrame($"Layout prematuro com apenas {roomCount}/{targetCombatRooms} salas"));
+            yield break;
+        }
+
         // Devolve todas as saídas não expandidas para a lista para serem obrigatoriamente fechadas
         if (unplaceableOutputs.Count > 0)
         {
@@ -669,14 +725,29 @@ public class LevelGenerator : MonoBehaviour
                 }
             }
 
+            // Se não foi possível encaixar a ExitRoom sem sobreposição, refaz o andar inteiro antes de recorrer ao acoplamento forçado
+            if (!exitRoomSpawned && currentGenerationAttempt < MaxGenerationAttempts)
+            {
+                StartCoroutine(RetryGenerationNextFrame("Não foi possível posicionar a ExitRoom sem sobreposição"));
+                yield break;
+            }
+
             // Se mesmo assim não conseguiu por causa de verificação de sobreposição estrita, força acoplamento direto no conector da porta
             if (!exitRoomSpawned)
             {
-                ConnectionPoint bestCP = sortedCPs.FirstOrDefault();
+                ConnectionPoint bestCP = sortedCPs.FirstOrDefault(cp =>
+                    cp != null &&
+                    cp.transform.root != null &&
+                    !cp.transform.root.gameObject.name.Contains("Safe") &&
+                    (startRoomPrefab == null || !cp.transform.root.gameObject.name.Contains(startRoomPrefab.name)));
                 if (bestCP == null)
                 {
                     bestCP = FindObjectsByType<ConnectionPoint>(FindObjectsSortMode.None)
-                        .Where(cp => cp != null && cp.pointType == ConnectionPoint.PointType.Saida)
+                        .Where(cp => cp != null &&
+                                     cp.pointType == ConnectionPoint.PointType.Saida &&
+                                     cp.transform.root != null &&
+                                     !cp.transform.root.gameObject.name.Contains("Safe") &&
+                                     (startRoomPrefab == null || !cp.transform.root.gameObject.name.Contains(startRoomPrefab.name)))
                         .OrderByDescending(cp => Vector3.Distance(Vector3.zero, cp.transform.position))
                         .FirstOrDefault();
                 }

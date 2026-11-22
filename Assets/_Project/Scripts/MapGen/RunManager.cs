@@ -102,9 +102,36 @@ public class RunManager : MonoBehaviour
 
     private void EnsureMutationCatalog()
     {
+        // Corrige valores 0 herdados de cenas antigas onde os campos Endless recém-adicionados ainda não foram salvos no Inspector
+        if (maxEndlessRoomsPerFloor <= 0) maxEndlessRoomsPerFloor = 12;
+        if (bossCycleInterval <= 0) bossCycleInterval = 3;
+        if (dualMutationStartFloor <= 0) dualMutationStartFloor = 7;
+        if (maxEndlessEnemySpeedMultiplier < 1f) maxEndlessEnemySpeedMultiplier = 1.45f;
+
         if (mutationCatalog == null || mutationCatalog.Count == 0)
         {
             mutationCatalog = AbyssMutationCatalog.CreateDefaultDefinitions();
+            return;
+        }
+
+        // Garante que mutações recém-adicionadas apareçam automaticamente mesmo em cenas já salvas
+        List<AbyssMutationDefinition> defaults = AbyssMutationCatalog.CreateDefaultDefinitions();
+        for (int i = 0; i < defaults.Count; i++)
+        {
+            AbyssMutationType t = defaults[i].type;
+            bool exists = false;
+            for (int j = 0; j < mutationCatalog.Count; j++)
+            {
+                if (mutationCatalog[j] != null && mutationCatalog[j].type == t)
+                {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists)
+            {
+                mutationCatalog.Add(defaults[i]);
+            }
         }
     }
 
@@ -413,7 +440,10 @@ public class RunManager : MonoBehaviour
             AbyssMutationType.HordaDeElites,
             AbyssMutationType.FrenesiAbissal,
             AbyssMutationType.SinfoniaDoCaos,
-            AbyssMutationType.FortunaDoAbismo
+            AbyssMutationType.FortunaDoAbismo,
+            AbyssMutationType.GigantismoAbissal,
+            AbyssMutationType.FissuraLetal,
+            AbyssMutationType.EsporosInstaveis
         };
 
         // Evita repetir a mutação primária do andar anterior
@@ -436,6 +466,33 @@ public class RunManager : MonoBehaviour
         }
 
         Debug.Log($"[RunManager] ⚡ Mutações do Abismo (Andar Endless {endlessFloorCount}): {GetActiveMutationsShortNames()}");
+    }
+
+    /// <summary>
+    /// Força uma Mutação do Abismo ativa (usado pelo CheatConsole via comando setmutation).
+    /// Ativa o Modo Endless automaticamente caso esteja desligado.
+    /// </summary>
+    public void ForceActiveMutation(AbyssMutationType type)
+    {
+        EnsureMutationCatalog();
+        if (!isEndlessMode)
+        {
+            SetEndlessMode(true);
+        }
+
+        activeMutations.Clear();
+        if (type != AbyssMutationType.None)
+        {
+            activeMutations.Add(type);
+            lastPrimaryMutation = type;
+        }
+        else
+        {
+            lastPrimaryMutation = AbyssMutationType.None;
+        }
+
+        UpdateEndlessUI();
+        Debug.Log($"[RunManager] 💻 Mutação do Abismo forçada para: {GetActiveMutationsShortNames()}");
     }
 
     public bool HasActiveMutation(AbyssMutationType type)
@@ -675,6 +732,81 @@ public class RunManager : MonoBehaviour
             attackBonus = 0.20f;
             triggerChance = Mathf.Clamp01(def.chaosKillAdrenalineChance);
         }
+        return true;
+    }
+
+    public float GetEndlessEnemyScaleMultiplier(out float maxScaleCap)
+    {
+        maxScaleCap = 1.75f;
+        if (!isEndlessMode) return 1f;
+
+        float mult = 1f;
+        var defs = GetActiveMutationDefinitions();
+        for (int i = 0; i < defs.Count; i++)
+        {
+            if (defs[i].enemyScaleMultiplier > 1.001f)
+            {
+                mult *= defs[i].enemyScaleMultiplier;
+                maxScaleCap = Mathf.Min(maxScaleCap, Mathf.Max(1.25f, defs[i].enemyMaxScaleCap));
+            }
+        }
+        return Mathf.Clamp(mult, 1f, maxScaleCap);
+    }
+
+    public float GetEndlessMutationHpBonusMultiplier()
+    {
+        if (!isEndlessMode) return 1f;
+
+        float mult = 1f;
+        var defs = GetActiveMutationDefinitions();
+        for (int i = 0; i < defs.Count; i++)
+        {
+            mult *= Mathf.Max(1f, defs[i].enemyHpBonusMultiplier);
+        }
+        return mult;
+    }
+
+    public float GetEndlessKnockbackResistanceBonus()
+    {
+        if (!isEndlessMode) return 0f;
+
+        float bonus = 0f;
+        var defs = GetActiveMutationDefinitions();
+        for (int i = 0; i < defs.Count; i++)
+        {
+            bonus += Mathf.Max(0f, defs[i].enemyKnockbackResistanceBonus);
+        }
+        return Mathf.Clamp(bonus, 0f, 0.8f);
+    }
+
+    public float GetEndlessAllDamageMultiplier()
+    {
+        if (!isEndlessMode) return 1f;
+
+        float mult = 1f;
+        var defs = GetActiveMutationDefinitions();
+        for (int i = 0; i < defs.Count; i++)
+        {
+            mult *= Mathf.Max(1f, defs[i].allDamageMultiplier);
+        }
+        return mult;
+    }
+
+    public bool TryGetSporeExplosionParams(out float delay, out float radius, out float enemyHpPercent, out int playerDamage)
+    {
+        delay = 0.8f;
+        radius = 3.5f;
+        enemyHpPercent = 0.35f;
+        playerDamage = 18;
+
+        if (!isEndlessMode || !HasActiveMutation(AbyssMutationType.EsporosInstaveis)) return false;
+
+        AbyssMutationDefinition def = GetMutationDefinition(AbyssMutationType.EsporosInstaveis);
+        delay = Mathf.Max(0.25f, def.sporeExplosionDelay);
+        radius = Mathf.Max(1.0f, def.sporeExplosionRadius);
+        enemyHpPercent = Mathf.Clamp(def.sporeEnemyDamagePercent, 0.05f, 1f);
+        // Dano base ao player (o escalonamento de Endless/Fissura Letal é aplicado em PlayerHealth.TakeDamage)
+        playerDamage = Mathf.Max(5, def.sporePlayerBaseDamage);
         return true;
     }
 

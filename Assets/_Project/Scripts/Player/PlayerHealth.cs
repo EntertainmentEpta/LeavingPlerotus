@@ -1372,6 +1372,16 @@ public class PlayerHealth : MonoBehaviour
             damage = Mathf.RoundToInt(damage * endlessDamageMultiplier);
         }
 
+        // Mutação "Fissura Letal" (Modo Endless): todos causam +50% de dano (Player e Inimigos)
+        if (RunManager.instance != null && RunManager.instance.isEndlessMode)
+        {
+            float allDmgMult = RunManager.instance.GetEndlessAllDamageMultiplier();
+            if (allDmgMult > 1.001f)
+            {
+                damage = Mathf.Max(1, Mathf.RoundToInt(damage * allDmgMult));
+            }
+        }
+
         // Resistência a Danos de Ácido / Poças / Veneno (Filtro Químico do Robozinho)
         if (EquipmentManager.Instance != null && EquipmentManager.Instance.HasAcidPoisonResist && attacker == null)
         {

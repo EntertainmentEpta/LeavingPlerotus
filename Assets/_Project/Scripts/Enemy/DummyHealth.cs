@@ -19,6 +19,7 @@ public class DummyHealth : MonoBehaviour
     private bool isHitStopActive;
     private bool savedNavWasStopped;
     private bool endlessSpeedScalingApplied = false;
+    private Vector3 originalPrefabScale = Vector3.one;
     public float AppliedEndlessMoveSpeedMultiplier { get; private set; } = 1f;
     public float AppliedEndlessAttackSpeedMultiplier { get; private set; } = 1f;
 
@@ -111,6 +112,7 @@ public class DummyHealth : MonoBehaviour
 
     private void Awake()
     {
+        originalPrefabScale = transform.localScale;
         CurrentHealth = maxHealth;
         if (floatingDamageTextPrefab == null)
         {
@@ -189,6 +191,42 @@ public class DummyHealth : MonoBehaviour
         UpdateHealthBar();
         DetectAIScripts();
         ApplyEndlessSpeedScalingIfNeeded();
+        ApplyGigantismMutationIfNeeded();
+    }
+
+    /// <summary>
+    /// Mutação "Gigantismo Abissal" (Modo Endless):
+    /// - Aplica +50% escala (com clamp seguro de 1.75x mesmo combinado com renascimento Elite), +20% HP e +resistência a knockback.
+    /// - Ignora Bosses (BossController) e NÃO aumenta NavMeshAgent.radius para não travar portas.
+    /// </summary>
+    private void ApplyGigantismMutationIfNeeded()
+    {
+        if (RunManager.instance == null || !RunManager.instance.isEndlessMode) return;
+        if (bossController != null || GetComponent<BossController>() != null || GetComponentInParent<BossController>() != null) return;
+
+        float hpBonusMult = RunManager.instance.GetEndlessMutationHpBonusMultiplier();
+        if (hpBonusMult > 1.001f)
+        {
+            maxHealth = Mathf.RoundToInt(maxHealth * hpBonusMult);
+            CurrentHealth = maxHealth;
+            UpdateHealthBar();
+        }
+
+        float kbBonus = RunManager.instance.GetEndlessKnockbackResistanceBonus();
+        if (kbBonus > 0.001f)
+        {
+            knockbackResistance = Mathf.Clamp(knockbackResistance + kbBonus, 0f, 0.95f);
+        }
+
+        float maxScaleCap = 1.75f;
+        float scaleMult = RunManager.instance.GetEndlessEnemyScaleMultiplier(out maxScaleCap);
+        if (scaleMult > 1.001f)
+        {
+            Vector3 baseScale = originalPrefabScale.sqrMagnitude > 0.0001f ? originalPrefabScale : Vector3.one;
+            float currentFactor = baseScale.x > 0.0001f ? (transform.localScale.x / baseScale.x) : 1f;
+            float clampedFactor = Mathf.Min(currentFactor * scaleMult, maxScaleCap);
+            transform.localScale = baseScale * clampedFactor;
+        }
     }
 
     /// <summary>
@@ -417,6 +455,17 @@ public class DummyHealth : MonoBehaviour
 
         Tier4EffectManager tunerManager = FindFirstObjectByType<Tier4EffectManager>();
         damage = tunerManager != null ? tunerManager.ModifyIncomingDamage(gameObject, damage) : damage;
+
+        // Mutação "Fissura Letal" (Modo Endless): todos causam +50% de dano
+        if (RunManager.instance != null && RunManager.instance.isEndlessMode)
+        {
+            float allDmgMult = RunManager.instance.GetEndlessAllDamageMultiplier();
+            if (allDmgMult > 1.001f)
+            {
+                damage = Mathf.Max(1, Mathf.RoundToInt(damage * allDmgMult));
+            }
+        }
+
         CurrentHealth -= damage;
         RunStatsManager.Instance?.RecordDamageDealt(damage);
 
@@ -875,6 +924,28 @@ public class DummyHealth : MonoBehaviour
         catch (System.Exception ex)
         {
             Debug.LogError($"[DummyHealth] Erro em recompensa da Sinfonia do Caos: {ex}");
+        }
+
+        // --- MUTAÇÃO "ESPOROS INSTÁVEIS" (Modo Endless): inimigos comuns/Elites explodem após 0.8s ---
+        try
+        {
+            bool isBossUnit = bossController != null || GetComponent<BossController>() != null || GetComponentInParent<BossController>() != null;
+            if (!isBossUnit && RunManager.instance != null)
+            {
+                float sporeDelay = 0.8f;
+                float sporeRadius = 3.5f;
+                float sporeEnemyPct = 0.35f;
+                int sporePlayerDmg = 18;
+                if (RunManager.instance.TryGetSporeExplosionParams(out sporeDelay, out sporeRadius, out sporeEnemyPct, out sporePlayerDmg))
+                {
+                    int enemyAreaDmg = Mathf.Max(10, Mathf.RoundToInt(maxHealth * sporeEnemyPct));
+                    UnstableSporeExplosion.Spawn(transform.position, sporeDelay, sporeRadius, enemyAreaDmg, sporePlayerDmg);
+                }
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[DummyHealth] Erro ao instanciar Esporos Instáveis em {gameObject.name}: {ex}");
         }
 
         // --- SISTEMA DE RENASCIMENTO ELITE (10% base / 100% com cheat / +25% Pacto Caos / +Endless & Horda de Elites) ---
