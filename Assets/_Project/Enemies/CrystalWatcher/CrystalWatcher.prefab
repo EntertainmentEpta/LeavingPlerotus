@@ -473,8 +473,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CrystalWatcherVFX
   coreGlowLoopPrefab: {fileID: 1590415177872986601, guid: acdb90624a404aa438447006f1026065, type: 3}
-  electricBurstPrefab: {fileID: 1141330257610427970, guid: 6718dc24203da53468af9ada8fef7d6d, type: 3}
-  impactFlashPrefab: {fileID: 2708598583165999485, guid: 6398d43fe79ea0140913dc5530c646af, type: 3}
+  electricBurstPrefab: {fileID: 1141330259687333427, guid: 6718dc24203da53468af9ada8fef7d6d, type: 3}
+  impactFlashPrefab: {fileID: 2708598583397607911, guid: 6398d43fe79ea0140913dc5530c646af, type: 3}
   normalCoreColor: {r: 0.74, g: 0.34, b: 1, a: 0.9}
   normalGlowColor: {r: 0.52, g: 0.16, b: 0.88, a: 0.7}
   buffedCoreColor: {r: 0.28, g: 0.92, b: 1, a: 0.92}

@@ -459,6 +459,20 @@ public class CrystalWatcher_AI : MonoBehaviour
             {
                 if (health != null && health.CurrentHealth <= 0) yield break;
                 currentChargeProgress = Mathf.Clamp01(chargeElapsed / totalCharge);
+
+                // No Elite (tesoura em V), acompanha o player até 70% do carregamento e depois TRAVA o ponto exato
+                if (IsElite && currentChargeProgress < 0.70f && playerTransform != null)
+                {
+                    Vector3 aimDir = playerTransform.position - transform.position;
+                    aimDir.y = 0f;
+                    if (aimDir.sqrMagnitude > 0.001f)
+                    {
+                        float aimAngle = Mathf.Atan2(aimDir.x, aimDir.z) * Mathf.Rad2Deg;
+                        currentLaserAngle = Mathf.MoveTowardsAngle(currentLaserAngle, aimAngle, 140f * Time.deltaTime);
+                        transform.rotation = Quaternion.Euler(0f, currentLaserAngle, 0f);
+                    }
+                }
+
                 if (vfx != null) vfx.UpdateChargeProgress(currentChargeProgress);
                 chargeElapsed += Time.deltaTime;
                 yield return null;
@@ -869,20 +883,24 @@ public class CrystalWatcher_AI : MonoBehaviour
 
     void HandleFiring()
     {
-        Vector3 dirToPlayer = playerTransform.position - transform.position;
-        dirToPlayer.y = 0f;
+        // No Elite (tesoura em V), NÃO persegue mais o player durante o fechamento:
+        // o ponto alvo ficou travado onde o player estava e os dois braços fecham exatamente ali!
+        if (!IsElite)
+        {
+            Vector3 dirToPlayer = playerTransform.position - transform.position;
+            dirToPlayer.y = 0f;
 
-        // Mira o centro do V diretamente para onde o player está enquanto os dois braços se fecham nele!
-        float targetAngle = Mathf.Atan2(dirToPlayer.x, dirToPlayer.z) * Mathf.Rad2Deg;
-        float angleDifference = Mathf.DeltaAngle(currentLaserAngle, targetAngle);
-        float maxRotation = rotationSpeed * Time.deltaTime;
+            float targetAngle = Mathf.Atan2(dirToPlayer.x, dirToPlayer.z) * Mathf.Rad2Deg;
+            float angleDifference = Mathf.DeltaAngle(currentLaserAngle, targetAngle);
+            float maxRotation = rotationSpeed * Time.deltaTime;
 
-        if (Mathf.Abs(angleDifference) > maxRotation)
-            currentLaserAngle += Mathf.Sign(angleDifference) * maxRotation;
-        else
-            currentLaserAngle = targetAngle;
+            if (Mathf.Abs(angleDifference) > maxRotation)
+                currentLaserAngle += Mathf.Sign(angleDifference) * maxRotation;
+            else
+                currentLaserAngle = targetAngle;
 
-        transform.rotation = Quaternion.Euler(0f, currentLaserAngle, 0f);
+            transform.rotation = Quaternion.Euler(0f, currentLaserAngle, 0f);
+        }
 
         if (vfx != null)
             vfx.UpdateLaserDirection(AngleToDirection(currentLaserAngle));

@@ -125,6 +125,7 @@ public class CrystalWatcherVFX : MonoBehaviour
         if (coreGlowLoopPrefab == null) return;
         activeCoreGlowObj = Instantiate(coreGlowLoopPrefab, center, Quaternion.identity, transform);
         activeCoreGlowObj.name = "WatcherCoreGlowVFX";
+        DisableCfxrCameraShake(activeCoreGlowObj);
         ApplyTintToPrefab(activeCoreGlowObj, ActiveCoreColor);
         activeCoreGlowObj.transform.localScale = Vector3.one * 0.25f;
         activeCoreGlowObj.SetActive(false);
@@ -487,9 +488,23 @@ public class CrystalWatcherVFX : MonoBehaviour
     {
         if (prefab == null) return;
         GameObject inst = Instantiate(prefab, pos, Quaternion.identity);
+        DisableCfxrCameraShake(inst);
         inst.transform.localScale = Vector3.one * scale;
         ApplyTintToPrefab(inst, ActiveCoreColor);
         Destroy(inst, lifetime);
+    }
+
+    private static void DisableCfxrCameraShake(GameObject root)
+    {
+        if (root == null) return;
+        foreach (CartoonFX.CFXR_Effect fx in root.GetComponentsInChildren<CartoonFX.CFXR_Effect>(true))
+        {
+            if (fx.cameraShake != null)
+            {
+                fx.cameraShake.enabled = false;
+                fx.cameraShake.StopShake();
+            }
+        }
     }
 
     private static void ApplyStartColor(ParticleSystem ps, Color c1, Color c2)

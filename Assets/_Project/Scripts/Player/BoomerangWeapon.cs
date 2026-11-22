@@ -180,7 +180,26 @@ public class BoomerangWeapon : MonoBehaviour
     public BoomerangEchoVFX echoVFX;
     public BoomerangShieldVFX shieldVFX;
 
+    // ─── SFX do Bumerangue ────────────────────────────────────────────────────
+    [Header("SFX do Bumerangue")]
+    public AudioClip sfxArmando;
+    public AudioClip sfxGuardando;
+    public AudioClip sfxSegurandoParaLancar;
+    public AudioClip sfxJogando;
+    public AudioClip sfxGirandoCurto;
+    public AudioClip sfxGirandoMedio;
+    public AudioClip sfxGirandoLongo;
+    public AudioClip sfxVoltandoParaMao;
+    public AudioClip sfxRefletirInicio;
+    public AudioClip sfxRefletirGiroLoop;
+    public AudioClip[] sfxRefletiuVariacoes;
+    [Range(0f, 1.5f)] public float sfxMasterVolume = 0.85f;
+
     // ─── Referências do Player ────────────────────────────────────────────────
+    private AudioSource sfxOneShotSource;
+    private AudioSource sfxLoopSource;
+    private float currentLoopBaseVolume = 0.8f;
+    private int lastReflectSfxIndex = -1;
     private Player_WeaponManager weaponManager;
     private PlayerM playerMovement;
     private PlayerAttributesOffensive offensiveStats;
@@ -214,9 +233,7 @@ public class BoomerangWeapon : MonoBehaviour
     private bool animEventReleaseSignaled;
     private bool passedEventWhileHolding;
     private float releaseWaitElapsed;
-    private bool isThrowFollowThroughMoveLock;
-    private float throwFollowThroughMoveLockElapsed;
-    private float throwFollowThroughMoveLockMultiplier;
+    private bool hasBlendedOutOfThrowAnim;
     private bool aimCursorOverrideActive;
     private GameObject aimIndicatorObject;
     private Transform aimIndicatorTransform;
@@ -421,8 +438,8 @@ public class BoomerangWeapon : MonoBehaviour
 
     private void OnDisable()
     {
-        isThrowFollowThroughMoveLock = false;
-        throwFollowThroughMoveLockElapsed = 0f;
+        hasBlendedOutOfThrowAnim = false;
+        StopLoopSfx();
         if (playerMovement != null)
             playerMovement.SetPlasmaFiring(false);
         RestoreAimCursor();
@@ -476,12 +493,14 @@ public class BoomerangWeapon : MonoBehaviour
         TryBindPlayerReferences();
         if (!IsEquippedByPlayer())
         {
+            StopLoopSfx();
             RestoreAimCursor();
             if (aimIndicatorObject != null) aimIndicatorObject.SetActive(false);
             return;
         }
 
         UpdateAimCursor();
+        UpdateLoopSfxVolume();
 
         if (itemFloat != null && itemFloat.enabled)
             itemFloat.enabled = false;
@@ -520,8 +539,8 @@ public class BoomerangWeapon : MonoBehaviour
             HandleBuiltInInputs(dt);
         }
 
-        UpdateThrowFollowThroughMoveLock(dt);
         UpdateCurrentStateVisualsAndLogic(dt);
+        UpdatePostThrowRunBlend();
         UpdateGroundAimIndicator();
 
         if (echoVFX != null)
@@ -559,6 +578,7 @@ public class BoomerangWeapon : MonoBehaviour
         switch (exitingState)
         {
             case BoomerangState.SpinningShield:
+                StopLoopSfx();
                 if (shieldVFX != null) shieldVFX.SetShieldActive(false);
                 SetAnimatorBoolSafe(AnimBoolIsDefending, false);
                 SetAnimatorBoolSafe(AnimBoolIsReloading, false);
@@ -567,6 +587,7 @@ public class BoomerangWeapon : MonoBehaviour
                 break;
 
             case BoomerangState.Charging:
+                StopLoopSfx();
                 SetAnimatorBoolSafe(AnimBoolIsCharging, false);
                 if (newStateNeedsResetSpeed())
                 {
@@ -580,7 +601,7 @@ public class BoomerangWeapon : MonoBehaviour
                 animEventReleaseSignaled = false;
                 passedEventWhileHolding = false;
                 releaseWaitElapsed = 0f;
-                if (playerMovement != null && !isThrowFollowThroughMoveLock)
+                if (playerMovement != null)
                     playerMovement.SetPlasmaFiring(false);
                 if (airSpinVFX != null)
                     airSpinVFX.ResetChargeVisual();
@@ -591,6 +612,7 @@ public class BoomerangWeapon : MonoBehaviour
 
             case BoomerangState.Throw:
             case BoomerangState.Returning:
+                StopLoopSfx();
                 if (airSpinVFX != null) airSpinVFX.SetAirSpinActive(false);
                 if (echoVFX != null) echoVFX.SetEchoEmission(false, false);
                 break;
@@ -603,7 +625,8 @@ public class BoomerangWeapon : MonoBehaviour
         {
             case BoomerangState.Stowed:
                 // Preso nas costas do astronauta (animação Astronaut_guardando_boomerang)
-                ClearThrowFollowThroughMoveLock();
+                ClearThrowMovementLock();
+                StopLoopSfx();
                 isDrawnInHand = false;
                 if (electricCrystalVFX != null) electricCrystalVFX.SnapCoupledImmediate();
                 if (airSpinVFX != null) airSpinVFX.SetAirSpinActive(false);
@@ -613,15 +636,21 @@ public class BoomerangWeapon : MonoBehaviour
                 if (previousState != BoomerangState.Stowed)
                 {
                     TriggerPlayerAnimation(AnimTriggerHolster);
+                    PlayOneShotSfx(sfxGuardando, 0.9f);
                 }
                 AttachToBackImmediate();
                 break;
 
             case BoomerangState.Charging:
                 // Na mão direita do astronauta carregando o arremesso
+                StopLoopSfx();
                 if (!isDrawnInHand || previousState == BoomerangState.Stowed)
                 {
                     TriggerPlayerAnimation(AnimTriggerDraw);
+                    if (previousState == BoomerangState.Stowed)
+                    {
+                        PlayOneShotSfx(sfxArmando, 0.9f);
+                    }
                 }
                 isDrawnInHand = true;
                 AttachToHandImmediate();
@@ -636,7 +665,9 @@ public class BoomerangWeapon : MonoBehaviour
                 // só dispara o trigger aqui caso LaunchThrow tenha sido chamado direto por script externo)
                 hitTargetsThisPhase.Clear();
                 hitCooldowns.Clear();
-                SetAnimatorFloatSafe(AnimFloatAttackSpeed, throwFollowThroughSpeed);
+                hasBlendedOutOfThrowAnim = false;
+                ClearThrowMovementLock();
+                SetAnimatorFloatSafe(AnimFloatAttackSpeed, throwFollowThroughSpeed * GetAttackSpeedMultiplier());
                 if (!IsInAttackAnimationState())
                 {
                     TriggerPlayerAnimation(AnimTriggerAttack);
@@ -644,6 +675,7 @@ public class BoomerangWeapon : MonoBehaviour
                 }
 
                 DetachIntoWorldSpace();
+                StartLoopSfx(GetSpinClipForCharge(currentCharge01), 0.78f, true);
 
                 float areaMult = GetPlayerAreaMultiplier();
                 if (airSpinVFX != null)
@@ -668,6 +700,7 @@ public class BoomerangWeapon : MonoBehaviour
                 hitTargetsThisPhase.Clear();
                 hitCooldowns.Clear();
                 DetachIntoWorldSpace();
+                StartLoopSfx(sfxVoltandoParaMao, 0.88f, true);
 
                 if (airSpinVFX != null)
                     airSpinVFX.SetAirSpinActive(true);
@@ -697,9 +730,11 @@ public class BoomerangWeapon : MonoBehaviour
 
             case BoomerangState.SpinningShield:
                 // Escudo Giratório Defensivo ao redor do corpo do player (Astronaut_defense)
-                ClearThrowFollowThroughMoveLock();
+                ClearThrowMovementLock();
                 isDrawnInHand = true;
                 DetachIntoWorldSpace();
+                PlayOneShotSfx(sfxRefletirInicio, 0.95f);
+                StartLoopSfx(sfxRefletirGiroLoop != null ? sfxRefletirGiroLoop : sfxRefletirInicio, 0.78f, true);
 
                 if (electricCrystalVFX != null)
                     electricCrystalVFX.SnapCoupledImmediate();
@@ -1070,6 +1105,7 @@ public class BoomerangWeapon : MonoBehaviour
         animEventReleaseSignaled = false;
         passedEventWhileHolding = false;
         releaseWaitElapsed = 0f;
+        hasBlendedOutOfThrowAnim = false;
 
         if (currentState != BoomerangState.Charging)
         {
@@ -1091,6 +1127,8 @@ public class BoomerangWeapon : MonoBehaviour
             playerMovement.SetPlasmaFiring(true, GetChargingMoveSpeedMultiplier());
             playerMovement.SetPlasmaAimDirection(aimDir);
         }
+
+        StartLoopSfx(sfxSegurandoParaLancar, 0.85f, false);
     }
 
     private void UpdateAttackAnticipationAndRelease(float dt)
@@ -1188,14 +1226,14 @@ public class BoomerangWeapon : MonoBehaviour
         {
             // Mantém EXATAMENTE a carga que o indicador no chão exibiu (sem cortes artificiais!)
             float launchCharge = currentCharge01;
-            float releaseMoveMultiplier = GetChargingMoveSpeedMultiplier();
             isWindupThrowPending = false;
             hasCommittedDraw = false;
             isReleaseRequested = false;
             animEventReleaseSignaled = false;
             passedEventWhileHolding = false;
 
-            BeginThrowFollowThroughMoveLock(releaseMoveMultiplier);
+            // Destrava o movimento imediatamente assim que o bumerangue sai da mão
+            ClearThrowMovementLock();
 
             SetAnimatorFloatSafe(AnimFloatAttackSpeed, throwFollowThroughSpeed * GetAttackSpeedMultiplier());
             LaunchThrow(launchCharge);
@@ -1204,7 +1242,8 @@ public class BoomerangWeapon : MonoBehaviour
 
     private void CancelAttackAnticipation()
     {
-        ClearThrowFollowThroughMoveLock();
+        ClearThrowMovementLock();
+        StopLoopSfx();
         isWindupThrowPending = false;
         hasCommittedDraw = false;
         drawCommitTime = 0f;
@@ -1332,49 +1371,38 @@ public class BoomerangWeapon : MonoBehaviour
         return Mathf.Lerp(aimingMoveSpeedMultiplier, minChargeMoveSpeedMultiplier, Mathf.Clamp01(currentCharge01));
     }
 
-    private void BeginThrowFollowThroughMoveLock(float moveMultiplier)
+    private void ClearThrowMovementLock()
     {
-        if (playerMovement == null)
-        {
-            ClearThrowFollowThroughMoveLock();
-            return;
-        }
-
-        isThrowFollowThroughMoveLock = true;
-        throwFollowThroughMoveLockElapsed = 0f;
-        throwFollowThroughMoveLockMultiplier = Mathf.Clamp01(moveMultiplier);
-        playerMovement.SetPlasmaFiring(true, throwFollowThroughMoveLockMultiplier);
-    }
-
-    private void UpdateThrowFollowThroughMoveLock(float dt)
-    {
-        if (!isThrowFollowThroughMoveLock) return;
-
-        throwFollowThroughMoveLockElapsed += dt;
-        bool inThrowFlightState = currentState == BoomerangState.Throw || currentState == BoomerangState.Returning;
-        bool animStillPlaying = IsInAttackAnimationState();
-        bool withinSafetyWindow = throwFollowThroughMoveLockElapsed < 1.5f;
-
-        if (!inThrowFlightState || !animStillPlaying || !withinSafetyWindow)
-        {
-            ClearThrowFollowThroughMoveLock();
-            return;
-        }
-
-        if (playerMovement != null)
-        {
-            playerMovement.SetPlasmaFiring(true, throwFollowThroughMoveLockMultiplier);
-        }
-    }
-
-    private void ClearThrowFollowThroughMoveLock()
-    {
-        isThrowFollowThroughMoveLock = false;
-        throwFollowThroughMoveLockElapsed = 0f;
         if (playerMovement != null && !isWindupThrowPending)
         {
             playerMovement.SetPlasmaFiring(false);
         }
+    }
+
+    private void UpdatePostThrowRunBlend()
+    {
+        if (hasBlendedOutOfThrowAnim || isWindupThrowPending) return;
+        if (currentState != BoomerangState.Throw && currentState != BoomerangState.Returning) return;
+        if (playerAnimator == null || !playerAnimator.isActiveAndEnabled) return;
+
+        if (!IsInAttackAnimationState())
+        {
+            hasBlendedOutOfThrowAnim = true;
+            return;
+        }
+
+        // Permite um leve snap visual da soltura da mão (~0.05s) enquanto o player já está 100% destravado fisicamente,
+        // e então faz blend imediato para Running se houver input de movimento (evita deslizar em pose estática).
+        if (currentState == BoomerangState.Throw && stateElapsedTime < 0.05f) return;
+
+        bool hasMoveInput = (playerMovement != null && playerMovement.MoveDirection.sqrMagnitude > 0.01f)
+                            || Mathf.Abs(Input.GetAxisRaw("Horizontal")) > 0.05f
+                            || Mathf.Abs(Input.GetAxisRaw("Vertical")) > 0.05f;
+        if (!hasMoveInput) return;
+
+        SetAnimatorFloatSafe(AnimFloatAttackSpeed, 1f);
+        playerAnimator.CrossFadeInFixedTime("Running", 0.12f, 0);
+        hasBlendedOutOfThrowAnim = true;
     }
 
     protected virtual void OnChargingUpdate(float dt)
@@ -1387,11 +1415,13 @@ public class BoomerangWeapon : MonoBehaviour
     /// </summary>
     public virtual void LaunchThrow(float charge01)
     {
-        if (playerMovement != null && !isThrowFollowThroughMoveLock)
-            playerMovement.SetPlasmaFiring(false);
+        hasBlendedOutOfThrowAnim = false;
+        ClearThrowMovementLock();
+        StopLoopSfx();
 
         chargeSpinAngle = 0f;
         currentCharge01 = Mathf.Clamp01(charge01);
+        PlayOneShotSfx(sfxJogando, 1.0f, Mathf.Lerp(0.96f, 1.08f, currentCharge01));
         Vector3 aimDir = GetMouseAimDirection();
         RotatePlayerTowardsDirection(aimDir);
 
@@ -1626,7 +1656,8 @@ public class BoomerangWeapon : MonoBehaviour
 
     private void CatchBoomerang()
     {
-        ClearThrowFollowThroughMoveLock();
+        ClearThrowMovementLock();
+        StopLoopSfx();
         currentChargeTime = 0f;
         currentCharge01 = 0f;
         chargeSpinAngle = 0f;
@@ -1667,6 +1698,7 @@ public class BoomerangWeapon : MonoBehaviour
                     if (IsInParryWindow && shieldVFX != null)
                     {
                         shieldVFX.TriggerParrySuccessVFX(enemy.transform.position, enemy.gameObject);
+                        PlayReflectVariationSfx(0.85f);
                     }
                     else if (IsShieldParalysisActive && shieldVFX != null)
                     {
@@ -1683,6 +1715,7 @@ public class BoomerangWeapon : MonoBehaviour
     /// </summary>
     public virtual void RegisterBounce(Vector3 surfaceNormal, Vector3 bouncePoint, DummyHealth hitEnemy = null)
     {
+        PlayReflectVariationSfx(0.95f);
         float speed = Mathf.Max(flightVelocity.magnitude, minThrowSpeed);
 
         // 1. Procura o próximo inimigo para ricochete encadeado inteligente (Smart Chain Bounce)
@@ -1787,6 +1820,8 @@ public class BoomerangWeapon : MonoBehaviour
     public virtual void ReflectProjectileOnParry(GameObject projectileObj, Vector3 contactPoint)
     {
         if (projectileObj == null) return;
+
+        PlayReflectVariationSfx(1.0f);
 
         if (shieldVFX != null)
             shieldVFX.TriggerParrySuccessVFX(contactPoint, projectileObj);
@@ -2139,6 +2174,122 @@ public class BoomerangWeapon : MonoBehaviour
                 playerAnimator.SetBool(boolHash, value);
                 return;
             }
+        }
+    }
+
+    // =========================================================================
+    // SFX DO BUMERANGUE
+    // =========================================================================
+
+    private void EnsureSfxAudioSources()
+    {
+        if (sfxOneShotSource == null)
+        {
+            sfxOneShotSource = gameObject.AddComponent<AudioSource>();
+            sfxOneShotSource.playOnAwake = false;
+            sfxOneShotSource.loop = false;
+            sfxOneShotSource.spatialBlend = 0f;
+            if (GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+                sfxOneShotSource.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
+        }
+
+        if (sfxLoopSource == null)
+        {
+            sfxLoopSource = gameObject.AddComponent<AudioSource>();
+            sfxLoopSource.playOnAwake = false;
+            sfxLoopSource.loop = true;
+            sfxLoopSource.spatialBlend = 0f;
+            if (GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+                sfxLoopSource.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
+        }
+    }
+
+    private float GetEffectiveSfxVolume(float baseVolume)
+    {
+        return Mathf.Clamp01(baseVolume * sfxMasterVolume * GlobalAudioManager.SFXVolumeMultiplier);
+    }
+
+    private void PlayOneShotSfx(AudioClip clip, float baseVolume = 1f, float pitch = 1f)
+    {
+        if (clip == null || IsInLobbyRack()) return;
+        EnsureSfxAudioSources();
+
+        float vol = GetEffectiveSfxVolume(baseVolume);
+        if (vol <= 0.001f) return;
+
+        sfxOneShotSource.pitch = Mathf.Clamp(pitch, 0.7f, 1.4f);
+        sfxOneShotSource.PlayOneShot(clip, vol);
+    }
+
+    private void StartLoopSfx(AudioClip clip, float baseVolume = 0.8f, bool loop = true, float pitch = 1f)
+    {
+        if (clip == null || IsInLobbyRack())
+        {
+            StopLoopSfx();
+            return;
+        }
+
+        EnsureSfxAudioSources();
+        currentLoopBaseVolume = baseVolume;
+        sfxLoopSource.loop = loop;
+        sfxLoopSource.pitch = Mathf.Clamp(pitch, 0.7f, 1.4f);
+        sfxLoopSource.volume = GetEffectiveSfxVolume(baseVolume);
+
+        if (sfxLoopSource.clip != clip || !sfxLoopSource.isPlaying)
+        {
+            sfxLoopSource.clip = clip;
+            sfxLoopSource.Play();
+        }
+    }
+
+    private void StopLoopSfx()
+    {
+        if (sfxLoopSource != null && sfxLoopSource.isPlaying)
+        {
+            sfxLoopSource.Stop();
+        }
+    }
+
+    private void UpdateLoopSfxVolume()
+    {
+        if (sfxLoopSource == null || !sfxLoopSource.isPlaying) return;
+        if (GamePause.IsPaused || Time.timeScale <= 0.001f)
+        {
+            sfxLoopSource.volume = 0f;
+            return;
+        }
+        sfxLoopSource.volume = GetEffectiveSfxVolume(currentLoopBaseVolume);
+    }
+
+    private AudioClip GetSpinClipForCharge(float charge01)
+    {
+        if (charge01 < 0.35f)
+            return sfxGirandoCurto ?? sfxGirandoMedio ?? sfxGirandoLongo;
+        if (charge01 < 0.72f)
+            return sfxGirandoMedio ?? sfxGirandoLongo ?? sfxGirandoCurto;
+        return sfxGirandoLongo ?? sfxGirandoMedio ?? sfxGirandoCurto;
+    }
+
+    private void PlayReflectVariationSfx(float baseVolume = 0.95f)
+    {
+        if (sfxRefletiuVariacoes == null || sfxRefletiuVariacoes.Length == 0)
+        {
+            PlayOneShotSfx(sfxRefletirInicio, baseVolume);
+            return;
+        }
+
+        int count = sfxRefletiuVariacoes.Length;
+        int chosen = (count == 1) ? 0 : UnityEngine.Random.Range(0, count);
+        if (count > 1 && chosen == lastReflectSfxIndex)
+        {
+            chosen = (chosen + 1) % count;
+        }
+        lastReflectSfxIndex = chosen;
+
+        AudioClip clip = sfxRefletiuVariacoes[chosen];
+        if (clip != null)
+        {
+            PlayOneShotSfx(clip, baseVolume, UnityEngine.Random.Range(0.95f, 1.06f));
         }
     }
 
