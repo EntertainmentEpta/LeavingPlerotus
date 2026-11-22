@@ -1,9 +1,15 @@
 using UnityEngine;
 
 [RequireComponent(typeof(Collider))]
-public class CrystalSpikeProjectile : MonoBehaviour
+public class CrystalSpikeProjectile : ShieldProjectile
 {
-    [HideInInspector] public GameObject owner;
+    protected override int ReflectedDamage => damage;
+    protected override void Redirect(Vector3 aim)
+    {
+        direction = aim;
+        transform.forward = aim;
+        if (rb != null && !rb.isKinematic) rb.linearVelocity = aim * speed;
+    }
     [HideInInspector] public int damage = 8;
 
     private Vector3 direction = Vector3.forward;
@@ -17,7 +23,7 @@ public class CrystalSpikeProjectile : MonoBehaviour
         this.speed = speed;
         this.lifetime = lifetime;
 
-        if (rb != null)
+        if (rb != null && !rb.isKinematic)
         {
             rb.linearVelocity = this.direction * this.speed;
         }
@@ -45,7 +51,7 @@ public class CrystalSpikeProjectile : MonoBehaviour
 
     private void Update()
     {
-        if (rb == null)
+        if (rb == null || rb.isKinematic)
         {
             transform.position += direction * speed * Time.deltaTime;
         }
@@ -53,7 +59,7 @@ public class CrystalSpikeProjectile : MonoBehaviour
 
     private void HandleHit(GameObject hitObject)
     {
-        if (hitObject == null) return;
+        if (hitObject == null || HandleShieldContact(hitObject)) return;
         if (owner != null && (hitObject == owner || hitObject.transform.IsChildOf(owner.transform))) return;
 
         PlayerHealth playerHealth = hitObject.GetComponent<PlayerHealth>() ?? hitObject.GetComponentInParent<PlayerHealth>();

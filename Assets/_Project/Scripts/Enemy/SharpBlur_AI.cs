@@ -206,7 +206,10 @@ public class SharpBlur : MonoBehaviour
     }
 
     // ROTINA: Ataque de perto (Combo de Garras)
-    IEnumerator MeleeAttackRoutine()
+    IEnumerator MeleeAttackRoutine() =>
+        DummyHealth.PauseAttackWhileStunned(this, MeleeAttackRoutineSteps());
+
+    private IEnumerator MeleeAttackRoutineSteps()
     {
         currentState = State.MeleeAttacking;
 
@@ -246,7 +249,10 @@ public class SharpBlur : MonoBehaviour
     }
 
     // Sequência de Teleporte / Dash seguida de Golpe
-    IEnumerator DashRoutine()
+    IEnumerator DashRoutine() =>
+        DummyHealth.PauseAttackWhileStunned(this, DashRoutineSteps());
+
+    private IEnumerator DashRoutineSteps()
     {
         currentState = State.Dashing;
 
@@ -323,7 +329,10 @@ public class SharpBlur : MonoBehaviour
         if (anim != null) anim.SetBool("isChasing", true);
     }
 
-    IEnumerator ExecuteSingleDash(Vector3 direction, Vector3 targetDashPos)
+    IEnumerator ExecuteSingleDash(Vector3 direction, Vector3 targetDashPos) =>
+        DummyHealth.PauseAttackWhileStunned(this, ExecuteSingleDashSteps(direction, targetDashPos));
+
+    private IEnumerator ExecuteSingleDashSteps(Vector3 direction, Vector3 targetDashPos)
     {
         if (direction == Vector3.zero) direction = transform.forward;
         transform.rotation = Quaternion.LookRotation(direction);

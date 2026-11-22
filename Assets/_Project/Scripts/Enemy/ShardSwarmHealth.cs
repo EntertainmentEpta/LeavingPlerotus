@@ -338,11 +338,22 @@ public class ShardSwarmHealth : MonoBehaviour
         isFlashing = false;
     }
 
+    private float stunUntil;
+    public bool IsStunned => Time.time < stunUntil;
+
+    public void ApplyStun(float duration)
+    {
+        if (duration <= 0f || isDead || CurrentHealth <= 0) return;
+        stunUntil = Mathf.Max(stunUntil, Time.time + duration);
+        if (!isHitStopActive) hitStopCo = StartCoroutine(HitStopRoutine(0f));
+    }
+
     public void ApplyHitStop(float duration = 0.08f)
     {
         if (!gameObject.activeInHierarchy || CurrentHealth <= 0 || isDead) return;
         if (rb != null && Mathf.Abs(rb.linearVelocity.y) > 1.5f) return;
 
+        if (IsStunned) return;
         if (hitStopCo != null)
         {
             StopCoroutine(hitStopCo);
@@ -353,6 +364,9 @@ public class ShardSwarmHealth : MonoBehaviour
 
     private void OnDisable()
     {
+        stunUntil = 0f;
+        if (hitStopCo != null) StopCoroutine(hitStopCo);
+        hitStopCo = null;
         RestoreHitStopState();
     }
 
@@ -386,6 +400,7 @@ public class ShardSwarmHealth : MonoBehaviour
 
         DummyHealth.PauseActiveAIBehaviours(enemyAIBehaviours, pausedAIBehaviours);
         yield return new WaitForSecondsRealtime(duration);
+        while (IsStunned && !isDead) yield return null;
         RestoreHitStopState();
         hitStopCo = null;
     }

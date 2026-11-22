@@ -275,7 +275,10 @@ public class CrystalWatcher_AI : MonoBehaviour
     // CICLO DE ATAQUE (Coroutine)
     // "Faça X, espere 2 segundos, faça Y, espere mais 3 segundos..."
 
-    IEnumerator AttackCycle()
+    IEnumerator AttackCycle() =>
+        DummyHealth.PauseAttackWhileStunned(this, AttackCycleSteps());
+
+    private IEnumerator AttackCycleSteps()
     {
         // Loop infinito — o ciclo repete até o inimigo morrer
         while (health != null && health.CurrentHealth > 0)

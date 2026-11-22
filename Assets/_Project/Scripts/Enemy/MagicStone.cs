@@ -505,7 +505,10 @@ public class MagicStone_AI : MonoBehaviour
         return closest;
     }
 
-    IEnumerator SkybeamAttack()
+    IEnumerator SkybeamAttack() =>
+        DummyHealth.PauseAttackWhileStunned(this, SkybeamAttackSteps());
+
+    private IEnumerator SkybeamAttackSteps()
     {
         Vector3 targetPosition = new Vector3(playerTransform.position.x, 0.01f, playerTransform.position.z);
         GameObject marker = Instantiate(attackMarkerPrefab, targetPosition, Quaternion.Euler(90, 0, 0));

@@ -525,7 +525,10 @@ public class CrystalDragon_AI : MonoBehaviour
         return forwardDot < 0.5f;
     }
 
-    private IEnumerator PerformCrystalSpikes()
+    private IEnumerator PerformCrystalSpikes() =>
+        DummyHealth.PauseAttackWhileStunned(this, PerformCrystalSpikesSteps());
+
+    private IEnumerator PerformCrystalSpikesSteps()
     {
         isCharging = true;
         isChargingForSpikes = true;
@@ -635,7 +638,10 @@ public class CrystalDragon_AI : MonoBehaviour
         isChargingForSpikes = false;
     }
 
-    private IEnumerator PerformTailSweep()
+    private IEnumerator PerformTailSweep() =>
+        DummyHealth.PauseAttackWhileStunned(this, PerformTailSweepSteps());
+
+    private IEnumerator PerformTailSweepSteps()
     {
         isCharging = true;
         isChargingForTail = true;
@@ -692,7 +698,10 @@ public class CrystalDragon_AI : MonoBehaviour
         isChargingForTail = false;
     }
 
- private IEnumerator PerformLowFlight()
+ private IEnumerator PerformLowFlight() =>
+        DummyHealth.PauseAttackWhileStunned(this, PerformLowFlightSteps());
+
+    private IEnumerator PerformLowFlightSteps()
     {
         if (playerTransform == null) yield break;
 

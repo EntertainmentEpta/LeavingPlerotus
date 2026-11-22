@@ -5,7 +5,7 @@ using UnityEngine;
 /// O prefab precisa ter: AcidSpitProjectile + Rigidbody + Collider (non-trigger).
 /// </summary>
 [RequireComponent(typeof(Rigidbody))]
-public class AcidSpitProjectile : MonoBehaviour
+public class AcidSpitProjectile : ShieldProjectile
 {
     [Tooltip("Prefab da AcidPuddle instanciada ao aterrissar (fallback se não houver AcidPuddleSpawner na cena).")]
     public GameObject acidPuddlePrefab;
@@ -16,6 +16,15 @@ public class AcidSpitProjectile : MonoBehaviour
     [Header("VFX")]
     [Tooltip("Particle System de rastro (opcional). Se nulo usa TrailRenderer verde como fallback.")]
     public GameObject trailVFXPrefab;
+
+    [Min(1)] public int reflectedDamage = 15;
+    protected override int ReflectedDamage => reflectedDamage;
+    protected override void Redirect(Vector3 aim)
+    {
+        rb.useGravity = false;
+        rb.linearVelocity = aim * Mathf.Max(12f, rb.linearVelocity.magnitude);
+        transform.forward = aim;
+    }
 
     private Rigidbody rb;
     private bool hasLanded = false;
@@ -102,6 +111,7 @@ public class AcidSpitProjectile : MonoBehaviour
     // Fallback para prefabs com collider trigger
     void OnTriggerEnter(Collider other)
     {
+        if (HandleShieldContact(other.gameObject)) return;
         if (hasLanded) return;
         if (Time.time - spawnTime < 0.15f) return;
         // Ignora o boss e todos os seus filhos
@@ -144,6 +154,7 @@ public class AcidSpitProjectile : MonoBehaviour
 
     void OnCollisionEnter(Collision collision)
     {
+        if (HandleShieldContact(collision.gameObject)) return;
         if (hasLanded) return;
         if (Time.time - spawnTime < 0.15f) return;
         if (collision.gameObject.CompareTag("Enemy")) return;
@@ -162,6 +173,7 @@ public class AcidSpitProjectile : MonoBehaviour
     private void SpawnPuddle(Vector3 pos)
     {
         DetachTrail();
+        if (IsFriendly) return;
         // Usa o Y do alvo capturado no Launch — playerTransform.position.y está sempre no chão
         pos.y = groundY + 0.02f;
 

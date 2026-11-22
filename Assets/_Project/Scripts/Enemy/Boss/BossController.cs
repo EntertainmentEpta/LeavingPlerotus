@@ -2009,6 +2009,7 @@ public class BossController : MonoBehaviour
             {
                 AcidSpitProjectile proj = spitObj.GetComponent<AcidSpitProjectile>()
                                        ?? spitObj.AddComponent<AcidSpitProjectile>();
+                proj.owner = gameObject;
                 proj.acidPuddlePrefab = acidPuddlePrefabForSpit;
                 proj.Launch(targetPos);
 

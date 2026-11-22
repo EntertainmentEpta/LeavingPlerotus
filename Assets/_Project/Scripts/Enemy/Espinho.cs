@@ -6,7 +6,7 @@ using UnityEngine;
 /// Destrói-se ao atingir o jogador, paredes ou após o tempo de vida máximo.
 /// </summary>
 [RequireComponent(typeof(Collider))]
-public class Espinho : MonoBehaviour
+public class Espinho : ShieldProjectile
 {
     // ── Configuração ────────────────────────────────────────────────
     [Header("Projétil")]
@@ -37,7 +37,8 @@ public class Espinho : MonoBehaviour
     /// Referência ao GameObject dono (Peixe que disparou).
     /// Atribuída pelo PeixeAI no momento do Instantiate.
     /// </summary>
-    [HideInInspector] public GameObject owner;
+    protected override int ReflectedDamage => damage;
+    protected override void Redirect(Vector3 aim) => transform.forward = aim;
     private float spawnTime;
 
     // ─────────────────────────────────────────────────────────────────
@@ -97,7 +98,7 @@ public class Espinho : MonoBehaviour
     // ── Colisão ─────────────────────────────────────────────────────
     void OnTriggerEnter(Collider other)
     {
-        if (other == null) return;
+        if (other == null || HandleShieldContact(other.gameObject)) return;
 
         // Ignora triggers que não sejam o jogador (evita sumir em RoomTriggerProxy, zonas de água, etc.)
         if (other.isTrigger && !other.CompareTag("Player") && other.GetComponentInParent<PlayerHealth>() == null)

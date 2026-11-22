@@ -6,7 +6,7 @@ using System.Collections;
 /// - Explode ao tocar chão/sólidos (ignora Player no ar)
 /// - Efeitos (anéis + fumaça) rodam em objeto independente: não bloqueiam destroy
 /// </summary>
-public class BombaExplosiva : MonoBehaviour
+public class BombaExplosiva : ShieldProjectile
 {
     [Header("Dano")]
     public int   danoExplosao   = 30;
@@ -41,7 +41,13 @@ public class BombaExplosiva : MonoBehaviour
     [Range(0f, 1f)]
     public float explosionSoundVolume = 1.0f;
 
-    [HideInInspector] public GameObject owner;
+    protected override int ReflectedDamage => danoExplosao;
+    protected override void Redirect(Vector3 aim)
+    {
+        Rigidbody body = GetComponent<Rigidbody>();
+        if (body != null) body.linearVelocity = aim * Mathf.Max(12f, body.linearVelocity.magnitude);
+        transform.forward = aim;
+    }
 
     private bool explodiu = false;
     private AudioSource tickAudioSource;
@@ -79,7 +85,8 @@ public class BombaExplosiva : MonoBehaviour
     void OnCollisionEnter(Collision col)
     {
         if (explodiu) return;
-        if (col.gameObject.CompareTag("Enemy")) return;
+        if (col.gameObject.GetComponentInParent<PlayerHealth>() != null && HandleShieldContact(col.gameObject)) return;
+        if (!IsFriendly && col.gameObject.CompareTag("Enemy")) return;
         Explodir();
     }
 
@@ -149,8 +156,15 @@ void Explodir()
     void AplicarDano()
     {
         Collider[] hits = Physics.OverlapSphere(transform.position, raioExplosao);
+        var damaged = new System.Collections.Generic.HashSet<DummyHealth>();
         foreach (Collider hit in hits)
         {
+            if (IsFriendly)
+            {
+                DummyHealth enemy = hit.GetComponentInParent<DummyHealth>();
+                if (enemy != null && damaged.Add(enemy)) enemy.TakeDamage(danoExplosao, isProjectile: true);
+                continue;
+            }
             if (!hit.CompareTag("Player")) continue;
             PlayerHealth ph = hit.GetComponent<PlayerHealth>();
             if (ph == null) continue;

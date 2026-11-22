@@ -789,7 +789,10 @@ public class ShardSwarm_AI : MonoBehaviour
     // ANIMAÇÕES DE ATAQUE E SHOWCASE (Ioiô, Disparo, Wheel Spin 360°, Wind-Up)
     // ------------------------------------------------------------------------
 
-    public IEnumerator LaunchSpikesRoutine()
+    public IEnumerator LaunchSpikesRoutine() =>
+        DummyHealth.PauseAttackWhileStunned(this, LaunchSpikesRoutineSteps());
+
+    private IEnumerator LaunchSpikesRoutineSteps()
     {
         SetState(SwarmState.Disparando);
         rb.linearVelocity = Vector3.zero;
@@ -886,10 +889,14 @@ public class ShardSwarm_AI : MonoBehaviour
         }
     }
 
-    IEnumerator FlySingleSpike(int i)
+    IEnumerator FlySingleSpike(int i) =>
+        DummyHealth.PauseAttackWhileStunned(this, FlySingleSpikeSteps(i));
+
+    private IEnumerator FlySingleSpikeSteps(int i)
     {
         float elapsed = 0f;
         float duration = maxProjectileDistance / projectileSpeed;
+        bool reflected = false;
 
         while (elapsed < duration && !spikeIsReturning[i])
         {
@@ -909,7 +916,7 @@ public class ShardSwarm_AI : MonoBehaviour
                 Vector3 trailEnd = next + rearOffset;
 
                 float distToCore = (coreTransform != null) ? Vector3.Distance(trailEnd, coreTransform.position) : Vector3.Distance(trailEnd, transform.position);
-                if (distToCore >= 3.0f)
+                if (!reflected && distToCore >= 3.0f)
                 {
                     ElectricTrailVFX.CreateTrailSegment(trailStart, trailEnd, trailDamagePerTick, trailDuration, zapSound);
                 }
@@ -919,9 +926,29 @@ public class ShardSwarm_AI : MonoBehaviour
             Collider[] hits = Physics.OverlapSphere(next, 0.45f);
             foreach (Collider c in hits)
             {
+                if (reflected)
+                {
+                    var enemy = c.GetComponentInParent<DummyHealth>();
+                    var swarm = c.GetComponentInParent<ShardSwarmHealth>();
+                    if (enemy == null && swarm == null) continue;
+                    if (enemy != null) enemy.TakeDamage(Mathf.Max(1, projectileDamage), isProjectile: true);
+                    else swarm.TakeDamage(Mathf.Max(1, projectileDamage));
+                    yield break;
+                }
+
                 if (c.CompareTag("Player") && !spikeHasHitPlayer[i])
                 {
                     spikeHasHitPlayer[i] = true;
+                    var shield = BoomerangWeapon.ActiveShieldOn(c.GetComponentInParent<PlayerHealth>());
+                    if (shield != null)
+                    {
+                        if (!shield.IsInParryWindow) yield break;
+                        reflected = true;
+                        spikeLaunchDirections[i] = ((coreTransform != null ? coreTransform.position : transform.position) - next).normalized;
+                        elapsed = 0f;
+                        shield.GetComponent<BoomerangShieldVFX>()?.TriggerParrySuccessVFX(next);
+                        break;
+                    }
                     playerHitsInCurrentAttack++;
 
                     PlayerHealth ph = c.GetComponent<PlayerHealth>();
@@ -942,7 +969,10 @@ public class ShardSwarm_AI : MonoBehaviour
     // ANIMAÇÃO DE SHURIKEN (WHEEL SPIN 360° — PIVÔ NO CENTRO EXATO DO CORE)
     // ------------------------------------------------------------------------
 
-    public IEnumerator WheelSpinRoutine()
+    public IEnumerator WheelSpinRoutine() =>
+        DummyHealth.PauseAttackWhileStunned(this, WheelSpinRoutineSteps());
+
+    private IEnumerator WheelSpinRoutineSteps()
     {
         SetState(SwarmState.Disparando);
         rb.linearVelocity = Vector3.zero;
@@ -1034,7 +1064,10 @@ public class ShardSwarm_AI : MonoBehaviour
     }
 
     // Coroutine exclusiva do Wind-Up: Expansão Linear -> Pausa -> Retração Linear pelo MESMO Caminho
-    public IEnumerator WindUpOnlyRoutine()
+    public IEnumerator WindUpOnlyRoutine() =>
+        DummyHealth.PauseAttackWhileStunned(this, WindUpOnlyRoutineSteps());
+
+    private IEnumerator WindUpOnlyRoutineSteps()
     {
         SetState(SwarmState.Disparando);
         rb.linearVelocity = Vector3.zero;
@@ -1164,7 +1197,10 @@ public class ShardSwarm_AI : MonoBehaviour
         }
     }
 
-    public IEnumerator RearmSpinRoutine()
+    public IEnumerator RearmSpinRoutine() =>
+        DummyHealth.PauseAttackWhileStunned(this, RearmSpinRoutineSteps());
+
+    private IEnumerator RearmSpinRoutineSteps()
     {
         isRearmSpinning = true;
 

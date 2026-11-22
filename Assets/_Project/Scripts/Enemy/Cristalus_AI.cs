@@ -241,7 +241,10 @@ public class Cristalus_AI : MonoBehaviour
         }
     }
 
-    IEnumerator CastArcRoutine()
+    IEnumerator CastArcRoutine() =>
+        DummyHealth.PauseAttackWhileStunned(this, CastArcRoutineSteps());
+
+    private IEnumerator CastArcRoutineSteps()
     {
         currentState = State.CastingArc;
         
