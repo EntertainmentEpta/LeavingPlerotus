@@ -137,6 +137,12 @@ public class PauseMenuController : MonoBehaviour
             return true;
         }
 
+        // Checa se o Terminal de Seleção de Modo está aberto (ESC fecha apenas o painel)
+        if (GameModeSelectionUI.Instance != null && GameModeSelectionUI.Instance.IsOpen())
+        {
+            return true;
+        }
+
         return false;
     }
 
