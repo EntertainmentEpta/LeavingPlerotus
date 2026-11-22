@@ -539,6 +539,13 @@ public class GameManager : MonoBehaviour
     {
         if (isAsyncLoading) return;
 
+        // Salva recorde do Modo Endless ao extrair / retornar para a Base
+        if (RunManager.instance != null && RunManager.instance.isEndlessMode && RunStatsManager.Instance != null)
+        {
+            RunStatsManager.Instance.CommitEndlessRecord(RunManager.instance.currentLevel);
+            RunStatsManager.Instance.StopRunTracking();
+        }
+
         PlayerHealth.shouldPlayWakeUpAnimation = true;
         Time.timeScale = 1f;
         StartCoroutine(LoadLevelAsync("Base", false));

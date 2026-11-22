@@ -250,6 +250,19 @@ public class EnemyDrops : MonoBehaviour
             Debug.Log($"[ENEMY DROPS] A Sinfonia do Caos está ativa: +20% na chance geral de drop! (Total: {effectiveDropChance * 100:F0}%)");
         }
 
+        // --- MUTAÇÃO DO ABISMO (FORTUNA DO ABISMO): +chance de drop, qualidade e item extra ---
+        float abyssDropBonus = (RunManager.instance != null && RunManager.instance.isEndlessMode)
+            ? RunManager.instance.GetEndlessItemDropChanceBonus()
+            : 0f;
+        float abyssExtraItemChance = (RunManager.instance != null && RunManager.instance.isEndlessMode)
+            ? RunManager.instance.GetEndlessExtraItemDropChance()
+            : 0f;
+        if (abyssDropBonus > 0f)
+        {
+            effectiveDropChance = Mathf.Clamp01(effectiveDropChance + abyssDropBonus);
+            Debug.Log($"[ENEMY DROPS] Fortuna do Abismo ativa: +{abyssDropBonus * 100:F0}% chance de drop (Total: {effectiveDropChance * 100:F0}%)");
+        }
+
         if (lootPool != null && lootPool.Count > 0 && Random.value <= effectiveDropChance)
         {
             List<LootPoolItem> filteredPool = new List<LootPoolItem>();
@@ -336,6 +349,14 @@ public class EnemyDrops : MonoBehaviour
                     else if (itemTier == 4) weightMult *= 5.0f;
                 }
 
+                if (abyssDropBonus > 0f)
+                {
+                    // Fortuna do Abismo: favorece levemente Tiers superiores no Endless
+                    if (itemTier == 2) weightMult *= 1.25f;
+                    else if (itemTier == 3) weightMult *= 1.50f;
+                    else if (itemTier == 4) weightMult *= 1.75f;
+                }
+
                 float finalW = loot.weight * weightMult;
                 adjustedWeights.Add(finalW);
                 totalWeight += finalW;
@@ -363,6 +384,10 @@ public class EnemyDrops : MonoBehaviour
                 if (selectedPrefab != null)
                 {
                     int finalItemAmount = itemAmount; // Não duplica itens no chão; a Ganância aumenta a chance de drop e tiers!
+                    if (abyssExtraItemChance > 0f && Random.value <= abyssExtraItemChance)
+                    {
+                        finalItemAmount += 1;
+                    }
 
                     for (int i = 0; i < finalItemAmount; i++)
                     {
@@ -746,9 +771,12 @@ public class EnemyDrops : MonoBehaviour
             t4Items.Add(lootPool[3].itemPrefab);
 
         // Chances solicitadas pelo usuário: Tier 2: 80%, Tier 3: 40%, Tier 4: 20%
-        float t2Chance = hasGreed ? 0.95f : 0.80f;
-        float t3Chance = hasGreed ? 0.60f : 0.40f;
-        float t4Chance = hasGreed ? 0.35f : 0.20f;
+        float abyssTierBonus = (RunManager.instance != null && RunManager.instance.isEndlessMode)
+            ? RunManager.instance.GetEndlessEliteTierChanceBonus()
+            : 0f;
+        float t2Chance = Mathf.Clamp01((hasGreed ? 0.95f : 0.80f) + abyssTierBonus);
+        float t3Chance = Mathf.Clamp01((hasGreed ? 0.60f : 0.40f) + abyssTierBonus);
+        float t4Chance = Mathf.Clamp01((hasGreed ? 0.35f : 0.20f) + abyssTierBonus);
 
         bool droppedAny = false;
 

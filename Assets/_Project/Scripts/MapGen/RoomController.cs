@@ -592,12 +592,21 @@ public class RoomController : MonoBehaviour
         List<GameObject> result = new List<GameObject>();
 
         int currentLvl = RunManager.instance != null ? RunManager.instance.currentLevel : 1;
+        bool isEndless = RunManager.instance != null && RunManager.instance.isEndlessMode;
         int effectiveProgression = ((currentLvl - 1) * 4) + roomIndex;
 
         PlayerHealth player = Object.FindFirstObjectByType<PlayerHealth>();
         bool chaosMode = player != null && player.hasChaosSymphony;
-        int eliteMax = chaosMode ? 3 : (currentLvl >= 3 ? 2 : 1);
-        int tanqueMax = chaosMode ? 8 : (currentLvl >= 3 ? 6 : (currentLvl >= 2 ? 4 : 2));
+        bool abyssChaos = isEndless && RunManager.instance.HasActiveMutation(AbyssMutationType.SinfoniaDoCaos);
+        bool effectiveChaos = chaosMode || abyssChaos;
+
+        int endlessBonusElites = isEndless ? RunManager.instance.GetEndlessBonusMaxElitesPerRoom() : 0;
+        float endlessEliteBonus = isEndless ? RunManager.instance.GetEndlessEliteSpawnBonus() : 0f;
+        int endlessEliteWeights = isEndless ? RunManager.instance.GetEndlessEliteWeightEntries() : 0;
+
+        int eliteMax = effectiveChaos ? 3 : (currentLvl >= 3 ? 2 : 1);
+        if (isEndless) eliteMax = Mathf.Clamp(eliteMax + endlessBonusElites, 1, 5);
+        int tanqueMax = effectiveChaos ? 8 : (currentLvl >= 3 ? 6 : (currentLvl >= 2 ? 4 : 2));
 
         // 1. Suporte: da Sala 2 ou Round 2 em diante (máx 1 suporte por sala)
         if (effectiveProgression >= 2 && currentWave == 1 && curSuporte.Count > 0 && suporteSpawnedTotal < 1 && remainingPts >= 3 && result.Count < maxEnemies)
@@ -608,8 +617,10 @@ public class RoomController : MonoBehaviour
         }
 
         // 2. ÂNCORA DE VARIEDADE: Garante que inimigos pesados (Elite ou Tanque) e Atiradores apareçam com frequência
-        // No Round 3 (Fase 3), prioriza spawnar Geobionte (Elite) e Tanques pesados (Golem, Magic Stone, Star, Totem)!
-        if (currentLvl >= 3 && curElite.Count > 0 && remainingPts >= 10 && eliteSpawnedTotal < eliteMax && Random.value < 0.75f && result.Count < maxEnemies)
+        // No Round 3 (Fase 3) ou no Endless, prioriza spawnar Geobionte (Elite) e Tanques pesados!
+        bool allowEliteAnchor = currentLvl >= 3 || (isEndless && (RunManager.instance.endlessFloorCount >= 2 || RunManager.instance.HasActiveMutation(AbyssMutationType.HordaDeElites)));
+        float eliteAnchorChance = isEndless ? Mathf.Clamp(0.75f + endlessEliteBonus * 0.5f, 0.75f, 0.96f) : 0.75f;
+        if (allowEliteAnchor && curElite.Count > 0 && remainingPts >= 10 && eliteSpawnedTotal < eliteMax && Random.value < eliteAnchorChance && result.Count < maxEnemies)
         {
             result.Add(GetRandom(curElite));
             eliteSpawnedTotal++;
@@ -638,9 +649,15 @@ public class RoomController : MonoBehaviour
             loopGuard++;
             List<EnemyClass> validOptions = new List<EnemyClass>();
 
-            // Elite (10 pts)
-            if (effectiveProgression >= 4 && curElite.Count > 0 && remainingPts >= 10 && eliteSpawnedTotal < eliteMax)
+            // Elite (10 pts) — no Endless recebe entradas extras proporcionais ao andar e à Mutação Horda de Elites
+            if ((effectiveProgression >= 4 || isEndless) && curElite.Count > 0 && remainingPts >= 10 && eliteSpawnedTotal < eliteMax)
+            {
                 validOptions.Add(EnemyClass.Elite);
+                for (int w = 0; w < endlessEliteWeights; w++)
+                {
+                    validOptions.Add(EnemyClass.Elite);
+                }
+            }
 
             // Tanque (4 pts)
             if (effectiveProgression >= 2 && curTanque.Count > 0 && remainingPts >= 4 && tanqueSpawnedTotal < tanqueMax)
@@ -752,6 +769,8 @@ public class RoomController : MonoBehaviour
         GameObject prefabToSpawn = prefab;
         PlayerHealth playerRef = Object.FindFirstObjectByType<PlayerHealth>();
         bool hasChaos = (playerRef != null && playerRef.hasChaosSymphony);
+        bool isEndless = RunManager.instance != null && RunManager.instance.isEndlessMode;
+        float endlessEliteBonus = isEndless ? RunManager.instance.GetEndlessEliteSpawnBonus() : 0f;
 
         if (enemyPoolConfig != null)
         {
@@ -763,6 +782,10 @@ public class RoomController : MonoBehaviour
                 {
                     mutChance = Mathf.Min(0.85f, mutChance + 0.35f); // +35% de chance de virar variante elite
                 }
+                if (isEndless && endlessEliteBonus > 0f)
+                {
+                    mutChance = Mathf.Min(0.85f, mutChance + endlessEliteBonus);
+                }
 
                 if (UnityEngine.Random.value <= mutChance)
                 {
@@ -773,11 +796,17 @@ public class RoomController : MonoBehaviour
             }
         }
 
-        // Se o mob não possui variante configurada, com a Sinfonia do Caos ele tem 30% de chance de spawnar como Elite Procedural
+        // Se o mob não possui variante configurada, com a Sinfonia do Caos ou escalonamento/mutações Endless pode spawnar como Elite Procedural
         bool forceProceduralElite = false;
-        if (hasChaos && prefabToSpawn == prefab && !prefab.name.ToLower().Contains("boss") && !prefab.name.ToLower().Contains("geobionte"))
+        if (prefabToSpawn == prefab && !prefab.name.ToLower().Contains("boss") && !prefab.name.ToLower().Contains("geobionte"))
         {
-            if (UnityEngine.Random.value <= 0.30f)
+            float proceduralChance = hasChaos ? 0.30f : 0f;
+            if (isEndless && endlessEliteBonus > 0f)
+            {
+                proceduralChance = Mathf.Clamp(proceduralChance + endlessEliteBonus * 0.70f, 0f, 0.65f);
+            }
+
+            if (proceduralChance > 0f && UnityEngine.Random.value <= proceduralChance)
             {
                 forceProceduralElite = true;
             }

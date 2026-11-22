@@ -21,10 +21,22 @@ public class RunStatsManager : MonoBehaviour
 {
     public static RunStatsManager Instance { get; private set; }
 
+    public const string EndlessBestLevelKey = "EndlessBestLevel";
+    public const string EndlessBestTimeKey = "EndlessBestTime";
+
     [Header("Estado da Run")]
     public bool isRunActive = false;
     public bool isEndlessMode = false;
     public float survivalTimer = 0f;
+
+    [Header("Recordes do Modo Endless (PlayerPrefs)")]
+    public int BestEndlessLevel { get; private set; }
+    public float BestEndlessTime { get; private set; }
+    public bool HasBeatenBestLevelThisRun { get; private set; }
+    public bool HasBeatenBestTimeThisRun { get; private set; }
+
+    private int runStartBestLevel = 0;
+    private float runStartBestTime = 0f;
 
     [Header("Métricas Acumuladas")]
     public long totalDamageDealt = 0;
@@ -54,6 +66,13 @@ public class RunStatsManager : MonoBehaviour
         }
         Instance = this;
         DontDestroyOnLoad(gameObject);
+        LoadEndlessRecords();
+    }
+
+    public void LoadEndlessRecords()
+    {
+        BestEndlessLevel = PlayerPrefs.GetInt(EndlessBestLevelKey, 0);
+        BestEndlessTime = PlayerPrefs.GetFloat(EndlessBestTimeKey, 0f);
     }
 
     void Update()
@@ -67,16 +86,106 @@ public class RunStatsManager : MonoBehaviour
     public void StartRunTracking(bool endless = false)
     {
         ResetStats();
+        LoadEndlessRecords();
+        runStartBestLevel = BestEndlessLevel;
+        runStartBestTime = BestEndlessTime;
+        HasBeatenBestLevelThisRun = false;
+        HasBeatenBestTimeThisRun = false;
+
         isRunActive = true;
         isEndlessMode = endless;
         survivalTimer = 0f;
         Debug.Log($"⏱️ [RUN STATS] Rastreamento iniciado! Modo Endless: {isEndlessMode}");
     }
 
+    /// <summary>
+    /// Promove uma run já em andamento (ex: Fenda Pós-Boss) para o Modo Endless sem resetar tempo nem estatísticas.
+    /// </summary>
+    public void PromoteToEndlessMode(int currentLevel)
+    {
+        LoadEndlessRecords();
+        if (!isEndlessMode)
+        {
+            runStartBestLevel = BestEndlessLevel;
+            runStartBestTime = BestEndlessTime;
+            HasBeatenBestLevelThisRun = false;
+            HasBeatenBestTimeThisRun = false;
+        }
+
+        isEndlessMode = true;
+        isRunActive = true;
+        CommitEndlessRecord(currentLevel);
+        Debug.Log($"♾️ [RUN STATS] Run promovida para Modo Endless no Nível {currentLevel} (tempo preservado: {FormatTime(survivalTimer)}).");
+    }
+
     public void StopRunTracking()
     {
+        if (isEndlessMode && RunManager.instance != null)
+        {
+            CommitEndlessRecord(RunManager.instance.currentLevel);
+        }
         isRunActive = false;
         Debug.Log($"⏱️ [RUN STATS] Rastreamento parado. Tempo final: {FormatTime(survivalTimer)}");
+    }
+
+    /// <summary>
+    /// Atualiza e persiste via PlayerPrefs o maior nível e o melhor tempo no Modo Endless.
+    /// </summary>
+    public bool CommitEndlessRecord(int levelReached)
+    {
+        bool endlessActive = isEndlessMode || (RunManager.instance != null && RunManager.instance.isEndlessMode);
+        if (!endlessActive) return false;
+
+        bool changed = false;
+
+        if (levelReached > BestEndlessLevel)
+        {
+            BestEndlessLevel = levelReached;
+            PlayerPrefs.SetInt(EndlessBestLevelKey, BestEndlessLevel);
+            HasBeatenBestLevelThisRun = true;
+            changed = true;
+        }
+
+        if (survivalTimer > BestEndlessTime)
+        {
+            BestEndlessTime = survivalTimer;
+            PlayerPrefs.SetFloat(EndlessBestTimeKey, BestEndlessTime);
+            HasBeatenBestTimeThisRun = true;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            PlayerPrefs.Save();
+            Debug.Log($"🏆 [ENDLESS RECORDE] Novo recorde salvo! Nível: {BestEndlessLevel} | Tempo: {FormatTime(BestEndlessTime)}");
+        }
+
+        return changed;
+    }
+
+    public bool IsBeatingEndlessRecordLive(int currentLevel)
+    {
+        bool endlessActive = isEndlessMode || (RunManager.instance != null && RunManager.instance.isEndlessMode);
+        if (!endlessActive) return false;
+
+        if (HasBeatenBestLevelThisRun || HasBeatenBestTimeThisRun) return true;
+        if (currentLevel > BestEndlessLevel && BestEndlessLevel > 0) return true;
+        if (survivalTimer > BestEndlessTime && BestEndlessTime > 0f) return true;
+        if (runStartBestLevel == 0 && runStartBestTime <= 0f && survivalTimer > 1f) return true;
+
+        return false;
+    }
+
+    public int GetLiveBestEndlessLevel(int currentLevel)
+    {
+        bool endlessActive = isEndlessMode || (RunManager.instance != null && RunManager.instance.isEndlessMode);
+        return endlessActive ? Mathf.Max(BestEndlessLevel, currentLevel) : BestEndlessLevel;
+    }
+
+    public float GetLiveBestEndlessTime()
+    {
+        bool endlessActive = isEndlessMode || (RunManager.instance != null && RunManager.instance.isEndlessMode);
+        return endlessActive ? Mathf.Max(BestEndlessTime, survivalTimer) : BestEndlessTime;
     }
 
     public void ResetStats()

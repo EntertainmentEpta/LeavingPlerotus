@@ -799,8 +799,7 @@ public class CheatConsole : MonoBehaviour
         {
             if (RunManager.instance != null)
             {
-                RunManager.instance.isEndlessMode = !RunManager.instance.isEndlessMode;
-                RunManager.instance.UpdateEndlessUI();
+                RunManager.instance.SetEndlessMode(!RunManager.instance.isEndlessMode);
                 Debug.Log($"💻 CHEAT: Modo Endless alterado para: {RunManager.instance.isEndlessMode}");
 
                 if (EptinhoPopupController.instancia != null)

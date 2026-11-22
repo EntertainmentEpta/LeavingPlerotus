@@ -229,11 +229,17 @@ public class LevelGenerator : MonoBehaviour
             if (!isBossRound)
             {
                 maxMainRooms = RunManager.instance.GetMaxRoomsForCurrentLevel();
-                Debug.Log($"[LevelGenerator] 🗺️ Round {RunManager.instance.currentLevel}/{RunManager.instance.totalLevels} — gerando {maxMainRooms} salas principais.");
+                if (RunManager.instance.isEndlessMode)
+                    Debug.Log($"[LevelGenerator] ♾️ Endless Nível {RunManager.instance.currentLevel} (Andar {RunManager.instance.endlessFloorCount}) — gerando {maxMainRooms} salas principais.");
+                else
+                    Debug.Log($"[LevelGenerator] 🗺️ Round {RunManager.instance.currentLevel}/{RunManager.instance.totalLevels} — gerando {maxMainRooms} salas principais.");
             }
             else
             {
-                Debug.Log($"[LevelGenerator] 🏆 Round {RunManager.instance.currentLevel}/{RunManager.instance.totalLevels} — BOSS FIGHT!");
+                if (RunManager.instance.isEndlessMode)
+                    Debug.Log($"[LevelGenerator] 🏆 Endless Nível {RunManager.instance.currentLevel} (Andar {RunManager.instance.endlessFloorCount}) — BOSS DO CICLO!");
+                else
+                    Debug.Log($"[LevelGenerator] 🏆 Round {RunManager.instance.currentLevel}/{RunManager.instance.totalLevels} — BOSS FIGHT!");
             }
         }
 
@@ -331,12 +337,25 @@ public class LevelGenerator : MonoBehaviour
 
     public int GetTargetCombatRoomCount()
     {
-        if (RunManager.instance != null && RunManager.instance.roomsPerLevel != null)
+        if (RunManager.instance != null)
         {
-            int lvl = RunManager.instance.currentLevel;
-            if (lvl >= 1 && lvl <= RunManager.instance.roomsPerLevel.Length)
+            if (RunManager.instance.isBossRound)
             {
-                return RunManager.instance.roomsPerLevel[lvl - 1];
+                return 0;
+            }
+
+            if (RunManager.instance.isEndlessMode)
+            {
+                return RunManager.instance.GetMaxRoomsForCurrentLevel();
+            }
+
+            if (RunManager.instance.roomsPerLevel != null)
+            {
+                int lvl = RunManager.instance.currentLevel;
+                if (lvl >= 1 && lvl <= RunManager.instance.roomsPerLevel.Length)
+                {
+                    return RunManager.instance.roomsPerLevel[lvl - 1];
+                }
             }
         }
         return maxMainRooms;

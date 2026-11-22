@@ -18,6 +18,9 @@ public class DummyHealth : MonoBehaviour
     private BossController bossController;
     private bool isHitStopActive;
     private bool savedNavWasStopped;
+    private bool endlessSpeedScalingApplied = false;
+    public float AppliedEndlessMoveSpeedMultiplier { get; private set; } = 1f;
+    public float AppliedEndlessAttackSpeedMultiplier { get; private set; } = 1f;
 
     [Header("Vida")]
     public int maxHealth = 100;
@@ -131,7 +134,7 @@ public class DummyHealth : MonoBehaviour
         // Se estivermos no modo Endless e o level for maior que 3, aumenta a vida máxima do inimigo
         if (RunManager.instance != null && RunManager.instance.isEndlessMode && RunManager.instance.currentLevel > 3)
         {
-            float hpMultiplier = 1f + (RunManager.instance.currentLevel - 3) * 0.15f; // +15% HP por level acima do 3
+            float hpMultiplier = RunManager.instance.GetEndlessHpMultiplier(); // +15% HP por level acima do 3
             maxHealth = Mathf.RoundToInt(maxHealth * hpMultiplier);
             CurrentHealth = maxHealth;
         }
@@ -185,6 +188,104 @@ public class DummyHealth : MonoBehaviour
 
         UpdateHealthBar();
         DetectAIScripts();
+        ApplyEndlessSpeedScalingIfNeeded();
+    }
+
+    /// <summary>
+    /// Aplica escalonamento de velocidade de movimento e ataque no Modo Endless (andar + Mutação do Abismo).
+    /// Aplicado uma única vez no Start, preservando 100% de compatibilidade com ApplySlow / ApplyStun / ScaleAISpeeds.
+    /// No Modo Normal (isEndlessMode == false), não altera nada.
+    /// </summary>
+    private void ApplyEndlessSpeedScalingIfNeeded()
+    {
+        if (endlessSpeedScalingApplied) return;
+        if (RunManager.instance == null || !RunManager.instance.isEndlessMode) return;
+
+        float moveMult = RunManager.instance.GetEndlessEnemyMoveSpeedMultiplier();
+        float attackMult = RunManager.instance.GetEndlessEnemyAttackSpeedMultiplier();
+
+        AppliedEndlessMoveSpeedMultiplier = moveMult;
+        AppliedEndlessAttackSpeedMultiplier = attackMult;
+        endlessSpeedScalingApplied = true;
+
+        if (moveMult > 1.001f)
+        {
+            ScaleAISpeeds(moveMult);
+        }
+
+        if (attackMult > 1.001f)
+        {
+            ApplyEndlessAttackSpeedScaling(attackMult);
+        }
+    }
+
+    private void ApplyEndlessAttackSpeedScaling(float attackMult)
+    {
+        float inv = 1f / Mathf.Max(1f, attackMult);
+
+        if (TryGetComponent<Golem_AI>(out var golem))
+        {
+            golem.meleeCooldown = Mathf.Max(0.45f, golem.meleeCooldown * inv);
+            golem.stunCooldown = Mathf.Max(4.0f, golem.stunCooldown * inv);
+        }
+        if (TryGetComponent<Spider_AI>(out var spider))
+        {
+            spider.leapCooldown = Mathf.Max(0.9f, spider.leapCooldown * inv);
+            spider.retreatCooldown = Mathf.Max(2.0f, spider.retreatCooldown * inv);
+        }
+        if (TryGetComponent<GoblinAI_Transform>(out var goblin))
+        {
+            goblin.throwCooldown = Mathf.Max(1.1f, goblin.throwCooldown * inv);
+            goblin.meleeCooldown = Mathf.Max(0.65f, goblin.meleeCooldown * inv);
+        }
+        if (TryGetComponent<PeixeAI>(out var peixe))
+        {
+            peixe.shootCooldown = Mathf.Max(1.0f, peixe.shootCooldown * inv);
+        }
+        if (TryGetComponent<SharpBlur>(out var sharpBlur))
+        {
+            sharpBlur.dashCooldown = Mathf.Max(1.5f, sharpBlur.dashCooldown * inv);
+        }
+        if (TryGetComponent<Cristalus_AI>(out var cristalus))
+        {
+            cristalus.arcCooldown = Mathf.Max(1.2f, cristalus.arcCooldown * inv);
+        }
+        if (TryGetComponent<CrystalWatcher_AI>(out var watcher))
+        {
+            watcher.cooldownTime = Mathf.Max(0.9f, watcher.cooldownTime * inv);
+        }
+        if (TryGetComponent<CrystalDragon_AI>(out var dragon))
+        {
+            dragon.spikeCooldownMin = Mathf.Max(0.9f, dragon.spikeCooldownMin * inv);
+            dragon.spikeCooldownMax = Mathf.Max(dragon.spikeCooldownMin + 0.5f, dragon.spikeCooldownMax * inv);
+            dragon.tailCooldown = Mathf.Max(0.9f, dragon.tailCooldown * inv);
+            dragon.flightCooldown = Mathf.Max(4.0f, dragon.flightCooldown * inv);
+        }
+        if (TryGetComponent<CrystalDragonCommon_AI>(out var commonDragon))
+        {
+            commonDragon.cooldownAtaque = Mathf.Max(1.2f, commonDragon.cooldownAtaque * inv);
+            commonDragon.spinCooldown = Mathf.Max(2.5f, commonDragon.spinCooldown * inv);
+        }
+        if (TryGetComponent<Geobionte_AI>(out var geo))
+        {
+            geo.sweepCooldown = Mathf.Max(0.6f, geo.sweepCooldown * inv);
+            geo.fieldCooldown = Mathf.Max(3.0f, geo.fieldCooldown * inv);
+        }
+        if (TryGetComponent<MagicStone_AI>(out var stone))
+        {
+            stone.teleportCooldown = Mathf.Max(3.5f, stone.teleportCooldown * inv);
+        }
+
+        if (allAnimators != null)
+        {
+            for (int i = 0; i < allAnimators.Length; i++)
+            {
+                if (allAnimators[i] != null && allAnimators[i].speed > 0.001f)
+                {
+                    allAnimators[i].speed = Mathf.Min(allAnimators[i].speed * attackMult, 1.45f);
+                }
+            }
+        }
     }
 
     private void DetectAIScripts()
@@ -732,15 +833,43 @@ public class DummyHealth : MonoBehaviour
             Debug.LogError($"[DummyHealth] Erro ao disparar EnemyDrops em {gameObject.name}: {ex}");
         }
 
-        // --- RECOMPENSA DE COMBATE DA SINFONIA DO CAOS ---
+        // --- RECOMPENSA DE COMBATE DA SINFONIA DO CAOS (Pacto do Mercador + Mutação do Abismo) ---
         try
         {
             PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
-            if (isElite && playerHealth != null && playerHealth.hasChaosSymphony)
+            if (playerHealth != null && !playerHealth.isDead)
             {
-                playerHealth.Heal(8);
-                playerHealth.TriggerEliteKillAdrenaline(5f);
-                Debug.Log("[CAOS] Inimigo Elite abatido! +8 Vida e Adrenalina concedidas ao jogador!");
+                bool hasMerchantChaos = isElite && playerHealth.hasChaosSymphony;
+                float chaosDuration = 5f;
+                float chaosMoveBonus = 0.15f;
+                float chaosAttackBonus = 0.20f;
+                float chaosTriggerChance = 0f;
+                bool hasAbyssChaos = RunManager.instance != null &&
+                                     RunManager.instance.TryGetChaosMutationAdrenalineParams(
+                                         isElite,
+                                         out chaosDuration,
+                                         out chaosMoveBonus,
+                                         out chaosAttackBonus,
+                                         out chaosTriggerChance);
+
+                if (hasMerchantChaos && hasAbyssChaos)
+                {
+                    playerHealth.Heal(10);
+                    playerHealth.TriggerEliteKillAdrenaline(chaosDuration + 1.5f, chaosMoveBonus + 0.05f, chaosAttackBonus + 0.05f);
+                    Debug.Log("[CAOS+] Elite abatido com Pacto + Mutação Sinfonia do Caos! +10 Vida e Adrenalina amplificada!");
+                }
+                else if (hasMerchantChaos)
+                {
+                    playerHealth.Heal(8);
+                    playerHealth.TriggerEliteKillAdrenaline(5f);
+                    Debug.Log("[CAOS] Inimigo Elite abatido! +8 Vida e Adrenalina concedidas ao jogador!");
+                }
+                else if (hasAbyssChaos && Random.value <= chaosTriggerChance)
+                {
+                    if (isElite) playerHealth.Heal(6);
+                    playerHealth.TriggerEliteKillAdrenaline(chaosDuration, chaosMoveBonus, chaosAttackBonus);
+                    Debug.Log($"[MUTAÇÃO CAOS] Adrenalina ativada ({chaosDuration:F1}s | Elite:{isElite})!");
+                }
             }
         }
         catch (System.Exception ex)
@@ -748,7 +877,7 @@ public class DummyHealth : MonoBehaviour
             Debug.LogError($"[DummyHealth] Erro em recompensa da Sinfonia do Caos: {ex}");
         }
 
-        // --- SISTEMA DE RENASCIMENTO ELITE (10% base / 100% com cheat / +25% com Sinfonia do Caos) ---
+        // --- SISTEMA DE RENASCIMENTO ELITE (10% base / 100% com cheat / +25% Pacto Caos / +Endless & Horda de Elites) ---
         bool shouldReborn = false;
         try
         {
@@ -765,6 +894,10 @@ public class DummyHealth : MonoBehaviour
             if (playerHealth != null && playerHealth.hasChaosSymphony)
             {
                 effectiveRebirthChance = Mathf.Clamp01(effectiveRebirthChance + 0.25f);
+            }
+            if (RunManager.instance != null && RunManager.instance.isEndlessMode)
+            {
+                effectiveRebirthChance = Mathf.Clamp(effectiveRebirthChance + RunManager.instance.GetEndlessEliteRebirthBonus(), 0f, 0.70f);
             }
 
             shouldReborn = canReborn && (forceEliteRebirth || Random.value <= effectiveRebirthChance);
@@ -1081,5 +1214,13 @@ public class DummyHealth : MonoBehaviour
         if (TryGetComponent<MagicStone_AI>(out var stone)) { stone.moveSpeed *= factor; }
         if (TryGetComponent<CrystalTuner>(out var tuner)) { tuner.moveSpeed *= factor; }
         if (TryGetComponent<Cristalus_AI>(out var cristalus)) { cristalus.moveSpeed *= factor; }
+        if (TryGetComponent<PeixeAI>(out var peixe)) { peixe.chaseSpeed *= factor; }
+        if (TryGetComponent<SharpBlur>(out var sharpBlur)) { sharpBlur.chaseSpeed *= factor; }
+        if (TryGetComponent<CrystalDragon_AI>(out var dragon)) { dragon.groundSpeed *= factor; dragon.orbitLinearSpeed *= factor; }
+
+        if (bossController == null && navAgent != null && navAgent.speed > 0.01f)
+        {
+            navAgent.speed *= factor;
+        }
     }
 }

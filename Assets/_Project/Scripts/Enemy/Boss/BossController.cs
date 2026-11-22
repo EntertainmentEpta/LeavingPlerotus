@@ -1011,15 +1011,22 @@ public class BossController : MonoBehaviour
 
     void Start()
     {
-        // Aplica config do ScriptableObject
+        // Aplica config do ScriptableObject (com escalonamento de Endless sem alterar o asset)
         if (phaseConfig != null)
         {
-            health.maxHealth = phaseConfig.maxHealth;
+            float endlessHpMult = (RunManager.instance != null && RunManager.instance.isEndlessMode)
+                ? RunManager.instance.GetEndlessHpMultiplier()
+                : 1f;
+            float endlessSpeedMult = (RunManager.instance != null && RunManager.instance.isEndlessMode)
+                ? RunManager.instance.GetEndlessEnemyMoveSpeedMultiplier()
+                : 1f;
+
+            health.maxHealth = Mathf.RoundToInt(phaseConfig.maxHealth * endlessHpMult);
             health.ResetHealth();
 
             if (agent != null)
             {
-                agent.speed = phaseConfig.baseSpeed;
+                agent.speed = phaseConfig.baseSpeed * endlessSpeedMult;
                 agent.angularSpeed = phaseConfig.rotationSpeed;
                 agent.isStopped = true; // Parado até a luta começar (mantém aderência ao NavMesh)
             }

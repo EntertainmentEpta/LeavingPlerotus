@@ -11159,6 +11159,10 @@ PrefabInstance:
       propertyPath: dashScript
       value: 
       objectReference: {fileID: 1331200005}
+    - target: {fileID: 6793213990562782912, guid: 217bae9f660890143a86775e613ef9a4, type: 3}
+      propertyPath: maxHealth
+      value: 1000
+      objectReference: {fileID: 0}
     - target: {fileID: 9188255382873321215, guid: 217bae9f660890143a86775e613ef9a4, type: 3}
       propertyPath: dashSound
       value: 
@@ -16359,6 +16363,98 @@ MonoBehaviour:
   hasSpawnedMerchantThisRun: 0
   hasCompletedPactThisRun: 0
   isEndlessMode: 0
+  maxEndlessRoomsPerFloor: 12
+  bossCycleInterval: 3
+  dualMutationStartFloor: 7
+  endlessSpeedPerFloor: 0.04
+  maxEndlessEnemySpeedMultiplier: 1.45
+  endlessEliteSpawnBonusPerFloor: 0.04
+  maxEndlessEliteSpawnBonus: 0.55
+  endlessEliteRebirthBonusPerFloor: 0.025
+  maxEndlessEliteRebirthBonus: 0.45
+  mutationCatalog:
+  - type: 1
+    displayName: Horda de Elites
+    shortDescription: +Elites nas salas e renascimento Elite
+    accentHexColor: '#FF6B35'
+    eliteSpawnChanceBonus: 0.25
+    eliteRebirthBonus: 0.22
+    bonusMaxElitesPerRoom: 2
+    bonusEliteWeightEntries: 2
+    spawnBudgetMultiplier: 1.1
+    enemyMoveSpeedMultiplier: 1
+    enemyAttackSpeedMultiplier: 1
+    chaosKillAdrenalineChance: 0
+    chaosAdrenalineDuration: 4.5
+    chaosEliteAdrenalineDuration: 7
+    chaosEliteMoveBonus: 0.22
+    chaosEliteAttackSpeedBonus: 0.28
+    essenceDropMultiplier: 1
+    itemDropChanceBonus: 0
+    extraItemDropChance: 0
+    eliteTierChanceBonus: 0
+  - type: 2
+    displayName: Frenesi Abissal
+    shortDescription: Inimigos +velozes no movimento e ataque
+    accentHexColor: '#FF3860'
+    eliteSpawnChanceBonus: 0
+    eliteRebirthBonus: 0
+    bonusMaxElitesPerRoom: 0
+    bonusEliteWeightEntries: 0
+    spawnBudgetMultiplier: 1
+    enemyMoveSpeedMultiplier: 1.22
+    enemyAttackSpeedMultiplier: 1.25
+    chaosKillAdrenalineChance: 0
+    chaosAdrenalineDuration: 4.5
+    chaosEliteAdrenalineDuration: 7
+    chaosEliteMoveBonus: 0.22
+    chaosEliteAttackSpeedBonus: 0.28
+    essenceDropMultiplier: 1
+    itemDropChanceBonus: 0
+    extraItemDropChance: 0
+    eliteTierChanceBonus: 0
+  - type: 3
+    displayName: Sinfonia do Caos
+    shortDescription: "Ondas ca\xF3ticas | Abates d\xE3o Adrenalina"
+    accentHexColor: '#C06CFF'
+    eliteSpawnChanceBonus: 0.12
+    eliteRebirthBonus: 0.1
+    bonusMaxElitesPerRoom: 1
+    bonusEliteWeightEntries: 1
+    spawnBudgetMultiplier: 1.25
+    enemyMoveSpeedMultiplier: 1.08
+    enemyAttackSpeedMultiplier: 1.12
+    chaosKillAdrenalineChance: 0.45
+    chaosAdrenalineDuration: 4.5
+    chaosEliteAdrenalineDuration: 7
+    chaosEliteMoveBonus: 0.22
+    chaosEliteAttackSpeedBonus: 0.28
+    essenceDropMultiplier: 1
+    itemDropChanceBonus: 0
+    extraItemDropChance: 0
+    eliteTierChanceBonus: 0
+  - type: 4
+    displayName: Fortuna do Abismo
+    shortDescription: "+65% Ess\xEAncia, +25% Drop e loot extra"
+    accentHexColor: '#FFD166'
+    eliteSpawnChanceBonus: 0
+    eliteRebirthBonus: 0
+    bonusMaxElitesPerRoom: 0
+    bonusEliteWeightEntries: 0
+    spawnBudgetMultiplier: 1
+    enemyMoveSpeedMultiplier: 1
+    enemyAttackSpeedMultiplier: 1
+    chaosKillAdrenalineChance: 0
+    chaosAdrenalineDuration: 4.5
+    chaosEliteAdrenalineDuration: 7
+    chaosEliteMoveBonus: 0.22
+    chaosEliteAttackSpeedBonus: 0.28
+    essenceDropMultiplier: 1.65
+    itemDropChanceBonus: 0.25
+    extraItemDropChance: 0.35
+    eliteTierChanceBonus: 0.15
+  endlessFloorCount: 0
+  activeMutations: 
 --- !u!114 &1037998307
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -23732,6 +23828,10 @@ PrefabInstance:
     - target: {fileID: 4051164572955032089, guid: f68c2fd3929c3d6428b3de7bc308e786, type: 3}
       propertyPath: m_Name
       value: Canvas_Pause
+      objectReference: {fileID: 0}
+    - target: {fileID: 5173137838638320610, guid: f68c2fd3929c3d6428b3de7bc308e786, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 21.000977
       objectReference: {fileID: 0}
     - target: {fileID: 5466441270577933203, guid: f68c2fd3929c3d6428b3de7bc308e786, type: 3}
       propertyPath: m_Pivot.x
