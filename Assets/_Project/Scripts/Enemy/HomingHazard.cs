@@ -107,6 +107,10 @@ public class HomingHazard : MonoBehaviour
     private float bobOffset;
     private HazardState currentState = HazardState.Emergence;
 
+    // Leitura do estado real, incluindo fusivel iniciado por reacao em cadeia.
+    public bool IsFusing => isActiveAndEnabled && currentState == HazardState.Fusing
+        && (health == null || health.CurrentHealth > 0);
+
     private float stateTimer = 0f;
     private Renderer[] renderers;
     private Color[] originalColors;

@@ -25,6 +25,14 @@ public class StunBeam : MonoBehaviour
     public int particleCount = 30;
 
     private bool hasAppliedStun = false;
+    private object stunSequence;
+
+    // Somente o Golem Elite fornece a identidade dos tres impactos.
+    public void Initialize(float newRadius, float newStunDuration, object sequence)
+    {
+        stunSequence = sequence;
+        Initialize(newRadius, newStunDuration);
+    }
 
     /// <summary>
     /// Inicializa o beam com valores do Golem
@@ -54,6 +62,12 @@ public class StunBeam : MonoBehaviour
     {
         hasAppliedStun = true;
 
+        if (stunSequence != null)
+        {
+            ApplySequenceStunToPlayersInArea();
+            return;
+        }
+
         Collider[] hits = Physics.OverlapSphere(transform.position, radius);
         foreach (Collider hit in hits)
         {
@@ -66,6 +80,21 @@ public class StunBeam : MonoBehaviour
                     Debug.Log("StunBeam aplicou stun no player por " + stunDuration + "s!");
                 }
             }
+        }
+    }
+
+    void ApplySequenceStunToPlayersInArea()
+    {
+        // Mantem a esfera. Resolve colliders filhos e inclui triggers
+        // sem depender da tag do filho nem da configuracao global.
+        var affected = new System.Collections.Generic.HashSet<PlayerHealth>();
+        Collider[] hits = Physics.OverlapSphere(transform.position, radius, ~0, QueryTriggerInteraction.Collide);
+        foreach (Collider hit in hits)
+        {
+            PlayerHealth playerHealth = hit.GetComponentInParent<PlayerHealth>();
+            if (playerHealth == null || !affected.Add(playerHealth)) continue;
+            if (playerHealth.TryApplySequenceStun(stunDuration, stunSequence))
+                Debug.Log("Golem Elite: stun aplicado por " + stunDuration + "s.");
         }
     }
 

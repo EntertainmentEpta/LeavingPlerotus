@@ -327,7 +327,16 @@ public class CrystalWatcher_AI : MonoBehaviour
 
             // O laser fica ativo por 'fireDuration' segundos
             // A lógica de rotação e dano roda no Update() > HandleFiring()
-            yield return new WaitForSeconds(fireDuration);
+            CrystalWatcherEliteOverride elite = GetComponent<CrystalWatcherEliteOverride>();
+            yield return new WaitForSeconds(elite != null && elite.isActiveAndEnabled
+                ? elite.trackingDuration : fireDuration);
+
+            if (elite != null && elite.isActiveAndEnabled)
+            {
+                // Retira HandleFiring do Update: so a sequencia Elite controla o feixe.
+                currentState = State.Charging;
+                yield return elite.SweepSequence(playerTransform);
+            }
 
             // FASE 3: DESLIGANDO 
             ShowLaserFiring(false);
@@ -356,6 +365,65 @@ public class CrystalWatcher_AI : MonoBehaviour
                 yield break; // Sai da Coroutine
             }
         }
+    }
+
+    // Pontos de integracao do componente Elite: reutilizam o mesmo laser e tick.
+    internal void StopEliteLaser()
+    {
+        currentState = State.Cooldown;
+        ShowLaserFiring(false);
+        StopFiringAudioLoop();
+        StopImpactAudioLoop();
+        if (vfx != null)
+        {
+            vfx.StopChargeEffect();
+            vfx.StopLaserEffect();
+            vfx.SetAmbientIntensity(1f);
+        }
+    }
+
+    internal void CancelEliteAttack()
+    {
+        StopAllCoroutines();
+        StopEliteLaser();
+        currentState = State.Idle;
+    }
+
+    internal void BeginEliteLaser(float angle, bool damaging)
+    {
+        currentState = State.Charging;
+        currentLaserAngle = angle;
+        transform.rotation = Quaternion.Euler(0f, angle, 0f);
+        StopFiringAudioLoop();
+        StopImpactAudioLoop();
+        if (vfx != null)
+        {
+            vfx.StopChargeEffect();
+            vfx.StopLaserEffect();
+        }
+        if (damaging)
+        {
+            damageTimer = damageTickRate; // Primeiro contato pode acertar.
+            ShowLaserFiring(true);
+            StartFiringAudioLoop();
+            if (vfx != null) vfx.StartLaserEffect(AngleToDirection(angle));
+        }
+        else
+        {
+            ShowLaserCharging(true);
+            PlayChargeSound();
+            if (vfx != null) vfx.StartChargeEffect();
+        }
+        UpdateLaserVisual();
+    }
+
+    internal void TickEliteLaser(float angle, bool damaging)
+    {
+        currentLaserAngle = angle;
+        transform.rotation = Quaternion.Euler(0f, angle, 0f);
+        if (damaging && vfx != null) vfx.UpdateLaserDirection(AngleToDirection(angle));
+        UpdateLaserVisual();
+        if (damaging) CheckLaserHit();
     }
 
     // ESTADO: FIRING (laser ativo)

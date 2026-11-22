@@ -556,6 +556,9 @@ public class PeixeAI : MonoBehaviour
             meshRenderer.material.color = stunnedColor;
         }
 
+        PeixeEliteOverride elite = GetComponent<PeixeEliteOverride>();
+        if (elite != null && elite.isActiveAndEnabled) elite.FireDeflationBurst();
+
         // Fica totalmente PARADO durante o Stun para o jogador poder bater
         yield return new WaitForSeconds(stunnedDuration);
 

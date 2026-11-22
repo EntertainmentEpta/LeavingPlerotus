@@ -39,3 +39,15 @@ MonoBehaviour:
   - basePrefab: {fileID: 8934992465927708091, guid: 56182097e246d7b4b895b2c1feb0d2ba, type: 3}
     variantPrefab: {fileID: 6572492768676148447, guid: ba7351485af12344c95ef4f19b02caa8, type: 3}
     mutationChance: 0.15
+  - basePrefab: {fileID: 748345383327806496, guid: 1a7976a1e55d949409c9a7bb2c781cac, type: 3}
+    variantPrefab: {fileID: 100001, guid: 1d5443c1a02f418d8f9109854f950fb3, type: 3}
+    mutationChance: 0.15
+  - basePrefab: {fileID: 326464074420430212, guid: 75587e19386eb024c8b895034e0d087d, type: 3}
+    variantPrefab: {fileID: 100001, guid: 18ccdf4c76f64c73be22d74eba20ccbe, type: 3}
+    mutationChance: 0.15
+  - basePrefab: {fileID: 6455373743372300023, guid: 566d2c0cfd6c0f64fb1b03e316183aa5, type: 3}
+    variantPrefab: {fileID: 100001, guid: 2627b578404349389745cc171966527d, type: 3}
+    mutationChance: 0.15
+  - basePrefab: {fileID: 6393874332621996799, guid: 7e7c3ed779af1c546bc02b3423ebde95, type: 3}
+    variantPrefab: {fileID: 100001, guid: c0c987d4d48547db9466180a0c1eb207, type: 3}
+    mutationChance: 0.15

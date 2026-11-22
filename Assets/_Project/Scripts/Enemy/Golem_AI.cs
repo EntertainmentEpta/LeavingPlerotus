@@ -254,7 +254,7 @@ public class Golem_AI : MonoBehaviour
         }
     }
 
-    private void PlayStompSound(Vector3 position)
+    internal void PlayStompSound(Vector3 position)
     {
         if (stompSound == null) return;
 
@@ -379,8 +379,29 @@ public class Golem_AI : MonoBehaviour
         isAttacking = false;
     }
 
+    internal void CancelEliteStun(float cooldown)
+    {
+        StopAllCoroutines();
+        isCastingStun = false;
+        isAttacking = false;
+        stunTimer = cooldown;
+    }
+
     IEnumerator CastStun()
     {
+        GolemEliteOverride elite = GetComponent<GolemEliteOverride>();
+        if (elite != null && elite.isActiveAndEnabled)
+        {
+            isCastingStun = true;
+            meleeCombo = 0;
+            rb.linearVelocity = Vector3.zero;
+            yield return elite.CastTripleStun(playerTransform);
+            isCastingStun = false;
+            // Recuperacao somente depois dos tres impactos.
+            stunTimer = elite.sequenceCooldown;
+            yield break;
+        }
+
         isCastingStun = true;
         stunTimer = stunCooldown;
         meleeCombo = 0;
