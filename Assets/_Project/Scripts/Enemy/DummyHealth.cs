@@ -107,8 +107,15 @@ public class DummyHealth : MonoBehaviour
     private NavMeshAgent navAgent;
     private Rigidbody rb;
 
+    // Apresentação universal de Elites (+20% de escala e aura em volta, sem alterar a cor do modelo 3D)
+    private const float EliteUniversalScaleMultiplier = 1.20f;
+    private Vector3 baseLocalScale = Vector3.one;
+    private bool elitePresentationApplied = false;
+    private EliteVariantConfig autoAddedEliteAura;
+
     private void Awake()
     {
+        baseLocalScale = transform.localScale;
         CurrentHealth = maxHealth;
         if (floatingDamageTextPrefab == null)
         {
@@ -183,6 +190,7 @@ public class DummyHealth : MonoBehaviour
 
         UpdateHealthBar();
         DetectAIScripts();
+        SyncUniversalElitePresentation();
     }
 
     private void DetectAIScripts()
@@ -971,7 +979,7 @@ public class DummyHealth : MonoBehaviour
 
         if (!hasDedicatedVariant)
         {
-            rebornEnemy.transform.localScale *= 1.25f;
+            rebornEnemy.transform.localScale *= 1.20f;
         }
 
         EnemyDrops drops = rebornEnemy.GetComponent<EnemyDrops>() ?? rebornEnemy.GetComponentInChildren<EnemyDrops>();
@@ -981,8 +989,44 @@ public class DummyHealth : MonoBehaviour
         }
     }
 
+    private void SyncUniversalElitePresentation()
+    {
+        if (isElite == elitePresentationApplied) return;
+        elitePresentationApplied = isElite;
+
+        if (isElite)
+        {
+            // Garante exatamente +20% sobre a escala base (sem empilhar se RoomController/Rebirth já escalou)
+            transform.localScale = baseLocalScale * EliteUniversalScaleMultiplier;
+
+            EliteVariantConfig existingAura = GetComponent<EliteVariantConfig>();
+            if (existingAura == null)
+            {
+                autoAddedEliteAura = gameObject.AddComponent<EliteVariantConfig>();
+                autoAddedEliteAura.variantName = gameObject.name.Replace("(Clone)", "").Trim() + " Elite";
+                autoAddedEliteAura.useProceduralAura = true;
+                autoAddedEliteAura.autoFitToBounds = true;
+            }
+            else
+            {
+                existingAura.SetAuraVisible(true);
+            }
+        }
+        else
+        {
+            transform.localScale = baseLocalScale;
+            if (autoAddedEliteAura != null)
+            {
+                Destroy(autoAddedEliteAura);
+                autoAddedEliteAura = null;
+            }
+        }
+    }
+
     private void Update()
     {
+        SyncUniversalElitePresentation();
+
         if (isSlowed)
         {
             slowTimer -= Time.deltaTime;

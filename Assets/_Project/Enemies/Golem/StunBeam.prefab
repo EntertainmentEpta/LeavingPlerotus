@@ -46,9 +46,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::StunBeam
   radius: 4
   stunDuration: 1.5
-  beamColor: {r: 0.76105523, g: 0.5222944, b: 0.9150943, a: 1}
-  flashColor: {r: 0.850834, g: 0.9056604, b: 0.21787111, a: 0.8509804}
-  ringWidth: 0.5
-  pillarHeight: 3.5
-  pillarDuration: 0.18
-  particleCount: 30
+  beamColor: {r: 0.62, g: 0.3, b: 0.95, a: 1}
+  accentColor: {r: 0.44, g: 0.18, b: 0.85, a: 1}
+  flashColor: {r: 0.82, g: 0.62, b: 1, a: 1}
+  skyBeamHeight: 22
+  anticipationGlowPrefab: {fileID: 1590415177872986601, guid: acdb90624a404aa438447006f1026065, type: 3}
+  groundImpactPrefab: {fileID: 4994997792314849709, guid: ae70586abcdf48eea01935bcef677200, type: 3}
+  groundHitRingPrefab: {fileID: 3432958286849152088, guid: 87ee7299dd44ed747af24dbb91bcd33b, type: 3}
+  impactBurstPrefab: {fileID: 2708598583397607911, guid: 6398d43fe79ea0140913dc5530c646af, type: 3}
+  electricStunPrefab: {fileID: 1141330259687333427, guid: 6718dc24203da53468af9ada8fef7d6d, type: 3}
+  skyBeamCoreMaterial: {fileID: 2100000, guid: e3c5a7b901244d33bf6e8a013456c755, type: 2}
+  skyBeamOuterMaterial: {fileID: 2100000, guid: f4d6b8c012354e44c07f9b124567d866, type: 2}
+  cleanTelegraphMaterial: {fileID: 2100000, guid: 481af20456794288a4b3df5689011caa, type: 2}

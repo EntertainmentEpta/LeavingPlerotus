@@ -197,9 +197,42 @@ public class SharpBlur : MonoBehaviour
     [Tooltip("Mantém os quadris (Hips) centralizados no pivô/colisor para impedir que o mesh salte para trás durante animações como Double_Combo_Attack.")]
     public bool lockMeshXZToRoot = true;
 
+    [Header("Buff do Crystal Tuner")]
+    [Tooltip("Multiplicador de velocidade de perseguição quando conectado ao Crystal Tuner.")]
+    public float tunerChaseSpeedMultiplier = 1.12f;
+    [Tooltip("Multiplicador de cooldown do dash quando conectado ao Crystal Tuner.")]
+    public float tunerDashCooldownMultiplier = 0.80f;
+    [Tooltip("Dashes extras adicionados à sequência quando conectado ao Crystal Tuner.")]
+    public int tunerBonusDashes = 1;
+    [Tooltip("Cor dos slashes quando potencializado pelo Crystal Tuner (ciano-violeta cristalino).")]
+    public Color tunerSlashTint = new Color(0.36f, 0.78f, 0.96f, 0.48f);
+    public Color tunerTrailStartColor = new Color(0.38f, 0.85f, 1.0f, 0.66f);
+    public Color tunerTrailEndColor = new Color(0.45f, 0.35f, 0.90f, 0.0f);
+
+    [Header("Melhorias do Sharp Blur Elite")]
+    [Tooltip("Delay (s) do Corte Fantasma/Eco disparado pelo holograma deixado pelo Elite.")]
+    public float eliteEchoDelay = 0.45f;
+    [Tooltip("Dano do Corte Fantasma/Eco do holograma Elite.")]
+    public int eliteEchoDamage = 12;
+    [Tooltip("Cor translúcida fantasmagórica do Corte Eco Elite.")]
+    public Color eliteEchoSlashTint = new Color(0.70f, 0.46f, 1.0f, 0.40f);
+    [Tooltip("Chance de dash de atravessada (pierce) quando Elite.")]
+    [Range(0f, 1f)] public float elitePierceDashChance = 0.65f;
+    [Tooltip("Multiplicador do tempo de antecipação do dash quando Elite (< 1 = mais rápido).")]
+    public float eliteAnticipationMultiplier = 0.85f;
+    [Tooltip("Janela de punição pós-dash quando Elite (mais justa, porém ainda punível).")]
+    public float eliteDashPunishWindow = 1.0f;
+    [Tooltip("Multiplicador da escala de slash e hitbox quando Elite.")]
+    public float eliteSlashScaleMultiplier = 1.15f;
+    [Tooltip("Multiplicador de dano corpo a corpo e dash quando Elite.")]
+    public float eliteDamageMultiplier = 1.20f;
+
     private enum State { Idle, Chasing, Dashing, MeleeAttacking, Resting }
     private State currentState = State.Idle;
     private float nextDashAllowedTime = 0f;
+    private bool isBuffed = false;
+
+    private bool IsElite => health != null && health.isElite;
 
     private Transform hipsTransform;
     private TrailRenderer leftClawTrail;
@@ -382,6 +415,73 @@ public class SharpBlur : MonoBehaviour
     {
         SetSingleTrail(leftClawTrail, emitting, clear);
         SetSingleTrail(rightClawTrail, emitting, clear);
+    }
+
+    private void RefreshTrailColors()
+    {
+        Color startCol = isBuffed ? tunerTrailStartColor : trailStartColor;
+        Color endCol = isBuffed ? tunerTrailEndColor : trailEndColor;
+
+        Gradient gradient = new Gradient();
+        gradient.SetKeys(
+            new GradientColorKey[] { new GradientColorKey(startCol, 0f), new GradientColorKey(endCol, 1f) },
+            new GradientAlphaKey[]
+            {
+                new GradientAlphaKey(startCol.a, 0f),
+                new GradientAlphaKey(startCol.a * 0.78f, 0.45f),
+                new GradientAlphaKey(0f, 1f)
+            }
+        );
+
+        if (leftClawTrail != null) leftClawTrail.colorGradient = gradient;
+        if (rightClawTrail != null) rightClawTrail.colorGradient = gradient;
+    }
+
+    /// <summary>
+    /// Buff aplicado pelo CrystalTuner: +12% velocidade, -20% cooldown de dash, +1 dash na sequência e VFX/trails ciano-violeta.
+    /// </summary>
+    public void SetBuff(bool active)
+    {
+        if (active && !isBuffed)
+        {
+            isBuffed = true;
+            chaseSpeed *= tunerChaseSpeedMultiplier;
+            dashCooldown *= tunerDashCooldownMultiplier;
+            RefreshTrailColors();
+        }
+        else if (!active && isBuffed)
+        {
+            isBuffed = false;
+            chaseSpeed /= tunerChaseSpeedMultiplier;
+            dashCooldown /= tunerDashCooldownMultiplier;
+            RefreshTrailColors();
+        }
+    }
+
+    private int ScaleDamageForElite(int baseDamage)
+    {
+        return IsElite ? Mathf.RoundToInt(baseDamage * eliteDamageMultiplier) : baseDamage;
+    }
+
+    private float GetEffectiveSlashScale(float baseScale)
+    {
+        float s = Mathf.Max(0.05f, baseScale);
+        return IsElite ? s * eliteSlashScaleMultiplier : s;
+    }
+
+    private float GetEffectiveAnticipationTime()
+    {
+        return IsElite ? anticipationTime * Mathf.Clamp(eliteAnticipationMultiplier, 0.5f, 1f) : anticipationTime;
+    }
+
+    private float GetEffectivePierceChance()
+    {
+        return IsElite ? Mathf.Max(pierceDashChance, elitePierceDashChance) : pierceDashChance;
+    }
+
+    private Color GetActiveSlashTint()
+    {
+        return isBuffed ? tunerSlashTint : slashVfxTint;
     }
 
     private void StopAllTrails(bool clear)
@@ -706,6 +806,12 @@ public class SharpBlur : MonoBehaviour
             SpawnSlashVfx(dashSpinSlashPose2);
             if (dealDamage)
                 TryDealSpinDamage(dashSpinSlashPose2, attack3SecondHitDamage);
+
+            // Elite: deixa um holograma eco no ponto do Attack3 que dispara um corte fantasma atrasado
+            if (IsElite && dealDamage)
+            {
+                ScheduleEliteEchoSlash(transform.position, transform.rotation, dashSpinSlashPose);
+            }
         }
 
         if (!isDead)
@@ -724,15 +830,23 @@ public class SharpBlur : MonoBehaviour
 
         if (anim != null) anim.SetBool("isChasing", false);
 
+        int bonusDashes = isBuffed ? Mathf.Max(0, tunerBonusDashes) : 0;
+        int effMinDashes = minDashes + bonusDashes;
+        int effMaxDashes = Mathf.Max(effMinDashes, maxDashes + bonusDashes);
+        float effAnticipation = GetEffectiveAnticipationTime();
+
         int numberOfDashes = fromMeleeFollowUp
-            ? Random.Range(1, Mathf.Max(2, maxDashes)) // após melee, faz 1–2 dashes táticos de reposicionamento/travessia
-            : Random.Range(minDashes, Mathf.Max(minDashes, maxDashes) + 1);
+            ? Random.Range(1, Mathf.Max(2, effMaxDashes))
+            : Random.Range(effMinDashes, effMaxDashes + 1);
 
         for (int i = 0; i < numberOfDashes; i++)
         {
             if (isDead || playerTransform == null) yield break;
 
             bool isLastDash = (i == numberOfDashes - 1);
+            Vector3 dashOriginPos = transform.position;
+            Quaternion dashOriginRot = transform.rotation;
+
             Vector3 targetDashPos = ComputeHybridDashTarget(isLastDash, out Vector3 dashDirection, forceFlankOrPierce: fromMeleeFollowUp && (!isLastDash || numberOfDashes == 1));
             Quaternion dashRot = Quaternion.LookRotation(dashDirection);
 
@@ -743,13 +857,20 @@ public class SharpBlur : MonoBehaviour
                 DashHologram holoScript = holo.GetComponent<DashHologram>();
                 if (holoScript != null)
                 {
-                    holoScript.Init(transform, targetDashPos, dashRot, anticipationTime + 0.05f, hologramMaterial, hologramAlpha);
+                    holoScript.Init(transform, targetDashPos, dashRot, effAnticipation + 0.05f, hologramMaterial, hologramAlpha);
                 }
             }
 
             if (anim != null) anim.CrossFadeInFixedTime("Dash", 0.06f, 0, 0f);
 
-            yield return StartCoroutine(FaceDirectionFor(dashDirection, anticipationTime, 22f));
+            yield return StartCoroutine(FaceDirectionFor(dashDirection, effAnticipation, 22f));
+
+            // Elite: no último dash da sequência, deixa um eco fantasma na origem que desfere um corte atrasado
+            if (IsElite && isLastDash)
+            {
+                ScheduleEliteEchoSlash(dashOriginPos, dashOriginRot, hit1SlashPose);
+            }
+
             yield return StartCoroutine(ExecuteSingleDash(dashDirection, targetDashPos, isLastDash));
             if (!isLastDash)
                 yield return new WaitForSeconds(pauseBetweenDashes);
@@ -769,7 +890,8 @@ public class SharpBlur : MonoBehaviour
         {
             currentState = State.Resting;
             if (anim != null) anim.SetBool("isChasing", false);
-            float restTime = Mathf.Max(0.25f, dashPunishWindow);
+            float punishWindow = IsElite ? Mathf.Min(dashPunishWindow, eliteDashPunishWindow) : dashPunishWindow;
+            float restTime = Mathf.Max(0.25f, punishWindow);
             yield return new WaitForSeconds(restTime);
         }
 
@@ -823,7 +945,7 @@ public class SharpBlur : MonoBehaviour
         else
         {
             // Último dash: às vezes atravessa longo, na maioria fecha bem na frente (ou corta na frente se estiver correndo)
-            if (Random.value < pierceDashChance * 0.65f && toTarget.magnitude <= dashDistance)
+            if (Random.value < GetEffectivePierceChance() * 0.65f && toTarget.magnitude <= dashDistance)
             {
                 float overshoot = Random.Range(2.0f, 3.8f);
                 rawTargetPos = targetBase + dashDirection * overshoot;
@@ -937,27 +1059,27 @@ public class SharpBlur : MonoBehaviour
 
     private void GetSlashHitbox(SlashVfxPose pose, bool isSpin, out Vector3 center, out float radius)
     {
-        float s = Mathf.Max(0.5f, pose.scale);
+        float s = Mathf.Max(0.5f, GetEffectiveSlashScale(pose.scale));
         Vector3 flatOffset = isSpin
             ? new Vector3(pose.localOffset.x * 0.5f, 0f, pose.localOffset.z * 0.65f)
             : new Vector3(pose.localOffset.x * 0.45f, 0f, Mathf.Max(meleeHitForwardOffset, pose.localOffset.z));
 
         center = transform.position + (transform.rotation * flatOffset) + (Vector3.up * meleeHitHeightOffset);
         radius = isSpin
-            ? Mathf.Max(attack3SpinRadius, 1.75f * s)
-            : Mathf.Max(meleeHitRadius, 1.18f * s);
+            ? Mathf.Max(attack3SpinRadius * (IsElite ? eliteSlashScaleMultiplier : 1f), 1.75f * s)
+            : Mathf.Max(meleeHitRadius * (IsElite ? eliteSlashScaleMultiplier : 1f), 1.18f * s);
     }
 
     private void TryDealSlashDamage(SlashVfxPose pose, int damage)
     {
         GetSlashHitbox(pose, isSpin: false, out Vector3 center, out float radius);
-        DealOverlapDamage(center, radius, damage);
+        DealOverlapDamage(center, radius, ScaleDamageForElite(damage));
     }
 
     private void TryDealSpinDamage(SlashVfxPose pose, int damage)
     {
         GetSlashHitbox(pose, isSpin: true, out Vector3 center, out float radius);
-        DealOverlapDamage(center, radius, damage);
+        DealOverlapDamage(center, radius, ScaleDamageForElite(damage));
     }
 
     private void DealOverlapDamage(Vector3 center, float radius, int damage)
@@ -976,39 +1098,44 @@ public class SharpBlur : MonoBehaviour
         }
     }
 
-    private static readonly Dictionary<Material, Material> TintedSlashMaterialCache = new Dictionary<Material, Material>();
+    private static readonly Dictionary<(Material, Color32), Material> TintedSlashMaterialCache = new Dictionary<(Material, Color32), Material>();
 
     private void SpawnSlashVfx(SlashVfxPose pose)
+    {
+        SpawnSlashVfxAt(transform.position, transform.rotation, pose, GetActiveSlashTint(), GetEffectiveSlashScale(pose.scale));
+    }
+
+    private void SpawnSlashVfxAt(Vector3 originPos, Quaternion originRot, SlashVfxPose pose, Color tint, float scale)
     {
         if (meleeSlashVfxPrefab == null) return;
 
         Vector3 spawnPos;
         Quaternion spawnRot;
-        if (pose.customAnchor != null)
+        if (pose.customAnchor != null && originPos == transform.position)
         {
             spawnPos = pose.customAnchor.position;
             spawnRot = pose.customAnchor.rotation * Quaternion.Euler(pose.localEulerAngles);
         }
         else
         {
-            spawnPos = transform.position + (transform.rotation * pose.localOffset);
-            spawnRot = transform.rotation * Quaternion.Euler(pose.localEulerAngles);
+            spawnPos = originPos + (originRot * pose.localOffset);
+            spawnRot = originRot * Quaternion.Euler(pose.localEulerAngles);
         }
 
         GameObject vfx = Instantiate(meleeSlashVfxPrefab, spawnPos, spawnRot);
-        float s = Mathf.Max(0.05f, pose.scale);
+        float s = Mathf.Max(0.05f, scale);
         vfx.transform.localScale = new Vector3(pose.flipX ? -s : s, s, s);
 
         foreach (ParticleSystem ps in vfx.GetComponentsInChildren<ParticleSystem>(true))
         {
             var main = ps.main;
             Color currentStart = main.startColor.color;
-            main.startColor = currentStart * slashVfxTint;
+            main.startColor = currentStart * tint;
 
             ParticleSystemRenderer psr = ps.GetComponent<ParticleSystemRenderer>();
             if (psr != null && psr.sharedMaterial != null)
             {
-                psr.sharedMaterial = GetOrCreateTintedMaterial(psr.sharedMaterial, slashVfxTint);
+                psr.sharedMaterial = GetOrCreateTintedMaterial(psr.sharedMaterial, tint);
             }
 
             ps.Play(true);
@@ -1017,10 +1144,50 @@ public class SharpBlur : MonoBehaviour
         Destroy(vfx, Mathf.Max(0.3f, slashVfxLifetime));
     }
 
+    private void ScheduleEliteEchoSlash(Vector3 echoPos, Quaternion echoRot, SlashVfxPose pose)
+    {
+        if (isDead) return;
+        StartCoroutine(EliteEchoSlashRoutine(echoPos, echoRot, pose));
+    }
+
+    private IEnumerator EliteEchoSlashRoutine(Vector3 echoPos, Quaternion echoRot, SlashVfxPose pose)
+    {
+        float delay = Mathf.Max(0.20f, eliteEchoDelay);
+
+        // Congela um holograma fantasma na posição para telegrafar o corte eco atrasado
+        if (hologramPrefab != null && hologramMaterial != null)
+        {
+            LockHipsToRootXZ();
+            GameObject holo = Instantiate(hologramPrefab);
+            DashHologram holoScript = holo.GetComponent<DashHologram>();
+            if (holoScript != null)
+            {
+                holoScript.Init(transform, echoPos, echoRot, delay + 0.08f, hologramMaterial, hologramAlpha * 0.9f);
+            }
+        }
+
+        yield return new WaitForSeconds(delay);
+
+        if (isDead) yield break;
+
+        Color echoTint = isBuffed ? new Color(tunerSlashTint.r, tunerSlashTint.g, tunerSlashTint.b, 0.40f) : eliteEchoSlashTint;
+        float echoScale = GetEffectiveSlashScale(pose.scale);
+        SpawnSlashVfxAt(echoPos, echoRot, pose, echoTint, echoScale);
+
+        if (meleeAttackSound != null)
+            PlayMeleeAttackSound();
+
+        Vector3 flatOffset = new Vector3(pose.localOffset.x * 0.45f, 0f, Mathf.Max(meleeHitForwardOffset, pose.localOffset.z));
+        Vector3 hitCenter = echoPos + (echoRot * flatOffset) + (Vector3.up * meleeHitHeightOffset);
+        float hitRadius = Mathf.Max(meleeHitRadius * eliteSlashScaleMultiplier, 1.25f * echoScale);
+        DealOverlapDamage(hitCenter, hitRadius, eliteEchoDamage);
+    }
+
     private static Material GetOrCreateTintedMaterial(Material template, Color tint)
     {
         if (template == null) return null;
-        if (TintedSlashMaterialCache.TryGetValue(template, out Material cached) && cached != null)
+        var key = (template, (Color32)tint);
+        if (TintedSlashMaterialCache.TryGetValue(key, out Material cached) && cached != null)
             return cached;
 
         Material mat = new Material(template);
@@ -1028,7 +1195,7 @@ public class SharpBlur : MonoBehaviour
         if (mat.HasProperty("_Color")) mat.SetColor("_Color", subtleHdr);
         if (mat.HasProperty("_MainColor")) mat.SetColor("_MainColor", tint);
         if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", tint);
-        TintedSlashMaterialCache[template] = mat;
+        TintedSlashMaterialCache[key] = mat;
         return mat;
     }
 
@@ -1055,7 +1222,7 @@ public class SharpBlur : MonoBehaviour
 
         hitDealtThisDash = true;
         PlayMeleeAttackSound();
-        ph.TakeDamage(dashDamage, gameObject);
+        ph.TakeDamage(ScaleDamageForElite(dashDamage), gameObject);
         return true;
     }
 

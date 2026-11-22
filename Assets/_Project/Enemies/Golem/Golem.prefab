@@ -185,25 +185,34 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Golem_AI
   stunMarkerPrefab: {fileID: 0}
   stunBeamPrefab: {fileID: 3156189663886257779, guid: 7eb942f03da6e7241af7035e7d2a0fa9, type: 3}
-  activationDistance: 15
-  moveSpeed: 4
+  activationDistance: 25
+  moveSpeed: 3.4
   rotationSpeed: 5
+  navPathUpdateInterval: 0.2
   meleeRange: 3.2
-  meleeCooldown: 0.95
+  meleeCooldown: 1.15
   meleeDamage: 35
   meleeHitRadius: 2.4
+  meleeHitForwardOffset: 1.65
+  meleeWindupTime: 0.5
+  meleeRecoveryTime: 0.4
+  meleeImpactColor: {r: 0.95, g: 0.72, b: 0.35, a: 1}
   stunMaxRange: 10
-  stunCooldown: 9
+  stunCooldown: 8.5
   stunDuration: 1.5
-  stunTelegraphTime: 0.22
-  stunRadius: 4
+  stunTelegraphTime: 0.8
+  stunRecoveryTime: 0.4
+  stunRadius: 4.3
+  stunTrackingPortion: 0.45
+  stunTrackingSpeed: 6.5
+  stunLeadTime: 0.22
   comboHitsForStun: 2
   walkingSounds:
   - {fileID: 8300000, guid: b88a35714c3dce4488a829bdef12597c, type: 3}
   - {fileID: 8300000, guid: 19678d1edcee861418bdd8c5fbe57634, type: 3}
   - {fileID: 8300000, guid: 46caeddc30d4e5a4fbaa0bee3a91f65d, type: 3}
   walkingSoundVolume: 0.6
-  stepInterval: 0.45
+  stepInterval: 0.52
   meleeAttackSound: {fileID: 8300000, guid: f75792465661afe42acaebbfc98f757e, type: 3}
   meleeAttackSoundVolume: 0.8
   stompSound: {fileID: 8300000, guid: 63fc45f809a3c804cb02d179f93058b8, type: 3}
@@ -255,7 +264,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 828566207f72aaa48b5b20a3cd1155fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyIdentity
-  enemyData: {fileID: 0}
+  enemyData: {fileID: 11400000, guid: 49c2c45787ef07e499e7d38aae2cbad7, type: 2}
   foiEncontrado: 0
 --- !u!114 &6669924967041183014
 MonoBehaviour:
@@ -294,12 +303,12 @@ MonoBehaviour:
   footLiftAngle: 10
   armSwingAngle: 25
   armPhaseDelay: 0.4
-  armInertiaFactor: 0
-  armRotationAxis: {x: 1, y: 1, z: 1}
-  idleArmSpeed: 3
+  armInertiaFactor: 2.2
+  armRotationAxis: {x: 1, y: 0, z: 0}
+  idleArmSpeed: 2.5
   idleArmAngle: 5
-  fingerCloseAngle: 180
-  fingerRotationAxis: {x: 1, y: 1, z: 1}
+  fingerCloseAngle: 65
+  fingerRotationAxis: {x: 0, y: 0, z: 1}
   hipRotationAxis: {x: 1, y: 0, z: 0}
   calfRotationAxis: {x: 1, y: 0, z: 0}
   bodySwayAxis: {x: 0, y: 0, z: 1}
@@ -311,17 +320,17 @@ MonoBehaviour:
   invertRightFinger: 0
   armLiftAngle: 70
   armLiftAxis: {x: 0, y: 0, z: 1}
-  attackLeanBackAngle: -2.5
-  attackSlamForwardAngle: 35
+  attackLeanBackAngle: -24
+  attackSlamForwardAngle: 38
   attackLeanAxis: {x: 1, y: 0, z: 0}
   attackArmSpinAxis: {x: 0, y: 1, z: 0}
   rotatorSpinsCount: 2
-  rotatorConvergeAngle: 10
+  rotatorConvergeAngle: 12
   rotatorPitchAngle: 30
-  attackDuration: 1
-  stunRiseHeight: 0.5
-  stunLegFoldAngle: 0
-  stunCastDuration: 1.5
+  attackDuration: 0.9
+  stunRiseHeight: 0.55
+  stunLegFoldAngle: 26
+  stunCastDuration: 1.2
 --- !u!1001 &6338938540938558875
 PrefabInstance:
   m_ObjectHideFlags: 0
