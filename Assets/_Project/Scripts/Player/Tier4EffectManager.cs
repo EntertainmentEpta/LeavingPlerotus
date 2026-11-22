@@ -37,7 +37,7 @@ public class Tier4EffectManager : MonoBehaviour
     public float sharpBlurBleedDuration = 3f;
 
     [Header("Tiro Teleguiado")]
-    [Min(0.1f)] public float homingDetectionRadius = 30f;
+    [Min(0.1f)] public float homingDetectionRadius = 5f;
     [Min(1f)] public float homingTurnSpeed = 720f;
     [Min(0.02f)] public float homingTargetRefreshInterval = 0.1f;
     public Color homingBatteryOrbTint = new Color(126f / 255f, 61f / 255f, 202f / 255f, 1f);

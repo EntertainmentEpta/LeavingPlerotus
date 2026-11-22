@@ -48,7 +48,7 @@ public class PrimaryAttackKnife : MonoBehaviour
     public float axeRange = 7.5f; 
 
     [Header("Soft Aim Assist")]
-    [Min(0.1f)] public float aimAssistRange = 6f;
+    [Min(0.1f)] public float aimAssistRange = 5f;
     [Min(0.1f)] public float daggerAimAssistRange = 5f;
     [Range(1f, 180f)] public float aimAssistConeAngle = 80f;
     [Range(1f, 180f)] public float daggerAimAssistConeAngle = 70f;
@@ -129,10 +129,6 @@ public class PrimaryAttackKnife : MonoBehaviour
 
     private int comboStep = 0;
 
-    [Header("Lunge Impulse Control")]
-    [Tooltip("Se verdadeiro, aplica uma investida física (Lunge) para a frente ao atacar. Se falso, o ataque executa no lugar.")]
-    public bool enableLunge = true;
-
     [Header("Backup Animation Timing Settings (When no Animation Events exist)")]
     [Tooltip("Delay (em segundos) para ativar o colisor de dano da Adaga")]
     public float daggerHitDelay = 0.05f;
@@ -162,6 +158,16 @@ public class PrimaryAttackKnife : MonoBehaviour
     private bool eventFiredDisableHitbox = false;
     private bool eventFiredOpenWindow = false;
     private HashSet<GameObject> enemiesHitInThisAttack;
+    public int ComboStep => comboStep;
+
+    public float GetMovementSpeedMultiplier()
+    {
+        if (!isAttacking) return 1f;
+        if (comboStep == 1) return 0.90f;
+        if (comboStep == 2) return 0.80f;
+        if (comboStep >= 3) return 0.50f;
+        return 1f;
+    }
 
     private void OnDisable()
     {
@@ -310,6 +316,7 @@ public class PrimaryAttackKnife : MonoBehaviour
         if (animator != null)
         {
             animator.speed = 1.0f;
+            animator.applyRootMotion = true;
         }
 
         DisableHitbox();
@@ -405,46 +412,23 @@ public class PrimaryAttackKnife : MonoBehaviour
 
             Debug.Log($"⚔️ [PrimaryAttackKnife] Executando Golpe {comboStep}/{maxComboSteps} do Combo!");
 
+            bool isAxeAttack = wmRef != null && wmRef.rightHand != null &&
+                               wmRef.rightHand.childCount > 0 &&
+                               wmRef.rightHand.GetChild(0).GetComponent<WeaponOffset>() != null &&
+                               wmRef.rightHand.GetChild(0).GetComponent<WeaponOffset>().weaponType == WeaponType.Axe;
+            bool isDaggerAttack = wmRef != null && wmRef.rightHand != null &&
+                                  wmRef.rightHand.childCount > 0 &&
+                                  wmRef.rightHand.GetChild(0).GetComponent<WeaponOffset>() != null &&
+                                  wmRef.rightHand.GetChild(0).GetComponent<WeaponOffset>().weaponType == WeaponType.Dagger;
+            if (isAxeAttack || isDaggerAttack)
+            {
+                animator.applyRootMotion = false;
+            }
+
             animator.ResetTrigger("Attack");
             animator.SetInteger("ComboStep", comboStep);
             animator.SetTrigger("Attack");
 
-
-            // --- LUNGE FORWARD FOR ATTACKS (Apenas se enableLunge for ativado) ---
-            if (enableLunge)
-            {
-                if (playerRb == null) playerRb = GetComponent<Rigidbody>();
-                if (playerRb != null)
-                {
-                    float lungeForce = 3.5f; // lunge padrão
-                    Player_WeaponManager wm = GetComponent<Player_WeaponManager>();
-                    if (wm != null && wm.rightHand != null && wm.rightHand.childCount > 0)
-                    {
-                        WeaponOffset offsetData = wm.rightHand.GetChild(0).GetComponent<WeaponOffset>();
-                        if (offsetData != null)
-                        {
-                            if (offsetData.weaponType == WeaponType.Axe)
-                            {
-                                lungeForce = 7.5f; // Machado lunge mais forte e pesado
-                            }
-                            else if (offsetData.weaponType == WeaponType.Dagger)
-                            {
-                                lungeForce = 5f; // Adaga lunge médio rápido
-                            }
-                        }
-                    }
-
-                    // Aplica impulso na direção frontal do jogador com verificação de parede próxima (Raycast)
-                    Vector3 lungeDir = transform.forward;
-                    if (Physics.Raycast(transform.position + Vector3.up * 0.5f, lungeDir, out RaycastHit wallHit, 1.2f))
-                    {
-                        lungeForce *= 0.15f; // Evita atravessar a geometria de paredes
-                    }
-
-                    playerRb.linearVelocity = new Vector3(lungeDir.x * lungeForce, playerRb.linearVelocity.y, lungeDir.z * lungeForce);
-                    Debug.Log($"[PrimaryAttackKnife] Lunge aplicado com força {lungeForce} na direção {lungeDir}");
-                }
-            }
 
             // Aplicar Attack Speed multiplicada pela velocidade específica de cada passo do combo (apenas para o Machado)
             if (playerAttributes != null)
@@ -497,14 +481,6 @@ public class PrimaryAttackKnife : MonoBehaviour
 
     public Vector3 GetAimAssistDirection()
     {
-        PlayerM movement = GetComponent<PlayerM>() ?? GetComponentInParent<PlayerM>();
-        Vector3 inputDirection = movement != null ? movement.MoveDirection : Vector3.zero;
-        inputDirection = Vector3.ProjectOnPlane(inputDirection, Vector3.up).normalized;
-        bool hasMovementIntent = inputDirection.sqrMagnitude > 0.0001f;
-        Vector3 aimDirection = hasMovementIntent
-            ? inputDirection
-            : Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
-
         GetAimAssistSettings(out float searchRange, out float coneAngle);
         int layerMask = enemyLayerMask.value == 0 ? Physics.AllLayers : enemyLayerMask.value;
         Collider[] nearbyColliders = Physics.OverlapSphere(
@@ -515,8 +491,6 @@ public class PrimaryAttackKnife : MonoBehaviour
 
         GameObject closestTarget = null;
         float closestDistance = float.PositiveInfinity;
-        GameObject coneTarget = null;
-        float coneScore = float.PositiveInfinity;
         HashSet<GameObject> evaluatedTargets = new HashSet<GameObject>();
 
         foreach (Collider nearbyCollider in nearbyColliders)
@@ -528,33 +502,18 @@ public class PrimaryAttackKnife : MonoBehaviour
             float distance = toTarget.magnitude;
             if (distance <= 0.001f || distance > searchRange) continue;
 
-            if (distance <= aimAssistCloseRange)
+            if (distance < closestDistance)
             {
-                if (distance < closestDistance)
-                {
-                    closestDistance = distance;
-                    closestTarget = target;
-                }
-                continue;
-            }
-
-            float angle = Vector3.Angle(aimDirection, toTarget);
-            if (angle > coneAngle * 0.5f) continue;
-
-            float score = (distance / searchRange) + (angle / (coneAngle * 0.5f));
-            if (score < coneScore)
-            {
-                coneScore = score;
-                coneTarget = target;
+                closestDistance = distance;
+                closestTarget = target;
             }
         }
 
-        GameObject selectedTarget = closestTarget ?? coneTarget;
         Vector3 targetDirection = Vector3.zero;
-        if (selectedTarget != null)
+        if (closestTarget != null)
         {
             targetDirection = Vector3.ProjectOnPlane(
-                selectedTarget.transform.position - transform.position,
+                closestTarget.transform.position - transform.position,
                 Vector3.up);
             if (targetDirection.sqrMagnitude > 0.0001f)
             {
@@ -870,6 +829,7 @@ public class PrimaryAttackKnife : MonoBehaviour
     public void OpenAttackWindow()
     {
         eventFiredOpenWindow = true;
+        if (animator != null) animator.applyRootMotion = true;
         
         // Proteção para evitar consumir buffer quase instantaneamente com menos de 0.15s de ataque
         if (hasBufferedAttack && (Time.time - lastAttackTime >= 0.15f))
@@ -895,6 +855,8 @@ public class PrimaryAttackKnife : MonoBehaviour
         hasBufferedAttack = false;
         comboStep = 0;
         canAttack = true;
+
+        if (animator != null) animator.applyRootMotion = true;
 
         SetTrailsEmitting(false);
 

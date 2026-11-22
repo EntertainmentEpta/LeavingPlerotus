@@ -21,6 +21,8 @@ public class PlayerAnimationEvents : MonoBehaviour
         PlayerUltimate ult = GetComponentInParent<PlayerUltimate>() ?? GetComponent<PlayerUltimate>();
         if (ult != null && ult.IsUltimateActive()) return;
         if (GetActiveBoomerang() != null) return;
+        if (attackScript == null) FindAttackScript();
+        if (attackScript != null && attackScript.isAttacking && IsMeleeWeaponActive()) return;
 
         if (anim == null) anim = GetComponent<Animator>();
         if (playerRb == null) playerRb = GetComponentInParent<Rigidbody>() ?? GetComponent<Rigidbody>();

@@ -2086,6 +2086,10 @@ public class BoomerangWeapon : MonoBehaviour
     private Vector3 GetMouseAimDirection()
     {
         Transform playerTr = weaponManager != null ? weaponManager.transform : transform;
+        Vector3 boomerangLockDirection = GetBoomerangAimLockDirection(playerTr.position);
+        if (boomerangLockDirection.sqrMagnitude > 0.0001f)
+            return boomerangLockDirection;
+
         Camera cam = Camera.main;
         if (cam != null)
         {
@@ -2101,6 +2105,52 @@ public class BoomerangWeapon : MonoBehaviour
             }
         }
         return playerTr.forward;
+    }
+
+    private Vector3 GetBoomerangAimLockDirection(Vector3 origin)
+    {
+        const float lockRange = 5f;
+        Collider[] nearbyColliders = Physics.OverlapSphere(
+            origin,
+            lockRange,
+            ~0,
+            QueryTriggerInteraction.Ignore);
+
+        GameObject closestEnemy = null;
+        float closestDistanceSquared = lockRange * lockRange;
+        HashSet<GameObject> evaluatedTargets = new HashSet<GameObject>();
+
+        foreach (Collider nearbyCollider in nearbyColliders)
+        {
+            if (nearbyCollider == null || IsPlayerCollider(nearbyCollider)) continue;
+
+            DummyHealth enemy = nearbyCollider.GetComponentInParent<DummyHealth>();
+            ShardSwarmHealth swarm = nearbyCollider.GetComponentInParent<ShardSwarmHealth>();
+            GameObject target = null;
+
+            if (enemy != null && enemy.CurrentHealth > 0)
+                target = enemy.gameObject;
+            else if (swarm != null && swarm.CurrentHealth > 0)
+                target = swarm.gameObject;
+
+            if (target == null || !evaluatedTargets.Add(target)) continue;
+
+            Vector3 toTarget = target.transform.position - origin;
+            toTarget.y = 0f;
+            float distanceSquared = toTarget.sqrMagnitude;
+            if (distanceSquared >= closestDistanceSquared) continue;
+
+            closestDistanceSquared = distanceSquared;
+            closestEnemy = target;
+        }
+
+        if (closestEnemy == null) return Vector3.zero;
+
+        Vector3 lockDirection = closestEnemy.transform.position - origin;
+        lockDirection.y = 0f;
+        return lockDirection.sqrMagnitude > 0.0001f
+            ? lockDirection.normalized
+            : Vector3.zero;
     }
 
     private void RotatePlayerTowardsMouse()

@@ -243,20 +243,22 @@ public class PlayerM : MonoBehaviour
 
         moveDirection = new Vector3(horizontal, 0, vertical).normalized;
 
-        bool inDamageWindow = attackScript != null && attackScript.isHitboxActive;
-
         float attrMult = (playerAttributes != null) ? playerAttributes.speedMultiplier : 1f;
         float totalSpeedMult = attrMult * debuffSpeedMultiplier;
 
-        if (inDamageWindow)
+        float firingPenalty = isPlasmaActionLocked ? plasmaMoveSpeedMultiplier : 1.0f;
+        float attackPenalty = attackScript != null
+            ? attackScript.GetMovementSpeedMultiplier()
+            : 1f;
+
+        if (attackScript != null && attackScript.isAttacking)
         {
-            targetSpeed = hitboxMoveSpeed * totalSpeedMult; 
-            currentRotationSpeed = hitboxRotationSpeed;
+            targetSpeed = sprintSpeed * totalSpeedMult * firingPenalty * attackPenalty;
+            currentRotationSpeed = rotationSpeed;
         }
         else
         {
             // Ao atirar com arma à distância ou carregar Glaive, aplica o multiplicador de velocidade da ação (0.85 Pistola, 0.10 Glaive)
-            float firingPenalty = isPlasmaActionLocked ? plasmaMoveSpeedMultiplier : 1.0f;
             targetSpeed = sprintSpeed * totalSpeedMult * firingPenalty;
             currentRotationSpeed = rotationSpeed;
         }
@@ -265,32 +267,17 @@ public class PlayerM : MonoBehaviour
     private void MovePlayer()
     {
         bool isAttacking = attackScript != null && attackScript.isAttacking;
-        bool inDamageWindow = attackScript != null && attackScript.isHitboxActive;
         
         Vector3 currentVelocity = rb.linearVelocity; 
-        if (isAttacking)
-        {
-            rb.linearVelocity = Vector3.Lerp(
-                currentVelocity,
-                new Vector3(0f, currentVelocity.y, 0f),
-                5f * Time.fixedDeltaTime);
-            return;
-        }
-
         Vector3 targetVelocity = moveDirection * targetSpeed;
 
-        if (inDamageWindow)
+        if (isAttacking)
         {
-            if (moveDirection != Vector3.zero)
-            {
-                // Aplicação direta (sem inércia) para controle preciso durante o golpe
-                rb.linearVelocity = new Vector3(targetVelocity.x, currentVelocity.y, targetVelocity.z);
-            }
-            else
-            {
-                // Se não há input, deixa a inércia (do lunge) desacelerar suavemente
-                rb.linearVelocity = Vector3.Lerp(currentVelocity, new Vector3(0f, currentVelocity.y, 0f), 5f * Time.fixedDeltaTime);
-            }
+            // Aplica diretamente o input reduzido. Sem lerp horizontal: evita arrancada/deslize residual.
+            Vector3 attackVelocity = moveDirection.sqrMagnitude > 0.0001f
+                ? new Vector3(targetVelocity.x, currentVelocity.y, targetVelocity.z)
+                : new Vector3(0f, currentVelocity.y, 0f);
+            rb.linearVelocity = attackVelocity;
         }
         else
         {
