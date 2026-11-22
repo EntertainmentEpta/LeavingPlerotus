@@ -250,7 +250,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 7452989023248339301}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c85c34c347adebf4098703b29ce91378, type: 3}
+  m_Script: {fileID: 11500000, guid: bfdd44008c94ab149b2e5b02f3a9ceb3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FloatingDamageText
   lifetime: 1
