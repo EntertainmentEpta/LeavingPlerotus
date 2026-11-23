@@ -38,12 +38,22 @@ public class StunBeam : MonoBehaviour
     [HideInInspector] public int particleCount = 30;
 
     private bool hasAppliedStun = false;
+    private object stunSequence;
+
+    public void Initialize(float newRadius, float newStunDuration, object sequence)
+    {
+        stunSequence = sequence;
+        Initialize(newRadius, newStunDuration);
+    }
 
     public void Initialize(float newRadius, float newStunDuration)
     {
         radius = newRadius;
         stunDuration = newStunDuration;
-        ApplyStunInArea(transform.position, radius, stunDuration);
+        if (stunSequence != null)
+            ApplySequenceStunToPlayersInArea();
+        else
+            ApplyStunInArea(transform.position, radius, stunDuration);
         hasAppliedStun = true;
     }
 
@@ -51,13 +61,29 @@ public class StunBeam : MonoBehaviour
     {
         if (!hasAppliedStun)
         {
-            ApplyStunInArea(transform.position, radius, stunDuration);
+            if (stunSequence != null)
+                ApplySequenceStunToPlayersInArea();
+            else
+                ApplyStunInArea(transform.position, radius, stunDuration);
             hasAppliedStun = true;
         }
 
         GolemSkyStunVFX sky = SpawnSkyStunAnticipation(transform.position, radius, 0.25f);
         sky.TriggerImpact();
         Destroy(gameObject, 0.1f);
+    }
+
+    void ApplySequenceStunToPlayersInArea()
+    {
+        var affected = new System.Collections.Generic.HashSet<PlayerHealth>();
+        Collider[] hits = Physics.OverlapSphere(transform.position, radius, ~0, QueryTriggerInteraction.Collide);
+        foreach (Collider hit in hits)
+        {
+            PlayerHealth playerHealth = hit.GetComponentInParent<PlayerHealth>();
+            if (playerHealth == null || !affected.Add(playerHealth)) continue;
+            if (playerHealth.TryApplySequenceStun(stunDuration, stunSequence))
+                Debug.Log("Golem Elite: stun aplicado por " + stunDuration + "s.");
+        }
     }
 
     public GolemSkyStunVFX SpawnSkyStunAnticipation(Vector3 groundPos, float targetRadius, float telegraphDuration, Color? overrideBeamColor = null)

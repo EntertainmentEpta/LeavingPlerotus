@@ -498,12 +498,23 @@ public class CrystalWatcher_AI : MonoBehaviour
 
             ShowLaserFiring(true);
 
+            CrystalWatcherEliteOverride elite = GetComponent<CrystalWatcherEliteOverride>();
+            float activeFireDuration = (elite != null && elite.isActiveAndEnabled)
+                ? elite.trackingDuration
+                : fireDuration;
             float fireElapsed = 0f;
-            while (fireElapsed < fireDuration)
+            while (fireElapsed < activeFireDuration)
             {
                 if (health != null && health.CurrentHealth <= 0) yield break;
                 fireElapsed += Time.deltaTime;
                 yield return null;
+            }
+
+            if (elite != null && elite.isActiveAndEnabled)
+            {
+                // Retira HandleFiring do Update: só a sequência Elite controla o feixe.
+                currentState = State.Charging;
+                yield return elite.SweepSequence(playerTransform);
             }
 
             // FASE 3: DESLIGA O LASER
@@ -540,6 +551,65 @@ public class CrystalWatcher_AI : MonoBehaviour
                 yield break;
             }
         }
+    }
+
+    // Pontos de integração opcionais do CrystalWatcherEliteOverride (desabilitado por padrão no prefab para priorizar o Feixe em V).
+    internal void StopEliteLaser()
+    {
+        currentState = State.Cooldown;
+        ShowLaserFiring(false);
+        StopFiringAudioLoop();
+        StopImpactAudioLoop();
+        if (vfx != null)
+        {
+            vfx.StopChargeEffect();
+            vfx.StopLaserEffect();
+            vfx.SetAmbientIntensity(1f);
+        }
+    }
+
+    internal void CancelEliteAttack()
+    {
+        StopAllCoroutines();
+        StopEliteLaser();
+        currentState = State.Idle;
+    }
+
+    internal void BeginEliteLaser(float angle, bool damaging)
+    {
+        currentState = State.Charging;
+        currentLaserAngle = angle;
+        transform.rotation = Quaternion.Euler(0f, angle, 0f);
+        StopFiringAudioLoop();
+        StopImpactAudioLoop();
+        if (vfx != null)
+        {
+            vfx.StopChargeEffect();
+            vfx.StopLaserEffect();
+        }
+        if (damaging)
+        {
+            damageTimer = damageTickRate;
+            ShowLaserFiring(true);
+            StartFiringAudioLoop();
+            if (vfx != null) vfx.StartLaserEffect(AngleToDirection(angle));
+        }
+        else
+        {
+            ShowLaserCharging(true);
+            PlayChargeSound();
+            if (vfx != null) vfx.StartChargeEffect();
+        }
+        UpdateLaserVisual();
+    }
+
+    internal void TickEliteLaser(float angle, bool damaging)
+    {
+        currentLaserAngle = angle;
+        transform.rotation = Quaternion.Euler(0f, angle, 0f);
+        if (damaging && vfx != null) vfx.UpdateLaserDirection(AngleToDirection(angle));
+        UpdateLaserVisual();
+        if (damaging) CheckLaserHit();
     }
 
     // ── Decisão & Cálculo do Melhor Ponto Tático em Relação ao Player ─

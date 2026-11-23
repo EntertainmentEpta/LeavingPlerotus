@@ -1,0 +1,51 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &100100001
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 1155010451884850368, guid: 17526d5d2a1393e438fd19d86fdfed1c, type: 3}
+      propertyPath: m_Name
+      value: SkullController_Elite
+      objectReference: {fileID: 0}
+    - target: {fileID: 3371660881217200706, guid: 17526d5d2a1393e438fd19d86fdfed1c, type: 3}
+      propertyPath: explosionRadius
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 3371660881217200706, guid: 17526d5d2a1393e438fd19d86fdfed1c, type: 3}
+      propertyPath: fuseTriggerDistance
+      value: 8
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1155010451884850368, guid: 17526d5d2a1393e438fd19d86fdfed1c, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 11400001}
+  m_SourcePrefab: {fileID: 100100000, guid: 17526d5d2a1393e438fd19d86fdfed1c, type: 3}
+--- !u!1 &100001 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1155010451884850368, guid: 17526d5d2a1393e438fd19d86fdfed1c, type: 3}
+  m_PrefabInstance: {fileID: 100100001}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &11400001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 100001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f681a06ee42d4ba78f23c34a7ae1f054, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::SkullEliteGravity
+  attractionRadius: 8
+  attractionAcceleration: 70
+  initialPullSpeed: 14
+  initialPullDuration: 0.18

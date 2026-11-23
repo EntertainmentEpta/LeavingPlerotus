@@ -86,6 +86,8 @@ public class PlayerHealth : MonoBehaviour
     [Header("Stun")]
     public bool isStunned { get; private set; } = false;
     private float stunImmunityTimer = 0f;
+    // Identidade unica do cast que aplicou o ultimo stun; nao autoriza outros casts.
+    private object acceptedStunSequence;
     private float stunImmunityDuration = 2f; // Imunidade após stun
     private StunVFX stunVFX;
 
@@ -1055,19 +1057,45 @@ public class PlayerHealth : MonoBehaviour
     /// </summary>
     public void ApplyStun(float duration)
     {
+        TryApplyStun(duration, null);
+    }
+
+    /// <summary>
+    /// Somente impactos do mesmo cast atravessam a imunidade gerada por ele.
+    /// Dash, morte e stun ativo continuam protegidos.
+    /// </summary>
+    public bool TryApplySequenceStun(float duration, object sequence)
+    {
+        if (sequence == null) return false;
+        return TryApplyStun(duration, sequence);
+    }
+
+    private bool TryApplyStun(float duration, object sequence)
+    {
         // Não pode ser stunado se: já está stunado, morto, ou imune
-        if (isStunned || isDead || stunImmunityTimer > 0) return;
+        bool sameSequence = sequence != null && ReferenceEquals(sequence, acceptedStunSequence);
+        if (isStunned || isDead || (stunImmunityTimer > 0 && !sameSequence)) return false;
 
         // Verifica se está em dash (não pode ser stunado durante dash)
         DashM dashScript = GetComponent<DashM>();
-        if (dashScript != null && dashScript.isDashing) return;
+        if (dashScript != null && dashScript.isDashing) return false;
+
+        if (sequence != null)
+        {
+            // Independe da inicializacao de UI ter concluido na arena.
+            if (playerMovement == null) playerMovement = GetComponent<PlayerM>();
+            if (playerAttack == null) playerAttack = GetComponent<PrimaryAttackKnife>();
+            if (rb == null) rb = GetComponent<Rigidbody>();
+        }
 
         // Busca o StunVFX (lazy — garante compatibilidade mesmo sem o componente)
         if (stunVFX == null) stunVFX = GetComponent<StunVFX>();
         if (stunVFX == null) stunVFX = gameObject.AddComponent<StunVFX>();
         if (stunVFX != null) stunVFX.ShowStun(duration);
 
+        acceptedStunSequence = sequence;
         StartCoroutine(StunCoroutine(duration));
+        return true;
     }
 
     private IEnumerator StunCoroutine(float duration)
