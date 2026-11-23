@@ -2,538 +2,733 @@ using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
-/// VFX para o Stun do Golem.
-/// Cria um efeito visual de onda de choque com partículas, luz, pilar e fissuras no solo.
+/// VFX limpo e cinematográfico em 3 fases para o Stun do Golem (sem runas medievais, sem poluição visual):
+/// 1) Antecipação limpa no chão (círculo minimalista anti-clipping + brilho CFXR central + fio guia vindo do céu)
+/// 2) Feixe de luz alto (38m) descendo rasgando do céu até o ponto marcado
+/// 3) Impacto real usando prefabs de partículas feitos à mão (CFXR2 Ground Hit + CFXR Impact Glowing HDR + CFXR3 Hit Electric + Golem_StunGroundImpact com cratera/pedras/fumaça)
 /// </summary>
-public class GolemStunVFX : MonoBehaviour
+public class GolemSkyStunVFX : MonoBehaviour
 {
-    [Header("Cores")]
-    public Color stunColor = new Color(0.2f, 0.8f, 1f, 1f); // Cyan
-    public Color flashColor = new Color(1f, 1f, 1f, 1f); // Branco
+    private const int CylinderSegments = 32;
 
-    [Header("Ring Shockwave")]
-    public float expandSpeed = 15f;
-    public float maxRadius = 5f;
-    public float ringWidth = 0.5f;
+    private float radius = 4f;
+    private float telegraphDuration = 1.05f;
+    private float beamHeight = 38f;
+    private Color primaryColor = new Color(0.62f, 0.30f, 0.95f, 1f);
+    private Color accentColor = new Color(0.44f, 0.18f, 0.85f, 1f);
+    private Color flashColor = new Color(0.82f, 0.62f, 1.0f, 1f);
 
-    [Header("Pillar Beam")]
-    public float pillarHeight = 3.5f;
-    public float pillarDuration = 0.18f;
+    // Prefabs reais de VFX feitos à mão
+    private GameObject anticipationGlowPrefab;
+    private GameObject groundImpactPrefab;
+    private GameObject groundHitRingPrefab;
+    private GameObject impactBurstPrefab;
+    private GameObject electricStunPrefab;
 
-    [Header("Partículas")]
-    public int particleCount = 30;
+    private enum Phase { Anticipation, Impact, Cancelled }
+    private Phase phase = Phase.Anticipation;
+    private float phaseElapsed;
+    private float cancelElapsed;
+    private bool isLockedOn;
+    private float lockFlashTimer;
+    private const float ImpactTotalDuration = 2.0f;
+    private const float CancelFadeDuration = 0.20f;
 
-    // --- Internos para LineRenderers ---
-    private LineRenderer outerRing;
-    private LineRenderer innerRing;
-    private LineRenderer pillarBeam;
-    private List<LineRenderer> crackLines = new List<LineRenderer>();
-    private Vector3[][] crackPaths;
+    private Transform telegraphTransform;
+    private Transform guideBeamTransform;
+    private Transform skyBeamCoreTransform;
+    private Transform skyBeamOuterTransform;
+    private GameObject activeAnticipationGlow;
 
-    // --- Materiais ---
-    private Material outerRingMat;
-    private Material innerRingMat;
-    private Material pillarMat;
-    private Material crackMat;
-    private List<Material> materialsToDestroy = new List<Material>();
+    private Material telegraphMat;
+    private Material guideBeamMat;
+    private Material skyBeamCoreMat;
+    private Material skyBeamOuterMat;
 
-    // --- Partículas ---
-    private ParticleSystem sparksSystem;
-    private ParticleSystem debrisSystem;
-    private ParticleSystem dustSystem;
+    private Light centerLight;
 
-    private Light flashLight;
-    private float lifetime = 0f;
-    private float totalDuration = 0.8f;
+    private readonly List<Material> ownedMaterials = new List<Material>();
+    private readonly List<Mesh> ownedMeshes = new List<Mesh>();
 
-    private const int circleSegments = 64;
+    private static readonly int PropColor = Shader.PropertyToID("_Color");
+    private static readonly int PropBaseColor = Shader.PropertyToID("_BaseColor");
+    private static readonly int PropCoreColor = Shader.PropertyToID("_CoreColor");
+    private static readonly int PropOuterColor = Shader.PropertyToID("_OuterColor");
+    private static readonly int PropIntensity = Shader.PropertyToID("_Intensity");
+    private static readonly int PropAlpha = Shader.PropertyToID("_Alpha");
+    private static readonly int PropFillProgress = Shader.PropertyToID("_FillProgress");
+    private static readonly int PropRevealBottom = Shader.PropertyToID("_RevealBottom");
+    private static readonly int PropRevealTop = Shader.PropertyToID("_RevealTop");
 
-    void Start()
+    public static GolemSkyStunVFX SpawnAnticipation(
+        Vector3 groundPos,
+        float stunRadius,
+        float duration,
+        float skyHeight,
+        Color mainColor,
+        Color secondaryColor,
+        Color impactFlashColor,
+        Material coreBeamTemplate,
+        Material outerBeamTemplate,
+        Material cleanTelegraphTemplate,
+        GameObject anticipationGlow,
+        GameObject groundImpact,
+        GameObject groundHitRing,
+        GameObject impactBurst,
+        GameObject electricStun)
     {
-        CreateFlashLight();
-        CreateRings();
-        CreatePillar();
-        CreateCracks();
-        CreateParticles();
-    }
-
-    void Update()
-    {
-        lifetime += Time.deltaTime;
-
-        // Animação do anel externo (fase rápida inicial)
-        float outerT = Mathf.Clamp01(lifetime / 0.5f);
-        float outerRadius = maxRadius * (1f - Mathf.Pow(1f - outerT, 3f)); // easeOutCubic
-        DrawCircle(outerRing, outerRadius, outerRingMat, outerT);
-
-        // Animação do anel interno (levemente atrasado e menor)
-        float innerT = Mathf.Clamp01((lifetime - 0.05f) / 0.45f);
-        if (innerT > 0f)
-        {
-            float innerRadius = (maxRadius * 0.7f) * (1f - Mathf.Pow(1f - innerT, 3f));
-            DrawCircle(innerRing, innerRadius, innerRingMat, innerT);
-        }
-        else if (innerRing != null)
-        {
-            innerRing.startWidth = 0f;
-            innerRing.endWidth = 0f;
-        }
-
-        // Animação das rachaduras no solo
-        float crackDuration = 0.25f;
-        float crackProgress = Mathf.Clamp01(lifetime / crackDuration);
-        float crackFadeT = Mathf.Clamp01((lifetime - crackDuration) / (totalDuration - crackDuration));
-        
-        if (crackMat != null)
-        {
-            Color crackCol = stunColor;
-            crackCol.a = 1f - crackFadeT;
-            crackMat.SetColor("_BaseColor", crackCol);
-            if (crackMat.HasProperty("_EmissionColor"))
-            {
-                crackMat.SetColor("_EmissionColor", crackCol * (3f * (1f - crackFadeT)));
-            }
-        }
-
-        for (int c = 0; c < crackLines.Count; c++)
-        {
-            LineRenderer lr = crackLines[c];
-            if (lr == null) continue;
-
-            float currentWidth = Mathf.Lerp(0.08f, 0f, crackFadeT);
-            lr.startWidth = currentWidth;
-            lr.endWidth = currentWidth * 0.5f;
-
-            int segments = crackPaths[c].Length;
-            for (int i = 0; i < segments; i++)
-            {
-                float segT = (float)i / (segments - 1);
-                float pointT = Mathf.Min(segT, crackProgress);
-                Vector3 pos = GetPositionOnPath(crackPaths[c], pointT);
-                lr.SetPosition(i, pos + Vector3.up * 0.03f); // 3cm acima do chão
-            }
-        }
-
-        // Animação do pilar vertical (feixe fino e rápido)
-        if (pillarBeam != null)
-        {
-            float pillarT = Mathf.Clamp01(lifetime / pillarDuration);
-            float currentPillarWidth = Mathf.Lerp(0.35f, 0f, pillarT);
-            pillarBeam.startWidth = currentPillarWidth;
-            pillarBeam.endWidth = currentPillarWidth * 0.4f;
-
-            if (pillarMat != null)
-            {
-                Color pCol = stunColor;
-                pCol.a = 1f - pillarT;
-                pillarMat.SetColor("_BaseColor", pCol);
-                if (pillarMat.HasProperty("_EmissionColor"))
-                {
-                    pillarMat.SetColor("_EmissionColor", pCol * (3f * (1f - pillarT)));
-                }
-            }
-        }
-
-        // Fade da luz
-        if (flashLight != null)
-        {
-            flashLight.intensity = Mathf.Lerp(4f, 0f, lifetime / 0.25f);
-        }
-
-        // Autodestruição quando o tempo total passar
-        if (lifetime >= totalDuration)
-        {
-            Destroy(gameObject);
-        }
-    }
-
-    void CreateFlashLight()
-    {
-        GameObject lightObj = new GameObject("StunFlash");
-        lightObj.transform.SetParent(transform, false);
-        lightObj.transform.localPosition = Vector3.up * 1f;
-
-        flashLight = lightObj.AddComponent<Light>();
-        flashLight.type = LightType.Point;
-        flashLight.color = stunColor;
-        flashLight.intensity = 4f;
-        flashLight.range = maxRadius * 1.2f;
-        flashLight.shadows = LightShadows.None;
-    }
-
-    void CreateRings()
-    {
-        // Anel Externo
-        GameObject outerObj = new GameObject("OuterRing");
-        outerObj.transform.SetParent(transform, false);
-        outerObj.transform.localPosition = Vector3.zero;
-        outerRing = outerObj.AddComponent<LineRenderer>();
-        SetupLineRenderer(outerRing, out outerRingMat, stunColor, 3f);
-
-        // Anel Interno
-        GameObject innerObj = new GameObject("InnerRing");
-        innerObj.transform.SetParent(transform, false);
-        innerObj.transform.localPosition = Vector3.zero;
-        innerRing = innerObj.AddComponent<LineRenderer>();
-        SetupLineRenderer(innerRing, out innerRingMat, Color.Lerp(stunColor, Color.white, 0.4f), 2.5f);
-    }
-
-    void SetupLineRenderer(LineRenderer lr, out Material outMat, Color baseColor, float emissionMultiplier)
-    {
-        lr.loop = true;
-        lr.positionCount = circleSegments + 1;
-        lr.useWorldSpace = false;
-        lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        lr.receiveShadows = false;
-
-        outMat = CreateURPMaterial(baseColor, emissionMultiplier);
-        lr.material = outMat;
-        lr.startWidth = 0f;
-        lr.endWidth = 0f;
-    }
-
-    void CreatePillar()
-    {
-        GameObject pillarObj = new GameObject("PillarBeam");
-        pillarObj.transform.SetParent(transform, false);
-        pillarObj.transform.localPosition = Vector3.zero;
-
-        pillarBeam = pillarObj.AddComponent<LineRenderer>();
-        pillarBeam.positionCount = 2;
-        pillarBeam.useWorldSpace = false;
-        pillarBeam.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        pillarBeam.receiveShadows = false;
-
-        pillarBeam.SetPosition(0, Vector3.zero);
-        pillarBeam.SetPosition(1, Vector3.up * pillarHeight);
-
-        pillarMat = CreateURPMaterial(stunColor, 3f);
-        pillarBeam.material = pillarMat;
-        pillarBeam.startWidth = 0.35f;
-        pillarBeam.endWidth = 0.15f;
-    }
-
-    void CreateCracks()
-    {
-        int crackCount = 4;
-        crackPaths = new Vector3[crackCount][];
-        crackMat = CreateURPMaterial(stunColor, 3f);
-
-        for (int c = 0; c < crackCount; c++)
-        {
-            GameObject crackObj = new GameObject("Crack_" + c);
-            crackObj.transform.SetParent(transform, false);
-            crackObj.transform.localPosition = Vector3.zero;
-
-            LineRenderer lr = crackObj.AddComponent<LineRenderer>();
-            lr.loop = false;
-            lr.useWorldSpace = false;
-            lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            lr.receiveShadows = false;
-            lr.material = crackMat;
-            crackLines.Add(lr);
-
-            // Pre-gera o caminho tortuoso (jagged path)
-            int segments = 6;
-            crackPaths[c] = new Vector3[segments];
-            float angle = (c * 90f + Random.Range(-15f, 15f)) * Mathf.Deg2Rad;
-            Vector3 dir = new Vector3(Mathf.Sin(angle), 0, Mathf.Cos(angle));
-            Vector3 right = new Vector3(-dir.z, 0, dir.x);
-
-            crackPaths[c][0] = Vector3.zero;
-            for (int i = 1; i < segments; i++)
-            {
-                float segmentDist = (float)i / (segments - 1);
-                float jitter = Random.Range(-0.08f, 0.08f) * maxRadius;
-                float factor = Mathf.Sin(segmentDist * Mathf.PI);
-
-                crackPaths[c][i] = dir * (segmentDist * maxRadius) + right * (jitter * factor);
-            }
-        }
-    }
-
-    void CreateParticles()
-    {
-        // 1. Sparks System (Faíscas rápidas esticadas)
-        GameObject sparksObj = new GameObject("SparksVFX");
-        sparksObj.transform.SetParent(transform, false);
-        sparksObj.transform.localPosition = Vector3.up * 0.1f;
-        sparksSystem = sparksObj.AddComponent<ParticleSystem>();
-        SetupSparks();
-
-        // 2. Debris System (Estilhaços pesados pulando)
-        GameObject debrisObj = new GameObject("DebrisVFX");
-        debrisObj.transform.SetParent(transform, false);
-        debrisObj.transform.localPosition = Vector3.up * 0.1f;
-        debrisSystem = debrisObj.AddComponent<ParticleSystem>();
-        SetupDebris();
-
-        // 3. Dust System (Onda de poeira soft no chão)
-        GameObject dustObj = new GameObject("DustVFX");
-        dustObj.transform.SetParent(transform, false);
-        dustObj.transform.localPosition = Vector3.up * 0.05f;
-        dustSystem = dustObj.AddComponent<ParticleSystem>();
-        SetupDust();
-
-        // Toca todos os sistemas de partículas
-        sparksSystem.Play();
-        debrisSystem.Play();
-        dustSystem.Play();
-    }
-
-    void SetupSparks()
-    {
-        var main = sparksSystem.main;
-        main.duration = totalDuration;
-        main.loop = false;
-        main.startLifetime = new ParticleSystem.MinMaxCurve(0.4f, 0.7f);
-        main.startSpeed = new ParticleSystem.MinMaxCurve(8f, 15f);
-        main.startSize = new ParticleSystem.MinMaxCurve(0.05f, 0.18f);
-        main.startColor = new ParticleSystem.MinMaxGradient(stunColor, flashColor);
-        main.simulationSpace = ParticleSystemSimulationSpace.World;
-        main.maxParticles = particleCount;
-
-        var emission = sparksSystem.emission;
-        emission.enabled = true;
-        emission.rateOverTime = 0;
-        emission.SetBursts(new ParticleSystem.Burst[] {
-            new ParticleSystem.Burst(0f, (short)particleCount)
-        });
-
-        var shape = sparksSystem.shape;
-        shape.enabled = true;
-        shape.shapeType = ParticleSystemShapeType.Sphere;
-        shape.radius = 0.2f;
-
-        var sizeOverLifetime = sparksSystem.sizeOverLifetime;
-        sizeOverLifetime.enabled = true;
-        AnimationCurve sizeCurve = new AnimationCurve();
-        sizeCurve.AddKey(0f, 1f);
-        sizeCurve.AddKey(1f, 0f);
-        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, sizeCurve);
-
-        var rend = sparksSystem.GetComponent<ParticleSystemRenderer>();
-        rend.renderMode = ParticleSystemRenderMode.Stretch;
-        rend.velocityScale = 0.12f;
-        rend.lengthScale = 1.5f;
-        
-        SetupRendererMaterial(rend, stunColor, 4f, true);
-    }
-
-    void SetupDebris()
-    {
-        var main = debrisSystem.main;
-        main.duration = totalDuration;
-        main.loop = false;
-        main.startLifetime = new ParticleSystem.MinMaxCurve(0.6f, 1.0f);
-        main.startSpeed = new ParticleSystem.MinMaxCurve(4f, 8f);
-        main.startSize = new ParticleSystem.MinMaxCurve(0.1f, 0.25f);
-        main.startColor = new ParticleSystem.MinMaxGradient(stunColor, Color.white);
-        main.gravityModifier = 1.8f;
-        main.simulationSpace = ParticleSystemSimulationSpace.World;
-        main.maxParticles = 15;
-
-        var emission = debrisSystem.emission;
-        emission.enabled = true;
-        emission.rateOverTime = 0;
-        emission.SetBursts(new ParticleSystem.Burst[] {
-            new ParticleSystem.Burst(0f, 15)
-        });
-
-        var shape = debrisSystem.shape;
-        shape.enabled = true;
-        shape.shapeType = ParticleSystemShapeType.Cone;
-        shape.angle = 25f;
-        shape.radius = 0.3f;
-        debrisSystem.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f); // Aponta para cima
-
-        var rotationOverLifetime = debrisSystem.rotationOverLifetime;
-        rotationOverLifetime.enabled = true;
-        rotationOverLifetime.z = new ParticleSystem.MinMaxCurve(-360f, 360f);
-
-        var sizeOverLifetime = debrisSystem.sizeOverLifetime;
-        sizeOverLifetime.enabled = true;
-        AnimationCurve sizeCurve = new AnimationCurve();
-        sizeCurve.AddKey(0f, 1f);
-        sizeCurve.AddKey(0.8f, 1f);
-        sizeCurve.AddKey(1f, 0f);
-        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, sizeCurve);
-
-        var rend = debrisSystem.GetComponent<ParticleSystemRenderer>();
-        rend.renderMode = ParticleSystemRenderMode.Billboard;
-        SetupRendererMaterial(rend, stunColor * 0.8f, 2f, true);
-    }
-
-    void SetupDust()
-    {
-        var main = dustSystem.main;
-        main.duration = totalDuration;
-        main.loop = false;
-        main.startLifetime = new ParticleSystem.MinMaxCurve(0.5f, 0.8f);
-        main.startSpeed = new ParticleSystem.MinMaxCurve(3f, 6f);
-        main.startSize = new ParticleSystem.MinMaxCurve(0.4f, 0.8f);
-        Color dColor = stunColor;
-        dColor.a = 0.2f;
-        main.startColor = dColor;
-        main.gravityModifier = -0.1f;
-        main.simulationSpace = ParticleSystemSimulationSpace.World;
-        main.maxParticles = 20;
-
-        var emission = dustSystem.emission;
-        emission.enabled = true;
-        emission.rateOverTime = 0;
-        emission.SetBursts(new ParticleSystem.Burst[] {
-            new ParticleSystem.Burst(0f, 20)
-        });
-
-        var shape = dustSystem.shape;
-        shape.enabled = true;
-        shape.shapeType = ParticleSystemShapeType.Circle;
-        shape.radius = 0.5f;
-        shape.radiusThickness = 0.1f;
-        dustSystem.transform.localRotation = Quaternion.Euler(90f, 0f, 0f); // Plano no chão
-
-        var colorOverLifetime = dustSystem.colorOverLifetime;
-        colorOverLifetime.enabled = true;
-        Gradient grad = new Gradient();
-        grad.SetKeys(
-            new GradientColorKey[] {
-                new GradientColorKey(stunColor, 0f),
-                new GradientColorKey(stunColor, 1f)
-            },
-            new GradientAlphaKey[] {
-                new GradientAlphaKey(0f, 0f),
-                new GradientAlphaKey(0.2f, 0.2f),
-                new GradientAlphaKey(0f, 1f)
-            }
+        GameObject go = new GameObject("Golem_SkyStunVFX");
+        go.transform.position = groundPos;
+        GolemSkyStunVFX vfx = go.AddComponent<GolemSkyStunVFX>();
+        vfx.Initialize(
+            stunRadius, duration, skyHeight,
+            mainColor, secondaryColor, impactFlashColor,
+            coreBeamTemplate, outerBeamTemplate, cleanTelegraphTemplate,
+            anticipationGlow, groundImpact, groundHitRing, impactBurst, electricStun
         );
-        colorOverLifetime.color = grad;
-
-        var sizeOverLifetime = dustSystem.sizeOverLifetime;
-        sizeOverLifetime.enabled = true;
-        AnimationCurve sizeCurve = new AnimationCurve();
-        sizeCurve.AddKey(0f, 0.5f);
-        sizeCurve.AddKey(1f, 1.5f);
-        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, sizeCurve);
-
-        var rend = dustSystem.GetComponent<ParticleSystemRenderer>();
-        rend.renderMode = ParticleSystemRenderMode.Billboard;
-        SetupRendererMaterial(rend, stunColor, 0f, false);
+        return vfx;
     }
 
-    void DrawCircle(LineRenderer lr, float r, Material mat, float progressT)
+    private void Initialize(
+        float stunRadius,
+        float duration,
+        float skyHeight,
+        Color mainColor,
+        Color secondaryColor,
+        Color impactFlashColor,
+        Material coreBeamTemplate,
+        Material outerBeamTemplate,
+        Material cleanTelegraphTemplate,
+        GameObject anticipationGlow,
+        GameObject groundImpact,
+        GameObject groundHitRing,
+        GameObject impactBurst,
+        GameObject electricStun)
     {
-        if (lr == null || mat == null) return;
+        radius = Mathf.Max(0.8f, stunRadius);
+        telegraphDuration = Mathf.Max(0.25f, duration);
+        beamHeight = Mathf.Max(12f, skyHeight);
+        primaryColor = mainColor;
+        accentColor = secondaryColor;
+        flashColor = impactFlashColor;
 
-        float width = Mathf.Lerp(ringWidth, 0f, progressT);
-        lr.startWidth = width;
-        lr.endWidth   = width;
-        
-        Color col = mat.GetColor("_BaseColor");
-        col.a = 1f - progressT;
-        mat.SetColor("_BaseColor", col);
-        if (mat.HasProperty("_EmissionColor"))
+        anticipationGlowPrefab = anticipationGlow;
+        groundImpactPrefab = groundImpact;
+        groundHitRingPrefab = groundHitRing;
+        impactBurstPrefab = impactBurst;
+        electricStunPrefab = electricStun;
+
+        Mesh quadMesh = BuildGroundQuadMesh();
+        Mesh cylinderMesh = BuildOpenCylinderMesh(CylinderSegments);
+        ownedMeshes.Add(quadMesh);
+        ownedMeshes.Add(cylinderMesh);
+
+        // 1. Notificação limpa e minimalista no chão (ZERO runas, anti-clipping, arroxeado translúcido)
+        telegraphMat = CloneOrCreateTelegraphMat(cleanTelegraphTemplate, primaryColor, flashColor);
+        telegraphTransform = CreateMeshChild("CleanGroundTelegraph", quadMesh, telegraphMat, new Vector3(0f, 0.08f, 0f), new Vector3(radius * 2f, 1f, radius * 2f));
+
+        // 2. Brilho central sutil feito à mão (CFXR3 LightGlow A)
+        if (anticipationGlowPrefab != null)
         {
-            mat.SetColor("_EmissionColor", col * (3f * (1f - progressT)));
+            activeAnticipationGlow = Instantiate(anticipationGlowPrefab, transform);
+            activeAnticipationGlow.transform.localPosition = new Vector3(0f, 0.25f, 0f);
+            activeAnticipationGlow.transform.localScale = Vector3.one * 0.42f;
+            TintParticlesSoft(activeAnticipationGlow, primaryColor, 0.65f);
         }
 
-        for (int i = 0; i <= circleSegments; i++)
+        // 3. Fio de luz sutil vindo lá do céu (arroxeado translúcido)
+        guideBeamMat = CloneOrCreateBeamMat(coreBeamTemplate, flashColor * 1.1f, primaryColor * 0.95f, 0.95f);
+        guideBeamTransform = CreateMeshChild("SkyGuideThread", cylinderMesh, guideBeamMat, new Vector3(0f, 0.08f, 0f), new Vector3(0.20f, beamHeight, 0.20f));
+
+        // 4. Feixe de Luz (núcleo lavanda + aura roxa translúcida, proporção mais focada)
+        skyBeamCoreMat = CloneOrCreateBeamMat(coreBeamTemplate, flashColor * 1.25f, primaryColor * 1.05f, 1.15f);
+        skyBeamCoreTransform = CreateMeshChild("SkyBeamCore", cylinderMesh, skyBeamCoreMat, new Vector3(0f, 0.05f, 0f), new Vector3(0.36f, beamHeight, 0.36f));
+        SetBeamReveal(skyBeamCoreMat, 1.05f, 1.05f, 0f);
+
+        skyBeamOuterMat = CloneOrCreateBeamMat(outerBeamTemplate, primaryColor * 1.05f, accentColor * 0.95f, 0.95f);
+        skyBeamOuterTransform = CreateMeshChild("SkyBeamOuter", cylinderMesh, skyBeamOuterMat, new Vector3(0f, 0.05f, 0f), new Vector3(0.82f, beamHeight, 0.82f));
+        SetBeamReveal(skyBeamOuterMat, 1.05f, 1.05f, 0f);
+
+        // 5. Luz dinâmica roxa suave no centro
+        GameObject lightObj = new GameObject("StunLight");
+        lightObj.transform.SetParent(transform, false);
+        lightObj.transform.localPosition = Vector3.up * 1.5f;
+        centerLight = lightObj.AddComponent<Light>();
+        centerLight.type = LightType.Point;
+        centerLight.color = primaryColor;
+        centerLight.intensity = 0.5f;
+        centerLight.range = radius * 2.2f;
+        centerLight.shadows = LightShadows.None;
+
+        UpdateAnticipation(0f);
+    }
+
+    public void UpdateTargetPosition(Vector3 groundPos)
+    {
+        if (phase != Phase.Anticipation) return;
+        transform.position = groundPos;
+    }
+
+    public void MarkLockedOn()
+    {
+        if (isLockedOn) return;
+        isLockedOn = true;
+        lockFlashTimer = 0.16f;
+    }
+
+    public void TriggerImpact()
+    {
+        if (phase != Phase.Anticipation) return;
+        phase = Phase.Impact;
+        phaseElapsed = 0f;
+
+        if (activeAnticipationGlow != null)
         {
-            float angle = (float)i / circleSegments * Mathf.PI * 2f;
-            float x = Mathf.Cos(angle) * r;
-            float z = Mathf.Sin(angle) * r;
-            lr.SetPosition(i, new Vector3(x, 0.05f, z));
+            Destroy(activeAnticipationGlow);
+            activeAnticipationGlow = null;
+        }
+        if (guideBeamTransform != null)
+            guideBeamTransform.gameObject.SetActive(false);
+
+        float radiusFactor = radius / 4f;
+        Vector3 impactPos = transform.position + Vector3.up * 0.12f;
+
+        // 1. Cratera pintada + pedras voando + fumaça estilizada
+        if (groundImpactPrefab != null)
+        {
+            GameObject groundVfx = Instantiate(groundImpactPrefab, impactPos, Quaternion.identity);
+            groundVfx.transform.localScale = Vector3.one * (0.95f * radiusFactor);
+            TintParticlesSoft(groundVfx, primaryColor, 0.78f, tintStrength: 0.45f);
+            Destroy(groundVfx, 2.4f);
+        }
+
+        // 2. Onda de impacto estilizada no chão (CFXR2 Ground Hit)
+        if (groundHitRingPrefab != null)
+        {
+            GameObject ringVfx = Instantiate(groundHitRingPrefab, impactPos + Vector3.up * 0.04f, Quaternion.identity);
+            ringVfx.transform.localScale = Vector3.one * (2.6f * radiusFactor);
+            TintParticlesSoft(ringVfx, primaryColor, 0.72f, tintStrength: 0.85f);
+            Destroy(ringVfx, 1.6f);
+        }
+
+        // 3. Clarão / Flare arroxeado translúcido (CFXR Impact Glowing HDR)
+        if (impactBurstPrefab != null)
+        {
+            GameObject burstVfx = Instantiate(impactBurstPrefab, impactPos + Vector3.up * 0.45f, Quaternion.identity);
+            burstVfx.transform.localScale = Vector3.one * (0.38f * radiusFactor);
+            TintParticlesSoft(burstVfx, primaryColor, 0.62f, tintStrength: 0.90f);
+            Destroy(burstVfx, 1.6f);
+        }
+
+        // 4. Arcos elétricos roxos/lavanda de STUN (CFXR3 Hit Electric C)
+        if (electricStunPrefab != null)
+        {
+            GameObject elecVfx = Instantiate(electricStunPrefab, impactPos + Vector3.up * 0.85f, Quaternion.identity);
+            elecVfx.transform.localScale = Vector3.one * (1.35f * radiusFactor);
+            TintParticlesSoft(elecVfx, flashColor, 0.75f, tintStrength: 0.88f);
+            Destroy(elecVfx, 1.6f);
+        }
+
+        if (centerLight != null)
+        {
+            centerLight.color = primaryColor;
+            centerLight.intensity = 5.2f;
+            centerLight.range = radius * 2.5f;
         }
     }
 
-    Vector3 GetPositionOnPath(Vector3[] path, float t)
+    public void CancelAnticipation()
     {
-        if (path == null || path.Length == 0) return Vector3.zero;
-        float exactIndex = t * (path.Length - 1);
-        int index = Mathf.FloorToInt(exactIndex);
-        if (index >= path.Length - 1) return path[path.Length - 1];
-        float frac = exactIndex - index;
-        return Vector3.Lerp(path[index], path[index + 1], frac);
+        if (phase == Phase.Impact) return;
+        phase = Phase.Cancelled;
+        cancelElapsed = 0f;
+        if (activeAnticipationGlow != null)
+        {
+            Destroy(activeAnticipationGlow);
+            activeAnticipationGlow = null;
+        }
     }
 
-    Material CreateURPMaterial(Color baseColor, float emissionMultiplier, bool additive = true)
+    private void Update()
     {
-        Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
-        if (shader == null) shader = Shader.Find("Particles/Standard Unlit");
-        if (shader == null) shader = Shader.Find("Sprites/Default");
-        
-        Material mat = new Material(shader);
-        materialsToDestroy.Add(mat);
-        mat.SetColor("_BaseColor", baseColor);
-        if (mat.HasProperty("_EmissionColor"))
+        float dt = Time.deltaTime;
+        if (dt <= 0f) return;
+
+        if (phase == Phase.Anticipation)
         {
-            mat.EnableKeyword("_EMISSION");
-            mat.SetColor("_EmissionColor", baseColor * emissionMultiplier);
+            phaseElapsed += dt;
+            float t = Mathf.Clamp01(phaseElapsed / telegraphDuration);
+            UpdateAnticipation(t);
         }
-        
-        if (mat.HasProperty("_SrcBlend") && mat.HasProperty("_DstBlend"))
+        else if (phase == Phase.Impact)
         {
-            if (additive)
+            phaseElapsed += dt;
+            UpdateImpact();
+            if (phaseElapsed >= ImpactTotalDuration)
+                Destroy(gameObject);
+        }
+        else if (phase == Phase.Cancelled)
+        {
+            cancelElapsed += dt;
+            float fade = 1f - Mathf.Clamp01(cancelElapsed / CancelFadeDuration);
+            SetShaderFloat(telegraphMat, PropAlpha, fade * 0.65f);
+            SetBeamReveal(guideBeamMat, 0f, 1f, fade * 0.4f);
+            SetBeamReveal(skyBeamCoreMat, 0f, 1f, fade * 0.4f);
+            SetBeamReveal(skyBeamOuterMat, 0f, 1f, fade * 0.3f);
+            if (centerLight != null) centerLight.intensity *= fade;
+            if (cancelElapsed >= CancelFadeDuration)
+                Destroy(gameObject);
+        }
+    }
+
+    private void UpdateAnticipation(float t)
+    {
+        if (lockFlashTimer > 0f)
+            lockFlashTimer = Mathf.Max(0f, lockFlashTimer - Time.deltaTime);
+
+        float lockBoost = lockFlashTimer > 0f ? (lockFlashTimer / 0.16f) * 0.35f : 0f;
+
+        float intro = Mathf.Clamp01(t / 0.14f);
+        float introEase = 1f - Mathf.Pow(1f - intro, 3f);
+
+        // 1. Círculo limpo arroxeado e translúcido no chão
+        if (telegraphMat != null)
+        {
+            SetShaderFloat(telegraphMat, PropFillProgress, t);
+            SetShaderFloat(telegraphMat, PropAlpha, Mathf.Clamp01(introEase * Mathf.Lerp(0.42f, 0.68f, t) + lockBoost * 0.16f));
+            SetShaderFloat(telegraphMat, PropIntensity, Mathf.Lerp(0.80f, 1.20f, t * t) + lockBoost);
+        }
+
+        // 2. Brilho central cresce sutilmente conforme carrega
+        if (activeAnticipationGlow != null)
+        {
+            float s = Mathf.Lerp(0.32f, 0.92f, t) * (radius / 4f);
+            activeAnticipationGlow.transform.localScale = Vector3.one * s;
+        }
+
+        // 3. Fio guia vertical sutil e translúcido descendo do céu
+        if (guideBeamTransform != null && guideBeamMat != null)
+        {
+            float dropT = Mathf.Clamp01(t / 0.22f);
+            float revBot = Mathf.Lerp(1f, 0f, 1f - Mathf.Pow(1f - dropT, 2f));
+            float guideR = Mathf.Lerp(0.26f, 0.06f, t);
+            guideBeamTransform.localScale = new Vector3(guideR, beamHeight, guideR);
+            SetBeamReveal(guideBeamMat, revBot, 1.05f, Mathf.Lerp(0.14f, 0.45f, t));
+        }
+
+        // 4. Fase 2 (65% -> 100%): Feixe de luz roxo translúcido rasga lá do céu até o chão
+        const float beamStartT = 0.65f;
+        if (t >= beamStartT)
+        {
+            float beamT = Mathf.Clamp01((t - beamStartT) / (1f - beamStartT));
+            float descentT = Mathf.Clamp01(beamT / 0.58f);
+            float revBot = Mathf.Lerp(1.0f, 0.0f, descentT * descentT);
+
+            float surgeT = Mathf.Clamp01((beamT - 0.58f) / 0.42f);
+            float coreR = Mathf.Lerp(0.20f, radius * 0.15f, surgeT);
+            float outerR = Mathf.Lerp(0.50f, radius * 0.32f, surgeT);
+
+            if (skyBeamCoreTransform != null)
+                skyBeamCoreTransform.localScale = new Vector3(coreR, beamHeight, coreR);
+            if (skyBeamOuterTransform != null)
+                skyBeamOuterTransform.localScale = new Vector3(outerR, beamHeight, outerR);
+
+            SetBeamReveal(skyBeamCoreMat, revBot, 1.05f, Mathf.Lerp(0.45f, 0.68f, beamT));
+            SetBeamReveal(skyBeamOuterMat, revBot, 1.05f, Mathf.Lerp(0.28f, 0.50f, beamT));
+        }
+
+        if (centerLight != null)
+            centerLight.intensity = Mathf.Lerp(0.45f, 2.8f, t * t) + lockBoost;
+    }
+
+    private void UpdateImpact()
+    {
+        // Feixe do céu dá o pico roxo translúcido no impacto e dissipa limpo pra cima
+        if (phaseElapsed < 0.65f)
+        {
+            float expand = Mathf.Clamp01(phaseElapsed / 0.07f);
+            float fadeOut = Mathf.Clamp01((phaseElapsed - 0.09f) / 0.56f);
+            float easeOut = fadeOut * fadeOut;
+
+            float coreR = Mathf.Lerp(radius * 0.15f, radius * 0.27f, expand) * Mathf.Lerp(1f, 0.04f, easeOut);
+            float outerR = Mathf.Lerp(radius * 0.32f, radius * 0.52f, expand) * Mathf.Lerp(1f, 0.10f, easeOut);
+
+            if (skyBeamCoreTransform != null)
+                skyBeamCoreTransform.localScale = new Vector3(Mathf.Max(0.02f, coreR), beamHeight, Mathf.Max(0.02f, coreR));
+            if (skyBeamOuterTransform != null)
+                skyBeamOuterTransform.localScale = new Vector3(Mathf.Max(0.02f, outerR), beamHeight, Mathf.Max(0.02f, outerR));
+
+            float revBot = Mathf.Lerp(0f, 0.55f, easeOut);
+            SetBeamReveal(skyBeamCoreMat, revBot, 1.05f, (1f - easeOut) * 0.72f);
+            SetBeamReveal(skyBeamOuterMat, revBot * 0.8f, 1.05f, (1f - easeOut) * 0.52f);
+            SetShaderFloat(skyBeamCoreMat, PropIntensity, Mathf.Lerp(1.55f, 0.80f, fadeOut));
+            SetShaderFloat(skyBeamOuterMat, PropIntensity, Mathf.Lerp(1.15f, 0.55f, fadeOut));
+        }
+        else
+        {
+            if (skyBeamCoreTransform != null) skyBeamCoreTransform.gameObject.SetActive(false);
+            if (skyBeamOuterTransform != null) skyBeamOuterTransform.gameObject.SetActive(false);
+        }
+
+        // Telegraph some suavemente após o impacto
+        float telFade = 1f - Mathf.Clamp01(phaseElapsed / 0.24f);
+        SetShaderFloat(telegraphMat, PropAlpha, telFade * 0.60f);
+
+        // Luz decai limpo
+        if (centerLight != null)
+        {
+            float lf = 1f - Mathf.Clamp01(phaseElapsed / 0.40f);
+            centerLight.intensity = 5.2f * lf * lf;
+        }
+    }
+
+    private static void TintParticlesSoft(GameObject root, Color tint, float alphaScale = 0.75f, float tintStrength = 0.85f)
+    {
+        if (root == null) return;
+        ParticleSystem[] systems = root.GetComponentsInChildren<ParticleSystem>(true);
+        for (int i = 0; i < systems.Length; i++)
+        {
+            var main = systems[i].main;
+            var sc = main.startColor;
+            switch (sc.mode)
             {
-                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
-            }
-            else
-            {
-                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                case ParticleSystemGradientMode.Color:
+                    Color c = Color.Lerp(sc.color, tint, tintStrength);
+                    c.a = sc.color.a * alphaScale;
+                    main.startColor = new ParticleSystem.MinMaxGradient(c);
+                    break;
+                case ParticleSystemGradientMode.TwoColors:
+                    Color c1 = Color.Lerp(sc.colorMin, tint, tintStrength);
+                    Color c2 = Color.Lerp(sc.colorMax, Color.Lerp(tint, Color.white, 0.25f), tintStrength);
+                    c1.a = sc.colorMin.a * alphaScale;
+                    c2.a = sc.colorMax.a * alphaScale;
+                    main.startColor = new ParticleSystem.MinMaxGradient(c1, c2);
+                    break;
+                default:
+                    Color fallback = tint;
+                    fallback.a = alphaScale;
+                    main.startColor = new ParticleSystem.MinMaxGradient(fallback);
+                    break;
             }
         }
+
+        Light[] lights = root.GetComponentsInChildren<Light>(true);
+        for (int i = 0; i < lights.Length; i++)
+        {
+            lights[i].color = tint;
+            lights[i].intensity *= 0.65f;
+        }
+    }
+
+    private Transform CreateMeshChild(string childName, Mesh mesh, Material mat, Vector3 localPos, Vector3 localScale)
+    {
+        GameObject obj = new GameObject(childName);
+        obj.transform.SetParent(transform, false);
+        obj.transform.localPosition = localPos;
+        obj.transform.localScale = localScale;
+
+        MeshFilter mf = obj.AddComponent<MeshFilter>();
+        mf.sharedMesh = mesh;
+
+        MeshRenderer mr = obj.AddComponent<MeshRenderer>();
+        mr.sharedMaterial = mat;
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        mr.receiveShadows = false;
+        return obj.transform;
+    }
+
+    private Material CloneOrCreateBeamMat(Material template, Color coreCol, Color outerCol, float intensity)
+    {
+        Material mat;
+        if (template != null)
+            mat = new Material(template);
+        else
+        {
+            Shader sh = Shader.Find("Custom/GolemSkyBeam_URP")
+                ?? Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                ?? Shader.Find("Sprites/Default");
+            mat = new Material(sh);
+        }
+        ownedMaterials.Add(mat);
+
+        if (mat.HasProperty(PropCoreColor)) mat.SetColor(PropCoreColor, coreCol);
+        if (mat.HasProperty(PropOuterColor)) mat.SetColor(PropOuterColor, outerCol);
+        if (mat.HasProperty(PropIntensity)) mat.SetFloat(PropIntensity, intensity);
+        if (mat.HasProperty(PropBaseColor)) mat.SetColor(PropBaseColor, outerCol);
         return mat;
     }
 
-    void SetupRendererMaterial(ParticleSystemRenderer rend, Color color, float emissionMultiplier, bool additive = true)
+    private Material CloneOrCreateTelegraphMat(Material template, Color mainCol, Color hiCol)
     {
-        Material mat = rend.material; // Clona o material padrão (com textura redonda)
-        materialsToDestroy.Add(mat);
+        Material mat;
+        if (template != null)
+            mat = new Material(template);
+        else
+        {
+            Shader sh = Shader.Find("Custom/GolemGroundRune_URP")
+                ?? Shader.Find("Universal Render Pipeline/Unlit")
+                ?? Shader.Find("Sprites/Default");
+            mat = new Material(sh);
+        }
+        ownedMaterials.Add(mat);
 
-        if (mat.HasProperty("_BaseColor"))
-        {
-            mat.SetColor("_BaseColor", color);
-        }
-        else if (mat.HasProperty("_Color"))
-        {
-            mat.SetColor("_Color", color);
-        }
-
-        if (mat.HasProperty("_EmissionColor"))
-        {
-            mat.EnableKeyword("_EMISSION");
-            mat.SetColor("_EmissionColor", color * emissionMultiplier);
-        }
-
-        if (mat.HasProperty("_SrcBlend") && mat.HasProperty("_DstBlend"))
-        {
-            if (additive)
-            {
-                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
-            }
-            else
-            {
-                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            }
-        }
+        if (mat.HasProperty("_UseTexture")) mat.SetFloat("_UseTexture", 0f);
+        if (mat.HasProperty("_ShowProceduralRing")) mat.SetFloat("_ShowProceduralRing", 1f);
+        if (mat.HasProperty("_OuterRingWidth")) mat.SetFloat("_OuterRingWidth", 0.028f);
+        if (mat.HasProperty(PropColor)) mat.SetColor(PropColor, mainCol);
+        if (mat.HasProperty(PropCoreColor)) mat.SetColor(PropCoreColor, hiCol * 1.15f);
+        return mat;
     }
 
-    public void SetRadius(float radius)
+    private static void SetBeamReveal(Material mat, float bottom, float top, float alpha)
     {
-        maxRadius = radius;
+        if (mat == null) return;
+        if (mat.HasProperty(PropRevealBottom)) mat.SetFloat(PropRevealBottom, bottom);
+        if (mat.HasProperty(PropRevealTop)) mat.SetFloat(PropRevealTop, top);
+        if (mat.HasProperty(PropAlpha)) mat.SetFloat(PropAlpha, alpha);
     }
 
-    void OnDestroy()
+    private static void SetShaderFloat(Material mat, int propId, float val)
     {
-        foreach (Material mat in materialsToDestroy)
+        if (mat != null && mat.HasProperty(propId))
+            mat.SetFloat(propId, val);
+    }
+
+    private static Mesh BuildGroundQuadMesh()
+    {
+        Mesh mesh = new Mesh { name = "GolemCleanTelegraphQuad" };
+        mesh.vertices = new[]
         {
-            if (mat != null) Destroy(mat);
+            new Vector3(-0.5f, 0f, -0.5f),
+            new Vector3( 0.5f, 0f, -0.5f),
+            new Vector3( 0.5f, 0f,  0.5f),
+            new Vector3(-0.5f, 0f,  0.5f)
+        };
+        mesh.normals = new[] { Vector3.up, Vector3.up, Vector3.up, Vector3.up };
+        mesh.uv = new[]
+        {
+            new Vector2(0f, 0f),
+            new Vector2(1f, 0f),
+            new Vector2(1f, 1f),
+            new Vector2(0f, 1f)
+        };
+        mesh.triangles = new[] { 0, 2, 1, 0, 3, 2 };
+        return mesh;
+    }
+
+    private static Mesh BuildOpenCylinderMesh(int segments)
+    {
+        Mesh mesh = new Mesh { name = "GolemSkyBeamCylinder" };
+        int ringVerts = segments + 1;
+        Vector3[] verts = new Vector3[ringVerts * 2];
+        Vector3[] normals = new Vector3[ringVerts * 2];
+        Vector2[] uvs = new Vector2[ringVerts * 2];
+        int[] tris = new int[segments * 6];
+
+        for (int i = 0; i <= segments; i++)
+        {
+            float u = (float)i / segments;
+            float a = u * Mathf.PI * 2f;
+            float cx = Mathf.Cos(a);
+            float cz = Mathf.Sin(a);
+
+            verts[i] = new Vector3(cx, 0f, cz);
+            normals[i] = new Vector3(cx, 0f, cz);
+            uvs[i] = new Vector2(u, 0f);
+
+            verts[ringVerts + i] = new Vector3(cx, 1f, cz);
+            normals[ringVerts + i] = new Vector3(cx, 0f, cz);
+            uvs[ringVerts + i] = new Vector2(u, 1f);
         }
-        materialsToDestroy.Clear();
+
+        for (int i = 0; i < segments; i++)
+        {
+            int b0 = i;
+            int b1 = i + 1;
+            int t0 = ringVerts + i;
+            int t1 = ringVerts + i + 1;
+
+            int idx = i * 6;
+            tris[idx] = b0;
+            tris[idx + 1] = t0;
+            tris[idx + 2] = t1;
+            tris[idx + 3] = b0;
+            tris[idx + 4] = t1;
+            tris[idx + 5] = b1;
+        }
+
+        mesh.vertices = verts;
+        mesh.normals = normals;
+        mesh.uv = uvs;
+        mesh.triangles = tris;
+        mesh.RecalculateBounds();
+        return mesh;
+    }
+
+    private void OnDestroy()
+    {
+        for (int i = 0; i < ownedMaterials.Count; i++)
+            if (ownedMaterials[i] != null) Destroy(ownedMaterials[i]);
+        ownedMaterials.Clear();
+
+        for (int i = 0; i < ownedMeshes.Count; i++)
+            if (ownedMeshes[i] != null) Destroy(ownedMeshes[i]);
+        ownedMeshes.Clear();
     }
 }
 
+/// <summary>
+/// Compatibilidade para scripts que adicionem GolemStunVFX diretamente.
+/// </summary>
+public class GolemStunVFX : MonoBehaviour
+{
+    public Color stunColor = new Color(0.52f, 0.75f, 1.0f, 1f);
+    public Color flashColor = new Color(0.95f, 0.97f, 1.0f, 1f);
+    public float maxRadius = 4f;
+    public float pillarHeight = 38f;
+
+    public void SetRadius(float radius) => maxRadius = radius;
+
+    void Start()
+    {
+        GolemSkyStunVFX sky = GolemSkyStunVFX.SpawnAnticipation(
+            transform.position, maxRadius, 0.25f, Mathf.Max(20f, pillarHeight),
+            stunColor, new Color(0.70f, 0.56f, 1.0f, 1f), flashColor,
+            null, null, null, null, null, null, null, null
+        );
+        sky.TriggerImpact();
+        Destroy(gameObject);
+    }
+}
+
+/// <summary>
+/// Indicador limpo e minimalista no chão (sem runas, anti-clipping) para o golpe Melee do Golem.
+/// </summary>
+public class GolemGroundTelegraph : MonoBehaviour
+{
+    private float radius = 2.4f;
+    private float duration = 0.35f;
+    private Color baseColor = new Color(0.95f, 0.72f, 0.35f, 1f);
+    private float elapsed;
+
+    private Material mat;
+    private Mesh quadMesh;
+
+    private static readonly int PropColor = Shader.PropertyToID("_Color");
+    private static readonly int PropCoreColor = Shader.PropertyToID("_CoreColor");
+    private static readonly int PropAlpha = Shader.PropertyToID("_Alpha");
+    private static readonly int PropFillProgress = Shader.PropertyToID("_FillProgress");
+    private static readonly int PropIntensity = Shader.PropertyToID("_Intensity");
+
+    public static GolemGroundTelegraph Spawn(Vector3 position, float radius, float duration, Color color, Material template = null)
+    {
+        GameObject go = new GameObject("Golem_GroundTelegraph");
+        go.transform.position = new Vector3(position.x, position.y + 0.08f, position.z);
+        GolemGroundTelegraph telegraph = go.AddComponent<GolemGroundTelegraph>();
+        telegraph.Initialize(radius, duration, color, template);
+        return telegraph;
+    }
+
+    public void Initialize(float targetRadius, float telegraphDuration, Color color, Material template)
+    {
+        radius = Mathf.Max(0.35f, targetRadius);
+        duration = Mathf.Max(0.06f, telegraphDuration);
+        baseColor = color;
+        elapsed = 0f;
+
+        quadMesh = new Mesh { name = "GolemMeleeTelegraphQuad" };
+        quadMesh.vertices = new[]
+        {
+            new Vector3(-0.5f, 0f, -0.5f),
+            new Vector3( 0.5f, 0f, -0.5f),
+            new Vector3( 0.5f, 0f,  0.5f),
+            new Vector3(-0.5f, 0f,  0.5f)
+        };
+        quadMesh.normals = new[] { Vector3.up, Vector3.up, Vector3.up, Vector3.up };
+        quadMesh.uv = new[]
+        {
+            new Vector2(0f, 0f),
+            new Vector2(1f, 0f),
+            new Vector2(1f, 1f),
+            new Vector2(0f, 1f)
+        };
+        quadMesh.triangles = new[] { 0, 2, 1, 0, 3, 2 };
+
+        MeshFilter mf = gameObject.AddComponent<MeshFilter>();
+        mf.sharedMesh = quadMesh;
+
+        MeshRenderer mr = gameObject.AddComponent<MeshRenderer>();
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        mr.receiveShadows = false;
+
+        if (template != null)
+            mat = new Material(template);
+        else
+        {
+            Shader sh = Shader.Find("Custom/GolemGroundRune_URP")
+                ?? Shader.Find("Universal Render Pipeline/Unlit")
+                ?? Shader.Find("Sprites/Default");
+            mat = new Material(sh);
+        }
+
+        if (mat.HasProperty("_UseTexture")) mat.SetFloat("_UseTexture", 0f);
+        if (mat.HasProperty("_ShowProceduralRing")) mat.SetFloat("_ShowProceduralRing", 1f);
+        if (mat.HasProperty("_OuterRingWidth")) mat.SetFloat("_OuterRingWidth", 0.036f);
+        if (mat.HasProperty(PropColor)) mat.SetColor(PropColor, baseColor);
+        if (mat.HasProperty(PropCoreColor)) mat.SetColor(PropCoreColor, Color.Lerp(baseColor, Color.white, 0.65f) * 1.6f);
+        mr.sharedMaterial = mat;
+
+        transform.localScale = new Vector3(radius * 2f, 1f, radius * 2f);
+        UpdateVisuals(0f);
+    }
+
+    private void Update()
+    {
+        elapsed += Time.deltaTime;
+        float t = Mathf.Clamp01(elapsed / duration);
+        UpdateVisuals(t);
+
+        if (elapsed >= duration + 0.04f)
+            Destroy(gameObject);
+    }
+
+    private void UpdateVisuals(float t)
+    {
+        if (mat == null) return;
+        if (mat.HasProperty(PropFillProgress)) mat.SetFloat(PropFillProgress, t);
+        if (mat.HasProperty(PropAlpha)) mat.SetFloat(PropAlpha, Mathf.Lerp(0.45f, 0.85f, t));
+        if (mat.HasProperty(PropIntensity)) mat.SetFloat(PropIntensity, Mathf.Lerp(0.95f, 1.55f, t));
+    }
+
+    private void OnDestroy()
+    {
+        if (mat != null) Destroy(mat);
+        if (quadMesh != null) Destroy(quadMesh);
+    }
+}
+
+/// <summary>
+/// Helper de impacto para o Melee pesado do Golem usando os prefabs reais de impacto de chão (CFXR2 Ground Hit + Golem_StunGroundImpact).
+/// </summary>
+public static class GolemMeleeSlamVFX
+{
+    public static void Spawn(Vector3 position, float radius, GameObject groundHitRingPrefab, GameObject groundImpactPrefab)
+    {
+        Vector3 pos = new Vector3(position.x, position.y + 0.12f, position.z);
+        float scaleFactor = Mathf.Max(0.4f, radius / 2.4f);
+
+        if (groundHitRingPrefab != null)
+        {
+            GameObject ring = Object.Instantiate(groundHitRingPrefab, pos, Quaternion.identity);
+            ring.transform.localScale = Vector3.one * (1.55f * scaleFactor);
+            Object.Destroy(ring, 1.5f);
+        }
+
+        if (groundImpactPrefab != null)
+        {
+            GameObject impact = Object.Instantiate(groundImpactPrefab, pos, Quaternion.identity);
+            impact.transform.localScale = Vector3.one * (0.52f * scaleFactor);
+            Object.Destroy(impact, 2.0f);
+        }
+    }
+}

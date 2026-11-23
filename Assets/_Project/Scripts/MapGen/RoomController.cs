@@ -895,7 +895,7 @@ public class RoomController : MonoBehaviour
                 aura.auraRadius = 0.85f;
                 aura.auraWidth = 0.09f;
             }
-            newEnemy.transform.localScale *= 1.25f;
+            newEnemy.transform.localScale *= 1.20f;
         }
 
         DummyHealth dh = newEnemy.GetComponent<DummyHealth>() ?? newEnemy.GetComponentInChildren<DummyHealth>();
@@ -1091,7 +1091,7 @@ public class RoomController : MonoBehaviour
 
         if (!hasDedicatedVariant)
         {
-            rebornEnemy.transform.localScale *= 1.25f;
+            rebornEnemy.transform.localScale *= 1.20f;
         }
 
         EnemyDrops drops = rebornEnemy.GetComponent<EnemyDrops>() ?? rebornEnemy.GetComponentInChildren<EnemyDrops>();

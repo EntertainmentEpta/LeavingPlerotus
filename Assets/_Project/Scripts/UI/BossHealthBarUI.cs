@@ -14,6 +14,18 @@ public class BossHealthBarUI : MonoBehaviour
     [Tooltip("A imagem vermelha da vida que vai diminuir (Image Type = Filled, Fill Method = Horizontal).")]
     public Image fillImage;
 
+    [Header("Barra de Dano Atrasado (Estilo LoL)")]
+    [Tooltip("Opcional: se vazio, é criada automaticamente atrás do fillImage.")]
+    public Image delayedDamageFillImage;
+    public Color delayedDamageColor = new Color(128f / 255f, 128f / 255f, 128f / 255f, 1f);
+    public float delayedDamageHold = 0.36f;
+    public float delayedMinDrainSpeed = 0.45f;
+    public float delayedDrainLerp = 4.5f;
+
+    private float targetFillPercent = 1f;
+    private float delayedFillPercent = 1f;
+    private float delayedHoldTimer = 0f;
+
     [Header("Molduras por Fase")]
     [Tooltip("A Image no Canvas que vai exibir a moldura em volta da barra.")]
     public Image frameImage;
@@ -104,7 +116,34 @@ public class BossHealthBarUI : MonoBehaviour
             fillImage.type = Image.Type.Filled;
             fillImage.fillMethod = Image.FillMethod.Horizontal;
             fillImage.fillOrigin = (int)Image.OriginHorizontal.Left;
+            EnsureDelayedDamageImage();
         }
+    }
+
+    private void EnsureDelayedDamageImage()
+    {
+        if (fillImage == null || delayedDamageFillImage != null) return;
+
+        GameObject go = new GameObject("DelayedDamageFill", typeof(RectTransform), typeof(Image));
+        go.transform.SetParent(fillImage.transform.parent, false);
+        RectTransform src = fillImage.rectTransform;
+        RectTransform dst = go.GetComponent<RectTransform>();
+        dst.anchorMin = src.anchorMin;
+        dst.anchorMax = src.anchorMax;
+        dst.pivot = src.pivot;
+        dst.anchoredPosition = src.anchoredPosition;
+        dst.sizeDelta = src.sizeDelta;
+        dst.localScale = src.localScale;
+        dst.SetSiblingIndex(fillImage.transform.GetSiblingIndex());
+
+        delayedDamageFillImage = go.GetComponent<Image>();
+        delayedDamageFillImage.sprite = fillImage.sprite;
+        delayedDamageFillImage.type = Image.Type.Filled;
+        delayedDamageFillImage.fillMethod = Image.FillMethod.Horizontal;
+        delayedDamageFillImage.fillOrigin = (int)Image.OriginHorizontal.Left;
+        delayedDamageFillImage.color = delayedDamageColor;
+        delayedDamageFillImage.raycastTarget = false;
+        delayedDamageFillImage.fillAmount = delayedFillPercent;
     }
 
     void OnEnable()
@@ -172,6 +211,22 @@ public class BossHealthBarUI : MonoBehaviour
                 }
             }
         }
+        // Atualiza o recuo suave da barra amarela de dano atrasado (estilo LoL)
+        if (delayedDamageFillImage != null && delayedFillPercent > targetFillPercent)
+        {
+            float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+            if (delayedHoldTimer > 0f)
+            {
+                delayedHoldTimer -= dt;
+            }
+            else
+            {
+                float diff = delayedFillPercent - targetFillPercent;
+                float speed = Mathf.Max(delayedMinDrainSpeed, diff * delayedDrainLerp);
+                delayedFillPercent = Mathf.MoveTowards(delayedFillPercent, targetFillPercent, speed * dt);
+                delayedDamageFillImage.fillAmount = delayedFillPercent;
+            }
+        }
     }
 
     public void OnFightStarted()
@@ -193,10 +248,25 @@ public class BossHealthBarUI : MonoBehaviour
             OnFightStarted();
         }
 
-        if (fillImage != null)
+        float clamped = Mathf.Clamp01(hpPercent);
+        if (clamped < targetFillPercent - 0.0005f)
         {
-            fillImage.fillAmount = Mathf.Clamp01(hpPercent);
+            if (delayedFillPercent < targetFillPercent)
+                delayedFillPercent = targetFillPercent;
+            delayedHoldTimer = delayedDamageHold;
         }
+        else if (clamped > delayedFillPercent)
+        {
+            delayedFillPercent = clamped;
+            delayedHoldTimer = 0f;
+        }
+
+        targetFillPercent = clamped;
+
+        if (fillImage != null)
+            fillImage.fillAmount = targetFillPercent;
+        if (delayedDamageFillImage != null)
+            delayedDamageFillImage.fillAmount = delayedFillPercent;
     }
 
     public void OnPhaseChanged(int newPhase)
@@ -206,7 +276,7 @@ public class BossHealthBarUI : MonoBehaviour
         UpdateFrame(newPhase);
         UpdateColor(newPhase);
         UpdateName(newPhase);
-        if (fillImage != null) fillImage.fillAmount = 1.0f; // Reseta a barra para 100% ao entrar na nova fase!
+        ResetBar();
         if (!isFightActive) SetBarVisible(true);
     }
 
@@ -260,13 +330,17 @@ public class BossHealthBarUI : MonoBehaviour
 
     public void OnBossDefeated()
     {
-        if (fillImage != null) fillImage.fillAmount = 0f;
+        OnHealthChanged(0f);
         Invoke(nameof(HideWithDelay), 2.5f);
     }
 
     void ResetBar()
     {
+        targetFillPercent = 1f;
+        delayedFillPercent = 1f;
+        delayedHoldTimer = 0f;
         if (fillImage != null) fillImage.fillAmount = 1f;
+        if (delayedDamageFillImage != null) delayedDamageFillImage.fillAmount = 1f;
     }
 
     public void SetBarVisible(bool visible)
@@ -279,6 +353,7 @@ public class BossHealthBarUI : MonoBehaviour
         }
         else
         {
+            if (delayedDamageFillImage != null) delayedDamageFillImage.gameObject.SetActive(visible);
             if (fillImage != null) fillImage.gameObject.SetActive(visible);
             if (frameImage != null) frameImage.gameObject.SetActive(visible);
             if (bossNameText != null) bossNameText.gameObject.SetActive(visible);

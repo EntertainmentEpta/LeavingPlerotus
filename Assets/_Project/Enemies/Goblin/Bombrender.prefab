@@ -127,12 +127,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BombaExplosiva
   danoExplosao: 40
-  raioExplosao: 2
+  raioExplosao: 2.5
   forcaKnockback: 10
+  marksOnHit: 0
   tempoParaExplodir: 3
-  efeitoExplosao: {fileID: 0}
-  corExplosao: {r: 1, g: 0.45, b: 0, a: 1}
-  bombaRenderer: {fileID: 0}
+  efeitoExplosao: {fileID: 2433282508537954060, guid: 3ef3ae421f71c5c4e97fe12dc2fc6312, type: 3}
+  groundHitVfxPrefab: {fileID: 3432958286849152088, guid: 87ee7299dd44ed747af24dbb91bcd33b, type: 3}
+  telegraphMaterial: {fileID: 2100000, guid: 481af20456794288a4b3df5689011caa, type: 2}
+  corExplosao: {r: 1, g: 0.48, b: 0.12, a: 1}
+  bombaRenderer: {fileID: 2826668218818144955}
   tickSound: {fileID: 0}
   tickSoundVolume: 0.6
   explosionSound: {fileID: 0}

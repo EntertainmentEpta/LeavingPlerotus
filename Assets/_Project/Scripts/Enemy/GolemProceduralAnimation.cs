@@ -339,10 +339,13 @@ public class GolemProceduralAnimation : MonoBehaviour
 
     void Update()
     {
+        float dt = Time.deltaTime;
+        if (dt <= 0.0001f) return;
+
         // 1. Calcula a velocidade real de deslocamento
         Vector3 displacement = transform.position - lastPosition;
         displacement.y = 0; // Ignora altura
-        float speed = displacement.magnitude / Time.deltaTime;
+        float speed = displacement.magnitude / dt;
         lastPosition = transform.position;
 
         if (rb != null)
@@ -360,13 +363,13 @@ public class GolemProceduralAnimation : MonoBehaviour
         if (isCastingStun)
         {
             if (rb != null) rb.constraints = RigidbodyConstraints.FreezeRotation;
-            // Executa o pisão/salto do Stun (Prioridade 1)
+            // Executa o pisão/salto do Stun sincronizado com Golem_AI (Prioridade 1)
             AnimateStunCast();
         }
         else if (isAttacking)
         {
             if (rb != null) rb.constraints = RigidbodyConstraints.FreezeRotation;
-            // Executa a investida/cabeçada do Ataque Corporal com giro 360 orbital dos braços (Prioridade 2)
+            // Executa o golpe melee sincronizado com Golem_AI (Prioridade 2)
             AnimateMeleeAttack();
         }
         else
@@ -391,13 +394,12 @@ public class GolemProceduralAnimation : MonoBehaviour
 
             if (golemAI != null)
             {
-                // Se a IA está ativada e o jogador está fora do meleeRange e ele está vivo
-                DummyHealth golemHealth = GetComponent<DummyHealth>();
-                bool isAlive = golemHealth == null || golemHealth.CurrentHealth > 0;
+                bool isAlive = health == null || health.CurrentHealth > 0;
                 if (isAlive && golemAI.IsActivated && playerTransform != null)
                 {
-                    float distToPlayer = Vector3.Distance(transform.position, playerTransform.position);
-                    if (distToPlayer > golemAI.meleeRange)
+                    Vector3 delta = playerTransform.position - transform.position;
+                    delta.y = 0f;
+                    if (delta.magnitude > golemAI.meleeRange * 0.92f)
                     {
                         isTryingToMove = true;
                     }
@@ -410,17 +412,17 @@ public class GolemProceduralAnimation : MonoBehaviour
             }
 
             float targetFactor = isTryingToMove ? 1f : 0f;
-            currentMovementFactor = Mathf.Lerp(currentMovementFactor, targetFactor, transitionSmoothness * Time.deltaTime);
+            currentMovementFactor = Mathf.Lerp(currentMovementFactor, targetFactor, transitionSmoothness * dt);
 
             if (isTryingToMove)
             {
                 // Avança o tempo do ciclo de passos baseado na velocidade
-                animationTime += Time.deltaTime * walkCycleSpeed * Mathf.Clamp(speed / 2f, 0.5f, 2f);
+                animationTime += dt * walkCycleSpeed * Mathf.Clamp(speed / 2f, 0.5f, 2f);
             }
             else
             {
                 // Retorna suavemente o ciclo de animação para a pose em pé (idle)
-                animationTime = Mathf.Lerp(animationTime, 0f, transitionSmoothness * Time.deltaTime);
+                animationTime = Mathf.Lerp(animationTime, 0f, transitionSmoothness * dt);
             }
 
             AnimateWalkCycle();
@@ -541,9 +543,10 @@ public class GolemProceduralAnimation : MonoBehaviour
         }
 
         // Aplica as rotações dos braços com uma taxa de interpolação dinâmica:
-        // No idle (currentMovementFactor = 0) usa o armInertiaFactor suave.
+        // No idle (currentMovementFactor = 0) usa o armInertiaFactor suave (nunca zero para não travar os braços).
         // Ao caminhar (currentMovementFactor = 1) usa uma taxa rápida (15f) para cancelar o rebolado do quadril/tronco.
-        float activeInertia = Mathf.Lerp(armInertiaFactor, 15f, currentMovementFactor);
+        float safeIdleInertia = Mathf.Max(1.0f, armInertiaFactor);
+        float activeInertia = Mathf.Lerp(safeIdleInertia, 15f, currentMovementFactor);
 
         if (leftArm != null)
         {
@@ -559,8 +562,23 @@ public class GolemProceduralAnimation : MonoBehaviour
 
     void AnimateMeleeAttack()
     {
-        attackTimer += Time.deltaTime;
-        float tNorm = Mathf.Clamp01(attackTimer / attackDuration);
+        float tNorm;
+        float hitT;
+        if (golemAI != null)
+        {
+            tNorm = Mathf.Clamp01(golemAI.AttackNormalizedTime);
+            hitT = golemAI.MeleeHitNormalizedTime;
+        }
+        else
+        {
+            attackTimer += Time.deltaTime;
+            tNorm = Mathf.Clamp01(attackTimer / Mathf.Max(0.1f, attackDuration));
+            hitT = 0.55f;
+        }
+
+        // O golpe acelera logo antes do impacto (hitT - 0.14) e crava no chão exatamente em hitT
+        float windupEnd = Mathf.Max(0.18f, hitT - 0.14f);
+        float strikeEnd = Mathf.Min(0.86f, hitT + 0.18f);
 
         float leanAngle = 0f;
         float bodyDrop = 0f;
@@ -574,27 +592,28 @@ public class GolemProceduralAnimation : MonoBehaviour
 
         if (attackStyle == GolemAttackStyle.Helicopter)
         {
-            // 1. Wind-up (0% a 40%): Torso inclina para trás, braços sobem horizontalmente (T-pose) e fecha as mãos
-            if (tNorm < 0.4f)
+            // 1. Wind-up (0 -> windupEnd): Torso inclina para trás, braços sobem horizontalmente e fecha os punhos
+            if (tNorm < windupEnd)
             {
-                float subT = tNorm / 0.4f;
-                leanAngle = Mathf.Lerp(defaultBodyLeanAngle, attackLeanBackAngle, subT);
-                bodyDrop = Mathf.Lerp(0f, -0.02f, subT);
+                float subT = tNorm / windupEnd;
+                float smoothT = Mathf.Sin(subT * Mathf.PI * 0.5f);
+                leanAngle = Mathf.Lerp(defaultBodyLeanAngle, attackLeanBackAngle, smoothT);
+                bodyDrop = Mathf.Lerp(0f, -0.04f, smoothT);
                 
-                float liftL = Mathf.Lerp(0f, -armLiftAngle, subT);
-                float liftR = Mathf.Lerp(0f, armLiftAngle, subT);
+                float liftL = Mathf.Lerp(0f, -armLiftAngle, smoothT);
+                float liftR = Mathf.Lerp(0f, armLiftAngle, smoothT);
                 targetLeftRot = initialLeftArmRotation * Quaternion.Euler(armLiftAxis * liftL);
                 targetRightRot = initialRightArmRotation * Quaternion.Euler(armLiftAxis * liftR);
 
-                fingerAngle = Mathf.Lerp(0f, fingerCloseAngle, subT);
+                fingerAngle = Mathf.Lerp(0f, fingerCloseAngle, smoothT);
             }
-            // 2. Golpe (40% a 80%): Torso avança rápido e os braços LEVANTADOS realizam a órbita 360 ao redor do corpo
-            else if (tNorm >= 0.4f && tNorm < 0.8f)
+            // 2. Golpe e Impacto (windupEnd -> strikeEnd): Torso avança com peso e braços executam giro 360
+            else if (tNorm < strikeEnd)
             {
-                float subT = (tNorm - 0.4f) / 0.4f;
+                float subT = (tNorm - windupEnd) / Mathf.Max(0.01f, strikeEnd - windupEnd);
                 float easeOutT = Mathf.Sin(subT * Mathf.PI * 0.5f);
                 leanAngle = Mathf.Lerp(attackLeanBackAngle, attackSlamForwardAngle, easeOutT);
-                bodyDrop = Mathf.Lerp(-0.02f, -0.1f, easeOutT);
+                bodyDrop = Mathf.Lerp(-0.04f, -0.14f, easeOutT);
                 
                 float spinAngle = subT * 360f;
                 Quaternion orbitRot = Quaternion.Euler(0, spinAngle, 0);
@@ -610,12 +629,12 @@ public class GolemProceduralAnimation : MonoBehaviour
 
                 fingerAngle = fingerCloseAngle;
             }
-            // 3. Recuperação (80% a 100%): Corpo volta ao normal, braços descem e voltam para o lado do corpo
+            // 3. Recuperação (strikeEnd -> 1.0): Corpo volta à postura corcunda normal
             else
             {
-                float subT = (tNorm - 0.8f) / 0.2f;
+                float subT = (tNorm - strikeEnd) / Mathf.Max(0.01f, 1f - strikeEnd);
                 leanAngle = Mathf.Lerp(attackSlamForwardAngle, defaultBodyLeanAngle, subT);
-                bodyDrop = Mathf.Lerp(-0.1f, 0f, subT);
+                bodyDrop = Mathf.Lerp(-0.14f, 0f, subT);
                 
                 targetLeftPos = Vector3.Lerp(Quaternion.Euler(0, 360f, 0) * initialLeftArmPosition, initialLeftArmPosition, subT);
                 targetLeftRot = Quaternion.Slerp(Quaternion.Euler(0, 360f, 0) * (initialLeftArmRotation * Quaternion.Euler(armLiftAxis * -armLiftAngle)), initialLeftArmRotation, subT);
@@ -628,51 +647,52 @@ public class GolemProceduralAnimation : MonoBehaviour
         }
         else
         {
-            // --- ESTILO ROTATOR (GIRO NO PRÓPRIO EIXO DO OMBRO) ---
+            // --- ESTILO ROTATOR: Normal = golpe pesado 200° | Crystal Tuner = giro completo 360° bem rápido ---
+            bool buffedSpin = health != null && health.isBuffed;
             float armSpinAngle = 0f;
-            // Sem buff: apenas 180 graus (meio giro). Com buff: 2 giros completos (720 graus).
-            float totalDegrees = (health != null && health.isBuffed) ? 720f : 180f;
+            float totalDegrees = buffedSpin ? 360f : 200f;
             float convergeT = 0f;
 
-            if (tNorm < 0.4f)
+            if (tNorm < windupEnd)
             {
-                float subT = tNorm / 0.4f;
-                leanAngle = Mathf.Lerp(defaultBodyLeanAngle, attackLeanBackAngle, subT);
-                bodyDrop = Mathf.Lerp(0f, -0.02f, subT);
-                armSpinAngle = Mathf.Lerp(0f, -45f, subT);
-                fingerAngle = Mathf.Lerp(0f, fingerCloseAngle, subT);
-                convergeT = subT;
+                float subT = tNorm / windupEnd;
+                float smoothT = Mathf.Sin(subT * Mathf.PI * 0.5f);
+                leanAngle = Mathf.Lerp(defaultBodyLeanAngle, attackLeanBackAngle, smoothT);
+                bodyDrop = Mathf.Lerp(0f, -0.04f, smoothT);
+                armSpinAngle = Mathf.Lerp(0f, -55f, smoothT);
+                fingerAngle = Mathf.Lerp(0f, fingerCloseAngle, smoothT);
+                convergeT = smoothT;
             }
-            else if (tNorm >= 0.4f && tNorm < 0.8f)
+            else if (tNorm < strikeEnd)
             {
-                float subT = (tNorm - 0.4f) / 0.4f;
+                float subT = (tNorm - windupEnd) / Mathf.Max(0.01f, strikeEnd - windupEnd);
                 float easeOutT = Mathf.Sin(subT * Mathf.PI * 0.5f);
+                // No buff do Crystal Tuner, o giro 360° acelera bem rápido para completar a volta com impacto
+                float spinCurve = buffedSpin ? Mathf.Clamp01(Mathf.Pow(subT, 0.58f)) : easeOutT;
                 leanAngle = Mathf.Lerp(attackLeanBackAngle, attackSlamForwardAngle, easeOutT);
-                bodyDrop = Mathf.Lerp(-0.02f, -0.1f, easeOutT);
-                armSpinAngle = Mathf.Lerp(-45f, -45f + totalDegrees, subT);
+                bodyDrop = Mathf.Lerp(-0.04f, -0.14f, easeOutT);
+                armSpinAngle = Mathf.Lerp(-55f, -55f + totalDegrees, spinCurve);
                 fingerAngle = fingerCloseAngle;
                 convergeT = 1f;
             }
             else
             {
-                float subT = (tNorm - 0.8f) / 0.2f;
+                float subT = (tNorm - strikeEnd) / Mathf.Max(0.01f, 1f - strikeEnd);
                 leanAngle = Mathf.Lerp(attackSlamForwardAngle, defaultBodyLeanAngle, subT);
-                bodyDrop = Mathf.Lerp(-0.1f, 0f, subT);
-                float endAngle = -45f + totalDegrees;
-                armSpinAngle = Mathf.Lerp(endAngle, endAngle + 45f, subT);
+                bodyDrop = Mathf.Lerp(-0.14f, 0f, subT);
+                float endAngle = -55f + totalDegrees;
+                armSpinAngle = buffedSpin ? Mathf.Lerp(endAngle, 360f, subT) : Mathf.Lerp(endAngle, 0f, subT);
                 fingerAngle = Mathf.Lerp(fingerCloseAngle, 0f, subT);
                 convergeT = 1f - subT;
             }
 
             Quaternion spinRot = Quaternion.AngleAxis(armSpinAngle, attackArmSpinAxis);
-            Quaternion spinRotRight = Quaternion.AngleAxis(-armSpinAngle, attackArmSpinAxis); // Inverte o sentido do giro para o braço direito
+            Quaternion spinRotRight = Quaternion.AngleAxis(-armSpinAngle, attackArmSpinAxis);
 
-            // Braço Esquerdo: Corrigido os sinais (invertidos) para inclinar para baixo e para dentro
             Quaternion leftConvergeRot = Quaternion.Euler(-rotatorPitchAngle * convergeT, -rotatorConvergeAngle * convergeT, 0f);
             targetLeftPos = initialLeftArmPosition;
             targetLeftRot = leftConvergeRot * spinRot * initialLeftArmRotation;
 
-            // Braço Direito: Inclina para baixo (X negativo) e para dentro (Y negativo) no espaço do tronco, com giro invertido
             Quaternion rightConvergeRot = Quaternion.Euler(-rotatorPitchAngle * convergeT, -rotatorConvergeAngle * convergeT, 0f);
             targetRightPos = initialRightArmPosition;
             targetRightRot = rightConvergeRot * spinRotRight * initialRightArmRotation;
@@ -682,18 +702,19 @@ public class GolemProceduralAnimation : MonoBehaviour
         if (spineBone != null)
         {
             Quaternion targetSpineRot = initialSpineRotation * Quaternion.Euler(attackLeanAxis * leanAngle);
-            spineBone.localRotation = Quaternion.Slerp(spineBone.localRotation, targetSpineRot, 12f * Time.deltaTime);
+            spineBone.localRotation = Quaternion.Slerp(spineBone.localRotation, targetSpineRot, 16f * Time.deltaTime);
         }
 
         // Hips apenas afunda verticalmente de forma suave, sem rotacionar
         if (hipsBone != null)
         {
             Vector3 targetHipsPos = initialHipsPosition + new Vector3(0, bodyDrop, 0);
-            hipsBone.localPosition = Vector3.Lerp(hipsBone.localPosition, targetHipsPos, 12f * Time.deltaTime);
-            hipsBone.localRotation = Quaternion.Slerp(hipsBone.localRotation, initialHipsRotation, 10f * Time.deltaTime);
+            hipsBone.localPosition = Vector3.Lerp(hipsBone.localPosition, targetHipsPos, 16f * Time.deltaTime);
+            hipsBone.localRotation = Quaternion.Slerp(hipsBone.localRotation, initialHipsRotation, 12f * Time.deltaTime);
         }
 
-        // Aplica posições e rotações orbitais/rotacionais aos braços
+        // Aplica posições e rotações orbitais/rotacionais aos braços (no giro 360° buffado usa acompanhamento bem ágil para não atrasar a volta)
+        float armFollowSpeed = (health != null && health.isBuffed) ? 34f : 18f;
         if (leftArm != null)
         {
             Transform parentL = leftArm.parent != null ? leftArm.parent : transform;
@@ -701,8 +722,8 @@ public class GolemProceduralAnimation : MonoBehaviour
             Quaternion desiredWorldL = parentWorldDefaultL * targetLeftRot;
             Quaternion finalLocalRotL = Quaternion.Inverse(parentL.rotation) * desiredWorldL;
 
-            leftArm.localPosition = Vector3.Lerp(leftArm.localPosition, targetLeftPos, 15f * Time.deltaTime);
-            leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, finalLocalRotL, 15f * Time.deltaTime);
+            leftArm.localPosition = Vector3.Lerp(leftArm.localPosition, targetLeftPos, 18f * Time.deltaTime);
+            leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, finalLocalRotL, armFollowSpeed * Time.deltaTime);
         }
         if (rightArm != null)
         {
@@ -711,103 +732,103 @@ public class GolemProceduralAnimation : MonoBehaviour
             Quaternion desiredWorldR = parentWorldDefaultR * targetRightRot;
             Quaternion finalLocalRotR = Quaternion.Inverse(parentR.rotation) * desiredWorldR;
 
-            rightArm.localPosition = Vector3.Lerp(rightArm.localPosition, targetRightPos, 15f * Time.deltaTime);
-            rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, finalLocalRotR, 15f * Time.deltaTime);
+            rightArm.localPosition = Vector3.Lerp(rightArm.localPosition, targetRightPos, 18f * Time.deltaTime);
+            rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, finalLocalRotR, armFollowSpeed * Time.deltaTime);
         }
 
         // Aplica o fechamento do punho
         if (leftFinger != null)
         {
             float angle = invertLeftFinger ? -fingerAngle : fingerAngle;
-            leftFinger.localRotation = Quaternion.Slerp(leftFinger.localRotation, initialLeftFingerRotation * Quaternion.Euler(fingerRotationAxis * angle), 15f * Time.deltaTime);
+            leftFinger.localRotation = Quaternion.Slerp(leftFinger.localRotation, initialLeftFingerRotation * Quaternion.Euler(fingerRotationAxis * angle), 16f * Time.deltaTime);
         }
         if (rightFinger != null)
         {
             float angle = invertRightFinger ? -fingerAngle : fingerAngle;
-            rightFinger.localRotation = Quaternion.Slerp(rightFinger.localRotation, initialRightFingerRotation * Quaternion.Euler(fingerRotationAxis * angle), 15f * Time.deltaTime);
+            rightFinger.localRotation = Quaternion.Slerp(rightFinger.localRotation, initialRightFingerRotation * Quaternion.Euler(fingerRotationAxis * angle), 16f * Time.deltaTime);
         }
 
-        // Mantém as pernas e pés retos e plantados
-        Quaternion straightLeg = initialLeftLegRotation;
-        Quaternion straightCalf = initialLeftCalfRotation;
+        // Mantém as pernas e pés retos e plantados (usando a rotação inicial correta de cada lado!)
+        if (leftLeg != null) leftLeg.localRotation = Quaternion.Slerp(leftLeg.localRotation, initialLeftLegRotation, 10f * Time.deltaTime);
+        if (rightLeg != null) rightLeg.localRotation = Quaternion.Slerp(rightLeg.localRotation, initialRightLegRotation, 10f * Time.deltaTime);
+        if (leftCalf != null) leftCalf.localRotation = Quaternion.Slerp(leftCalf.localRotation, initialLeftCalfRotation, 10f * Time.deltaTime);
+        if (rightCalf != null) rightCalf.localRotation = Quaternion.Slerp(rightCalf.localRotation, initialRightCalfRotation, 10f * Time.deltaTime);
 
-        if (leftLeg != null) leftLeg.localRotation = Quaternion.Slerp(leftLeg.localRotation, straightLeg, 10f * Time.deltaTime);
-        if (rightLeg != null) rightLeg.localRotation = Quaternion.Slerp(rightLeg.localRotation, straightLeg, 10f * Time.deltaTime);
-        if (leftCalf != null) leftCalf.localRotation = Quaternion.Slerp(leftCalf.localRotation, straightCalf, 10f * Time.deltaTime);
-        if (rightCalf != null) rightCalf.localRotation = Quaternion.Slerp(rightCalf.localRotation, straightCalf, 10f * Time.deltaTime);
-
-        // Garante a rotação padrão dos pés para evitar deformidades no mesh
-        if (leftFoot != null)
-        {
-            leftFoot.localRotation = initialLeftFootRotation;
-        }
-        if (rightFoot != null)
-        {
-            rightFoot.localRotation = initialRightFootRotation;
-        }
+        if (leftFoot != null) leftFoot.localRotation = initialLeftFootRotation;
+        if (rightFoot != null) rightFoot.localRotation = initialRightFootRotation;
     }
 
     void AnimateStunCast()
     {
-        stunTimer += Time.deltaTime;
-        float tNorm = Mathf.Clamp01(stunTimer / stunCastDuration);
+        float tNorm;
+        float impactT;
+        if (golemAI != null)
+        {
+            tNorm = Mathf.Clamp01(golemAI.StunNormalizedTime);
+            impactT = golemAI.StunImpactNormalizedTime;
+        }
+        else
+        {
+            stunTimer += Time.deltaTime;
+            tNorm = Mathf.Clamp01(stunTimer / Mathf.Max(0.1f, stunCastDuration));
+            impactT = 0.68f;
+        }
+
+        float risePeakT = impactT * 0.78f;
 
         float heightOffset = 0f;
         float legFold = 0f;
         float armAngle = 0f;
         float fingerAngle = 0f;
+        float spineLean = defaultBodyLeanAngle;
 
-        // Curva do Pisão/Salto:
-        // 1. Preparação (0% a 70% do tempo): Flexiona joelhos, sobe no ar, braços abrem/sobem e fecha punhos.
-        if (tNorm < 0.7f)
+        // 1. Subida e Preparação (0 -> risePeakT): Agacha levemente e salta para o alto abrindo os braços
+        if (tNorm < risePeakT)
         {
-            float subT = tNorm / 0.7f;
-            heightOffset = Mathf.Lerp(0f, stunRiseHeight, subT);
-            legFold = Mathf.Lerp(0f, stunLegFoldAngle, subT);
-            armAngle = Mathf.Lerp(0f, 35f, subT);
-            fingerAngle = Mathf.Lerp(0f, fingerCloseAngle, subT); // Fecha a mão ao saltar
+            float subT = tNorm / Mathf.Max(0.01f, risePeakT);
+            float easeOutT = Mathf.Sin(subT * Mathf.PI * 0.5f);
+            heightOffset = Mathf.Lerp(0f, stunRiseHeight, easeOutT);
+            legFold = Mathf.Lerp(0f, stunLegFoldAngle, easeOutT);
+            armAngle = Mathf.Lerp(0f, 45f, easeOutT);
+            fingerAngle = Mathf.Lerp(0f, fingerCloseAngle, easeOutT);
+            spineLean = Mathf.Lerp(defaultBodyLeanAngle, defaultBodyLeanAngle - 16f, easeOutT);
         }
-        // 2. Queda e Impacto (70% a 85% do tempo): Desce muito rápido e amassa. Punhos fechados.
-        else if (tNorm >= 0.7f && tNorm < 0.85f)
+        // 2. Queda e Pisão (risePeakT -> impactT): Aterrissa com força máxima EXATAMENTE em impactT
+        else if (tNorm < impactT)
         {
-            float subT = (tNorm - 0.7f) / 0.15f;
-            float easeInT = Mathf.Pow(subT, 2f);
-            heightOffset = Mathf.Lerp(stunRiseHeight, -0.2f, easeInT);
-            legFold = Mathf.Lerp(stunLegFoldAngle, -5f, easeInT);
-            armAngle = Mathf.Lerp(35f, -40f, easeInT);
-            fingerAngle = fingerCloseAngle; // Mantém fechado para o impacto
+            float subT = (tNorm - risePeakT) / Mathf.Max(0.01f, impactT - risePeakT);
+            float easeInT = subT * subT;
+            heightOffset = Mathf.Lerp(stunRiseHeight, -0.22f, easeInT);
+            legFold = Mathf.Lerp(stunLegFoldAngle, -8f, easeInT);
+            armAngle = Mathf.Lerp(45f, -45f, easeInT);
+            fingerAngle = fingerCloseAngle;
+            spineLean = Mathf.Lerp(defaultBodyLeanAngle - 16f, defaultBodyLeanAngle + 24f, easeInT);
         }
-        // 3. Estabilização (85% a 100% do tempo): Recupera postura de pé. Punhos abrem.
+        // 3. Estabilização pós-impacto (impactT -> 1.0): Absorve o choque e retorna à postura de pé
         else
         {
-            float subT = (tNorm - 0.85f) / 0.15f;
-            heightOffset = Mathf.Lerp(-0.2f, 0f, subT);
-            legFold = Mathf.Lerp(-5f, 0f, subT);
-            fingerAngle = Mathf.Lerp(fingerCloseAngle, 0f, subT); // Abre as mãos
-            
-            if (subT < 0.5f)
-            {
-                armAngle = Mathf.Lerp(-40f, 15f, subT / 0.5f);
-            }
-            else
-            {
-                armAngle = Mathf.Lerp(15f, 0f, (subT - 0.5f) / 0.5f);
-            }
+            float subT = (tNorm - impactT) / Mathf.Max(0.01f, 1f - impactT);
+            float smoothT = Mathf.Sin(subT * Mathf.PI * 0.5f);
+            heightOffset = Mathf.Lerp(-0.22f, 0f, smoothT);
+            legFold = Mathf.Lerp(-8f, 0f, smoothT);
+            fingerAngle = Mathf.Lerp(fingerCloseAngle, 0f, smoothT);
+            spineLean = Mathf.Lerp(defaultBodyLeanAngle + 24f, defaultBodyLeanAngle, smoothT);
+            armAngle = Mathf.Lerp(-45f, 0f, smoothT);
         }
 
         // Aplica altura no quadril (Hips)
         if (hipsBone != null)
         {
             Vector3 targetHipsPos = initialHipsPosition + new Vector3(0, heightOffset, 0);
-            hipsBone.localPosition = Vector3.Lerp(hipsBone.localPosition, targetHipsPos, 20f * Time.deltaTime);
-            hipsBone.localRotation = Quaternion.Slerp(hipsBone.localRotation, initialHipsRotation, 10f * Time.deltaTime);
+            hipsBone.localPosition = Vector3.Lerp(hipsBone.localPosition, targetHipsPos, 22f * Time.deltaTime);
+            hipsBone.localRotation = Quaternion.Slerp(hipsBone.localRotation, initialHipsRotation, 12f * Time.deltaTime);
         }
 
-        // Mantém a inclinação padrão de repouso na coluna (Spine)
+        // Aplica inclinação expressiva na coluna durante o salto e impacto
         if (spineBone != null)
         {
-            Quaternion targetSpineRot = initialSpineRotation * Quaternion.Euler(attackLeanAxis * defaultBodyLeanAngle);
-            spineBone.localRotation = Quaternion.Slerp(spineBone.localRotation, targetSpineRot, 10f * Time.deltaTime);
+            Quaternion targetSpineRot = initialSpineRotation * Quaternion.Euler(attackLeanAxis * spineLean);
+            spineBone.localRotation = Quaternion.Slerp(spineBone.localRotation, targetSpineRot, 16f * Time.deltaTime);
         }
 
         // Retorna as posições dos braços à pose original

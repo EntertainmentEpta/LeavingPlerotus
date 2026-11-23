@@ -1074,12 +1074,12 @@ public class Geobionte_AI : MonoBehaviour
         // Cria health bar e damage canvas por código se não existir
         CreateHealthBarIfNeeded();
 
-        // Restaura cor da barra para vermelho (combate)
+        // Restaura cor da barra para verde lima (combate)
         if (health != null && health.healthBarSlider != null)
         {
             Image fillImage = health.healthBarSlider.fillRect?.GetComponent<Image>();
             if (fillImage != null)
-                fillImage.color = Color.red;
+                fillImage.color = health.normalColor;
         }
 
         // Para o Bismutado, a escala do objeto raiz DEVE ser (1, 1, 1) 

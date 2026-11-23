@@ -46,9 +46,10 @@ public class DummyHealth : MonoBehaviour
     public Slider healthBarSlider;
     // A imagem que realmente tem a cor (dentro do Slider)
     private Image healthBarFill;
+    private EnemyHealthBarVisual healthBarVisual;
 
     [Header("Cores da Barra")]
-    public Color normalColor = Color.red;
+    public Color normalColor = new Color(163f / 255f, 233f / 255f, 65f / 255f, 1f);
     [Tooltip("Cor da barra quando está sendo protegido pelo Sintonizador.")]
     public Color buffedColor = Color.cyan;
 
@@ -110,9 +111,16 @@ public class DummyHealth : MonoBehaviour
     private NavMeshAgent navAgent;
     private Rigidbody rb;
 
+    // Apresentação universal de Elites (+20% de escala e aura em volta, sem alterar a cor do modelo 3D)
+    private const float EliteUniversalScaleMultiplier = 1.20f;
+    private Vector3 baseLocalScale = Vector3.one;
+    private bool elitePresentationApplied = false;
+    private EliteVariantConfig autoAddedEliteAura;
+
     private void Awake()
     {
         originalPrefabScale = transform.localScale;
+        baseLocalScale = transform.localScale;
         CurrentHealth = maxHealth;
         if (floatingDamageTextPrefab == null)
         {
@@ -174,15 +182,12 @@ public class DummyHealth : MonoBehaviour
                 Debug.Log("[" + gameObject.name + "] Slider encontrado automaticamente: " + healthBarSlider.gameObject.name);
         }
 
-        // Busca a imagem Fill dentro do Slider para controlar a cor
+        // Aprimora o Slider para o visual encorpado estilo LoL (com barra amarela de dano atrasado)
         if (healthBarSlider != null)
         {
-            if (healthBarSlider.fillRect != null)
-            {
-                healthBarFill = healthBarSlider.fillRect.GetComponent<Image>();
-            }
-            // Garante a cor inicial
-            if (healthBarFill != null) healthBarFill.color = normalColor;
+            EnsureHealthBarVisual();
+            if (healthBarVisual != null)
+                healthBarVisual.SetHealthInstant(CurrentHealth, maxHealth);
 
             // Começa escondida — só aparece após o primeiro hit
             healthBarSlider.gameObject.SetActive(false);
@@ -190,6 +195,7 @@ public class DummyHealth : MonoBehaviour
 
         UpdateHealthBar();
         DetectAIScripts();
+        SyncUniversalElitePresentation();
         ApplyEndlessSpeedScalingIfNeeded();
         ApplyGigantismMutationIfNeeded();
     }
@@ -390,9 +396,14 @@ public class DummyHealth : MonoBehaviour
         isBuffed = buffed;
 
         // Muda a cor da barra
-        if (healthBarFill != null)
+        Color targetCol = buffed ? buffedColor : normalColor;
+        if (healthBarVisual != null)
         {
-            healthBarFill.color = buffed ? buffedColor : normalColor;
+            healthBarVisual.SetHealthColor(targetCol);
+        }
+        else if (healthBarFill != null)
+        {
+            healthBarFill.color = targetCol;
         }
     }
 
@@ -402,7 +413,11 @@ public class DummyHealth : MonoBehaviour
     public void ResetHealth()
     {
         CurrentHealth = maxHealth;
-        UpdateHealthBar();
+        EnsureHealthBarVisual();
+        if (healthBarVisual != null)
+            healthBarVisual.SetHealthInstant(CurrentHealth, maxHealth);
+        else
+            UpdateHealthBar();
     }
 
     public void TakeDamage(int damage, bool isCritical = false, bool isPoison = false, bool isProjectile = false)
@@ -535,9 +550,21 @@ public class DummyHealth : MonoBehaviour
         UpdateHealthBar();
     }
 
+    private void EnsureHealthBarVisual()
+    {
+        if (healthBarSlider == null) return;
+        if (healthBarVisual == null || healthBarVisual.gameObject != healthBarSlider.gameObject)
+        {
+            healthBarVisual = EnemyHealthBarVisual.AttachOrGet(healthBarSlider, maxHealth, isBuffed ? buffedColor : normalColor);
+            if (healthBarSlider.fillRect != null)
+                healthBarFill = healthBarSlider.fillRect.GetComponent<Image>();
+        }
+    }
+
     public void ShowHealthBar()
     {
         if (healthBarSlider == null) return;
+        EnsureHealthBarVisual();
         healthBarSlider.gameObject.SetActive(true);
     }
 
@@ -545,9 +572,17 @@ public class DummyHealth : MonoBehaviour
     {
         if (healthBarSlider != null)
         {
-            float healthPercent = (float)CurrentHealth / maxHealth;
-            healthBarSlider.value = healthPercent;
-            if (CurrentHealth <= 0) healthBarSlider.gameObject.SetActive(false);
+            EnsureHealthBarVisual();
+            if (healthBarVisual != null)
+            {
+                healthBarVisual.SetHealth(CurrentHealth, maxHealth);
+            }
+            else
+            {
+                float healthPercent = (float)CurrentHealth / maxHealth;
+                healthBarSlider.value = healthPercent;
+                if (CurrentHealth <= 0) healthBarSlider.gameObject.SetActive(false);
+            }
         }
     }
 
@@ -1148,7 +1183,7 @@ public class DummyHealth : MonoBehaviour
 
         if (!hasDedicatedVariant)
         {
-            rebornEnemy.transform.localScale *= 1.25f;
+            rebornEnemy.transform.localScale *= 1.20f;
         }
 
         EnemyDrops drops = rebornEnemy.GetComponent<EnemyDrops>() ?? rebornEnemy.GetComponentInChildren<EnemyDrops>();
@@ -1158,8 +1193,44 @@ public class DummyHealth : MonoBehaviour
         }
     }
 
+    private void SyncUniversalElitePresentation()
+    {
+        if (isElite == elitePresentationApplied) return;
+        elitePresentationApplied = isElite;
+
+        if (isElite)
+        {
+            // Garante exatamente +20% sobre a escala base (sem empilhar se RoomController/Rebirth já escalou)
+            transform.localScale = baseLocalScale * EliteUniversalScaleMultiplier;
+
+            EliteVariantConfig existingAura = GetComponent<EliteVariantConfig>();
+            if (existingAura == null)
+            {
+                autoAddedEliteAura = gameObject.AddComponent<EliteVariantConfig>();
+                autoAddedEliteAura.variantName = gameObject.name.Replace("(Clone)", "").Trim() + " Elite";
+                autoAddedEliteAura.useProceduralAura = true;
+                autoAddedEliteAura.autoFitToBounds = true;
+            }
+            else
+            {
+                existingAura.SetAuraVisible(true);
+            }
+        }
+        else
+        {
+            transform.localScale = baseLocalScale;
+            if (autoAddedEliteAura != null)
+            {
+                Destroy(autoAddedEliteAura);
+                autoAddedEliteAura = null;
+            }
+        }
+    }
+
     private void Update()
     {
+        SyncUniversalElitePresentation();
+
         if (isSlowed)
         {
             slowTimer -= Time.deltaTime;

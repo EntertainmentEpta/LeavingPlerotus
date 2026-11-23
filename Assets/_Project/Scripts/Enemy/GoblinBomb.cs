@@ -3,15 +3,16 @@ using System.Collections;
 
 /// <summary>
 /// Bomba do Goblin.
-/// - Explode ao tocar chão/sólidos (ignora Player no ar)
-/// - Efeitos (anéis + fumaça) rodam em objeto independente: não bloqueiam destroy
+/// - Voa em arco balístico exato com rastro sutil de pavio e marcador limpo no chão onde vai cair
+/// - Explode ao tocar chão/sólidos (ignora Player no ar e inimigos)
+/// - Usa prefabs reais de explosão (CFXR Explosion 1 + CFXR2 Ground Hit) em URP
 /// </summary>
 public class BombaExplosiva : MonoBehaviour
 {
     [Header("Dano")]
-    public int   danoExplosao   = 30;
-    [Tooltip("Raio base sem buff. O Crystal Tuner pode aumentar via SetExplosionRadius().")]
-    public float raioExplosao   = 2f;
+    public int danoExplosao = 30;
+    [Tooltip("Raio base sem buff. O Crystal Tuner pode aumentar.")]
+    public float raioExplosao = 2.4f;
     public float forcaKnockback = 10f;
 
     [Header("Elite — Bomb Mark System")]
@@ -21,9 +22,14 @@ public class BombaExplosiva : MonoBehaviour
     [Header("Timer")]
     public float tempoParaExplodir = 3f;
 
-    [Header("Visual")]
+    [Header("Visual & VFX")]
+    [Tooltip("Prefab principal da explosão (ex.: CFXR Explosion 1).")]
     public GameObject efeitoExplosao;
-    public Color corExplosao = new Color(1f, 0.45f, 0f, 1f);
+    [Tooltip("Prefab opcional de onda de impacto no chão (ex.: CFXR2 Ground Hit).")]
+    public GameObject groundHitVfxPrefab;
+    [Tooltip("Material limpo anti-clipping para o marcador de aterrissagem no chão.")]
+    public Material telegraphMaterial;
+    public Color corExplosao = new Color(1f, 0.48f, 0.12f, 1f);
 
     [Header("Indicador de Perigo")]
     public Renderer bombaRenderer;
@@ -44,124 +50,231 @@ public class BombaExplosiva : MonoBehaviour
     [HideInInspector] public GameObject owner;
 
     private bool explodiu = false;
-    private AudioSource tickAudioSource;
     private AudioSource audioSource;
+    private GameObject activeLandingTelegraph;
+    private Material fuseTrailMat;
+    private Material instanceBombMat;
 
-    // ─────────────────────────────────────────────────────────────────
     void Start()
+    {
+        audioSource = GetComponent<AudioSource>();
+        if (bombaRenderer == null)
+            bombaRenderer = GetComponent<Renderer>() ?? GetComponentInChildren<Renderer>();
+
+        // Ignora colisão com o Player no ar para explodir no chão/impacto com área clara
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player != null)
         {
-            audioSource = GetComponent<AudioSource>();
+            Collider cPlayer = player.GetComponent<Collider>();
+            Collider cBomba = GetComponent<Collider>();
+            if (cPlayer != null && cBomba != null)
+                Physics.IgnoreCollision(cBomba, cPlayer);
+        }
 
-            // Ignora colisão com o Player
-            GameObject player = GameObject.FindGameObjectWithTag("Player");
-            if (player != null)
-            {
-                Collider cPlayer = player.GetComponent<Collider>();
-                Collider cBomba  = GetComponent<Collider>();
-                if (cPlayer != null && cBomba != null)
-                    Physics.IgnoreCollision(cBomba, cPlayer);
-            }
+        // Rastro sutil de pavio aceso para leitura clara da parábola no ar
+        SetupFuseTrail();
 
-            // Toca o som em loop do tick usando o Audio Source oficial da bomba
-            if (tickSound != null && audioSource != null)
+        // Toca o som em loop do tick respeitando GlobalAudioManager
+        if (tickSound != null && audioSource != null)
+        {
+            float effVol = tickSoundVolume * GlobalAudioManager.SFXVolumeMultiplier;
+            if (effVol > 0.001f)
             {
+                if (audioSource.outputAudioMixerGroup == null && GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+                    audioSource.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
+
                 audioSource.clip = tickSound;
-                audioSource.volume = tickSoundVolume;
+                audioSource.volume = effVol;
                 audioSource.loop = true;
                 audioSource.Play();
             }
-
-            if (bombaRenderer != null)
-                StartCoroutine(CountdownVisual(bombaRenderer.material.color));
-
-            Invoke(nameof(Explodir), tempoParaExplodir);
         }
+
+        if (bombaRenderer != null)
+        {
+            instanceBombMat = bombaRenderer.material;
+            Color orig = instanceBombMat.HasProperty("_BaseColor")
+                ? instanceBombMat.GetColor("_BaseColor")
+                : (instanceBombMat.HasProperty("_Color") ? instanceBombMat.GetColor("_Color") : Color.white);
+            StartCoroutine(CountdownVisual(orig));
+        }
+
+        Invoke(nameof(Explodir), tempoParaExplodir);
+    }
+
+    public void SetLandingTelegraph(Vector3 landingGroundPos, float flightDuration, Color? overrideColor = null)
+    {
+        if (activeLandingTelegraph != null)
+            Destroy(activeLandingTelegraph);
+
+        Color col = overrideColor ?? corExplosao;
+        GolemGroundTelegraph telegraph = GolemGroundTelegraph.Spawn(
+            landingGroundPos,
+            raioExplosao,
+            Mathf.Max(0.20f, flightDuration),
+            col,
+            telegraphMaterial
+        );
+        activeLandingTelegraph = telegraph.gameObject;
+    }
+
+    private void SetupFuseTrail()
+    {
+        TrailRenderer tr = gameObject.GetComponent<TrailRenderer>();
+        if (tr == null) tr = gameObject.AddComponent<TrailRenderer>();
+
+        tr.time = 0.24f;
+        tr.startWidth = 0.14f;
+        tr.endWidth = 0.01f;
+        tr.minVertexDistance = 0.06f;
+        tr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        tr.receiveShadows = false;
+
+        Shader sh = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+            ?? Shader.Find("Particles/Standard Unlit")
+            ?? Shader.Find("Sprites/Default");
+        fuseTrailMat = new Material(sh);
+        if (fuseTrailMat.HasProperty("_Surface")) fuseTrailMat.SetFloat("_Surface", 1f);
+        if (fuseTrailMat.HasProperty("_ZWrite")) fuseTrailMat.SetFloat("_ZWrite", 0f);
+        if (fuseTrailMat.HasProperty("_Blend")) fuseTrailMat.SetFloat("_Blend", 2f);
+        fuseTrailMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        fuseTrailMat.renderQueue = 3010;
+        if (fuseTrailMat.HasProperty("_BaseColor")) fuseTrailMat.SetColor("_BaseColor", corExplosao);
+        if (fuseTrailMat.HasProperty("_Color")) fuseTrailMat.SetColor("_Color", corExplosao);
+        if (fuseTrailMat.HasProperty("_SrcBlend") && fuseTrailMat.HasProperty("_DstBlend"))
+        {
+            fuseTrailMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            fuseTrailMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        }
+        tr.sharedMaterial = fuseTrailMat;
+
+        Gradient g = new Gradient();
+        g.SetKeys(
+            new[] { new GradientColorKey(Color.Lerp(corExplosao, Color.white, 0.35f), 0f), new GradientColorKey(corExplosao, 1f) },
+            new[] { new GradientAlphaKey(0.65f, 0f), new GradientAlphaKey(0f, 1f) }
+        );
+        tr.colorGradient = g;
+    }
+
     void OnCollisionEnter(Collision col)
     {
         if (explodiu) return;
-        if (col.gameObject.CompareTag("Enemy")) return;
+        if (col.gameObject.CompareTag("Enemy") || col.gameObject.layer == 6) return;
         Explodir();
     }
 
-    // ─────────────────────────────────────────────────────────────────
-void Explodir()
+    void OnDestroy()
+    {
+        if (activeLandingTelegraph != null)
+            Destroy(activeLandingTelegraph);
+        if (fuseTrailMat != null)
+            Destroy(fuseTrailMat);
+    }
+
+    void Explodir()
     {
         if (explodiu) return;
         explodiu = true;
         CancelInvoke();
 
-        // Para o som de tick
-        if (audioSource != null && audioSource.isPlaying)
+        if (activeLandingTelegraph != null)
         {
-            audioSource.Stop();
+            Destroy(activeLandingTelegraph);
+            activeLandingTelegraph = null;
         }
 
-        // Toca o som de explosão no local
+        if (audioSource != null && audioSource.isPlaying)
+            audioSource.Stop();
+
+        // Som 3D da explosão respeitando GlobalAudioManager
         if (explosionSound != null)
         {
-            GameObject audioObj = new GameObject("TempExplosionAudio");
-            audioObj.transform.position = transform.position;
-            AudioSource aSource = audioObj.AddComponent<AudioSource>();
-            aSource.clip = explosionSound;
-            aSource.volume = explosionSoundVolume;
-            aSource.spatialBlend = 1f; // Som 3D
-            aSource.minDistance = 5f;
-            aSource.maxDistance = 45f;
-
-            // === O PULO DO GATO ESTÁ AQUI ===
-            // Passa a rota da Mesa de Som (SFX) da bomba para o áudio fantasma!
-            if (audioSource != null)
+            float effVol = explosionSoundVolume * GlobalAudioManager.SFXVolumeMultiplier;
+            if (effVol > 0.001f)
             {
-                aSource.outputAudioMixerGroup = audioSource.outputAudioMixerGroup;
-            }
+                GameObject audioObj = new GameObject("TempExplosionAudio");
+                audioObj.transform.position = transform.position;
+                AudioSource aSource = audioObj.AddComponent<AudioSource>();
+                aSource.clip = explosionSound;
+                aSource.volume = effVol;
+                aSource.pitch = Random.Range(0.92f, 1.08f);
+                aSource.spatialBlend = 1f;
+                aSource.minDistance = 5f;
+                aSource.maxDistance = 45f;
 
-            aSource.Play();
-            Destroy(audioObj, explosionSound.length + 0.1f);
+                if (audioSource != null && audioSource.outputAudioMixerGroup != null)
+                    aSource.outputAudioMixerGroup = audioSource.outputAudioMixerGroup;
+                else if (GlobalAudioManager.Instance != null && GlobalAudioManager.Instance.sfxGroup != null)
+                    aSource.outputAudioMixerGroup = GlobalAudioManager.Instance.sfxGroup;
+
+                aSource.Play();
+                Destroy(audioObj, explosionSound.length + 0.1f);
+            }
         }
 
-        // Para o movimento e esconde a bomba imediatamente
-        // ... (O restante da função Explodir continua igual daqui para baixo)
-
-        // Para o movimento e esconde a bomba imediatamente
-        Renderer rend = GetComponent<Renderer>();
-        if (rend != null) rend.enabled = false;
-
+        // Esconde e congela a bomba imediatamente
+        if (bombaRenderer != null) bombaRenderer.enabled = false;
         Rigidbody rbBomba = GetComponent<Rigidbody>();
         if (rbBomba != null) { rbBomba.linearVelocity = Vector3.zero; rbBomba.isKinematic = true; }
-
         Collider col = GetComponent<Collider>();
         if (col != null) col.enabled = false;
 
-        if (efeitoExplosao != null)
-            Instantiate(efeitoExplosao, transform.position, Quaternion.identity);
+        Vector3 vfxPos = transform.position + Vector3.up * 0.10f;
+        float radiusScale = Mathf.Clamp(raioExplosao / 2.2f, 0.70f, 2.2f);
 
-        // Cria objeto FX independente para os efeitos procedurais
-        // Ele não é filho da bomba: vive após Destroy(gameObject)
-        GameObject fxHost = new GameObject("BombFX");
-        fxHost.transform.position = transform.position;
-        BombFXRunner fx = fxHost.AddComponent<BombFXRunner>();
-        fx.Run(raioExplosao, corExplosao);
+        // 1. VFX principal da explosão (CFXR Explosion 1)
+        if (efeitoExplosao != null)
+        {
+            GameObject fx = Instantiate(efeitoExplosao, vfxPos, Quaternion.identity);
+            fx.transform.localScale = Vector3.one * (0.95f * radiusScale);
+            Destroy(fx, 2.4f);
+        }
+
+        // 2. Onda de impacto estilizada no chão (CFXR2 Ground Hit)
+        if (groundHitVfxPrefab != null)
+        {
+            GameObject ring = Instantiate(groundHitVfxPrefab, vfxPos, Quaternion.identity);
+            ring.transform.localScale = Vector3.one * (1.45f * radiusScale);
+            Destroy(ring, 1.6f);
+        }
+
+        // 3. Breve flash de luz no ponto da explosão
+        SpawnBriefExplosionLight(vfxPos, raioExplosao, corExplosao);
 
         AplicarDano();
         Destroy(gameObject);
     }
 
+    private static void SpawnBriefExplosionLight(Vector3 pos, float radius, Color color)
+    {
+        GameObject lightHost = new GameObject("BombExplosionFlash");
+        lightHost.transform.position = pos + Vector3.up * 0.5f;
+        BombFlashLight flash = lightHost.AddComponent<BombFlashLight>();
+        flash.Init(color, radius * 2.6f, 5.5f, 0.22f);
+    }
+
     void AplicarDano()
     {
-        Collider[] hits = Physics.OverlapSphere(transform.position, raioExplosao);
-        foreach (Collider hit in hits)
+        Vector3 flatCenter = new Vector3(transform.position.x, 0f, transform.position.z);
+        Collider[] hits = Physics.OverlapSphere(transform.position + Vector3.up * 0.5f, raioExplosao + 1.2f);
+
+        for (int i = 0; i < hits.Length; i++)
         {
+            Collider hit = hits[i];
             if (!hit.CompareTag("Player")) continue;
-            PlayerHealth ph = hit.GetComponent<PlayerHealth>();
+
+            Vector3 flatTarget = new Vector3(hit.transform.position.x, 0f, hit.transform.position.z);
+            if (Vector3.Distance(flatCenter, flatTarget) > raioExplosao) continue;
+
+            PlayerHealth ph = hit.GetComponent<PlayerHealth>() ?? hit.GetComponentInParent<PlayerHealth>();
             if (ph == null) continue;
 
             if (marksOnHit)
             {
-                // Logica elite: aciona BombMarkSystem (marca + stun) — sem dano direto
                 if (BombMarkSystem.Instance != null)
                     BombMarkSystem.Instance.OnBombHit(hit.gameObject);
                 else
-                    ph.TakeDamage(danoExplosao, owner); // fallback seguro
+                    ph.TakeDamage(danoExplosao, owner);
             }
             else
             {
@@ -169,7 +282,7 @@ void Explodir()
             }
 
             // Knockback apenas no plano XZ
-            Rigidbody rbPlayer = hit.GetComponent<Rigidbody>();
+            Rigidbody rbPlayer = hit.GetComponent<Rigidbody>() ?? hit.GetComponentInParent<Rigidbody>();
             if (rbPlayer != null)
             {
                 Vector3 dir = hit.transform.position - transform.position;
@@ -177,23 +290,24 @@ void Explodir()
                 if (dir.sqrMagnitude < 0.001f) dir = transform.forward;
                 rbPlayer.AddForce(dir.normalized * forcaKnockback, ForceMode.Impulse);
             }
+            break;
         }
     }
 
-    // ── Countdown pisca vermelho acelerando ──────────────────────────
     IEnumerator CountdownVisual(Color corOriginal)
     {
-        float piscarDuracao = tempoParaExplodir * 0.5f;
-        yield return new WaitForSeconds(tempoParaExplodir - piscarDuracao);
-
         float timer = 0f;
-        while (!explodiu && timer < piscarDuracao)
+        while (!explodiu && timer < tempoParaExplodir)
         {
             timer += Time.deltaTime;
-            float vel  = Mathf.Lerp(4f, 20f, timer / piscarDuracao);
-            float pulso = Mathf.Sin(timer * vel);
-            if (bombaRenderer != null)
-                bombaRenderer.material.color = Color.Lerp(corOriginal, Color.red, Mathf.Abs(pulso));
+            float vel = Mathf.Lerp(8f, 24f, timer / Mathf.Max(0.2f, tempoParaExplodir));
+            float pulso = Mathf.Abs(Mathf.Sin(timer * vel));
+            if (instanceBombMat != null)
+            {
+                Color c = Color.Lerp(corOriginal, new Color(1f, 0.25f, 0.1f, 1f), pulso * 0.75f);
+                if (instanceBombMat.HasProperty("_BaseColor")) instanceBombMat.SetColor("_BaseColor", c);
+                if (instanceBombMat.HasProperty("_Color")) instanceBombMat.SetColor("_Color", c);
+            }
             yield return null;
         }
     }
@@ -205,146 +319,34 @@ void Explodir()
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-/// Componente auxiliar que roda os efeitos visuais da explosão
-/// de forma completamente independente da bomba.
-/// Auto-destrói o próprio GameObject ao terminar.
-// ═══════════════════════════════════════════════════════════════════
-public class BombFXRunner : MonoBehaviour
+public class BombFlashLight : MonoBehaviour
 {
-    private float raio;
-    private Color cor;
-    private int pendentes = 0;
+    private Light flashLight;
+    private float startIntensity;
+    private float duration;
+    private float elapsed;
 
-    public void Run(float raioExplosao, Color corExplosao)
+    public void Init(Color color, float range, float intensity, float fadeDuration)
     {
-        raio = raioExplosao;
-        cor  = corExplosao;
+        flashLight = gameObject.AddComponent<Light>();
+        flashLight.type = LightType.Point;
+        flashLight.color = color;
+        flashLight.range = range;
+        flashLight.intensity = intensity;
+        flashLight.shadows = LightShadows.None;
 
-        StartCoroutine(AnimarAnel(0f,    raio));
-        StartCoroutine(AnimarAnel(0.05f, raio * 1.3f));
-        StartCoroutine(AnimarAnel(0.10f, raio * 1.6f));
-        StartCoroutine(FlashLuz());
-        StartCoroutine(Fumaca());
+        startIntensity = intensity;
+        duration = Mathf.Max(0.05f, fadeDuration);
     }
 
-    // ── Anel de choque rápido ────────────────────────────────────────
-    IEnumerator AnimarAnel(float delay, float raioFinal)
+    private void Update()
     {
-        pendentes++;
-        yield return new WaitForSeconds(delay);
+        elapsed += Time.deltaTime;
+        float t = Mathf.Clamp01(elapsed / duration);
+        if (flashLight != null)
+            flashLight.intensity = startIntensity * (1f - t) * (1f - t);
 
-        GameObject obj = new GameObject("ShockRing");
-        obj.transform.position = transform.position + Vector3.up * 0.05f;
-
-        LineRenderer lr = obj.AddComponent<LineRenderer>();
-        lr.loop = true; lr.useWorldSpace = false;
-        lr.positionCount = 49; lr.numCapVertices = 3;
-        lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        lr.material = new Material(Shader.Find("Sprites/Default"));
-
-        float duracao = 0.25f, timer = 0f;
-        while (timer < duracao)
-        {
-            timer += Time.deltaTime;
-            float t     = timer / duracao;
-            float eased = 1f - Mathf.Pow(1f - t, 2f);
-            float r     = Mathf.Lerp(0.05f, raioFinal, eased);
-            float alpha = 1f - Mathf.Pow(t, 1.8f);
-            float w     = Mathf.Lerp(0.2f, 0.01f, t);
-            Color c = Color.Lerp(Color.white, cor, t); c.a = alpha;
-            lr.material.color = c; lr.startWidth = w; lr.endWidth = w;
-            for (int i = 0; i <= 48; i++)
-            {
-                float ang = (float)i / 48 * Mathf.PI * 2f;
-                lr.SetPosition(i, new Vector3(Mathf.Cos(ang) * r, 0f, Mathf.Sin(ang) * r));
-            }
-            yield return null;
-        }
-        Destroy(obj);
-        pendentes--;
-        TryDestroySelf();
-    }
-
-    // ── Fumaça: puffs que sobem e desvanecem ─────────────────────────
-    IEnumerator Fumaca()
-    {
-        pendentes++;
-        for (int i = 0; i < 8; i++)
-        {
-            StartCoroutine(PuffFumaca(Random.Range(0.05f, raio * 0.5f)));
-            yield return new WaitForSeconds(Random.Range(0.05f, 0.12f));
-        }
-        pendentes--;
-        TryDestroySelf();
-    }
-
-    IEnumerator PuffFumaca(float raioBase)
-    {
-        pendentes++;
-        GameObject obj = new GameObject("Smoke");
-        // SEM SetParent — independente do FX host
-        Vector2 rand2D = Random.insideUnitCircle * raioBase;
-        obj.transform.position = transform.position + new Vector3(rand2D.x, 0.05f, rand2D.y);
-
-        LineRenderer lr = obj.AddComponent<LineRenderer>();
-        lr.loop = true; lr.useWorldSpace = false;
-        lr.positionCount = 25; lr.numCapVertices = 3;
-        lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        lr.material = new Material(Shader.Find("Sprites/Default"));
-
-        float duracao = Random.Range(0.7f, 1.2f);
-        float raioFin = Random.Range(0.3f, 1.0f);
-        float subida  = Random.Range(1.0f, 2.0f);
-        float timer   = 0f;
-
-        while (timer < duracao)
-        {
-            timer += Time.deltaTime;
-            float t = timer / duracao;
-            obj.transform.position += Vector3.up * subida * Time.deltaTime;
-            float r     = Mathf.Lerp(0.05f, raioFin, t);
-            float alpha = Mathf.Lerp(0.55f, 0f, t);
-            float w     = Mathf.Lerp(0.1f, 0.01f, t);
-            Color c = Color.Lerp(new Color(0.2f, 0.2f, 0.2f), new Color(0.7f, 0.7f, 0.7f), t);
-            c.a = alpha; lr.material.color = c; lr.startWidth = w; lr.endWidth = w;
-            for (int i = 0; i <= 24; i++)
-            {
-                float ang = (float)i / 24 * Mathf.PI * 2f;
-                lr.SetPosition(i, new Vector3(Mathf.Cos(ang) * r, 0f, Mathf.Sin(ang) * r));
-            }
-            yield return null;
-        }
-        Destroy(obj);
-        pendentes--;
-        TryDestroySelf();
-    }
-
-    // ── Flash de luz ─────────────────────────────────────────────────
-    IEnumerator FlashLuz()
-    {
-        pendentes++;
-        GameObject lightObj = new GameObject("ExplosionFlash");
-        lightObj.transform.position = transform.position;
-        Light luz = lightObj.AddComponent<Light>();
-        luz.color = cor; luz.intensity = 8f; luz.range = raio * 3f;
-
-        float duracao = 0.25f, t = 0f;
-        while (t < duracao)
-        {
-            t += Time.deltaTime;
-            luz.intensity = Mathf.Lerp(8f, 0f, t / duracao);
-            yield return null;
-        }
-        Destroy(lightObj);
-        pendentes--;
-        TryDestroySelf();
-    }
-
-    // Auto-destrói quando todos os efeitos terminarem
-    void TryDestroySelf()
-    {
-        if (pendentes <= 0)
+        if (elapsed >= duration)
             Destroy(gameObject);
     }
 }

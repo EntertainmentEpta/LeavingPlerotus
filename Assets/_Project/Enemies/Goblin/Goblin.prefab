@@ -310,7 +310,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 828566207f72aaa48b5b20a3cd1155fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyIdentity
-  enemyData: {fileID: 0}
+  enemyData: {fileID: 11400000, guid: 13d939a691fc3cf45b1efd98cd67a0e6, type: 2}
   foiEncontrado: 0
 --- !u!54 &5842324002681870713
 Rigidbody:
@@ -354,25 +354,50 @@ MonoBehaviour:
   player: {fileID: 0}
   bombPrefab: {fileID: 304376307803806856, guid: 9e29b2645f47be5428948c205e9134aa, type: 3}
   throwPoint: {fileID: 8440605928173324434}
-  fleeDistance: 6
-  throwDistance: 12
+  meleeSlashVfxPrefab: {fileID: 5545173171955001552, guid: 988cc86e707e4881825ee91f6a76d248, type: 3}
+  meleeImpactVfxPrefab: {fileID: 5880797563127281583, guid: 265d3a5ba69981a4698ceabcedf368b0, type: 3}
+  fleeDistance: 5.5
+  throwDistance: 12.5
   chaseDistance: 28
-  chaseSpeed: 7
-  fleeSpeed: 11
-  strafeSpeed: 4
-  acceleration: 12
+  chaseSpeed: 4.2
+  fleeSpeed: 5
+  strafeSpeed: 2.6
+  acceleration: 18
+  deceleration: 34
+  strideReferenceSpeed: 2.35
   throwForce: 12
   throwArcForce: 6
-  throwCooldown: 2.8
-  cancelThrowDistance: 4
+  throwCooldown: 2.6
+  bombBaseRadius: 2.5
+  tunerBombRadiusMultiplier: 1.35
+  bombLeadFactor: 0.35
+  cancelThrowDistance: 3.5
   meleeDistance: 2.5
   meleeDamage: 20
-  meleeCooldown: 1.5
-  meleeHitRadius: 1.8
+  meleeCooldown: 1.4
+  meleeHitRadius: 2
+  meleeHitForwardOffset: 1.25
+  meleeSlashOffset: {x: 0, y: 1.05, z: 0.95}
+  meleeSlashEulerAngles: {x: 0, y: 42, z: 180}
+  meleeSlashScale: 1.5
+  meleeSlashFlipX: 0
+  meleeSlashSimSpeed: 0.6
+  meleeSlashTint: {r: 1, g: 0.7, b: 0.24, a: 0.88}
+  tunerMeleeSlashTint: {r: 0.28, g: 0.92, b: 1, a: 0.9}
+  meleeSlashLifetime: 1.3
+  meleeAnimSpeedMultiplier: 1
+  meleeSlashTriggerTime: 0.1
+  meleeSwingHitDelay: 0.1
+  meleeSlashHitRadiusFactor: 1.3
+  meleePullbackTime: 0.45
+  meleePullbackAnimSpeed: 1.15
+  meleeAnticipationHoldTime: 0.38
+  meleeHoldAnimSpeed: 0.22
+  meleeSwingAnimSpeed: 0.85
+  meleeRecoveryTime: 0.6
   strafeChangeDuration: 1.2
   walkSound: {fileID: 8300000, guid: 7ddcaa7f58c0a65418ecee13d9709d9b, type: 3}
   walkSoundVolume: 0.5
-  stepInterval: 0.22
   throwSound: {fileID: 8300000, guid: 0f8a4560ceec1bb4783220c07ce7e3de, type: 3}
   throwSoundVolume: 0.8
   bombTickSound: {fileID: 8300000, guid: 287e278dcf11a2a43849136ca75064bd, type: 3}
@@ -397,7 +422,7 @@ MonoBehaviour:
   maxHealth: 95
   debugLogDamage: 0
   healthBarSlider: {fileID: 6228831577645147432}
-  normalColor: {r: 1, g: 0, b: 0, a: 1}
+  normalColor: {r: 0.6392157, g: 0.9137255, b: 0.25490198, a: 1}
   buffedColor: {r: 0, g: 1, b: 1, a: 1}
   floatingDamageTextPrefab: {fileID: 119183615461286708, guid: e1f50e2f4933445c94ed847caa8c7a3c, type: 3}
   textOffset: {x: 0, y: 2, z: 0}

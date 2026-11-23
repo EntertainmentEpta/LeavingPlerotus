@@ -21,11 +21,7 @@ PrefabInstance:
       value: 11.5
       objectReference: {fileID: 0}
     - target: {fileID: 1522120915187402137, guid: 56182097e246d7b4b895b2c1feb0d2ba, type: 3}
-      propertyPath: normalColor.g
-      value: 0.4509804
-      objectReference: {fileID: 0}
-    - target: {fileID: 1522120915187402137, guid: 56182097e246d7b4b895b2c1feb0d2ba, type: 3}
-      propertyPath: normalColor.r
+      propertyPath: isElite
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 3963383441999901335, guid: 56182097e246d7b4b895b2c1feb0d2ba, type: 3}

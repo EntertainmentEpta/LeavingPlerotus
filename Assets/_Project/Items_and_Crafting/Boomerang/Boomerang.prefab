@@ -178,6 +178,21 @@ MonoBehaviour:
   electricCrystalVFX: {fileID: 0}
   echoVFX: {fileID: 0}
   shieldVFX: {fileID: 0}
+  sfxArmando: {fileID: 8300000, guid: df1711efee18c354f9366c9297d3106c, type: 3}
+  sfxGuardando: {fileID: 8300000, guid: d2df30eb4e932f74f8eb02389b23d918, type: 3}
+  sfxSegurandoParaLancar: {fileID: 8300000, guid: 60424d783fc686c42bcdd77ff3451902, type: 3}
+  sfxJogando: {fileID: 8300000, guid: f7e79971d6161a149979cfb7ba22aad6, type: 3}
+  sfxGirandoCurto: {fileID: 8300000, guid: dcae83b0f66d3c94d95b37ce26939917, type: 3}
+  sfxGirandoMedio: {fileID: 8300000, guid: df567989ec376134abda4e3f649e7019, type: 3}
+  sfxGirandoLongo: {fileID: 8300000, guid: 8b6f3e0f5065b1a41a8977ad0f3979cc, type: 3}
+  sfxVoltandoParaMao: {fileID: 8300000, guid: 723bb326ec9a2d74d833ac974b0f9869, type: 3}
+  sfxRefletirInicio: {fileID: 8300000, guid: 5779b6402e1fbec46bbe55ad7ecb33d0, type: 3}
+  sfxRefletirGiroLoop: {fileID: 8300000, guid: 7eaf615b2810dae4aa5c76415ef31cc6, type: 3}
+  sfxRefletiuVariacoes:
+  - {fileID: 8300000, guid: 4574dd9f51753ac40a3129eaf11cc662, type: 3}
+  - {fileID: 8300000, guid: 829d626bcc9da2d45a8a7f016b3db588, type: 3}
+  - {fileID: 8300000, guid: 1164f6d4a21d2b84f839265ded353745, type: 3}
+  sfxMasterVolume: 0.85
 --- !u!114 &8987276032334719665
 MonoBehaviour:
   m_ObjectHideFlags: 0
