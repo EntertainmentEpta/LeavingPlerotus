@@ -1869,6 +1869,7 @@ public class BoomerangWeapon : MonoBehaviour
             ReflectProjectileOnParry(projectile.gameObject, projectile.transform.position);
         else
         {
+            PlayReflectVariationSfx(0.75f);
             projectile.gameObject.SetActive(false);
             Destroy(projectile.gameObject);
         }

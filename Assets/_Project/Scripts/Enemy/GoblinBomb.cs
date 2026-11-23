@@ -170,6 +170,9 @@ public class BombaExplosiva : ShieldProjectile
     void OnCollisionEnter(Collision col)
     {
         if (explodiu) return;
+        if ((col.gameObject.GetComponentInParent<PlayerHealth>() != null ||
+             col.gameObject.GetComponentInParent<BoomerangWeapon>() != null) &&
+            HandleShieldContact(col.gameObject)) return;
         if (!IsFriendly && (col.gameObject.CompareTag("Enemy") || col.gameObject.layer == 6)) return;
         Explodir();
     }

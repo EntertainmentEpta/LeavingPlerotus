@@ -295,6 +295,21 @@ public class RunManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Cria um gerador aleatório determinístico para sortear as Mutações do Abismo
+    /// de um andar específico no Modo Endless, mantendo a Seed reprodutível.
+    /// </summary>
+    public System.Random CreateEndlessMutationRng(int floorIndex)
+    {
+        unchecked
+        {
+            const int mutationSalt = 19349663;
+            const int floorPrime = 83492791;
+            int seed = masterSeed ^ mutationSalt ^ (Mathf.Max(1, floorIndex) * floorPrime);
+            return new System.Random(seed);
+        }
+    }
+
     // =====================================================
     // API PÚBLICA
     // =====================================================
@@ -599,6 +614,13 @@ public class RunManager : MonoBehaviour
 
         if (!isEndlessMode) return;
 
+        if (string.IsNullOrEmpty(activeSeedText))
+        {
+            ConfigureRunSeed(pendingSeedText);
+        }
+
+        System.Random mutationRng = CreateEndlessMutationRng(endlessFloorCount);
+
         List<AbyssMutationType> pool = new List<AbyssMutationType>
         {
             AbyssMutationType.HordaDeElites,
@@ -614,7 +636,7 @@ public class RunManager : MonoBehaviour
         List<AbyssMutationType> primaryCandidates = pool.FindAll(m => m != lastPrimaryMutation);
         if (primaryCandidates.Count == 0) primaryCandidates = pool;
 
-        AbyssMutationType primary = primaryCandidates[Random.Range(0, primaryCandidates.Count)];
+        AbyssMutationType primary = primaryCandidates[mutationRng.Next(0, primaryCandidates.Count)];
         activeMutations.Add(primary);
         lastPrimaryMutation = primary;
 
@@ -624,7 +646,7 @@ public class RunManager : MonoBehaviour
             List<AbyssMutationType> secondaryCandidates = pool.FindAll(m => m != primary);
             if (secondaryCandidates.Count > 0)
             {
-                AbyssMutationType secondary = secondaryCandidates[Random.Range(0, secondaryCandidates.Count)];
+                AbyssMutationType secondary = secondaryCandidates[mutationRng.Next(0, secondaryCandidates.Count)];
                 activeMutations.Add(secondary);
             }
         }

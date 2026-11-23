@@ -56,7 +56,8 @@ public class SeedHUD : MonoBehaviour
         if (seedText == null) return;
 
         string scene = SceneManager.GetActiveScene().name;
-        bool inRun = scene != "Base" && scene != "MainMenu" && scene != "Menu" && !scene.Contains("Loading");
+        bool inRun = scene != "Base" && scene != "MainMenu" && scene != "Menu" &&
+                     !scene.Contains("Loading") && !scene.Contains("Test");
 
         string seed = RunManager.instance != null ? RunManager.instance.ActiveSeedText : "";
         string newText = (inRun && !string.IsNullOrEmpty(seed)) ? $"SEED: {seed}" : "";
