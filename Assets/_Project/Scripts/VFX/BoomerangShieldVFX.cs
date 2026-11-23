@@ -305,27 +305,7 @@ public class BoomerangShieldVFX : MonoBehaviour
         parryFlashTimer = 0.25f;
         ElectricTrailVFX.CreateTrailSegment(transform.position, contactWorldPoint, 2, 0.35f, hostileToPlayer: false);
 
-        if (attackerOrProjectile != null)
-        {
-            ElectricShockVFX.AttachToPlayer(attackerOrProjectile, shieldParalysisDuration);
-
-            DummyHealth dh = attackerOrProjectile.GetComponentInParent<DummyHealth>();
-            if (dh != null)
-            {
-                dh.ApplySlow(0.95f, shieldParalysisDuration);
-            }
-
-            StunVFX stun = attackerOrProjectile.GetComponent<StunVFX>() ?? attackerOrProjectile.AddComponent<StunVFX>();
-            if (stun != null)
-            {
-                stun.ShowStun(shieldParalysisDuration);
-            }
-
-            if (enableMeleeParalysisUpgrade)
-            {
-                ElectrocutedStatus.ApplyElectrocuted(attackerOrProjectile, 3, 0.50f, shieldParalysisDuration);
-            }
-        }
+        if (attackerOrProjectile != null) StunEnemy(attackerOrProjectile);
     }
 
     /// <summary>
@@ -335,20 +315,22 @@ public class BoomerangShieldVFX : MonoBehaviour
     {
         if (targetEnemy == null) return;
         ElectricTrailVFX.CreateTrailSegment(transform.position, targetEnemy.transform.position, 2, 0.35f, hostileToPlayer: false);
-        ElectricShockVFX.AttachToPlayer(targetEnemy, shieldParalysisDuration);
-        ElectrocutedStatus.ApplyElectrocuted(targetEnemy, 3, 0.50f, shieldParalysisDuration);
+        StunEnemy(targetEnemy);
+    }
 
-        DummyHealth dh = targetEnemy.GetComponentInParent<DummyHealth>();
-        if (dh != null)
+    private void StunEnemy(GameObject target)
+    {
+        var enemy = target.GetComponentInParent<DummyHealth>();
+        if (enemy != null) enemy.ApplyStun(shieldParalysisDuration);
+        else
         {
-            dh.ApplySlow(0.90f, shieldParalysisDuration);
+            var swarm = target.GetComponentInParent<ShardSwarmHealth>();
+            if (swarm == null) return;
+            swarm.ApplyStun(shieldParalysisDuration);
         }
-
-        StunVFX stun = targetEnemy.GetComponent<StunVFX>() ?? targetEnemy.AddComponent<StunVFX>();
-        if (stun != null)
-        {
-            stun.ShowStun(shieldParalysisDuration);
-        }
+        ElectricShockVFX.AttachToPlayer(target, shieldParalysisDuration);
+        var icon = target.GetComponent<StunVFX>() ?? target.AddComponent<StunVFX>();
+        icon.ShowStun(shieldParalysisDuration);
     }
 
     private void OnDestroy()

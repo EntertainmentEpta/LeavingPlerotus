@@ -653,7 +653,10 @@ public class GoblinAI_Transform : MonoBehaviour
         activeMeleeCoroutine = StartCoroutine(ExecuteMeleeRoutine());
     }
 
-    IEnumerator ExecuteMeleeRoutine()
+    IEnumerator ExecuteMeleeRoutine() =>
+        DummyHealth.PauseAttackWhileStunned(this, ExecuteMeleeRoutineSteps());
+
+    private IEnumerator ExecuteMeleeRoutineSteps()
     {
         isDoingMelee = true;
         meleeTimer = meleeCooldown;

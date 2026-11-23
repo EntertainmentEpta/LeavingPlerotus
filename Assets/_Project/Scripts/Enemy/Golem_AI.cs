@@ -529,7 +529,10 @@ public class Golem_AI : MonoBehaviour
         }
     }
 
-    IEnumerator PerformMeleeAttack()
+    IEnumerator PerformMeleeAttack() =>
+        DummyHealth.PauseAttackWhileStunned(this, PerformMeleeAttackSteps());
+
+    private IEnumerator PerformMeleeAttackSteps()
     {
         isAttacking = true;
         attackNormalizedTime = 0f;
@@ -647,7 +650,10 @@ public class Golem_AI : MonoBehaviour
         isAttacking = false;
     }
 
-    IEnumerator CastStun()
+    IEnumerator CastStun() =>
+        DummyHealth.PauseAttackWhileStunned(this, CastStunSteps());
+
+    private IEnumerator CastStunSteps()
     {
         isCastingStun = true;
         stunNormalizedTime = 0f;

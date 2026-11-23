@@ -1441,7 +1441,10 @@ public class Geobionte_AI : MonoBehaviour
     /// Executa o Cruzado de Direita do Bismutado 3D com Rig.
     /// Zera a movimentação durante o golpe e sincroniza com a animação procedural, Hitbox e Rastro de Energia (Trail VFX).
     /// </summary>
-    IEnumerator SweepAttack()
+    IEnumerator SweepAttack() =>
+        DummyHealth.PauseAttackWhileStunned(this, SweepAttackSteps());
+
+    private IEnumerator SweepAttackSteps()
     {
         isSweeping = true;
         sweepTimer = sweepCooldown;
@@ -1890,7 +1893,10 @@ public class Geobionte_AI : MonoBehaviour
     /// 4. Se acertou: dano + knockback, esfera sobe imediatamente
     /// 5. Se errou: Sentinela fica stunado (vulnerável)
     /// </summary>
-    IEnumerator SentinelSlam()
+    IEnumerator SentinelSlam() =>
+        DummyHealth.PauseAttackWhileStunned(this, SentinelSlamSteps());
+
+    private IEnumerator SentinelSlamSteps()
     {
         sentinelIsSlaming = true;
         sentinelSlamHitPlayer = false;

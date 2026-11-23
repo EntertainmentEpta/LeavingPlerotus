@@ -319,7 +319,10 @@ public class Spider_AI : MonoBehaviour
     }
 
     // ── Ataque: Dash rápido rente ao chão (1x normal, 3x Elite) → Recuo característico ─
-    IEnumerator PerformDashAttackSequence()
+    IEnumerator PerformDashAttackSequence() =>
+        DummyHealth.PauseAttackWhileStunned(this, PerformDashAttackSequenceSteps());
+
+    private IEnumerator PerformDashAttackSequenceSteps()
     {
         int totalDashes = IsElite ? Mathf.Max(2, eliteLeapCount) : 1;
         leapTimer = leapCooldown;

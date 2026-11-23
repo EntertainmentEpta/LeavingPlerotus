@@ -653,7 +653,10 @@ public class SharpBlur : MonoBehaviour
     }
 
     // ROTINA: Ataque de perto (Combo Duplo de Garras -> opcionalmente emenda Dash para continuar pressionando)
-    IEnumerator MeleeAttackRoutine()
+    IEnumerator MeleeAttackRoutine() =>
+        DummyHealth.PauseAttackWhileStunned(this, MeleeAttackRoutineSteps());
+
+    private IEnumerator MeleeAttackRoutineSteps()
     {
         currentState = State.MeleeAttacking;
         wantsChaseMove = false;
@@ -823,7 +826,10 @@ public class SharpBlur : MonoBehaviour
     }
 
     // Sequência de 1 a 3 Dashes híbridos (interceptação/travessia/aproximação) seguida de Combo e janela de punição
-    IEnumerator DashRoutine(bool fromMeleeFollowUp = false)
+    IEnumerator DashRoutine(bool fromMeleeFollowUp = false) =>
+        DummyHealth.PauseAttackWhileStunned(this, DashRoutineSteps(fromMeleeFollowUp));
+
+    private IEnumerator DashRoutineSteps(bool fromMeleeFollowUp = false)
     {
         currentState = State.Dashing;
         wantsChaseMove = false;
@@ -973,7 +979,10 @@ public class SharpBlur : MonoBehaviour
         return ClampSafePosition(transform.position, rawTargetPos);
     }
 
-    IEnumerator ExecuteSingleDash(Vector3 direction, Vector3 targetDashPos, bool triggerEndSpinSlash)
+    IEnumerator ExecuteSingleDash(Vector3 direction, Vector3 targetDashPos, bool triggerEndSpinSlash) =>
+        DummyHealth.PauseAttackWhileStunned(this, ExecuteSingleDashSteps(direction, targetDashPos, triggerEndSpinSlash));
+
+    private IEnumerator ExecuteSingleDashSteps(Vector3 direction, Vector3 targetDashPos, bool triggerEndSpinSlash)
     {
         if (direction == Vector3.zero) direction = transform.forward;
         transform.rotation = Quaternion.LookRotation(direction);

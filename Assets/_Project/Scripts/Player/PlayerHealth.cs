@@ -1316,6 +1316,12 @@ public class PlayerHealth : MonoBehaviour
     /// </summary>
     public void TakeDamage(int damage, GameObject attacker = null)
     {
+        if (attacker != null && attacker.TryGetComponent(out DummyHealth enemyAttacker))
+        {
+            var shield = BoomerangWeapon.ActiveShieldOn(this);
+            if (shield != null && shield.CoversMeleeAttacker(enemyAttacker)) return;
+        }
+
         // 0. Checagem de Esquiva Perfeita (Perfect Dash): se estiver na janela inicial do dash, cancela o dano e ativa o contra-ataque
         DashM dash = GetComponent<DashM>() ?? GetComponentInParent<DashM>();
         if (dash != null && dash.IsInPerfectDodgeWindow)

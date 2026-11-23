@@ -435,7 +435,10 @@ public class CrystalDragonCommon_AI : MonoBehaviour
     /// Ângulos: -anguloSpread | 0° | +anguloSpread
     /// O dragão para completamente enquanto atira.
     /// </summary>
-    private IEnumerator RajadaDeProjeteis()
+    private IEnumerator RajadaDeProjeteis() =>
+        DummyHealth.PauseAttackWhileStunned(this, RajadaDeProjeteisSteps());
+
+    private IEnumerator RajadaDeProjeteisSteps()
     {
         estaAtacando = true;
         timerAtaque = cooldownAtaque;
@@ -482,30 +485,19 @@ public class CrystalDragonCommon_AI : MonoBehaviour
         proj.transform.localScale = proj.transform.localScale * projectileSizeMultiplierAtivo;
 
         // Compatibilidade com CrystalSpikeProjectile (sistema existente)
-        CrystalSpikeProjectile spike = proj.GetComponent<CrystalSpikeProjectile>();
-        if (spike != null)
-        {
-            spike.owner = gameObject;
-            spike.Launch(direcao, velocidadeProjétil, lifetimeProjétil);
-            return;
-        }
-
-        // Fallback: move via Rigidbody puro
-        Rigidbody rbProj = proj.GetComponent<Rigidbody>();
-        if (rbProj != null)
-        {
-            rbProj.useGravity = false;
-            rbProj.linearVelocity = direcao * velocidadeProjétil;
-        }
-
-        Destroy(proj, lifetimeProjétil);
+        CrystalSpikeProjectile spike = proj.GetComponent<CrystalSpikeProjectile>() ?? proj.AddComponent<CrystalSpikeProjectile>();
+        spike.owner = gameObject;
+        spike.Launch(direcao, velocidadeProjétil, lifetimeProjétil);
     }
 
     /// <summary>
     /// Rabada de emergência: aciona animação e aplica dano em área 360°
     /// ao redor do dragão via Physics.OverlapSphere.
     /// </summary>
-    private IEnumerator ExecutarRabada()
+    private IEnumerator ExecutarRabada() =>
+        DummyHealth.PauseAttackWhileStunned(this, ExecutarRabadaSteps());
+
+    private IEnumerator ExecutarRabadaSteps()
     {
         estaExecutandoRabada = true;
         Debug.Log("[DRAGON] RABADA iniciada.");
@@ -542,7 +534,10 @@ public class CrystalDragonCommon_AI : MonoBehaviour
     /// Spin Attack 360° melee.
     /// Fases: wind-up (abaixa), giro com dano área, recovery (sobe).
     /// </summary>
-    private IEnumerator ExecutarSpinAttack()
+    private IEnumerator ExecutarSpinAttack() =>
+        DummyHealth.PauseAttackWhileStunned(this, ExecutarSpinAttackSteps());
+
+    private IEnumerator ExecutarSpinAttackSteps()
     {
         estaExecutandoSpin = true;
         timerSpinCooldown = spinCooldown;

@@ -666,6 +666,7 @@ public class DummyHealth : MonoBehaviour
         // Ignora apenas se estiver realmente no alto (salto/queda forte); desníveis de rampa não bloqueiam
         if (rb != null && Mathf.Abs(rb.linearVelocity.y) > 1.5f) return;
 
+        if (IsStunned) return;
         if (hitStopCo != null)
         {
             StopCoroutine(hitStopCo);
@@ -676,6 +677,9 @@ public class DummyHealth : MonoBehaviour
 
     private void OnDisable()
     {
+        stunUntil = 0f;
+        if (hitStopCo != null) StopCoroutine(hitStopCo);
+        hitStopCo = null;
         RestoreHitStopState();
     }
 
@@ -725,6 +729,7 @@ public class DummyHealth : MonoBehaviour
         PauseActiveAIBehaviours(enemyAIBehaviours, pausedAIBehaviours);
 
         yield return new WaitForSecondsRealtime(duration);
+        while (IsStunned) yield return null;
 
         RestoreHitStopState();
         hitStopCo = null;
@@ -1267,33 +1272,24 @@ public class DummyHealth : MonoBehaviour
             return;
         }
 
-        ApplySlow(0.95f, duration);
-        StartCoroutine(StunNavAgentRoutine(duration));
-        Debug.Log($"[DEBUFF] Stun aplicado a {gameObject.name} por {duration}s.");
+        stunUntil = Mathf.Max(stunUntil, Time.time + duration);
+        if (!isHitStopActive)
+            hitStopCo = StartCoroutine(HitStopRoutine(0f));
     }
 
-    private IEnumerator StunNavAgentRoutine(float duration)
+    private float stunUntil;
+    public bool IsStunned => Time.time < stunUntil;
+
+    // Unity continues running coroutines on disabled AI behaviours.
+    public static IEnumerator PauseAttackWhileStunned(Component actor, IEnumerator attack)
     {
-        UnityEngine.AI.NavMeshAgent nav = GetComponent<UnityEngine.AI.NavMeshAgent>();
-        bool hadStopped = false;
-        if (nav != null && nav.isActiveAndEnabled && nav.isOnNavMesh)
+        DummyHealth health = actor.GetComponentInParent<DummyHealth>();
+        var swarm = health == null ? actor.GetComponentInParent<ShardSwarmHealth>() : null;
+        while (true)
         {
-            hadStopped = nav.isStopped;
-            nav.isStopped = true;
-            nav.velocity = Vector3.zero;
-        }
-
-        Rigidbody rb = GetComponent<Rigidbody>();
-        if (rb != null && !rb.isKinematic)
-        {
-            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
-        }
-
-        yield return new WaitForSeconds(duration);
-
-        if (nav != null && nav.isActiveAndEnabled && nav.isOnNavMesh && CurrentHealth > 0)
-        {
-            nav.isStopped = hadStopped;
+            while ((health != null && health.IsStunned) || (swarm != null && swarm.IsStunned)) yield return null;
+            if (!attack.MoveNext()) yield break;
+            yield return attack.Current;
         }
     }
 

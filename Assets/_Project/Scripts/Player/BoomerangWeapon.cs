@@ -224,6 +224,7 @@ public class BoomerangWeapon : MonoBehaviour
     private float stateElapsedTime;
     private bool isDrawnInHand;
     private bool isWindupThrowPending;
+    private Quaternion idleGripInPlayerSpace;
     private bool hasCommittedDraw;
     private float drawCommitTime;
     private float fullChargeReachedAt = -1f;
@@ -748,6 +749,8 @@ public class BoomerangWeapon : MonoBehaviour
                 if (shieldVFX != null)
                     shieldVFX.SetShieldActive(true, true);
 
+                hitTargetsThisPhase.Clear();
+
                 SetAnimatorBoolSafe(AnimBoolIsDefending, true);
                 SetAnimatorBoolSafe(AnimBoolIsReloading, true);
 
@@ -860,6 +863,8 @@ public class BoomerangWeapon : MonoBehaviour
         if (currentState == BoomerangState.Charging)
         {
             SnapToHandPose();
+            if (isWindupThrowPending && weaponManager != null)
+                transform.rotation = weaponManager.transform.rotation * idleGripInPlayerSpace;
         }
         else if (currentState == BoomerangState.Stowed)
         {
@@ -928,11 +933,7 @@ public class BoomerangWeapon : MonoBehaviour
 
                 if (visualPivot != null)
                 {
-                    float pullBackAngle = Mathf.Lerp(0f, -24f, currentCharge01);
-                    float shake = currentCharge01 > 0.7f ? Mathf.Sin(Time.time * 60f) * 2.2f * currentCharge01 : 0f;
-                    Quaternion pullBack = Quaternion.Euler(shake, 0f, pullBackAngle);
-                    Quaternion spin = Quaternion.AngleAxis(chargeSpinAngle, Vector3.forward);
-                    visualPivot.localRotation = pullBack * spin;
+                    visualPivot.localRotation = Quaternion.AngleAxis(chargeSpinAngle, Vector3.forward);
                 }
 
                 if (useBuiltInStateAndPhysics)
@@ -1115,6 +1116,7 @@ public class BoomerangWeapon : MonoBehaviour
         {
             SnapToHandPose();
         }
+        idleGripInPlayerSpace = Quaternion.Inverse(weaponManager.transform.rotation) * transform.rotation;
 
         float atkMult = GetAttackSpeedMultiplier();
         SetAnimatorFloatSafe(AnimFloatAttackSpeed, initialAnticipationSpeed * Mathf.Lerp(1f, atkMult, 0.55f));
@@ -1491,9 +1493,12 @@ public class BoomerangWeapon : MonoBehaviour
             : 0.6f;
 
         // Detecção de colisão / piercing / ricochete em paredes e inimigos
-        if (Physics.SphereCast(transform.position, 0.28f, dir, out RaycastHit hit, clampedStepDist + 0.25f, ~0, QueryTriggerInteraction.Ignore))
+        const float castRadius = 0.28f;
+        RaycastHit[] contacts = Physics.SphereCastAll(transform.position, castRadius, dir, clampedStepDist, ~0, QueryTriggerInteraction.Ignore);
+        System.Array.Sort(contacts, (a, b) => a.distance.CompareTo(b.distance));
+        foreach (var hit in contacts)
         {
-            if (!IsPlayerCollider(hit.collider))
+            if (!hit.collider.transform.IsChildOf(transform) && !IsPlayerCollider(hit.collider) && Vector3.Dot(hit.normal, dir) < -0.001f)
             {
                 DummyHealth enemy = hit.collider.GetComponentInParent<DummyHealth>();
                 if (enemy != null)
@@ -1514,6 +1519,7 @@ public class BoomerangWeapon : MonoBehaviour
                             Vector3 eNorm = hit.normal;
                             eNorm.y = 0f;
                             if (eNorm.sqrMagnitude < 0.001f) eNorm = -dir;
+                            transform.position += dir * Mathf.Max(0f, hit.distance - 0.015f);
                             RegisterBounce(eNorm.normalized, hit.point, enemy);
                             return;
                         }
@@ -1526,12 +1532,18 @@ public class BoomerangWeapon : MonoBehaviour
                 }
                 else
                 {
+                    if (hit.distance <= 0.001f)
+                    {
+                        SetState(BoomerangState.Returning);
+                        return;
+                    }
                     // Colidiu com parede/obstáculo
                     if (TryConsumeOrRollBounce())
                     {
                         Vector3 wNorm = hit.normal;
                         wNorm.y = 0f;
                         if (wNorm.sqrMagnitude < 0.001f) wNorm = -dir;
+                        transform.position += dir * Mathf.Max(0f, hit.distance - 0.015f);
                         RegisterBounce(wNorm.normalized, hit.point, null);
                         return;
                     }
@@ -1677,32 +1689,36 @@ public class BoomerangWeapon : MonoBehaviour
             Collider c = cols[i];
             if (c == null || IsPlayerCollider(c)) continue;
 
-            // 1. Janela de Parry (primeiros 0.2s): reflete projéteis inimigos de volta
-            if (IsInParryWindow)
+            ShieldProjectile projectile = c.GetComponentInParent<ShieldProjectile>();
+            if (projectile != null)
             {
-                if (IsEnemyProjectileCollider(c))
-                {
-                    ReflectProjectileOnParry(c.gameObject, c.transform.position);
-                    continue;
-                }
+                InterceptProjectile(projectile);
+                continue;
             }
 
             // 2. Contato com inimigos (Parry atordoa nos primeiros 0.2s ou Paralisia do Tier 4 Evasion)
             DummyHealth enemy = c.GetComponentInParent<DummyHealth>();
-            if (enemy != null)
+            Component body = enemy != null ? (Component)enemy : c.GetComponentInParent<ShardSwarmHealth>();
+            if (body != null)
             {
-                int id = enemy.GetInstanceID();
+                int id = body.GetInstanceID();
                 if (!hitTargetsThisPhase.Contains(id))
                 {
                     hitTargetsThisPhase.Add(id);
+                    Vector3 push = Vector3.ProjectOnPlane(body.transform.position - weaponManager.transform.position, Vector3.up).normalized;
+                    var agent = body.GetComponent<UnityEngine.AI.NavMeshAgent>();
+                    if (agent != null && agent.isActiveAndEnabled && agent.isOnNavMesh)
+                        agent.Move(push * 0.5f * (enemy == null ? 1f : Mathf.Clamp01(1f - enemy.knockbackResistance)));
+                    else
+                        ApplyBoomerangKnockback(enemy, push, 1f);
                     if (IsInParryWindow && shieldVFX != null)
                     {
-                        shieldVFX.TriggerParrySuccessVFX(enemy.transform.position, enemy.gameObject);
+                        shieldVFX.TriggerParrySuccessVFX(body.transform.position, body.gameObject);
                         PlayReflectVariationSfx(0.85f);
                     }
                     else if (IsShieldParalysisActive && shieldVFX != null)
                     {
-                        shieldVFX.TriggerShieldMeleeParalysis(enemy.gameObject);
+                        shieldVFX.TriggerShieldMeleeParalysis(body.gameObject);
                     }
                 }
             }
@@ -1719,7 +1735,7 @@ public class BoomerangWeapon : MonoBehaviour
         float speed = Mathf.Max(flightVelocity.magnitude, minThrowSpeed);
 
         // 1. Procura o próximo inimigo para ricochete encadeado inteligente (Smart Chain Bounce)
-        DummyHealth nextTarget = FindNextBounceTarget(bouncePoint, hitEnemy, 14f);
+        DummyHealth nextTarget = hitEnemy == null ? null : FindNextBounceTarget(transform.position, hitEnemy, 14f);
 
         Vector3 newDir;
         if (nextTarget != null)
@@ -1754,8 +1770,7 @@ public class BoomerangWeapon : MonoBehaviour
         travelledDistance = 0f;
         flightVelocity = newDir * speed;
 
-        // Desloca para fora da superfície de colisão para evitar multi-colisões no mesmo ponto
-        transform.position = bouncePoint + surfaceNormal * 0.15f + newDir * 0.15f;
+        // The sphere center is already positioned just before the contact.
         if (newDir.sqrMagnitude > 0.001f)
         {
             transform.rotation = Quaternion.LookRotation(newDir.normalized, Vector3.up) * Quaternion.Euler(-90f, 0f, 0f);
@@ -1765,7 +1780,8 @@ public class BoomerangWeapon : MonoBehaviour
         if (echoVFX != null && IsBounceEchoActive)
         {
             Vector3 echoDir = Quaternion.Euler(0f, UnityEngine.Random.Range(-32f, 32f), 0f) * newDir;
-            echoVFX.SpawnBounceEchoClone(bouncePoint, echoDir, speed * 0.9f);
+            echoVFX.SpawnBounceEchoClone(transform.position, echoDir, speed * 0.9f,
+                onHit: (enemy, point, direction) => ApplyBoomerangDamageToEnemy(enemy, point, direction, 0.55f));
         }
     }
 
@@ -1819,27 +1835,43 @@ public class BoomerangWeapon : MonoBehaviour
     /// </summary>
     public virtual void ReflectProjectileOnParry(GameObject projectileObj, Vector3 contactPoint)
     {
-        if (projectileObj == null) return;
-
-        PlayReflectVariationSfx(1.0f);
-
-        if (shieldVFX != null)
-            shieldVFX.TriggerParrySuccessVFX(contactPoint, projectileObj);
-
-        Rigidbody projRb = projectileObj.GetComponent<Rigidbody>() ?? projectileObj.GetComponentInParent<Rigidbody>();
-        if (projRb != null && !projRb.isKinematic)
+        var projectile = projectileObj != null ? projectileObj.GetComponentInParent<ShieldProjectile>() : null;
+        if (projectile != null && weaponManager != null && projectile.Reflect(weaponManager.gameObject))
         {
-            projRb.linearVelocity = -projRb.linearVelocity;
+            PlayReflectVariationSfx(1.0f);
+            shieldVFX?.TriggerParrySuccessVFX(contactPoint);
         }
-        projectileObj.transform.forward = -projectileObj.transform.forward;
     }
 
-    private bool IsEnemyProjectileCollider(Collider c)
+    public bool CoversMeleeAttacker(DummyHealth enemy)
     {
-        if (c == null) return false;
-        if (c.GetComponentInParent<DummyHealth>() != null) return false;
-        string lower = c.gameObject.name.ToLower();
-        return lower.Contains("projectile") || lower.Contains("bullet") || lower.Contains("spit") || lower.Contains("shot") || lower.Contains("spike");
+        if (enemy == null) return false;
+        float radius = shieldVFX != null ? shieldVFX.shieldRadius : 0.85f;
+        foreach (Collider body in enemy.GetComponentsInChildren<Collider>())
+            if (body.enabled && (body.ClosestPoint(transform.position) - transform.position).sqrMagnitude <= radius * radius)
+                return true;
+        return false;
+    }
+
+    public static BoomerangWeapon ActiveShieldOn(PlayerHealth player)
+    {
+        if (player == null) return null;
+        var manager = player.GetComponentInParent<Player_WeaponManager>() ?? player.GetComponentInChildren<Player_WeaponManager>();
+        var shield = manager != null && manager.currentWeapon != null
+            ? manager.currentWeapon.GetComponentInChildren<BoomerangWeapon>() : null;
+        return shield != null && shield.isActiveAndEnabled && shield.CurrentState == BoomerangState.SpinningShield ? shield : null;
+    }
+
+    public void InterceptProjectile(ShieldProjectile projectile)
+    {
+        if (currentState != BoomerangState.SpinningShield || projectile.IsFriendly || !projectile.gameObject.activeInHierarchy) return;
+        if (IsInParryWindow)
+            ReflectProjectileOnParry(projectile.gameObject, projectile.transform.position);
+        else
+        {
+            projectile.gameObject.SetActive(false);
+            Destroy(projectile.gameObject);
+        }
     }
 
     // =========================================================================

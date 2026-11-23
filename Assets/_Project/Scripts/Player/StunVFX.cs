@@ -51,6 +51,7 @@ public class StunVFX : MonoBehaviour
 
     // ── Runtime ────────────────────────────────────────────────────────
     private PlayerHealth playerHealth;
+    private bool isEnemy;
     private Coroutine activeStunRoutine;
     private float currentRotationAngle = 0f;
 
@@ -68,6 +69,7 @@ public class StunVFX : MonoBehaviour
 
     void Awake()
     {
+        isEnemy = GetComponent<DummyHealth>() != null || GetComponent<ShardSwarmHealth>() != null;
         // Força os novos valores caso o Inspector/Prefab tenha mantido valores antigos salvos
         if (iconWorldSize > 0.1f) iconWorldSize = 0.04f;
         if (iconRotationSpeed < 300f) iconRotationSpeed = 540f;
@@ -101,7 +103,7 @@ public class StunVFX : MonoBehaviour
         }
 
         // 2. Referência da barra de vida (Image)
-        if (healthBarReference == null)
+        if (!isEnemy && healthBarReference == null)
         {
             if (playerHealth == null) playerHealth = GetComponent<PlayerHealth>();
             if (playerHealth != null && playerHealth.healthFillImage != null)
@@ -192,7 +194,7 @@ public class StunVFX : MonoBehaviour
         try
         {
             SpawnWorldIcon();
-            SpawnHUDBar();
+            if (!isEnemy) SpawnHUDBar();
         }
         catch (System.Exception ex)
         {
@@ -246,6 +248,17 @@ public class StunVFX : MonoBehaviour
 
         iconRenderer = iconVisual.AddComponent<SpriteRenderer>();
         iconRenderer.sprite = GetOrLoadSprite();
+        if (isEnemy && iconRenderer.sprite != null)
+        {
+            Bounds bounds = new Bounds(transform.position, Vector3.zero);
+            foreach (Renderer mesh in DummyHealth.CollectFlashMeshRenderers(gameObject))
+                if (mesh.enabled) bounds.Encapsulate(mesh.bounds);
+            iconRoot.transform.position = new Vector3(bounds.center.x, bounds.max.y + 0.55f, bounds.center.z);
+            Vector3 scale = iconRoot.transform.lossyScale;
+            float size = 0.8f / Mathf.Max(0.01f, iconRenderer.sprite.bounds.size.x);
+            iconVisual.transform.localScale = new Vector3(size / Mathf.Max(0.001f, Mathf.Abs(scale.x)),
+                size / Mathf.Max(0.001f, Mathf.Abs(scale.y)), 1f);
+        }
         iconRenderer.color = Color.white; // Mantém a cor original do sprite limpa
         iconRenderer.sortingLayerName = "Default";
         iconRenderer.sortingOrder = 50;
@@ -283,12 +296,12 @@ public class StunVFX : MonoBehaviour
     {
         DestroyHUDBar();
 
-        if (healthBarReference == null)
+        if (!isEnemy && healthBarReference == null)
         {
             ResolveReferences();
         }
 
-        if (healthBarReference == null)
+        if (!isEnemy && healthBarReference == null)
         {
             return;
         }

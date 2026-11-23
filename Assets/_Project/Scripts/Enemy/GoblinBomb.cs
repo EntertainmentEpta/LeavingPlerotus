@@ -7,7 +7,7 @@ using System.Collections;
 /// - Explode ao tocar chão/sólidos (ignora Player no ar e inimigos)
 /// - Usa prefabs reais de explosão (CFXR Explosion 1 + CFXR2 Ground Hit) em URP
 /// </summary>
-public class BombaExplosiva : MonoBehaviour
+public class BombaExplosiva : ShieldProjectile
 {
     [Header("Dano")]
     public int danoExplosao = 30;
@@ -47,7 +47,18 @@ public class BombaExplosiva : MonoBehaviour
     [Range(0f, 1f)]
     public float explosionSoundVolume = 1.0f;
 
-    [HideInInspector] public GameObject owner;
+    protected override int ReflectedDamage => danoExplosao;
+    protected override void Redirect(Vector3 aim)
+    {
+        if (activeLandingTelegraph != null)
+        {
+            Destroy(activeLandingTelegraph);
+            activeLandingTelegraph = null;
+        }
+        Rigidbody body = GetComponent<Rigidbody>();
+        if (body != null) body.linearVelocity = aim * Mathf.Max(12f, body.linearVelocity.magnitude);
+        transform.forward = aim;
+    }
 
     private bool explodiu = false;
     private AudioSource audioSource;
@@ -159,7 +170,7 @@ public class BombaExplosiva : MonoBehaviour
     void OnCollisionEnter(Collision col)
     {
         if (explodiu) return;
-        if (col.gameObject.CompareTag("Enemy") || col.gameObject.layer == 6) return;
+        if (!IsFriendly && (col.gameObject.CompareTag("Enemy") || col.gameObject.layer == 6)) return;
         Explodir();
     }
 
@@ -257,10 +268,23 @@ public class BombaExplosiva : MonoBehaviour
     {
         Vector3 flatCenter = new Vector3(transform.position.x, 0f, transform.position.z);
         Collider[] hits = Physics.OverlapSphere(transform.position + Vector3.up * 0.5f, raioExplosao + 1.2f);
+        var damagedEnemies = IsFriendly ? new System.Collections.Generic.HashSet<DummyHealth>() : null;
 
         for (int i = 0; i < hits.Length; i++)
         {
             Collider hit = hits[i];
+            if (IsFriendly)
+            {
+                DummyHealth enemy = hit.GetComponentInParent<DummyHealth>();
+                if (enemy != null && damagedEnemies.Add(enemy))
+                {
+                    Vector3 flatEnemy = new Vector3(enemy.transform.position.x, 0f, enemy.transform.position.z);
+                    if (Vector3.Distance(flatCenter, flatEnemy) <= raioExplosao + 0.6f)
+                        enemy.TakeDamage(danoExplosao, isProjectile: true);
+                }
+                continue;
+            }
+
             if (!hit.CompareTag("Player")) continue;
 
             Vector3 flatTarget = new Vector3(hit.transform.position.x, 0f, hit.transform.position.z);

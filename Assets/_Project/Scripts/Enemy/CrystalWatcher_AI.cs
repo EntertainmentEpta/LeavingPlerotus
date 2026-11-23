@@ -425,7 +425,10 @@ public class CrystalWatcher_AI : MonoBehaviour
     }
 
     // ── Ciclo Principal: Carrega → Dispara (5s) → Decide Ficar ou Reposicionar ─
-    IEnumerator AttackCycle()
+    IEnumerator AttackCycle() =>
+        DummyHealth.PauseAttackWhileStunned(this, AttackCycleSteps());
+
+    private IEnumerator AttackCycleSteps()
     {
         while (health != null && health.CurrentHealth > 0)
         {

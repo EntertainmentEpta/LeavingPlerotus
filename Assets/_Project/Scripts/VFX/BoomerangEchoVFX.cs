@@ -59,6 +59,8 @@ public class BoomerangEchoVFX : MonoBehaviour
     {
         public Vector3 position;
         public Vector3 velocity;
+        public readonly HashSet<int> hitEnemyIds = new HashSet<int>();
+        public System.Action<DummyHealth, Vector3, Vector3> onHit;
         public float spinAngle;
         public float elapsed;
         public float duration;
@@ -215,7 +217,7 @@ public class BoomerangEchoVFX : MonoBehaviour
     /// Spawna um Eco Fantasma autônomo (PDF Página 6 — Bounce + Multishot) que sai voando e girando
     /// com anéis translúcidos de velocidade. Pronto para ser chamado nos ricochetes!
     /// </summary>
-    public void SpawnBounceEchoClone(Vector3 origin, Vector3 flightDirection, float customSpeed = -1f, float customDuration = -1f)
+    public void SpawnBounceEchoClone(Vector3 origin, Vector3 flightDirection, float customSpeed = -1f, float customDuration = -1f, System.Action<DummyHealth, Vector3, Vector3> onHit = null)
     {
         if (cachedMeshFilters == null || cachedMeshFilters.Length == 0)
             CacheMeshes();
@@ -253,6 +255,7 @@ public class BoomerangEchoVFX : MonoBehaviour
             elapsed = 0f,
             duration = dur,
             ringLR = lr,
+            onHit = onHit,
             ringGO = ringGO
         });
     }
@@ -341,7 +344,6 @@ public class BoomerangEchoVFX : MonoBehaviour
         for (int i = activeBounceEchoes.Count - 1; i >= 0; i--)
         {
             AutonomousBounceEcho echo = activeBounceEchoes[i];
-            echo.elapsed += deltaTime;
             if (echo.elapsed >= echo.duration)
             {
                 if (echo.ringGO != null) Destroy(echo.ringGO);
@@ -349,7 +351,25 @@ public class BoomerangEchoVFX : MonoBehaviour
                 continue;
             }
 
-            echo.position += echo.velocity * deltaTime;
+            float travelTime = Mathf.Min(deltaTime, echo.duration - echo.elapsed);
+            echo.elapsed += travelTime;
+            Vector3 direction = echo.velocity.normalized;
+            float distance = echo.velocity.magnitude * travelTime;
+            foreach (RaycastHit hit in Physics.SphereCastAll(echo.position, 0.3f, direction, distance, ~0, QueryTriggerInteraction.Ignore))
+            {
+                if (hit.collider.transform.IsChildOf(transform) || hit.collider.GetComponentInParent<PlayerHealth>() != null ||
+                    hit.collider.GetComponentInParent<DummyHealth>() != null) continue;
+                distance = Mathf.Min(distance, hit.distance);
+                echo.elapsed = echo.duration;
+            }
+            Vector3 end = echo.position + direction * distance;
+            foreach (Collider contact in Physics.OverlapCapsule(echo.position, end, 0.35f, ~0, QueryTriggerInteraction.Collide))
+            {
+                DummyHealth enemy = contact.GetComponentInParent<DummyHealth>();
+                if (enemy != null && enemy.CurrentHealth > 0 && echo.hitEnemyIds.Add(enemy.GetInstanceID()))
+                    echo.onHit?.Invoke(enemy, contact.ClosestPoint(end), echo.velocity.normalized);
+            }
+            echo.position = end;
             echo.spinAngle = (echo.spinAngle + 1600f * deltaTime) % 360f;
 
             float norm = 1f - (echo.elapsed / echo.duration);
