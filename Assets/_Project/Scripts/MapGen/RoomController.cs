@@ -65,6 +65,9 @@ public class RoomController : MonoBehaviour
     [Tooltip("Número desta sala na sequência da Run (1–32). Não editar manualmente.")]
     public int roomIndex = 1;
 
+    // Sorteador exclusivo desta sala. É criado no Start() a partir da seed + número da sala.
+    private System.Random roomRng = new System.Random();
+
     // =====================================================
     // POOLS DE INIMIGOS POR CLASSE (GDD §1.2)
     // =====================================================
@@ -281,8 +284,19 @@ public class RoomController : MonoBehaviour
             suportePrefabs = new List<GameObject>(enemyPoolConfig.suportePrefabs);
     }
 
+    // Igual ao Random.Range para números com vírgula, mas usando o sorteador da sala.
+    private float RoomRange(float min, float max)
+    {
+        return min + (float)roomRng.NextDouble() * (max - min);
+    }
+
     void Start()
     {
+        // Cria o sorteador da sala (mesma seed + mesmo round + mesma sala = mesmos sorteios).
+        roomRng = RunManager.instance != null
+            ? RunManager.instance.CreateRoomRng(roomIndex)
+            : new System.Random();
+
         if (IsPeacefulRoom())
         {
             isSafeRoom = true;
@@ -303,7 +317,7 @@ public class RoomController : MonoBehaviour
         }
 
         EnsureValidSpawnAreas();
-        totalWavesThisRoom = Random.Range(minWaves, maxWaves + 1);
+        totalWavesThisRoom = roomRng.Next(minWaves, maxWaves + 1);
 
         EnsureRuntimeDoorBarriers();
 
@@ -620,7 +634,7 @@ public class RoomController : MonoBehaviour
         // No Round 3 (Fase 3) ou no Endless, prioriza spawnar Geobionte (Elite) e Tanques pesados!
         bool allowEliteAnchor = currentLvl >= 3 || (isEndless && (RunManager.instance.endlessFloorCount >= 2 || RunManager.instance.HasActiveMutation(AbyssMutationType.HordaDeElites)));
         float eliteAnchorChance = isEndless ? Mathf.Clamp(0.75f + endlessEliteBonus * 0.5f, 0.75f, 0.96f) : 0.75f;
-        if (allowEliteAnchor && curElite.Count > 0 && remainingPts >= 10 && eliteSpawnedTotal < eliteMax && Random.value < eliteAnchorChance && result.Count < maxEnemies)
+        if (allowEliteAnchor && curElite.Count > 0 && remainingPts >= 10 && eliteSpawnedTotal < eliteMax && roomRng.NextDouble() < eliteAnchorChance && result.Count < maxEnemies)
         {
             result.Add(GetRandom(curElite));
             eliteSpawnedTotal++;
@@ -628,7 +642,7 @@ public class RoomController : MonoBehaviour
         }
 
         // Garante presença de Tanques no Round 2 e Round 3
-        if (effectiveProgression >= 2 && curTanque.Count > 0 && remainingPts >= 4 && tanqueSpawnedTotal < tanqueMax && Random.value < 0.75f && result.Count < maxEnemies)
+        if (effectiveProgression >= 2 && curTanque.Count > 0 && remainingPts >= 4 && tanqueSpawnedTotal < tanqueMax && roomRng.NextDouble() < 0.75f && result.Count < maxEnemies)
         {
             result.Add(GetRandom(curTanque));
             tanqueSpawnedTotal++;
@@ -636,7 +650,7 @@ public class RoomController : MonoBehaviour
         }
 
         // Garante presença de Atiradores (Peixe, Goblin, Crystal Watcher)
-        if (effectiveProgression >= 2 && curAtirador.Count > 0 && remainingPts >= 2 && Random.value < 0.70f && result.Count < maxEnemies)
+        if (effectiveProgression >= 2 && curAtirador.Count > 0 && remainingPts >= 2 && roomRng.NextDouble() < 0.70f && result.Count < maxEnemies)
         {
             result.Add(GetRandom(curAtirador));
             remainingPts -= 2;
@@ -674,13 +688,13 @@ public class RoomController : MonoBehaviour
             if (validOptions.Count == 0) break;
 
             // Sorteio justo entre as opções viáveis
-            EnemyClass chosen = validOptions[Random.Range(0, validOptions.Count)];
+            EnemyClass chosen = validOptions[roomRng.Next(0, validOptions.Count)];
 
             // Em fases avançadas (Round 2 e 3), favorece variedade de Tanques e Atiradores sobre MobMenor
-            if (currentLvl >= 2 && validOptions.Count > 1 && chosen == EnemyClass.MobMenor && Random.value < 0.65f)
+            if (currentLvl >= 2 && validOptions.Count > 1 && chosen == EnemyClass.MobMenor && roomRng.NextDouble() < 0.65f)
             {
                 List<EnemyClass> advanced = validOptions.FindAll(c => c != EnemyClass.MobMenor);
-                if (advanced.Count > 0) chosen = advanced[Random.Range(0, advanced.Count)];
+                if (advanced.Count > 0) chosen = advanced[roomRng.Next(0, advanced.Count)];
             }
 
             switch (chosen)
@@ -700,7 +714,7 @@ public class RoomController : MonoBehaviour
                 case EnemyClass.Atirador:
                     result.Add(GetRandom(curAtirador));
                     remainingPts -= 2;
-                    if (remainingPts >= 2 && result.Count < maxEnemies && Random.value < 0.5f)
+                    if (remainingPts >= 2 && result.Count < maxEnemies && roomRng.NextDouble() < 0.5f)
                     {
                         result.Add(GetRandom(curAtirador));
                         remainingPts -= 2;
@@ -727,7 +741,7 @@ public class RoomController : MonoBehaviour
         while (result.Count < targetMin && result.Count < maxEnemies)
         {
             // No Round 2 e 3, varia o preenchimento entre Atiradores e MobMenor
-            if (currentLvl >= 2 && curAtirador.Count > 0 && Random.value < 0.4f)
+            if (currentLvl >= 2 && curAtirador.Count > 0 && roomRng.NextDouble() < 0.4f)
             {
                 result.Add(GetRandom(curAtirador));
             }
@@ -787,7 +801,7 @@ public class RoomController : MonoBehaviour
                     mutChance = Mathf.Min(0.85f, mutChance + endlessEliteBonus);
                 }
 
-                if (UnityEngine.Random.value <= mutChance)
+                if (roomRng.NextDouble() <= mutChance)
                 {
                     prefabToSpawn = setup.variantPrefab;
                     if (showSpawnLog)
@@ -806,7 +820,7 @@ public class RoomController : MonoBehaviour
                 proceduralChance = Mathf.Clamp(proceduralChance + endlessEliteBonus * 0.70f, 0f, 0.65f);
             }
 
-            if (proceduralChance > 0f && UnityEngine.Random.value <= proceduralChance)
+            if (proceduralChance > 0f && roomRng.NextDouble() <= proceduralChance)
             {
                 forceProceduralElite = true;
             }
@@ -814,7 +828,7 @@ public class RoomController : MonoBehaviour
         // ────────────────────────────────────────────────────────────────────
 
         // Escolhe uma área aleatória da lista para este inimigo
-        BoxCollider chosenArea = spawnAreas[Random.Range(0, spawnAreas.Count)];
+        BoxCollider chosenArea = spawnAreas[roomRng.Next(0, spawnAreas.Count)];
         Vector3 spawnPos = GetRandomPositionInArea(chosenArea);
 
         // Regra Especial de Combate: A Aranha é o único inimigo que sempre spawna em duplas (pares)
@@ -823,7 +837,7 @@ public class RoomController : MonoBehaviour
         Vector3 pairPos = spawnPos;
         if (isSpider)
         {
-            Vector3 pairOffset = (Quaternion.Euler(0, Random.Range(30f, 330f), 0) * Vector3.forward) * 1.5f;
+            Vector3 pairOffset = (Quaternion.Euler(0, RoomRange(30f, 330f), 0) * Vector3.forward) * 1.5f;
             if (UnityEngine.AI.NavMesh.SamplePosition(spawnPos + pairOffset, out UnityEngine.AI.NavMeshHit pairHit, 3.0f, UnityEngine.AI.NavMesh.AllAreas))
             {
                 pairPos = pairHit.position;
@@ -1502,8 +1516,8 @@ public class RoomController : MonoBehaviour
         // Tenta até 15 vezes encontrar uma posição no centro caminhável do NavMesh
         for (int i = 0; i < 15; i++)
         {
-            float x = Random.Range(bounds.center.x - halfX, bounds.center.x + halfX);
-            float z = Random.Range(bounds.center.z - halfZ, bounds.center.z + halfZ);
+            float x = RoomRange(bounds.center.x - halfX, bounds.center.x + halfX);
+            float z = RoomRange(bounds.center.z - halfZ, bounds.center.z + halfZ);
             Vector3 candidatePos = new Vector3(x, floorY + 0.5f, z);
 
             // 1. Tenta NavMesh e garante distância mínima das paredes/bordas
@@ -1575,8 +1589,8 @@ public class RoomController : MonoBehaviour
         float halfX = size.x < 2f ? 7f : size.x * 0.5f;
         float halfZ = size.z < 2f ? 7f : size.z * 0.5f;
 
-        float x = Random.Range(bounds.center.x - halfX, bounds.center.x + halfX);
-        float z = Random.Range(bounds.center.z - halfZ, bounds.center.z + halfZ);
+        float x = RoomRange(bounds.center.x - halfX, bounds.center.x + halfX);
+        float z = RoomRange(bounds.center.z - halfZ, bounds.center.z + halfZ);
 
         if (isNearWall)
         {
@@ -1752,7 +1766,7 @@ public class RoomController : MonoBehaviour
 
         if (totalWeight <= 0f) return entries[0];
 
-        float randValue = Random.Range(0f, totalWeight);
+        float randValue = RoomRange(0f, totalWeight);
         float currentSum = 0f;
 
         foreach (var entry in entries)
@@ -1782,7 +1796,7 @@ public class RoomController : MonoBehaviour
 
         for (int i = 0; i < 20; i++)
         {
-            BoxCollider area = spawnAreas[Random.Range(0, spawnAreas.Count)];
+            BoxCollider area = spawnAreas[roomRng.Next(0, spawnAreas.Count)];
             if (area == null) continue;
 
             Vector3 candidate = GetRandomPositionForCollectible(area, isNearWall, isHigh);
@@ -1919,7 +1933,7 @@ public class RoomController : MonoBehaviour
     GameObject GetRandom(List<GameObject> list)
     {
         if (list == null || list.Count == 0) return null;
-        return list[Random.Range(0, list.Count)];
+        return list[roomRng.Next(0, list.Count)];
     }
 
     private void OnDestroy()

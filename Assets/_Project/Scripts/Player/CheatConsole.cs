@@ -86,6 +86,7 @@ public class CheatConsole : MonoBehaviour
         new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "sinfonia", aliases = "chaos, pactchaos, pactcaos", description = "Alterna o Pacto A Sinfonia do Caos (+20% drops, +Elites, +35% renascer elite).", executePayload = "sinfonia" },
         new CheatEntry { category = "👾 INIMIGOS, SPAWNS & BOSS", command = "endless", aliases = "-", description = "Alterna o Modo Endless (fases infinitas sem encerrar no chefe).", executePayload = "endless" },
         new CheatEntry { category = "👾 INIMIGOS, SPAWNS & BOSS", command = "setmutation <nome>", aliases = "mutacao, mutation", description = "Força uma Mutação do Abismo no Endless (gigantismo, fissura, esporos, elites, frenesi, caos, fortuna).", executePayload = "setmutation gigantismo" },
+        new CheatEntry { category = "⚡ MISCELÂNEA & SISTEMA", command = "seed:TESTE1", aliases = "seed (sozinho mostra a seed ativa)", description = "Define a Seed da próxima run (mesma Seed = mesmo mapa e mesmas ondas). Use na Base, antes da porta.", executePayload = "seed:TESTE1" },
 
         // ⭐ Efeitos Lendários T4
         new CheatEntry { category = "⭐ EFEITOS LENDÁRIOS T4", command = "supergun", aliases = "superpistola, maxgun, godgun", description = "MODO DEUS DA PISTOLA: Equipa a arma com 100% Multishot (6 tiros em leque), Piercing 5, Ricochete, Alcance 50m, Dano 75 e Homing!", executePayload = "supergun" },
@@ -854,6 +855,34 @@ public class CheatConsole : MonoBehaviour
                         EptinhoPopupController.instancia.MostrarPopupAviso(usage);
                     }
                 }
+            }
+        }
+        // ── SEED DA RUN ── "seed:TESTE1" define a seed da próxima run; "seed" sozinho mostra a seed ativa.
+        else if (command.StartsWith("seed", System.StringComparison.OrdinalIgnoreCase))
+        {
+            // Pega tudo depois de "seed", sem os dois-pontos e sem espaços. Ex: "seed:TESTE1" vira "TESTE1".
+            string seedText = command.Substring(4).TrimStart(':', ' ').Trim();
+            string statusText;
+
+            if (RunManager.instance == null)
+            {
+                statusText = "RunManager não encontrado. Use o comando na Base.";
+            }
+            else if (string.IsNullOrEmpty(seedText))
+            {
+                string active = RunManager.instance.ActiveSeedText;
+                statusText = string.IsNullOrEmpty(active) ? "Nenhuma seed ativa ainda." : $"Seed ativa: {active}";
+            }
+            else
+            {
+                RunManager.instance.SetPendingSeed(seedText);
+                statusText = $"Seed da próxima run: {seedText.ToUpperInvariant()}";
+            }
+
+            Debug.Log($"💻 CHEAT: {statusText}");
+            if (EptinhoPopupController.instancia != null)
+            {
+                EptinhoPopupController.instancia.MostrarPopupAviso(statusText);
             }
         }
         else if (command.StartsWith("forca", System.StringComparison.OrdinalIgnoreCase) ||
