@@ -1,8 +1,8 @@
-using UnityEngine;
 using System;
-using UnityEngine.AI;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.AI;
 
 /// <summary>
 /// Controlador central do Boss Cromático — Máquina de Estados (FSM).
@@ -61,6 +61,11 @@ public class BossController : MonoBehaviour
     [Tooltip("O selo/barreira que bloqueia a saída da arena.\n" +
              "Será destruído quando o boss morrer.")]
     public GameObject arenaSeal;
+    [Tooltip("Prefab opcional da Fenda Pós-Boss (EndlessRiftPortal). Se vazio, gera visual procedural automaticamente.")]
+    public GameObject endlessRiftPrefab;
+    [Tooltip("Âncora opcional na arena onde a Fenda aparece após a morte do Boss. Se vazio, usa a posição do Boss ajustada ao NavMesh/chão.")]
+    public Transform endlessRiftSpawnAnchor;
+    private Vector3 bossInitialArenaPos;
     public bool OverrideMovement { get; set; } = false;
 
     [Header("Animação")]
@@ -408,7 +413,7 @@ public class BossController : MonoBehaviour
                 col.isTrigger = true;
             }
         }
-        
+
         DebugListAllColliders();
     }
 
@@ -417,13 +422,13 @@ public class BossController : MonoBehaviour
     {
         Collider[] colliders = GetComponentsInChildren<Collider>(true);
         Debug.Log($"<color=cyan>=== 🔍 DIAGNÓSTICO DE COLISORES DO BOSS ({colliders.Length} ENCONTRADOS) ===</color>");
-        
+
         foreach (Collider col in colliders)
         {
             string path = GetGameObjectPath(col.gameObject);
             bool isRoot = col.gameObject == gameObject;
             string status = col.isTrigger ? "<color=green>[TRIGGER - OK]</color>" : "<color=red>⚠️ [SÓLIDO - PODE BLOQUEAR FISICAMENTE!]</color>";
-            
+
             string info = "";
             if (col is CapsuleCollider cc) info = $"CapsuleCollider (Raio: {cc.radius:F2}, Altura: {cc.height:F2})";
             else if (col is SphereCollider sc) info = $"SphereCollider (Raio: {sc.radius:F2})";
@@ -455,16 +460,16 @@ public class BossController : MonoBehaviour
     // =====================================================
 
     void OnDisable()
-        {
-            // Se o Boss já está morto, a Tela de Vitória assumiu. Não despause o jogo!
-            if (CurrentState == BossState.Dead) return;
+    {
+        // Se o Boss já está morto, a Tela de Vitória assumiu. Não despause o jogo!
+        if (CurrentState == BossState.Dead) return;
 
-            if (Time.timeScale < 1.0f)
-            {
-                Time.timeScale = 1.0f;
-                Time.fixedDeltaTime = 0.02f;
-            }
+        if (Time.timeScale < 1.0f)
+        {
+            Time.timeScale = 1.0f;
+            Time.fixedDeltaTime = 0.02f;
         }
+    }
 
     private void OnValidate()
     {
@@ -605,7 +610,7 @@ public class BossController : MonoBehaviour
 
         if (drippingParticlePrefab == null)
         {
-            drippingParticlePrefab = Resources.Load<GameObject>("BossDrippingFX") 
+            drippingParticlePrefab = Resources.Load<GameObject>("BossDrippingFX")
                                   ?? Resources.Load<GameObject>("Enemies/Boss/BossDrippingFX");
         }
 
@@ -995,8 +1000,8 @@ public class BossController : MonoBehaviour
         // OPÇÃO 1: Inclinação suave da coluna (Spine Tilt) apontando os golpes para o chão durante os ataques
         if (spineBone != null)
         {
-            bool isMeleeActive = isAttacking || 
-                (leftHandHitbox != null && leftHandHitbox.enabled) || 
+            bool isMeleeActive = isAttacking ||
+                (leftHandHitbox != null && leftHandHitbox.enabled) ||
                 (rightHandHitbox != null && rightHandHitbox.enabled);
 
             float targetTilt = isMeleeActive ? attackTiltAngle : 0f;
@@ -1011,15 +1016,24 @@ public class BossController : MonoBehaviour
 
     void Start()
     {
-        // Aplica config do ScriptableObject
+        bossInitialArenaPos = transform.position;
+
+        // Aplica config do ScriptableObject (com escalonamento de Endless sem alterar o asset)
         if (phaseConfig != null)
         {
-            health.maxHealth = phaseConfig.maxHealth;
+            float endlessHpMult = (RunManager.instance != null && RunManager.instance.isEndlessMode)
+                ? RunManager.instance.GetEndlessHpMultiplier()
+                : 1f;
+            float endlessSpeedMult = (RunManager.instance != null && RunManager.instance.isEndlessMode)
+                ? RunManager.instance.GetEndlessEnemyMoveSpeedMultiplier()
+                : 1f;
+
+            health.maxHealth = Mathf.RoundToInt(phaseConfig.maxHealth * endlessHpMult);
             health.ResetHealth();
 
             if (agent != null)
             {
-                agent.speed = phaseConfig.baseSpeed;
+                agent.speed = phaseConfig.baseSpeed * endlessSpeedMult;
                 agent.angularSpeed = phaseConfig.rotationSpeed;
                 agent.isStopped = true; // Parado até a luta começar (mantém aderência ao NavMesh)
             }
@@ -1442,7 +1456,7 @@ public class BossController : MonoBehaviour
         if (agent == null) yield break;
 
         float baseNavSpeed = phaseConfig != null ? phaseConfig.baseSpeed : 4.8f;
-        
+
         // Congela 100% a movimentação do NavMeshAgent durante o feitiço
         agent.speed = 0f;
         agent.velocity = Vector3.zero;
@@ -1876,15 +1890,15 @@ public class BossController : MonoBehaviour
         // Gradiente Crystalline Shard (tons de cristal e faísca brilhante sem parecer shader magenta sem textura)
         Gradient grad = new Gradient();
         grad.SetKeys(
-            new GradientColorKey[] { 
-                new GradientColorKey(new Color(0.85f, 0.40f, 1.0f), 0.0f), 
+            new GradientColorKey[] {
+                new GradientColorKey(new Color(0.85f, 0.40f, 1.0f), 0.0f),
                 new GradientColorKey(new Color(0.50f, 0.85f, 1.0f), 0.4f),
-                new GradientColorKey(new Color(1f, 1f, 1f), 1.0f) 
+                new GradientColorKey(new Color(1f, 1f, 1f), 1.0f)
             },
-            new GradientAlphaKey[] { 
-                new GradientAlphaKey(1.0f, 0.0f), 
-                new GradientAlphaKey(0.80f, 0.5f), 
-                new GradientAlphaKey(0.0f, 1.0f) 
+            new GradientAlphaKey[] {
+                new GradientAlphaKey(1.0f, 0.0f),
+                new GradientAlphaKey(0.80f, 0.5f),
+                new GradientAlphaKey(0.0f, 1.0f)
             }
         );
         main.startColor = new ParticleSystem.MinMaxGradient(grad);
@@ -1916,8 +1930,8 @@ public class BossController : MonoBehaviour
 #endif
             if (particleMat == null)
             {
-                Shader s = Shader.Find("Universal Render Pipeline/Particles/Unlit") 
-                        ?? Shader.Find("Particles/Standard Unlit") 
+                Shader s = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                        ?? Shader.Find("Particles/Standard Unlit")
                         ?? Shader.Find("Sprites/Default");
                 particleMat = new Material(s);
             }
@@ -2047,7 +2061,7 @@ public class BossController : MonoBehaviour
         lr.loop = true;
         lr.material = new Material(Shader.Find("Sprites/Default"));
         lr.startColor = new Color(0.2f, 1f, 0.1f, 0.9f);
-        lr.endColor   = new Color(0.6f, 1f, 0.1f, 0.5f);
+        lr.endColor = new Color(0.6f, 1f, 0.1f, 0.5f);
 
         float radius = 1.4f;
         for (int i = 0; i < 25; i++)
@@ -2380,7 +2394,7 @@ public class BossController : MonoBehaviour
             if (showDebugLog)
             {
                 int p3HP = phaseConfig != null ? Mathf.RoundToInt(phaseConfig.phase3Threshold * health.maxHealth) : -1;
-                Debug.Log($"[BossController] HP: {health.CurrentHealth}/{health.maxHealth} ({(float)health.CurrentHealth/health.maxHealth:P0}) | Fase: {CurrentPhase} | Threshold Fase3: {p3HP}");
+                Debug.Log($"[BossController] HP: {health.CurrentHealth}/{health.maxHealth} ({(float)health.CurrentHealth / health.maxHealth:P0}) | Fase: {CurrentPhase} | Threshold Fase3: {p3HP}");
             }
         }
 
@@ -2805,7 +2819,7 @@ public class BossController : MonoBehaviour
         {
             float rotSpeed = phaseConfig != null ? phaseConfig.rotationSpeed : 360f;
             Quaternion targetRotation = Quaternion.LookRotation(directionToPlayer);
-            
+
             // Slerp Easing: Rotação suave e ágil que acompanha o jogador
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * turnSmoothSpeed);
         }
@@ -3231,7 +3245,7 @@ public class BossController : MonoBehaviour
             while (elapsedWindUp < windUp)
             {
                 elapsedWindUp += Time.deltaTime;
-                
+
                 // Rastreia o player apenas durante o início da antecipação; no golpe, fica 100% travado no solo!
                 if (elapsedWindUp <= maxTrackTime)
                 {
@@ -3610,11 +3624,11 @@ public class BossController : MonoBehaviour
             yield return null;
         }
 
-        // 5. Destroi ou desativa o objeto após a absorção completa
-        if (VictoryScreenUI.Instance != null)
-        {
-            VictoryScreenUI.Instance.ShowVictoryScreen();
-        }
+        // 5. Abre a Fenda Pós-Boss na arena (em vez de travar direto na VictoryScreen) e destrói o Boss
+        Vector3 preferredRiftPos = endlessRiftSpawnAnchor != null ? endlessRiftSpawnAnchor.position : startSinkPos;
+        EndlessRiftPortal.SpawnAtSafeArenaPosition(preferredRiftPos, bossInitialArenaPos, endlessRiftPrefab, transform);
+        bool alreadyEndless = RunManager.instance != null && RunManager.instance.isEndlessMode;
+        EndlessRiftPortal.ShowRiftOpenedBanner(alreadyEndless);
 
         Destroy(gameObject);
     }

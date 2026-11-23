@@ -176,6 +176,7 @@ public class PlayerHealth : MonoBehaviour
         PlayerDebuffs debuffs = GetComponent<PlayerDebuffs>() ?? GetComponentInChildren<PlayerDebuffs>();
         if (debuffs != null) debuffs.ResetAllDebuffs();
         if (playerMovement != null) playerMovement.debuffSpeedMultiplier = 1.0f;
+        ClearActiveAdrenaline();
 
         // Reseta e destrava sistema de cura do traje
         SuitHealingSystem.Instance?.ResetOnDeathOrRespawn();
@@ -438,6 +439,7 @@ public class PlayerHealth : MonoBehaviour
         PlayerDebuffs debuffs = GetComponent<PlayerDebuffs>() ?? GetComponentInChildren<PlayerDebuffs>();
         if (debuffs != null) debuffs.ResetAllDebuffs();
         if (playerMovement != null) playerMovement.debuffSpeedMultiplier = 1.0f;
+        ClearActiveAdrenaline();
 
         // Unequip weapon para que as armas voltem ao expositor do rack
         Player_WeaponManager weaponManager = GetComponent<Player_WeaponManager>() ?? GetComponentInChildren<Player_WeaponManager>();
@@ -513,6 +515,10 @@ public class PlayerHealth : MonoBehaviour
                 stageStr += " (Endless)";
             }
             RunStatsManager.Instance.deathStage = stageStr;
+            if (RunManager.instance != null && RunManager.instance.isEndlessMode)
+            {
+                RunStatsManager.Instance.CommitEndlessRecord(RunManager.instance.currentLevel);
+            }
             RunStatsManager.Instance.StopRunTracking();
         }
 
@@ -748,32 +754,64 @@ public class PlayerHealth : MonoBehaviour
     }
 
     private Coroutine adrenalineCoroutine = null;
+    private float activeAdrenalineMoveFactor = 1f;
+    private float activeAdrenalineAttackFactor = 1f;
+    private PlayerAttributesDefensive adrenalineDefStats;
+    private PlayerAttributesOffensive adrenalineOffStats;
 
     /// <summary>
-    /// Bônus da Sinfonia do Caos: ao abater um inimigo Elite, o jogador ganha um surto de velocidade de movimento e ataque por alguns segundos.
+    /// Bônus da Sinfonia do Caos (Pacto do Mercador ou Mutação do Abismo):
+    /// concede um surto temporário de velocidade de movimento e ataque sem empilhar vazamentos ao reativar.
     /// </summary>
-    public void TriggerEliteKillAdrenaline(float duration = 5f)
+    public void TriggerEliteKillAdrenaline(float duration = 5f, float moveSpeedBonus = 0.15f, float attackSpeedBonus = 0.20f)
+    {
+        if (isDead || duration <= 0f) return;
+
+        ClearActiveAdrenaline();
+        adrenalineCoroutine = StartCoroutine(EliteAdrenalineRoutine(duration, moveSpeedBonus, attackSpeedBonus));
+    }
+
+    private void ClearActiveAdrenaline()
     {
         if (adrenalineCoroutine != null)
         {
             StopCoroutine(adrenalineCoroutine);
+            adrenalineCoroutine = null;
         }
-        adrenalineCoroutine = StartCoroutine(EliteAdrenalineRoutine(duration));
+
+        if (activeAdrenalineMoveFactor > 1.0001f && adrenalineDefStats != null)
+        {
+            adrenalineDefStats.speedMultiplier /= activeAdrenalineMoveFactor;
+        }
+        if (activeAdrenalineAttackFactor > 1.0001f && adrenalineOffStats != null)
+        {
+            adrenalineOffStats.attackSpeedMelee /= activeAdrenalineAttackFactor;
+        }
+
+        activeAdrenalineMoveFactor = 1f;
+        activeAdrenalineAttackFactor = 1f;
     }
 
-    private IEnumerator EliteAdrenalineRoutine(float duration)
+    private IEnumerator EliteAdrenalineRoutine(float duration, float moveSpeedBonus, float attackSpeedBonus)
     {
-        PlayerAttributesDefensive defStats = GetComponent<PlayerAttributesDefensive>() ?? GetComponentInChildren<PlayerAttributesDefensive>();
-        PlayerAttributesOffensive offStats = GetComponent<PlayerAttributesOffensive>() ?? GetComponentInChildren<PlayerAttributesOffensive>();
+        adrenalineDefStats = GetComponent<PlayerAttributesDefensive>() ?? GetComponentInChildren<PlayerAttributesDefensive>();
+        adrenalineOffStats = GetComponent<PlayerAttributesOffensive>() ?? GetComponentInChildren<PlayerAttributesOffensive>();
 
-        if (defStats != null) defStats.speedMultiplier *= 1.15f;
-        if (offStats != null) offStats.attackSpeedMelee *= 1.20f;
+        activeAdrenalineMoveFactor = 1f + Mathf.Max(0f, moveSpeedBonus);
+        activeAdrenalineAttackFactor = 1f + Mathf.Max(0f, attackSpeedBonus);
+
+        if (adrenalineDefStats != null) adrenalineDefStats.speedMultiplier *= activeAdrenalineMoveFactor;
+        if (adrenalineOffStats != null) adrenalineOffStats.attackSpeedMelee *= activeAdrenalineAttackFactor;
 
         yield return new WaitForSeconds(duration);
 
-        if (defStats != null) defStats.speedMultiplier /= 1.15f;
-        if (offStats != null) offStats.attackSpeedMelee /= 1.20f;
+        if (adrenalineDefStats != null && activeAdrenalineMoveFactor > 1.0001f)
+            adrenalineDefStats.speedMultiplier /= activeAdrenalineMoveFactor;
+        if (adrenalineOffStats != null && activeAdrenalineAttackFactor > 1.0001f)
+            adrenalineOffStats.attackSpeedMelee /= activeAdrenalineAttackFactor;
 
+        activeAdrenalineMoveFactor = 1f;
+        activeAdrenalineAttackFactor = 1f;
         adrenalineCoroutine = null;
     }
 
@@ -1332,6 +1370,16 @@ public class PlayerHealth : MonoBehaviour
         {
             float endlessDamageMultiplier = 1f + (RunManager.instance.currentLevel - 3) * 0.15f; // +15% de dano por level acima do 3
             damage = Mathf.RoundToInt(damage * endlessDamageMultiplier);
+        }
+
+        // Mutação "Fissura Letal" (Modo Endless): todos causam +50% de dano (Player e Inimigos)
+        if (RunManager.instance != null && RunManager.instance.isEndlessMode)
+        {
+            float allDmgMult = RunManager.instance.GetEndlessAllDamageMultiplier();
+            if (allDmgMult > 1.001f)
+            {
+                damage = Mathf.Max(1, Mathf.RoundToInt(damage * allDmgMult));
+            }
         }
 
         // Resistência a Danos de Ácido / Poças / Veneno (Filtro Químico do Robozinho)

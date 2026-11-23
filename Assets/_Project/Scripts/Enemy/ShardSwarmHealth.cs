@@ -1,8 +1,8 @@
-using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.AI;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.AI;
+using UnityEngine.UI;
 
 /// <summary>
 /// Sistema de vida exclusivo do Shard Swarm.
@@ -100,6 +100,12 @@ public class ShardSwarmHealth : MonoBehaviour
             maxHealth = Mathf.RoundToInt(maxHealth * hpScalingMultiplier);
         }
 
+        // Escalonamento de HP no Modo Endless (+15% por level acima do 3)
+        if (RunManager.instance != null && RunManager.instance.isEndlessMode && RunManager.instance.currentLevel > 3)
+        {
+            maxHealth = Mathf.RoundToInt(maxHealth * RunManager.instance.GetEndlessHpMultiplier());
+        }
+
         CurrentHealth = maxHealth;
 
         if (GetComponent<EliteVariantConfig>() != null || gameObject.name.ToLower().Contains("elite"))
@@ -138,6 +144,16 @@ public class ShardSwarmHealth : MonoBehaviour
 
         UpdateHealthBar();
         DetectAIScripts();
+
+        if (RunManager.instance != null && RunManager.instance.isEndlessMode)
+        {
+            float moveMult = RunManager.instance.GetEndlessEnemyMoveSpeedMultiplier();
+            if (moveMult > 1.001f)
+            {
+                if (shardSwarmAI != null) shardSwarmAI.moveSpeed *= moveMult;
+                if (navAgent != null && navAgent.speed > 0.01f) navAgent.speed *= moveMult;
+            }
+        }
     }
 
     private void DetectAIScripts()
@@ -474,14 +490,40 @@ public class ShardSwarmHealth : MonoBehaviour
         }
         catch (System.Exception ex) { Debug.LogError($"[ShardSwarmHealth] Erro em EnemyDrops: {ex}"); }
 
-        // --- RECOMPENSA DE COMBATE DA SINFONIA DO CAOS ---
+        // --- RECOMPENSA DE COMBATE DA SINFONIA DO CAOS (Pacto + Mutação do Abismo) ---
         try
         {
             PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
-            if (isElite && playerHealth != null && playerHealth.hasChaosSymphony)
+            if (playerHealth != null && !playerHealth.isDead)
             {
-                playerHealth.Heal(8);
-                playerHealth.TriggerEliteKillAdrenaline(5f);
+                bool hasMerchantChaos = isElite && playerHealth.hasChaosSymphony;
+                float chaosDuration = 5f;
+                float chaosMoveBonus = 0.15f;
+                float chaosAttackBonus = 0.20f;
+                float chaosTriggerChance = 0f;
+                bool hasAbyssChaos = RunManager.instance != null &&
+                                     RunManager.instance.TryGetChaosMutationAdrenalineParams(
+                                         isElite,
+                                         out chaosDuration,
+                                         out chaosMoveBonus,
+                                         out chaosAttackBonus,
+                                         out chaosTriggerChance);
+
+                if (hasMerchantChaos && hasAbyssChaos)
+                {
+                    playerHealth.Heal(10);
+                    playerHealth.TriggerEliteKillAdrenaline(chaosDuration + 1.5f, chaosMoveBonus + 0.05f, chaosAttackBonus + 0.05f);
+                }
+                else if (hasMerchantChaos)
+                {
+                    playerHealth.Heal(8);
+                    playerHealth.TriggerEliteKillAdrenaline(5f);
+                }
+                else if (hasAbyssChaos && Random.value <= chaosTriggerChance)
+                {
+                    if (isElite) playerHealth.Heal(6);
+                    playerHealth.TriggerEliteKillAdrenaline(chaosDuration, chaosMoveBonus, chaosAttackBonus);
+                }
             }
         }
         catch (System.Exception ex) { Debug.LogError($"[ShardSwarmHealth] Erro em recompensa caos: {ex}"); }
@@ -501,6 +543,10 @@ public class ShardSwarmHealth : MonoBehaviour
             if (playerHealth != null && playerHealth.hasChaosSymphony)
             {
                 effectiveRebirthChance = Mathf.Clamp01(effectiveRebirthChance + 0.25f);
+            }
+            if (RunManager.instance != null && RunManager.instance.isEndlessMode)
+            {
+                effectiveRebirthChance = Mathf.Clamp(effectiveRebirthChance + RunManager.instance.GetEndlessEliteRebirthBonus(), 0f, 0.70f);
             }
 
             bool shouldReborn = canReborn && (forceEliteRebirth || DummyHealth.forceEliteRebirth || Random.value <= effectiveRebirthChance);
@@ -635,7 +681,7 @@ public class ShardSwarmHealth : MonoBehaviour
         {
             // Atualiza tempo de duração (pega o maior)
             slowTimer = Mathf.Max(slowTimer, duration);
-            
+
             // Se o novo slow for mais forte, aplica a diferença
             if (percent > slowPercent)
             {

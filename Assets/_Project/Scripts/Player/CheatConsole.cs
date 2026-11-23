@@ -85,6 +85,7 @@ public class CheatConsole : MonoBehaviour
         new CheatEntry { category = "👾 INIMIGOS, SPAWNS & BOSS", command = "rebirth", aliases = "eliterebirth, rebirthelite, renascer", description = "Alterna o Modo Renascimento Elite 100% (todo mob morto renasce Elite com drops T2-T4).", executePayload = "rebirth" },
         new CheatEntry { category = "⚔️ COMBATE, DANO & ATRIBUTOS", command = "sinfonia", aliases = "chaos, pactchaos, pactcaos", description = "Alterna o Pacto A Sinfonia do Caos (+20% drops, +Elites, +35% renascer elite).", executePayload = "sinfonia" },
         new CheatEntry { category = "👾 INIMIGOS, SPAWNS & BOSS", command = "endless", aliases = "-", description = "Alterna o Modo Endless (fases infinitas sem encerrar no chefe).", executePayload = "endless" },
+        new CheatEntry { category = "👾 INIMIGOS, SPAWNS & BOSS", command = "setmutation <nome>", aliases = "mutacao, mutation", description = "Força uma Mutação do Abismo no Endless (gigantismo, fissura, esporos, elites, frenesi, caos, fortuna).", executePayload = "setmutation gigantismo" },
 
         // ⭐ Efeitos Lendários T4
         new CheatEntry { category = "⭐ EFEITOS LENDÁRIOS T4", command = "supergun", aliases = "superpistola, maxgun, godgun", description = "MODO DEUS DA PISTOLA: Equipa a arma com 100% Multishot (6 tiros em leque), Piercing 5, Ricochete, Alcance 50m, Dano 75 e Homing!", executePayload = "supergun" },
@@ -799,14 +800,59 @@ public class CheatConsole : MonoBehaviour
         {
             if (RunManager.instance != null)
             {
-                RunManager.instance.isEndlessMode = !RunManager.instance.isEndlessMode;
-                RunManager.instance.UpdateEndlessUI();
+                RunManager.instance.SetEndlessMode(!RunManager.instance.isEndlessMode);
                 Debug.Log($"💻 CHEAT: Modo Endless alterado para: {RunManager.instance.isEndlessMode}");
 
                 if (EptinhoPopupController.instancia != null)
                 {
                     string statusText = RunManager.instance.isEndlessMode ? "Modo Endless ATIVADO!" : "Modo Endless DESATIVADO!";
                     EptinhoPopupController.instancia.MostrarPopupAviso(statusText);
+                }
+            }
+        }
+        else if (command.StartsWith("setmutation", System.StringComparison.OrdinalIgnoreCase) ||
+                 command.StartsWith("mutacao", System.StringComparison.OrdinalIgnoreCase) ||
+                 command.StartsWith("mutation", System.StringComparison.OrdinalIgnoreCase))
+        {
+            if (RunManager.instance == null)
+            {
+                Debug.LogWarning("💻 CHEAT: RunManager não encontrado na cena.");
+            }
+            else
+            {
+                string[] parts = command.Split(' ');
+                string arg = parts.Length > 1 ? parts[1].Trim().ToLower() : "";
+                AbyssMutationType chosen = AbyssMutationType.None;
+                bool valid = true;
+
+                if (arg.Contains("gigant") || arg.Contains("giant")) chosen = AbyssMutationType.GigantismoAbissal;
+                else if (arg.Contains("fissur") || arg.Contains("letal") || arg.Contains("lethal")) chosen = AbyssMutationType.FissuraLetal;
+                else if (arg.Contains("espor") || arg.Contains("spore") || arg.Contains("explos")) chosen = AbyssMutationType.EsporosInstaveis;
+                else if (arg.Contains("elite") || arg.Contains("horda")) chosen = AbyssMutationType.HordaDeElites;
+                else if (arg.Contains("frenesi") || arg.Contains("frenzy")) chosen = AbyssMutationType.FrenesiAbissal;
+                else if (arg.Contains("caos") || arg.Contains("chaos") || arg.Contains("sinfonia")) chosen = AbyssMutationType.SinfoniaDoCaos;
+                else if (arg.Contains("fortun") || arg.Contains("drop")) chosen = AbyssMutationType.FortunaDoAbismo;
+                else if (arg == "none" || arg == "off" || arg == "clear") chosen = AbyssMutationType.None;
+                else valid = false;
+
+                if (valid)
+                {
+                    RunManager.instance.ForceActiveMutation(chosen);
+                    string msg = $"Mutação do Abismo ativa: {RunManager.instance.GetActiveMutationsShortNames()}";
+                    Debug.Log($"💻 CHEAT: {msg}");
+                    if (EptinhoPopupController.instancia != null)
+                    {
+                        EptinhoPopupController.instancia.MostrarPopupAviso(msg);
+                    }
+                }
+                else
+                {
+                    string usage = "Uso: setmutation <gigantismo | fissura | esporos | elites | frenesi | caos | fortuna | none>";
+                    Debug.LogWarning($"💻 CHEAT: {usage}");
+                    if (EptinhoPopupController.instancia != null)
+                    {
+                        EptinhoPopupController.instancia.MostrarPopupAviso(usage);
+                    }
                 }
             }
         }

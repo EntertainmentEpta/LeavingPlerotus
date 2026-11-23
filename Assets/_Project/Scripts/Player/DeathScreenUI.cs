@@ -72,6 +72,10 @@ public class DeathScreenUI : MonoBehaviour
         Time.timeScale = 1f;
         if (RunStatsManager.Instance != null)
         {
+            if (RunManager.instance != null && RunManager.instance.isEndlessMode)
+            {
+                RunStatsManager.Instance.CommitEndlessRecord(RunManager.instance.currentLevel);
+            }
             RunStatsManager.Instance.ResetStats();
         }
 

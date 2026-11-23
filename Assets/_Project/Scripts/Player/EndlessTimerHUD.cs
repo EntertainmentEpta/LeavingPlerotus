@@ -1,23 +1,49 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// Componente de UI do Timer de Speedrun do Modo Endless.
-/// Exibe um relógio digital no canto superior esquerdo do Canvas enquanto a Run Endless estiver ativa.
+/// Componente de UI do Timer de Speedrun e HUD do Modo Endless (Tempo, Recorde e Mutações do Abismo).
+/// Exibe o painel no canto superior esquerdo do Canvas sem sobrepor o banner central do RunManager nem o FpsCounterHUD.
 /// </summary>
 public class EndlessTimerHUD : MonoBehaviour
 {
     public static EndlessTimerHUD Instance { get; private set; }
 
     [Header("Referências da UI (Canvas)")]
-    [Tooltip("Texto TMP do Timer de Speedrun no Canvas.")]
+    [Tooltip("Texto TMP do Timer de Speedrun/Endless no Canvas.")]
     public TextMeshProUGUI timerText;
 
     [Tooltip("Container/Painel pai do Timer no Canvas.")]
     public GameObject timerPanel;
 
+    private bool _createdDefaultPanel = false;
+    private RectTransform _panelRectTransform;
+
     public bool IsTimerVisible => timerPanel != null && timerPanel.activeInHierarchy;
+
+    /// <summary>
+    /// Retorna a coordenada Y segura (âncora topo-esquerdo) para posicionar o FpsCounterHUD logo abaixo deste painel sem sobreposição.
+    /// </summary>
+    public float GetFpsAnchorOffsetY()
+    {
+        if (!IsTimerVisible) return -25f;
+
+        if (_panelRectTransform == null && timerPanel != null)
+        {
+            _panelRectTransform = timerPanel.GetComponent<RectTransform>();
+        }
+
+        if (_panelRectTransform != null)
+        {
+            float topY = _panelRectTransform.anchoredPosition.y;
+            float height = Mathf.Max(45f, _panelRectTransform.sizeDelta.y);
+            return topY - height - 8f;
+        }
+
+        return -78f;
+    }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void AutoInitialize()
@@ -64,18 +90,21 @@ public class EndlessTimerHUD : MonoBehaviour
         bool speedrunOption = GameGraphicsSettings.SpeedrunTimerEnabled;
         string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         bool isGameplayScene = sceneName != "MainMenu" && sceneName != "Menu" && !sceneName.Contains("Loading");
+        bool isBaseScene = sceneName == "Base" || sceneName == "BaseLab";
 
-        bool isRunActive = (RunManager.instance != null && RunManager.instance.currentRoomNumber >= 1) ||
-                           (RunStatsManager.Instance != null && RunStatsManager.Instance.isRunActive);
+        bool statsTrackingActive = RunStatsManager.Instance != null && RunStatsManager.Instance.isRunActive;
+        bool isRunActive = statsTrackingActive ||
+                           (!isBaseScene && RunManager.instance != null && RunManager.instance.currentRoomNumber >= 1);
 
-        if (speedrunOption && isGameplayScene && LevelGenerator.Instance != null &&
+        if ((speedrunOption || isEndless) && isGameplayScene && !isBaseScene && LevelGenerator.Instance != null &&
             RunStatsManager.Instance != null && !RunStatsManager.Instance.isRunActive)
         {
-            RunStatsManager.Instance.StartRunTracking(false);
+            RunStatsManager.Instance.StartRunTracking(isEndless);
             isRunActive = true;
         }
 
-        bool shouldShow = (isEndless && isRunActive) || (speedrunOption && isGameplayScene);
+        bool showEndlessHud = isEndless && isRunActive && isGameplayScene && !isBaseScene;
+        bool shouldShow = showEndlessHud || (speedrunOption && isGameplayScene);
 
         if (shouldShow)
         {
@@ -89,13 +118,57 @@ public class EndlessTimerHUD : MonoBehaviour
 
         if (shouldShow && timerText != null && RunStatsManager.Instance != null)
         {
-            if (isEndless && isRunActive)
+            if (showEndlessHud)
             {
-                string timeStr = RunStatsManager.Instance.FormatTime(RunStatsManager.Instance.survivalTimer);
-                timerText.text = $"<color=#ffaa00><b>ENDLESS</b></color>  <color=#ffffff><b>{timeStr}</b></color>";
+                RunStatsManager stats = RunStatsManager.Instance;
+                RunManager rm = RunManager.instance;
+
+                int currentLvl = rm != null ? rm.currentLevel : 1;
+                int endlessFloor = rm != null ? Mathf.Max(1, rm.endlessFloorCount) : 1;
+                string timeStr = stats.FormatTime(stats.survivalTimer);
+
+                bool beatingRecord = stats.IsBeatingEndlessRecordLive(currentLvl);
+                int displayBestLvl = beatingRecord ? stats.GetLiveBestEndlessLevel(currentLvl) : stats.BestEndlessLevel;
+                float displayBestTime = beatingRecord ? stats.GetLiveBestEndlessTime() : stats.BestEndlessTime;
+                string displayBestTimeStr = stats.FormatTime(displayBestTime);
+
+                string recordLine;
+                if (beatingRecord)
+                {
+                    recordLine = $"<size=15><color=#5CE68A><b>* NOVO RECORDE!</b></color> <color=#D8FFE6>NV {displayBestLvl} | {displayBestTimeStr}</color></size>";
+                }
+                else if (displayBestLvl > 0 || displayBestTime > 0f)
+                {
+                    recordLine = $"<size=15><color=#9EC5FE>RECORDE: NV {displayBestLvl} | {displayBestTimeStr}</color></size>";
+                }
+                else
+                {
+                    recordLine = $"<size=15><color=#9EC5FE>RECORDE: NV {currentLvl} | {timeStr}</color></size>";
+                }
+
+                List<AbyssMutationDefinition> activeMutations = rm != null
+                    ? rm.GetActiveMutationDefinitions()
+                    : null;
+
+                string mutationBlock = "";
+                int mutationCount = activeMutations != null ? activeMutations.Count : 0;
+                for (int i = 0; i < mutationCount; i++)
+                {
+                    AbyssMutationDefinition def = activeMutations[i];
+                    mutationBlock += $"\n<size=14><color={def.accentHexColor}><b>» {def.displayName}:</b></color> <color=#E8E8EE>{def.shortDescription}</color></size>";
+                }
+
+                UpdateDefaultPanelSize(isEndlessLayout: true, mutationCount: mutationCount);
+
+                timerText.text =
+                    $"<color=#ffaa00><b>ENDLESS</b></color>  <color=#ffffff><b>{timeStr}</b></color>  <size=15><color=#D0D7E2>NV {currentLvl} • ANDAR {endlessFloor}</color></size>\n" +
+                    recordLine +
+                    mutationBlock;
             }
             else
             {
+                UpdateDefaultPanelSize(isEndlessLayout: false, mutationCount: 0);
+
                 float sec = RunStatsManager.Instance.survivalTimer;
                 System.TimeSpan t = System.TimeSpan.FromSeconds(sec);
                 int centiseconds = Mathf.FloorToInt((sec - Mathf.Floor(sec)) * 100f);
@@ -104,6 +177,39 @@ public class EndlessTimerHUD : MonoBehaviour
                     : string.Format("{0:D2}:{1:D2}.{2:D2}", t.Minutes, t.Seconds, centiseconds);
                 timerText.text = $"<color=#48D1CC><b>SPEEDRUN</b></color>  <color=#ffffff><b>{timeStr}</b></color>";
             }
+        }
+    }
+
+    private void UpdateDefaultPanelSize(bool isEndlessLayout, int mutationCount)
+    {
+        if (!_createdDefaultPanel || _panelRectTransform == null) return;
+
+        Vector2 targetSize;
+        if (!isEndlessLayout)
+        {
+            targetSize = new Vector2(250f, 45f);
+        }
+        else if (mutationCount >= 2)
+        {
+            targetSize = new Vector2(430f, 126f);
+        }
+        else if (mutationCount == 1)
+        {
+            targetSize = new Vector2(430f, 102f);
+        }
+        else
+        {
+            targetSize = new Vector2(360f, 74f);
+        }
+
+        if (_panelRectTransform.sizeDelta != targetSize)
+        {
+            _panelRectTransform.sizeDelta = targetSize;
+        }
+
+        if (timerText != null)
+        {
+            timerText.alignment = isEndlessLayout ? TextAlignmentOptions.TopLeft : TextAlignmentOptions.MidlineLeft;
         }
     }
 
@@ -141,7 +247,8 @@ public class EndlessTimerHUD : MonoBehaviour
                 rt.sizeDelta = new Vector2(250f, 45f);
 
                 Image bg = panelGo.AddComponent<Image>();
-                bg.color = new Color(0.04f, 0.04f, 0.08f, 0.75f);
+                bg.color = new Color(0.04f, 0.04f, 0.08f, 0.78f);
+                bg.raycastTarget = false;
 
                 Shadow shadow = panelGo.AddComponent<Shadow>();
                 shadow.effectColor = new Color(0f, 0f, 0f, 0.6f);
@@ -152,16 +259,20 @@ public class EndlessTimerHUD : MonoBehaviour
                 RectTransform textRt = textGo.AddComponent<RectTransform>();
                 textRt.anchorMin = Vector2.zero;
                 textRt.anchorMax = Vector2.one;
-                textRt.offsetMin = new Vector2(10f, 0f);
-                textRt.offsetMax = new Vector2(-10f, 0f);
+                textRt.offsetMin = new Vector2(12f, 6f);
+                textRt.offsetMax = new Vector2(-12f, -6f);
 
                 timerText = textGo.AddComponent<TextMeshProUGUI>();
-                timerText.fontSize = 22f;
+                timerText.fontSize = 21f;
                 timerText.fontStyle = FontStyles.Bold;
-                timerText.alignment = TextAlignmentOptions.MidlineLeft;
+                timerText.alignment = TextAlignmentOptions.TopLeft;
+                timerText.textWrappingMode = TextWrappingModes.Normal;
                 timerText.color = Color.white;
+                timerText.raycastTarget = false;
 
                 timerPanel = panelGo;
+                _panelRectTransform = rt;
+                _createdDefaultPanel = true;
             }
         }
     }
@@ -295,8 +406,9 @@ public class FpsCounterHUD : MonoBehaviour
         // Posiciona abaixo do contador de Speedrun/Endless apenas no overlay automático para nunca sobrepor
         if (_usingScriptOverlay && !keepCustomLayoutPosition && fpsPanelRt != null)
         {
-            bool timerVisible = EndlessTimerHUD.Instance != null && EndlessTimerHUD.Instance.IsTimerVisible;
-            float targetY = timerVisible ? -78f : -25f;
+            float targetY = (EndlessTimerHUD.Instance != null && EndlessTimerHUD.Instance.IsTimerVisible)
+                ? EndlessTimerHUD.Instance.GetFpsAnchorOffsetY()
+                : -25f;
             if (!Mathf.Approximately(fpsPanelRt.anchoredPosition.y, targetY))
             {
                 fpsPanelRt.anchoredPosition = new Vector2(25f, targetY);
