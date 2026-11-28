@@ -15,6 +15,8 @@ public class GunProjectile : MonoBehaviour
     private float knockback;
     private float bounceChance;
     private float slowOnHit;
+    private float slowDuration = 2f;
+    private float stunDuration = 0f;
     private bool homingEnabled;
     private float homingDetectionRadius;
     private float homingTurnSpeed;
@@ -39,6 +41,17 @@ public class GunProjectile : MonoBehaviour
         float projectileBounceChance, int projectileBounceCount, float projectileSlowOnHit,
         bool enableHoming, float detectionRadius, float turnSpeed, float targetRefreshInterval)
     {
+        Initialize(projectileDamage, range, piercing, owner, critChance, critMultiplier,
+            projectileKnockback, projectileBounceChance, projectileBounceCount, projectileSlowOnHit,
+            enableHoming, detectionRadius, turnSpeed, targetRefreshInterval, 0f, 2f);
+    }
+
+    public void Initialize(int projectileDamage, float range, int piercing, Transform owner,
+        float critChance, float critMultiplier, float projectileKnockback,
+        float projectileBounceChance, int projectileBounceCount, float projectileSlowOnHit,
+        bool enableHoming, float detectionRadius, float turnSpeed, float targetRefreshInterval,
+        float projectileStunDuration, float projectileSlowDuration)
+    {
         damage = Mathf.Max(1, projectileDamage);
         lifetime = speed > 0f ? Mathf.Max(0.1f, range / speed) : lifetime;
         maxTargets = Mathf.Max(1, piercing + 1);
@@ -48,6 +61,8 @@ public class GunProjectile : MonoBehaviour
         bounceChance = Mathf.Clamp01(projectileBounceChance / 100f);
         bouncesRemaining = Mathf.Max(0, projectileBounceCount);
         slowOnHit = Mathf.Clamp01(projectileSlowOnHit);
+        stunDuration = Mathf.Max(0f, projectileStunDuration);
+        slowDuration = Mathf.Max(0.1f, projectileSlowDuration);
         homingEnabled = enableHoming;
         homingDetectionRadius = Mathf.Max(0f, detectionRadius);
         homingTurnSpeed = Mathf.Max(0f, turnSpeed);
@@ -151,7 +166,8 @@ public class GunProjectile : MonoBehaviour
             if (damageT4 != null) damageT4.ApplyDamageDealtEffects(hitDamage);
             if (damageT4 != null) damageT4.ApplyAreaDamageEffects(target.gameObject, hitDamage);
             ApplyKnockback(target);
-            if (slowOnHit > 0f) target.ApplySlow(slowOnHit, 2f);
+            if (stunDuration > 0f) target.ApplyStun(stunDuration);
+            if (slowOnHit > 0f) target.ApplySlow(slowOnHit, slowDuration);
 
             // Efeitos T4 on-hit (ex: Poison do Espinho Venenoso T4)
             if (target.CurrentHealth > 0)
@@ -166,6 +182,7 @@ public class GunProjectile : MonoBehaviour
             Tier4EffectManager t4 = FindFirstObjectByType<Tier4EffectManager>();
             if (t4 != null) t4.ApplyDamageDealtEffects(hitDamage);
             if (t4 != null) t4.ApplyAreaDamageEffects(swarmTarget.gameObject, hitDamage);
+            ApplyKnockbackSwarm(swarmTarget);
             if (t4 != null && swarmTarget.CurrentHealth > 0)
                 t4.ApplyOnHitEffects(swarmTarget.gameObject, isCritical);
         }
@@ -180,16 +197,40 @@ public class GunProjectile : MonoBehaviour
 
     private void ApplyKnockback(DummyHealth target)
     {
-        if (knockback <= 0f) return;
+        if (knockback <= 0f || target == null) return;
 
-        Rigidbody targetRigidbody = target.GetComponent<Rigidbody>() ?? target.GetComponentInParent<Rigidbody>();
-        if (targetRigidbody == null || targetRigidbody.isKinematic) return;
-
-        float effectiveKnockback = knockback * Mathf.Clamp01(1f - target.knockbackResistance);
+        // Garante que mesmo inimigos pesados (ex: Bismutado com 0.95 de resistência) sintam pelo menos 40% do empurrão
+        float effectiveKnockback = knockback * Mathf.Max(0.40f, 1f - target.knockbackResistance);
         if (effectiveKnockback <= 0.001f) return;
 
         Vector3 direction = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
-        targetRigidbody.AddForce(direction * (5f * effectiveKnockback), ForceMode.Impulse);
+
+        Rigidbody targetRigidbody = target.GetComponent<Rigidbody>() ?? target.GetComponentInParent<Rigidbody>();
+        if (targetRigidbody != null && !targetRigidbody.isKinematic)
+        {
+            // Zera a velocidade prévia para o inimigo não anular o knockback com seu próprio avanço
+            targetRigidbody.linearVelocity = new Vector3(0f, targetRigidbody.linearVelocity.y, 0f);
+            targetRigidbody.AddForce(direction * (9f * effectiveKnockback), ForceMode.Impulse);
+        }
+
+        UnityEngine.AI.NavMeshAgent navAgent = target.GetComponent<UnityEngine.AI.NavMeshAgent>() ?? target.GetComponentInParent<UnityEngine.AI.NavMeshAgent>();
+        if (navAgent != null && navAgent.isActiveAndEnabled && navAgent.isOnNavMesh)
+        {
+            navAgent.velocity = direction * (10f * effectiveKnockback);
+        }
+    }
+
+    private void ApplyKnockbackSwarm(ShardSwarmHealth target)
+    {
+        if (knockback <= 0f || target == null) return;
+
+        Vector3 direction = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
+        Rigidbody targetRigidbody = target.GetComponent<Rigidbody>() ?? target.GetComponentInParent<Rigidbody>();
+        if (targetRigidbody != null && !targetRigidbody.isKinematic)
+        {
+            targetRigidbody.linearVelocity = new Vector3(0f, targetRigidbody.linearVelocity.y, 0f);
+            targetRigidbody.AddForce(direction * (9f * knockback), ForceMode.Impulse);
+        }
     }
 
     private bool TryBounce()

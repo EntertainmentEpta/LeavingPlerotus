@@ -55,7 +55,38 @@ public class GunAttack : MonoBehaviour
     [Min(0f)] public float aimConeGroundOffset = 0.04f;
     [Min(0f)] public float minimumAimConeHalfAngle = 5f;
 
+    [Header("Habilidade Secundária (Botão Direito / Disparo de Recuo)")]
+    [Tooltip("Habilita o disparo da habilidade secundária com recuo no botão direito do mouse.")]
+    public bool enableSecondarySkill = true;
+    [Tooltip("Tecla alternativa para ativar a habilidade secundária (além do Botão Direito do Mouse).")]
+    public KeyCode secondarySkillAlternateKey = KeyCode.Mouse1;
+    [Tooltip("Tempo de recarga da habilidade secundária em segundos.")]
+    [Min(0.1f)] public float secondaryCooldown = 3.5f;
+    [Tooltip("Quantidade de munições/cargas consumidas de uma vez.")]
+    [Min(1)] public int secondaryBatteryCost = 2;
+    [Tooltip("Multiplicador de dano da habilidade secundária em relação ao disparo comum.")]
+    [Min(0.1f)] public float secondaryDamageMultiplier = 1.0f;
+    [Tooltip("Multiplicador de empurrão (knockback) aplicado nos inimigos atingidos.")]
+    [Min(0.1f)] public float secondaryEnemyKnockbackMultiplier = 8.5f;
+    [Tooltip("Duração do atordoamento (stun/stagger) aplicado aos inimigos para segurá-los no lugar.")]
+    [Min(0f)] public float secondaryEnemyStunDuration = 0.45f;
+    [Tooltip("Percentual de lentidão residual após o impacto (0.60 = 60% de lentidão).")]
+    [Range(0f, 1f)] public float secondaryEnemySlowPercent = 0.60f;
+    [Tooltip("Duração da lentidão residual aplicada aos inimigos.")]
+    [Min(0f)] public float secondaryEnemySlowDuration = 2.0f;
+    [Tooltip("Velocidade do mini-dash de recuo do próprio jogador para trás.")]
+    [Min(0f)] public float playerRecoilMiniDashSpeed = 26f;
+    [Tooltip("Duração do mini-dash de recuo do jogador em segundos.")]
+    [Min(0.05f)] public float playerRecoilMiniDashDuration = 0.22f;
+    [Tooltip("Quantidade de projéteis disparados na rajada secundária.")]
+    [Min(1)] public int secondaryProjectileCount = 1;
+    [Tooltip("Dispersão angular dos tiros secundários caso haja múltiplos projéteis.")]
+    [Min(0f)] public float secondarySpreadAngle = 8f;
+    [Tooltip("Som opcional customizado para o disparo de recuo secundário.")]
+    public AudioClip secondaryFireSFX;
+
     private float nextFireTime;
+    private float nextSecondaryFireTime;
     private float lastFireTime = -999f;
     private float batteryRechargeElapsed;
     private float passiveChargeRegenElapsed;
@@ -92,7 +123,11 @@ public class GunAttack : MonoBehaviour
 
     public int BatteryCharge => batteryCharge;
     public bool IsRecharging { get; private set; }
+    public float SecondaryCooldownRemaining => Mathf.Max(0f, nextSecondaryFireTime - Time.time);
+    public float SecondaryCooldown01 => secondaryCooldown > 0.001f ? Mathf.Clamp01(SecondaryCooldownRemaining / secondaryCooldown) : 0f;
+    public bool IsSecondaryReady => Time.time >= nextSecondaryFireTime && (batteryCharge >= secondaryBatteryCost || infiniteBatteryDuration > 0f) && !IsRecharging;
     public event System.Action<int, int> BatteryChanged;
+    public event System.Action OnSecondarySkillFired;
 
     private void Awake()
     {
@@ -189,8 +224,18 @@ public class GunAttack : MonoBehaviour
             attackKeyPressed = Input.GetKey(weaponManager.attackScript.attackKey);
         }
 
-        bool firingInput = projectilePrefab != null && (Input.GetMouseButton(0) || attackKeyPressed) && !isUiOpen;
         bool dashing = dashController != null && dashController.isDashing;
+
+        // Disparo da Habilidade Secundária (Botão Direito / Recoil Blast)
+        bool secondaryInput = enableSecondarySkill && !isUiOpen && !dashing && !IsRecharging &&
+            (Input.GetMouseButtonDown(1) || (secondarySkillAlternateKey != KeyCode.None && secondarySkillAlternateKey != KeyCode.Mouse1 && Input.GetKeyDown(secondarySkillAlternateKey)));
+
+        if (secondaryInput)
+        {
+            FireSecondarySkill();
+        }
+
+        bool firingInput = projectilePrefab != null && (Input.GetMouseButton(0) || attackKeyPressed) && !isUiOpen;
 
         if (firingInput && !IsRecharging && !isAimSessionActive) BeginAimSession();
 
@@ -918,6 +963,149 @@ public class GunAttack : MonoBehaviour
 
         SetAnimatorTrigger("Shoot");
         SetAnimatorBool("IsReloading", IsRecharging);
+        return true;
+    }
+
+    /// <summary>
+    /// Habilidade Secundária da Pistola (Botão Direito / Recoil Blast):
+    /// - Consome 2 munições de uma vez.
+    /// - Não conta na velocidade de ataque padrão (reseta o cooldown do ataque básico, permitindo combo Ataque -> Skill -> Ataque).
+    /// - Empurra os inimigos levemente para trás (Knockback reforçado).
+    /// - Dá um recuo no próprio player empurrando-o para trás (afastando-o do perigo na direção contrária ao tiro).
+    /// - Cooldown de 3.5 segundos.
+    /// </summary>
+    public bool FireSecondarySkill()
+    {
+        if (!enableSecondarySkill || IsRecharging || projectilePrefab == null) return false;
+        if (Time.time < nextSecondaryFireTime) return false;
+
+        // Requer pelo menos secondaryBatteryCost (2 munições)
+        if (batteryCharge < secondaryBatteryCost && infiniteBatteryDuration <= 0f)
+        {
+            Debug.Log("[GunAttack] Cargas insuficientes para a Habilidade Secundária (requer 2 munições).");
+            return false;
+        }
+
+        // Garante que a mira e orientação estejam atualizadas para o instante do disparo
+        if (!isAimSessionActive)
+        {
+            BeginAimSession();
+        }
+
+        if (AimSettings.IsMouseAim)
+        {
+            if (TryGetAimPoint(out currentAimPoint))
+            {
+                Transform aimOrigin = playerMovement != null ? playerMovement.transform : ownerRoot;
+                if (aimOrigin != null)
+                {
+                    Vector3 desired = Vector3.ProjectOnPlane(currentAimPoint - aimOrigin.position, Vector3.up);
+                    if (desired.sqrMagnitude > 0.01f) currentAimDirection = desired.normalized;
+                }
+            }
+        }
+        else
+        {
+            currentAimDirection = GetPlayerDirectionAim();
+        }
+
+        Vector3 aimDirection = currentAimDirection.sqrMagnitude > 0.0001f ? currentAimDirection : GetFallbackAimDirection();
+
+        // 1. Consome 2 munições da bateria
+        if (!TryConsumeCharge(secondaryBatteryCost)) return false;
+
+        // 2. Cooldown da habilidade secundária (3.5s)
+        nextSecondaryFireTime = Time.time + Mathf.Max(0.1f, secondaryCooldown);
+        lastFireTime = Time.time;
+
+        // 3. RESET DE AUTO-ATAQUE / CANCELAMENTO DE ANIMAÇÃO:
+        // Libera imediatamente o próximo disparo básico (LMB), permitindo cancelar animações anteriores e emendar Ataque + Skill + Ataque!
+        nextFireTime = Time.time;
+
+        // 4. Orienta o astronauta na direção do tiro
+        if (playerMovement != null)
+        {
+            playerMovement.SetPlasmaAimDirection(aimDirection);
+        }
+
+        // 5. RECUO NO PLAYER: Mini-Dash para trás na direção oposta ao disparo (-aimDirection)
+        if (playerMovement != null && playerRecoilMiniDashSpeed > 0f)
+        {
+            Vector3 recoilDirection = -aimDirection;
+            playerMovement.ApplyRecoilMiniDash(recoilDirection, playerRecoilMiniDashSpeed, playerRecoilMiniDashDuration);
+        }
+
+        // 6. DISPARO DO PROJÉTIL DE IMPACTO / CONTROLE DE GRUPO COM KNOCKBACK REFORÇADO NOS INIMIGOS
+        PlayerAttributesOffensive attributes = offensiveAttributes != null
+            ? offensiveAttributes
+            : PlayerAttributesOffensive.Instance;
+
+        float damageMultiplier = attributes != null ? attributes.baseDamageMultiplier : 1f;
+        int damage = Mathf.Max(1, Mathf.RoundToInt(baseDamage * damageMultiplier * secondaryDamageMultiplier));
+        float critChance = attributes != null ? attributes.critChance : 0f;
+        DashM dashScriptRef = dashController != null ? dashController : GetComponentInParent<DashM>();
+        if (dashScriptRef != null && dashScriptRef.ConsumeGuaranteedCrit())
+        {
+            critChance = 100f;
+        }
+        float critMultiplier = attributes != null ? attributes.critMultiplier : 1f;
+        float baseKnockback = attributes != null ? attributes.knockback : 1f;
+        float finalKnockback = baseKnockback * Mathf.Max(1f, secondaryEnemyKnockbackMultiplier);
+        int piercing = attributes != null ? attributes.piercing : 0;
+        int finalPiercing = piercing + 1; // +1 Piercing para atravessar o primeiro inimigo caso agrupados
+        float bounceChance = attributes != null ? attributes.bounceChance : 0f;
+        int bounceCount = attributes != null ? attributes.bounceCount : 0;
+        float slowOnHit = Mathf.Max(attributes != null ? attributes.slowOnHit : 0f, secondaryEnemySlowPercent);
+
+        Transform spawnPoint = muzzle != null ? muzzle : transform;
+        for (int index = 0; index < secondaryProjectileCount; index++)
+        {
+            float angle = GetSpreadAngle(index, secondaryProjectileCount - 1, secondarySpreadAngle);
+            Vector3 direction = Quaternion.AngleAxis(angle, Vector3.up) * aimDirection;
+
+            GunProjectile projectile = Instantiate(
+                projectilePrefab,
+                spawnPoint.position,
+                Quaternion.LookRotation(direction, Vector3.up));
+
+            // Feedback visual: projétil de impacto ligeiramente maior e mais encorpado
+            projectile.transform.localScale = projectile.transform.localScale * 1.35f;
+
+            if (tier4EffectManager == null)
+                tier4EffectManager = GetComponentInParent<Tier4EffectManager>() ?? FindFirstObjectByType<Tier4EffectManager>();
+
+            float range = GetEffectiveProjectileRange(attributes);
+            bool homingEnabled = tier4EffectManager != null
+                && tier4EffectManager.HasEffect(Tier4EffectType.HomingProjectiles);
+
+            projectile.Initialize(damage, range, finalPiercing, ownerRoot, critChance, critMultiplier,
+                finalKnockback, bounceChance, bounceCount, slowOnHit,
+                homingEnabled,
+                homingEnabled ? tier4EffectManager.homingDetectionRadius : 0f,
+                homingEnabled ? tier4EffectManager.homingTurnSpeed : 0f,
+                homingEnabled ? tier4EffectManager.homingTargetRefreshInterval : 0f,
+                secondaryEnemyStunDuration, secondaryEnemySlowDuration);
+        }
+
+        // 7. Efeitos Visuais e Sonoros
+        if (muzzleFlashVFX != null)
+        {
+            muzzleFlashVFX.gameObject.SetActive(true);
+            muzzleFlashVFX.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            muzzleFlashVFX.Play(true);
+        }
+
+        if (secondaryFireSFX != null)
+        {
+            AudioSource.PlayClipAtPoint(secondaryFireSFX, spawnPoint.position, 0.95f);
+        }
+
+        // 8. Reinicia animação do disparo e notifica ouvintes
+        SetAnimatorTrigger("Shoot");
+        SetAnimatorBool("IsReloading", IsRecharging);
+        OnSecondarySkillFired?.Invoke();
+
+        Debug.Log($"[GunAttack] 💥 Habilidade Secundária disparada! Munições consumidas: {secondaryBatteryCost}. Mini-dash player: {playerRecoilMiniDashSpeed} m/s, Knockback inimigo: {finalKnockback}, Cooldown: {secondaryCooldown}s.");
         return true;
     }
 

@@ -59,6 +59,19 @@ public class PlayerM : MonoBehaviour
     private bool hasLastSafeGroundedPos;
     private bool hasSeenNavMesh;
 
+    // Recuo / Knockback no Player
+    private Vector3 recoilVelocity = Vector3.zero;
+    [Header("Recoil / Knockback no Jogador")]
+    [Tooltip("Taxa de desaceleração do recuo no jogador (quanto maior, mais rápido o recuo para).")]
+    public float recoilDecayRate = 12f;
+
+    // Mini-Dash de Recuo (Habilidade Secundária)
+    private bool isRecoilDashing = false;
+    private float recoilDashElapsed = 0f;
+    private float recoilDashDuration = 0.22f;
+    private Vector3 recoilDashDirection = Vector3.zero;
+    private float recoilDashSpeed = 26f;
+
     public bool IsPlasmaActionLocked => isPlasmaActionLocked;
     public Vector3 MoveDirection => moveDirection;
 
@@ -226,6 +239,7 @@ public class PlayerM : MonoBehaviour
 
         if (dashScript != null && dashScript.isDashing)
         {
+            isRecoilDashing = false;
             EnforceBoundsAndVoidRescue();
             return;
         }
@@ -244,6 +258,36 @@ public class PlayerM : MonoBehaviour
     public void SetPlasmaAimDirection(Vector3 direction)
     {
         plasmaAimDirection = Vector3.ProjectOnPlane(direction, Vector3.up).normalized;
+    }
+
+    /// <summary>
+    /// Aplica um recuo físico horizontal no jogador (ex: disparo da habilidade secundária da Pistola).
+    /// </summary>
+    public void ApplyRecoil(Vector3 recoilImpulse)
+    {
+        ApplyRecoilMiniDash(recoilImpulse.normalized, Mathf.Max(recoilImpulse.magnitude, 26f), 0.22f);
+    }
+
+    /// <summary>
+    /// Executa um mini-dash de recuo na direção indicada (ex: recuo para trás no disparo da Pistola).
+    /// </summary>
+    public void ApplyRecoilMiniDash(Vector3 direction, float speed = 26f, float duration = 0.22f)
+    {
+        if (direction.sqrMagnitude < 0.001f) return;
+        recoilDashDirection = Vector3.ProjectOnPlane(direction, Vector3.up).normalized;
+        recoilDashSpeed = Mathf.Max(12f, speed);
+        recoilDashDuration = Mathf.Max(0.05f, duration);
+        recoilDashElapsed = 0f;
+        isRecoilDashing = true;
+        recoilVelocity = Vector3.zero;
+
+        if (rb != null)
+        {
+            rb.linearVelocity = new Vector3(
+                recoilDashDirection.x * recoilDashSpeed,
+                rb.linearVelocity.y,
+                recoilDashDirection.z * recoilDashSpeed);
+        }
     }
 
     private void MyInput()
@@ -283,6 +327,34 @@ public class PlayerM : MonoBehaviour
 
     private void MovePlayer()
     {
+        // Se estiver em mini-dash de recuo para trás, mantém a velocidade rápida de evasão
+        if (isRecoilDashing)
+        {
+            recoilDashElapsed += Time.fixedDeltaTime;
+            float progress = Mathf.Clamp01(recoilDashElapsed / Mathf.Max(0.01f, recoilDashDuration));
+
+            // Curva rápida com amortecimento suave próximo ao fim
+            float currentSpeed = Mathf.Lerp(recoilDashSpeed, recoilDashSpeed * 0.35f, progress);
+            rb.linearVelocity = new Vector3(
+                recoilDashDirection.x * currentSpeed,
+                rb.linearVelocity.y,
+                recoilDashDirection.z * currentSpeed);
+
+            if (recoilDashElapsed >= recoilDashDuration)
+            {
+                isRecoilDashing = false;
+                if (moveDirection.sqrMagnitude > 0.01f)
+                {
+                    rb.linearVelocity = new Vector3(moveDirection.x * targetSpeed, rb.linearVelocity.y, moveDirection.z * targetSpeed);
+                }
+                else
+                {
+                    rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+                }
+            }
+            return;
+        }
+
         bool isAttacking = attackScript != null && attackScript.isAttacking;
         bool inDamageWindow = attackScript != null && attackScript.isHitboxActive;
         
@@ -298,11 +370,22 @@ public class PlayerM : MonoBehaviour
 
         Vector3 targetVelocity = moveDirection * targetSpeed;
 
+        // Processa amortecimento suave do recuo físico
+        if (recoilVelocity.sqrMagnitude > 0.001f)
+        {
+            targetVelocity += recoilVelocity;
+            recoilVelocity = Vector3.Lerp(recoilVelocity, Vector3.zero, Mathf.Max(1f, recoilDecayRate) * Time.fixedDeltaTime);
+            if (recoilVelocity.sqrMagnitude < 0.01f)
+            {
+                recoilVelocity = Vector3.zero;
+            }
+        }
+
         if (inDamageWindow)
         {
-            if (moveDirection != Vector3.zero)
+            if (moveDirection != Vector3.zero || recoilVelocity != Vector3.zero)
             {
-                // Aplicação direta (sem inércia) para controle preciso durante o golpe
+                // Aplicação direta para controle preciso durante o golpe / recuo
                 rb.linearVelocity = new Vector3(targetVelocity.x, currentVelocity.y, targetVelocity.z);
             }
             else
@@ -313,9 +396,9 @@ public class PlayerM : MonoBehaviour
         }
         else
         {
-            // Movimento suave normal (com frenagem rápida quando fortemente desacelerado pelo charge)
-            float blendRate = (isPlasmaActionLocked && plasmaMoveSpeedMultiplier <= 0.15f)
-                ? Mathf.Max(acceleration, 40f)
+            // Movimento suave normal (com resposta rápida se houver recuo ativo ou desaceleração forte)
+            float blendRate = ((isPlasmaActionLocked && plasmaMoveSpeedMultiplier <= 0.15f) || recoilVelocity.sqrMagnitude > 0.05f)
+                ? Mathf.Max(acceleration, 50f)
                 : acceleration;
             Vector3 newVelocity = new Vector3(targetVelocity.x, currentVelocity.y, targetVelocity.z);
             rb.linearVelocity = Vector3.Lerp(currentVelocity, newVelocity, blendRate * Time.fixedDeltaTime);
